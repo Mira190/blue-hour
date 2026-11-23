@@ -1846,6 +1846,49 @@ at each of their hours.
 
 ## 12. Reviews
 
+### The people of the places (issues 112, 171, 177; November 2026)
+
+A place is read by who is in it. SHIBUYA SKY's roof was empty at the blue hour but for the story's people, so its two
+overheard lines had nobody to say them (since an overheard line is said only by someone standing there in sight), and
+Hachiko's wall offered its free place by a pale mark, not by a person (#146 asked for the world before the interface).
+`web/game/visitors.js` keeps a few anonymous people where a place puts them (`cities/shibuya/city.json`
+`game.visitors`), standing or seated, each with one of the cast's clips:
+
+| Where | Who | On a phone |
+|---|---|---|
+| SKY STAGE, the west glass | a couple: she photographs the scramble 230 m down, he looks where she points; they say "You can see the scramble breathing." | yes |
+| SKY EDGE, the west stair's landing | a photographer framing her friend against the corner's handrail; they say "Stop there, one step down." | yes |
+| SKY STAGE, a west and an east bench | someone resting, facing out through the glass | no |
+| SKY STAGE, the north glass | someone photographing Shinjuku's towers | no |
+| SKY STAGE, the south glass | two friends, a message home, looking for Tokyo Tower | no |
+| Hachiko's wall, on the walk | someone already sitting on the stone along its face from the free place, past where Nagi sits to wait | yes |
+
+**What it costs.** No model and no texture: each is drawn as one of the crowd's own cast (`game.crowd.cast`, which the
+near crowd loads anyway), a copy of a skeleton over the same geometry and pictures; never the body of one of the map's
+named people. A group is made only when the camera comes within its `r`, counted in height too as a hero level is (from
+the street 230 m under the roof they do not exist), one person a frame, and drawn only while within it; a phone makes
+only those marked `phone` (four on the roof, the four who speak). In the story they are on the roof in frames 4 to 6, and
+the Stop holds them as it holds everyone. The seat on Hachiko's wall is marked only where nobody of a place sits beside it
+(`game.js` seatMarks).
+
+**Seated on what is drawn.** The first sitter on the wall sat in the air: he was placed by the walking grid
+(`nav.floorAt`), which round Hachiko's bed is one raised block a metre wider than the stone drawn, and his feet stood on
+that block's air too; the check that asked the same grid passed. A seated person now keeps the floor the data gives, a
+`seat` height says how high the drawn seat's top is, and the thighs slope down from the hips (`people.js`
+`rig.thighDown`) until the hip joint stands 9 cm over it with the feet on the floor (a chair's pose put the hip joint
+level with a 0.44 m bench, the body sunk into it). `tools/drawn_seat.js` casts a ray down through the drawn meshes from
+the hips, the thighs and the ankles; `tools/visitors_check.js` and the walk's beat (`tools/walk_play.js`, for the wall's
+sitter, for you on the wall and for Nagi waiting beside you) fail on anyone seated on nothing drawn.
+
+**Mr Oda's can of coffee** (#177). He was cast with `Drink`, which the men's shared clips did not have, so he stood in
+Idle with nothing in his hand. The men's file now has Rocketbox's `m_drink_idle` (`blender/build_people.py`; a rebuild
+keeps every clip the file already had, since the regulars and the walk's events ask for clips no city's cast names), and
+he holds a vending machine's hot can (`look.drink: "can"`, `people.js` `can`: 53 mm by 104 mm, dark lacquer, no maker's
+name) rather than a paper cup.
+
+Checked on a software renderer only (stills at 17:38 and 21:00, 1440x900 and 390x844): not on a real GPU, in Safari or
+on an iPhone.
+
 ### The words checked against the street (November 2026)
 
 Every line of the episode was read against where things stand and against the truth above, once every place but the
@@ -2377,6 +2420,52 @@ the people's models). She sits on the ground with her legs out, a pose made from
 kneel in the clips. The sound of the shoulder is the page's low knock. The station has no gate to walk through in the hero level (its front is the works' hoarding): she goes in along the walkway beside it. Not checked: a
 real GPU (the two characters load a few seconds after the street there, minutes on a software renderer, and the
 incident waits for them), Safari, iOS, and whether it holds anyone: issue 14.
+
+### Who left, and who guessed (#186 C and #185, 23 November 2026)
+
+The launch checklist's retention numbers (PostHog, Blue Hour's pages, 7 days to 22 November): nine began the case, five
+reached frame 2 and two the last card; the two who finished were seen through ten times at frame 7 and five at frame 5.
+Every page load was read beat by beat (`tools/slo_report.py --posthog` and the raw `story`, `dwell` and `exit` events)
+before anything was changed, and two things in the numbers had to be read differently from how they first looked:
+
+- **Frame 1: they pressed nothing.** Each desktop page load that ended in the first Stop's search (`frame 1: stop seek`)
+  had pressed no key and touched nothing for the whole of it: `exit.idle_s` was 206 of 215 seconds on one desktop and
+  206 of 241 on a phone, 47 of 58 on another desktop. They were not lost in the crowd; they did not know it was their
+  turn, or how to take it. Everything before the search plays by itself (the opening, the call, the Stop falling, the
+  dog's film), so a first-time player had learnt that the evening plays itself. In the build that is live now the call
+  asks for the camera before the Stop (*The opening rebuilt*), but the walking keys were shown with the call and put
+  away when the world stopped, and the search did not show them again (`st.hinted` was already set): a player who stood
+  still through the call met the first thing they must walk to with no word of how. Every one of these page loads was on
+  a build before the opening was rebuilt (v0.1.200), so the live build's first Stop has no telemetry yet.
+- **Frame 7: the guesses were the old summation's.** Every `seen_through` at frame 7 was on a build before the summation
+  was made never lost (*The first play, from what players did*): two wrong answers there took the frame up again and
+  counted as a card. The live summation is never a card, so its wrong answers were not counted at all.
+
+What changed:
+
+| Where | What the player did not see or could only guess | Now |
+|---|---|---|
+| 1, the search | The walking keys, once the Stop had fallen; that it was now their turn | The keys stay up until the player has walked (`st.walked`), and the goal's second line says which (*W walks.*, *The circle at the bottom left walks.*, *The left stick walks.*). Standing still eight seconds, it is said as their turn (*Your turn. Hold W to walk to her; the mouse turns you.*), the keys beat, and by touch the stick at the bottom left, drawn faint until used, comes up full and beats where the thumb goes; once more at sixteen, then nothing (`seekIdleTick`). The puzzle is not touched: she is still to be walked to, down the lane, after the dog |
+| 5 and 7, a print shown with the right words | Told only *That is nothing to me* or *not because of that picture*: which print, among six and the pairs, was left to trying | Each print a player might fairly reason to is answered for what it does say and what it does not (`wrong_print_by`, keyed by the print or the pair, `story.js` `printWrong`): the roof's print for who was behind Kanbara (*It does not say whose cut it was, or whose boots. Which picture has his name on it?*), the glove for who came up the stair, and so on. A print with no line of its own has the question's `wrong_print` |
+| 7, a name with no answer of its own | Nine of the eighteen wrong names had only the question's general line (the detective on the stair was told *Not a girl's shoes*) | Every name of the seven on each question is answered for itself, from what the player was told (`wrong_by`) |
+| 7, whom Akira kept out of it | The proof was the glove's print or the pair 3-4; Akira himself says how he knew the glove (*a darn in the thumb, in blue thread*) from his kerb, frame 6, and showing that print was turned away | Frame 6's print proves it too (`proof: [3, "3-4", 6]`), and the second wrong answer marks it with the others. *He knew it the moment the detective showed it him* became *the moment he saw it in the dead man's fist*: Akira found the body himself (frame 6), which is where he knew it |
+
+No fact of the case moved: each new line says only what a frame has already shown or said (sections 6 and 9). The
+telemetry now counts what it could not (`web/telemetry.js` version 7): every wrong answer, with its question and whether
+the words or the print were wrong (`story` `wrong`, `q`, `what`); every hint asked for (`hint`, `n`); and the first
+time the player walks (`walked`), so that a Stop left by one who never moved is told from one left by one who was lost.
+
+**#185, the words with no ground.** The keys' hint lay on the yellow tactile strip, the goal's small capitals on the lit
+screens across the crossing, and on a phone *Frame this* was grey on the white stripes. Each now has the story's night
+under it, soft-edged as the dialogue's is, never a box: a radial shade behind the keys (their key caps darker), the
+goal's corner shade deepened and carried under its second line (and under the one-line goal with the camera up), and a
+small shade of its own under each mark's words, which are a size larger and heavier by touch (`story.css`, *the three
+lines that had no ground of their own*).
+
+`tools/story_play.js` plays both: in the first Stop, before anyone is walked, it reads that the keys are up and the goal
+says how to walk, stands still until it is asked again (*Your turn*, the keys beating, by touch the stick) and takes a
+still of it (`1-seek-ask`); and at the summation's first question it gives the right name with the roof's print, which
+must be answered with that print's own line (`7-print-speaks`), then answers rightly.
 
 ## 13. What is left, and the marks without colour
 

@@ -650,9 +650,13 @@ void main() {
     const occMat = new THREE.ShaderMaterial({
       uniforms: { uBase: occBase },
       vertexShader: `uniform float uBase; varying float vY;
+        #include <batching_pars_vertex>
         void main() { vec4 p = vec4(position, 1.0);
         #ifdef USE_INSTANCING
           p = instanceMatrix * p;
+        #endif
+        #ifdef USE_BATCHING
+          p = getBatchingMatrix(getIndirectIndex(gl_DrawID)) * p;
         #endif
           p = modelMatrix * p; vY = p.y - uBase; gl_Position = projectionMatrix * viewMatrix * p; }`,
       fragmentShader: 'varying float vY; void main() { gl_FragColor = vec4(vY, 0.0, 0.0, 1.0); }',
@@ -1310,7 +1314,7 @@ void main() {
       world.traverse(o => {
         if (o === world) return;
         const m = o.material;
-        if (o.userData.oeNoOcc || o.isSprite || o.isPoints || o.isLine || o === Wd.sky || (o.onBeforeRender && o.onBeforeRender !== plain)
+        if (o.userData.oeNoOcc || o.isSprite || o.isPoints || o.isLine || o === Wd.sky || (o.onBeforeRender && o.onBeforeRender !== plain && !o.isBatchedMesh)
           || (m && !Array.isArray(m) && (m.transparent && m.opacity < 0.6 || m.depthWrite === false || m.side === THREE.BackSide))) hideList.push(o);
       });
       return hideList;

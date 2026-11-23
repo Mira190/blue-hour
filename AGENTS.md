@@ -142,10 +142,13 @@ The owner should not be the one who finds the bug.
 - `tools/check.sh` runs the checks a change needs, chosen from what it changed against
   origin/main: the static checks (packs, voice, visibility, solids, models, signs), and for a
   change to the page's code or data the story's first episode played through
-  (`tools/story_play.js`) and the page on a phone's memory budget (`tools/mem_check.js`). For
-  models, pictures or sounds alone, each is loaded beside itself as it was (`tools/look_check.js`)
-  and the phone's memory measured, and the story is not played, unless a model lost a name the code
-  can ask for (`tools/model_contract.py`).
+  (`tools/story_play.js`), the same parts as a phone draws them with each beat against its budget
+  (`budget1` to `budget3`, `tools/beat_budget.py`) and the page on a phone's memory budget
+  (`tools/mem_check.js`). For models, pictures or sounds alone, each is loaded beside itself as it was
+  (`tools/look_check.js`) and the phone's memory measured; the story's parts that load a model or a
+  picture count their beats again on both tiers, and none decides the story again unless a model lost a
+  name the code can ask for (`tools/model_contract.py`). A beat over its budget has two ways out: draw
+  less on that tier, or set the budget again with the reason (`tools/beat_budget.py set`).
   `tools/check.sh story` runs one target, `tools/check.sh all` everything but the free game's
   long scenario (docs/CHECKS.md).
 - The checks don't see what a person sees. For a visual change, take stills on a desktop
@@ -185,6 +188,11 @@ The owner should not be the one who finds the bug.
   a stopped world, a paused game). Keep the bone's pose as the clip left it, restore it before `mixer.update`, and lay
   the turn over it after (`web/game/companion.js`, the story's `figure` in `web/game/game.js`). Anything that moves in
   the story is looked at for five seconds of stills while time is held, not in one.
+- The walking grid is not the picture. `nav.floorAt` answers from the walk's own solids, which are simpler than what is
+  drawn: round Hachiko's bed they are one raised block a metre wider than the stone, and a person seated by it sat in
+  the air with his feet on the air too, while a check that asked the same grid passed (the owner's still, issue 171).
+  Whatever is placed to touch the drawn world (someone seated, a foot, a thing set on a ledge) is checked against the
+  drawn meshes, a ray down through them (`tools/drawn_seat.js`), never against `nav` alone.
 - Scripted edits land whole or are seen to fail. Several times a batch of exact-string replacements was run from one
   script that asserted every anchor: one anchor was wrong (typed from memory with the wrong indentation, or made stale
   by an edit earlier in the same batch, or a pair that changed nothing), the assert stopped the script before it
@@ -242,13 +250,16 @@ thirty is drawn). So:
   (the branch `check-passes`). The story plays in three parts and the browser checks two side by side, without stills.
   Measured on 21 November 2026: every check of a page change played, 16 minutes (38 to 43 before); one function of
   `game.js` or `story.js`, 8 to 10 at the median (36 to 51); main moved under a branch it did not reach, 55 seconds.
+  Since 23 November a phone's beats are counted before landing too (`budget1` to `budget3`, by the same reach): 14
+  minutes of checks more where every part is reached, none for half of `game.js`'s functions (docs/CHECKS.md, "A
+  phone's beats before landing").
   So run plain `tools/check.sh` rather than naming targets, and read its lines: each check kept or played says why
   (`python3 tools/check_cache.py why story2` for all of it). When main moves, merge it and run `tools/check.sh` again:
   it is the static checks unless main changed a function you changed.
 - **Keep to the seams.** A new script under `web/` is given its part in `contracts/parts.json`, and a name asked of
   another part is added there (`python3 tools/seams.py --write`): the static checks fail otherwise (docs/SEAMS.md). A
   people's model that gives what `contracts/people.json` asks, and a hero level whose names and ground are as they
-  were, are looked at and weighed, not played. The offers in `contracts/parts.json` are written by the tool, so when a
+  were, are looked at and weighed, and the beats that draw them counted; the story is not decided again. The offers in `contracts/parts.json` are written by the tool, so when a
   merge conflicts there take either side and run `python3 tools/seams.py --write`. `game.js` is being cut into parts
   (`tools/cut.js`; `pilot.js`, `rides.js`, `routeline.js` so far): inside a part the game's names are `g.name`, and a
   name not yet handed over is added where `game.js` makes the part.

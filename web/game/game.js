@@ -217,6 +217,7 @@ window.OpenEarthGame = async function game(cityId) {
   const Wd = await OEWorld.create(D, renderer, { onMsg: loadMsg, small: QC.small, shadow: QC.shadow, game: true, nearCars: ((G.crowd || {}).radius_m || 450) + 100,
     groundAt: G.start && G.start.at }); // (the aerial tiles round the start before the game opens, the rest after it: issue 335)
   const world = Wd.world, U = Wd.U;
+  if (OEWorld.gate) OEWorld.gate(renderer, { scene: world }); // (a draw whose program is still being linked comes a frame later, not waited for: world.js gate)
   fitRoot = world;
   // After dark, a soft fill that goes with you: the city's lights are drawn as an aerial photograph shows
   // them, and between the lamps (a hillside track, a shrine's woods, a deck above the town) the ground was
@@ -660,6 +661,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
       if (HERO_CUT.tex.value) HERO_CUT.tex.value.dispose();
       HERO_CUT.tex.value = t; HERO_CUT.box.value.set(x0, y0, n * HC, 0); HERO_CUT.h = h;
+      // (where the ground is not drawn for its floor: there alone its floor stands under the ground, nav.js lift)
+      h.cutAt = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i >= 0 && j >= 0 && i < n && j < n && cut[j * n + i] > 0; };
     }
     h.coverMs = Math.round(performance.now() - t0); // (for tools/guide_way.js)
     // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)
@@ -691,7 +694,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // loader is all that is left to wait on. Not a slice a frame, as behind the title: no frame is drawn under the loader, and the
   // set-up's long tasks let a frame through so seldom that its compile all but stopped till the set-up was done, issue 27)
   let setUp = false;
-  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, flight: () => (setUp ? 6 : 1), only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
+  // (on a desktop whose GPU compiles in parallel, three at a time through the set-up: its synchronous calls do not wait on a program
+  // they do not use, and one at a time left the compile threads idle for the set-up's seconds, the first frame waiting on what
+  // was left (issue 186 A). A phone keeps one: an iPhone compiles one at a time whatever the extension says, issue 27)
+  const setUpFlight = !QC.lean && renderer.extensions.has('KHR_parallel_shader_compile') && !/[?&]flight=1\b/.test(location.search) ? 3 : 1;
+  const earlyWarm = Promise.resolve(Wd.skyReady).then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, flight: () => (setUp ? 6 : setUpFlight), only: OEWorld.shown })); // (what is shown: the rest behind the title, warmRest)
   // landmark solids (the Opera House shells) and walkable strips (the bridge deck) shade the ground too
   for (const [name, m] of Object.entries(nav.tops)) if ((G.shade_landmarks || []).some(p => name.startsWith(p))) for (const [k, z] of m) if (z > DSM.data[k]) DSM.data[k] = z;
   for (const s of nav.strips) for (let i = 0; i < s.us.length - 1; i++) {
@@ -806,7 +813,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const CW = Wd.trees && Wd.trees.crowns ? Wd.trees.crowns() : []; // (and its crown: where its leaves begin, how far out and up they reach)
     for (let i = 0; i < TR.length; i += 4) { const q = posts.add(TR[i], TR[i + 1], TR[i + 2], TR[i + 3], 'tree'), j = i / 4 * 3; if (CW.length) { q.hb = CW[j]; q.rc = CW[j + 1]; q.top = CW[j + 2]; } } }
   // (and a hero level's own lamp posts, hero[].posts: drawn by its model, solid here)
-  for (const h of G.hero || []) for (const [x, y] of h.posts || []) posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp');
+  // A run of them closer than a body is a wall the level draws (SKY GATE's hall: posts every 0.25 m along its panels), marked
+  // q.wall: the chase camera stops at it along the whole line from your head (wallCut), where a lamp post it looks past
+  // unless it stands at the lens. Taken for a post, the hall's wall against the tower stood between you and the lens 2.3 m
+  // from it, and the frame was the wall's dark back with you behind it (the owner's report, 23 November 2026; issue 181)
+  for (const h of G.hero || []) {
+    const P = h.posts || [], qs = P.map(([x, y]) => posts.add(x, y, nav.terrain(x, y), 0.14, 'lamp'));
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) if (Math.hypot(P[i][0] - P[j][0], P[i][1] - P[j][1]) < 0.45) { qs[i].wall = qs[j].wall = true; }
+  }
   // (and its queue belts, hero[].belts: points along each belt, 0.2 m apart, so that nobody, the guide included, walks through one)
   for (const h of G.hero || []) for (const [x, y] of h.belts || []) posts.add(x, y, (h.z ?? nav.terrain(x, y)) + 0.3, 0.06, 'column');
   // (and what stands round in it and is a fence however low, hero[].rounds [x, y, r]: a planter's rail, which the walker's
@@ -1559,23 +1573,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // street door and a floor high up (game.json "lifts", from the city's landmarks)
   // who says an overheard line (places.js chatter): of the crowd drawn within r of where it is said, on its level, in the
   // camera's frame and in sight, the two nearest, each as a function that gives where they are now (or null once they are
-  // no longer drawn). Only the crowd: the map's people have names and stories of their own, and a visitor's line said by
-  // Taro the photographer would be someone else's words in his mouth
+  // no longer drawn). Only the crowd, and the anonymous people a place keeps (visitors.js): the map's people have names and
+  // stories of their own, and a visitor's line said by Taro the photographer would be someone else's words in his mouth
   const chatFr = new THREE.Frustum(), chatM = new THREE.Matrix4(), chatV = new THREE.Vector3();
   const speakers = (x, y, z, r) => {
-    if (!crowd || !crowd.P) return [];
+    if ((!crowd || !crowd.P) && !visitors) return [];
     const near = [];
-    for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
+    for (let i = 0, m = crowd && crowd.P ? Math.min(crowd.active, crowd.P.length) : 0; i < m; i++) {
       const q = crowd.P[i];
       if (!(q.line >= 0 || q.pz) || (crowdDraw && !crowdDraw.shows(i))) continue;
       const qx = q.rx ?? q.x, qy = q.ry ?? q.y, qz = q.rz ?? q.z ?? 0, d = Math.hypot(qx - x, qy - y);
       if (d < r && Math.abs(qz - z) < 3) near.push([d, i, qx, qy, qz]);
     }
+    // (and the people a place keeps, visitors.js: on SHIBUYA SKY's roof the crowd never comes, and its lines are theirs)
+    if (visitors) for (const v of visitors.near(x, y, z, r)) near.push([v.d, v.who, v.x, v.y, v.z]);
     near.sort((a, b) => a[0] - b[0]);
     chatM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); chatFr.setFromProjectionMatrix(chatM);
     const c = camera.position, out = [];
     for (const [, i, qx, qy, qz] of near) {
       if (!chatFr.containsPoint(chatV.set(qx, qz + 1.6, -qy)) || nav.col.pick(c.x, -c.z, c.y, qx, qy, qz + 1.6)) continue;
+      if (typeof i === 'function') { out.push(i); if (out.length === 2) break; continue; } // (one of a place's people: where they stand)
       const q = crowd.P[i];
       out.push(() => (q === crowd.P[i] && (q.line >= 0 || q.pz) && !(crowdDraw && !crowdDraw.shows(i)) ? { x: q.rx ?? q.x, y: q.ry ?? q.y, z: q.rz ?? q.z ?? 0 } : null));
       if (out.length === 2) break;
@@ -1593,14 +1610,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // somewhere to sit and watch the crossing on the walk (perch.js; game.json hero[].perches): the stone the hero level has
   const perch = window.OEPerch ? OEPerch.create({ G, floorAt: (x, y) => { const f = nav.floorAt(x, y, Math.max(0, nav.terrain(x, y)) + 1); return f ? f.z : null; } }) : null;
   let perchFov = 0;
-  // the seats the walk marks (walktalk.js places): each until it has been sat on once in this browser, by its name
+  // the people a place keeps (visitors.js, issues 112 and 171): a few anonymous people where the place puts them, at the
+  // glass and on the benches of SHIBUYA SKY's roof, on Hachiko's wall beside the free place; each drawn as one of the
+  // crowd's own loaded cast (no model or texture of their own), made only when the camera comes near, fewer on a phone
+  let visitCast = null;
+  const visitors = window.OEVisitors && G.visitors && lib ? OEVisitors.create({ data: G.visitors, make: look => makeRig(look), world, W, posts, few: touch || QC.name === 'low',
+    cast: (sex, k, at) => { // (of the crowd's own cast, and never the body of one of the map's named people near the place: Taro's twin at the glass beside him. Not all of them: a phone's cast is eight, and with the story's people taken out it held two women)
+      visitCast = visitCast || realCast() || [];
+      const named = new Set(G.npcs.filter(n => n.look && Math.hypot(n.at[0] - at[0], n.at[1] - at[1], n.at.length > 2 && at.length > 2 ? n.at[2] - at[2] : 0) < 120).map(n => n.look.character));
+      const l = visitCast.filter(c => lib.npcs[c] && lib.npcs[c].sex === sex && !named.has(c)); return l.length ? l[k % l.length] : null; },
+    need: c => !!lib.tpl[c] || (lib.require(c), false), // (loaded: the near crowd's own, mostly; else asked for, and taken a frame after it has come)
+    floorAt: (x, y, z) => { const f = nav.floorAt(x, y, z); return f ? f.z : null; } }) : null;
+  // the seats the walk marks (walktalk.js places): each until it has been sat on once in this browser, by its name, and
+  // none where someone of the place already sits beside it (visitors.js: the seat offered by a person, issue 171)
   const SAT_KEY = 'bh-walk-sat';
   let satOn = null, seatList = null;
   const satGet = () => { if (!satOn) { try { satOn = new Set(JSON.parse(localStorage.getItem(SAT_KEY) || '[]')); } catch (e) { satOn = new Set(); } } return satOn; };
   function seatMarks() {
     if (!perch || !walk) return [];
     const sat = satGet();
-    if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
+    if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null && !(visitors && visitors.seated(p.at[0], p.at[1], 2.5))).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
     return seatList;
   }
   // the next train out of Shibuya, by the walk's clock (game.json tonight.trains, the Yamanote's outer loop): the last
@@ -1625,7 +1654,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (beside you on the stone itself: plan.beside, a point along the wall's end block; the seat is its outer corner, so a
     // step to either side of you along the seat's own line was over the setts, and she sat on the air)
     const [x, y] = plan.beside || [st.at[0] - st.face[1] * 0.75, st.at[1] + st.face[0] * 0.75];
-    n.fixed = true; n.sit = true; n.rig.legRake = st.rake; n.rig.reach = W(x + st.face[0] * 0.26, y + st.face[1] * 0.26, st.z + 0.5); // (her hands in her lap, as yours are)
+    n.fixed = true; n.sit = true; n.rig.legRake = st.rake; n.rig.seatH = st.seat; n.rig.reach = W(x + st.face[0] * 0.26, y + st.face[1] * 0.26, st.z + 0.5); // (her hands in her lap, as yours are)
     seat.with = [x, y]; // (perch.js: the seat's shot keeps the two of you in it)
     n.x = x; n.y = y; n.z = st.z; n.h = st.h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h;
     if (n.post) posts.move(n.post, n.x, n.y, n.z);
@@ -1636,7 +1665,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function waitEnd(done) {
     const w = waitRun; if (!w) return;
     waitRun = null;
-    const n = w.n; n.sit = false; delete n.rig.legRake; n.rig.reach = null; w.st.with = null;
+    const n = w.n; n.sit = false; delete n.rig.legRake; n.rig.reach = n.rig.seatH = n.rig.thighDown = null; w.st.with = null;
     const f = nav.stand(n.x + w.st.face[0] * 0.8, n.y + w.st.face[1] * 0.8, w.st.z + 0.5, { rMax: 3 }); // (up off the stone, onto her feet in front of where she sat)
     if (f) { n.x = f.x; n.y = f.y; n.z = f.z; n.rig.root.position.copy(W(n.x, n.y, n.z)); if (n.post) posts.move(n.post, n.x, n.y, n.z); }
     if (player.mode === 'seat') standUp();
@@ -1680,7 +1709,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function seatTouch(on) { if (touch) for (const id of ['#gt-joy', '#gt-jump', '#gt-run', '#gt-down', '#gt-lens']) $(id).hidden = on; }
   function standUp() {
     const st = (perch && perch.seat) || shows.seat, tri = st && st.perch ? perch.tripod : null;
-    if (st && st.perch) { perch.stand(); player.rig.legRake = player.rig.reach = null; stage.classList.remove('at-perch'); player.seatFrom = { x: st.at[0] + st.face[0] * 0.7, y: st.at[1] + st.face[1] * 0.7, z: st.z }; } else shows.stand(); // (off the wall: up onto your feet at its foot, facing the crossing)
+    if (st && st.perch) { perch.stand(); player.rig.legRake = player.rig.reach = player.rig.seatH = player.rig.thighDown = null; stage.classList.remove('at-perch'); player.seatFrom = { x: st.at[0] + st.face[0] * 0.7, y: st.at[1] + st.face[1] * 0.7, z: st.z }; } else shows.stand(); // (off the wall: up onto your feet at its foot, facing the crossing)
     const f = player.seatFrom;
     seatTouch(false);
     const p = (f && nav.stand(f.x, f.y, f.z + 0.5, { rMax: 3 })) || nav.stand(player.x, player.y, player.z + 0.5, { rMax: 4 }) || f || player;
@@ -1740,7 +1769,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // a pose at the kerb of a place on the roads (router.place), facing the way it goes
   function kerbPose(pl, off) {
     roadNet.at(pl.line, pl.s, rq);
-    const hx = rq.hx * pl.dir, hy = rq.hy * pl.dir, k = (off ?? OECars.kerbOf(roadNet.L[pl.line].c, roadNet.L[pl.line].cw)) * keepSign;
+    const hx = rq.hx * pl.dir, hy = rq.hy * pl.dir;
+    const l0 = roadNet.L[pl.line];
+    let k = off ?? OECars.kerbOf(l0.c, l0.cw);
+    // (its outer side inside the asphalt the street's class draws, street_ground.py's half width: kerbOf's 4.4 m on a
+    // street drawn 4.5 m out stood half the car on the kerb wherever no hero level draws the ground: docs/ROADS.md, the first drive)
+    if (off == null) k = Math.max(OECars.LANE, Math.min(k, (l0.cw > 0 ? l0.cw / 2 : ROAD_HALF[l0.c] || 3.5) - 0.95 - 0.25));
+    // (where a hero level draws the carriageway, pulled in only as far as its kerb, never over it onto the paving: by the
+    // west exit Jingu-dori's one lane took your car 4.4 m out, onto the footway, as the rides were by Hachiko, #54)
+    if (off == null && nav.carriageway) {
+      const min = Math.min(k, OECars.LANE), fits = kk => { const lat = (kk + 1.1) * keepSign; for (const a of [-2.3, 0, 2.3]) if (nav.carriageway(rq.x + hx * a - hy * lat, rq.y + hy * a + hx * lat) === false) return false; return true; };
+      while (k > min && !fits(k)) k -= 0.2;
+      k = Math.max(k, min);
+    }
+    k *= keepSign;
     // (the floor a car's wheels take there, within a kerb of the road's own height: never a planter's or a plinth's top by it)
     const x = rq.x - hy * k, y = rq.y + hx * k, f = nav.floorAt(x, y, rq.z + 0.3 + OECars.CAR_STEP - nav.STEP);
     return { x, y, z: f ? f.z : rq.z, h: Math.atan2(hx, hy) };
@@ -2059,457 +2101,37 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (cut out by tools/cut.js, issue 131: the object handed over is what the part asks of the game, the names taken back what it gives)
   const { HELI_IDLE, HELI_REACH, altAction, backAgain, backIn, boardRide, cancelRide, destinations, driverStep, eta, groundZ, hail, kerbAction, leaveRide, orderRide, placeOnRoute, rideAway, rideCar, rideClock, rideGuard, rideStep, skipRide, srnd, turnRound } = OEGameRides({ get $() { return $; }, get A() { return A; }, get CARS_OK() { return CARS_OK; }, get CITY() { return CITY; }, get CR() { return CR; }, get G() { return G; }, get H() { return H; }, get KEEP() { return KEEP; }, get PLAYER_LOOKS() { return PLAYER_LOOKS; }, get ROAD_HALF() { return ROAD_HALF; }, get SCR_AT() { return SCR_AT; }, get SCR_BOX() { return SCR_BOX; }, get W() { return W; }, get angDiff() { return angDiff; }, get blendFrom() { return blendFrom; }, get cam() { return cam; }, get camera() { return camera; }, get carCfg() { return carCfg; }, get cars() { return cars; }, get cine() { return cine; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get crowd() { return crowd; }, get dlg() { return dlg; }, get driveTo() { return driveTo; }, get fmtSec() { return fmtSec; }, get guideMade() { return guideMade; }, set guideMade(v) { guideMade = v; }, get headlamp() { return headlamp; }, get heliBlock() { return heliBlock; }, get hopTo() { return hopTo; }, get inScramble() { return inScramble; }, get junctions() { return junctions; }, get keepSign() { return keepSign; }, get lib() { return lib; }, set lib(v) { lib = v; }, get life() { return life; }, get makeRig() { return makeRig; }, get metro() { return metro; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get nav() { return nav; }, get npcs() { return npcs; }, get objective() { return objective; }, get phone() { return phone; }, get pickupNear() { return pickupNear; }, get pilot() { return pilot; }, set pilot(v) { pilot = v; }, get placeOf() { return placeOf; }, get player() { return player; }, get resetCar() { return resetCar; }, get ride() { return ride; }, set ride(v) { ride = v; }, get rideSeat() { return rideSeat; }, get roadNet() { return roadNet; }, get roads() { return roads; }, get rq() { return rq; }, get save() { return save; }, get scene() { return scene; }, get smalltalk() { return smalltalk; }, get stepOut() { return stepOut; }, get story() { return story; }, get takeHelm() { return takeHelm; }, get touch() { return touch; }, get vlib() { return vlib; }, set vlib(v) { vlib = v; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get world() { return world; }, get bounds() { return bounds; } });
 
-  // ------------------------------------------------------------ the phone (N): order a ride, bring your car
-  const phone = { el: $('#g-phone'), body: $('#gph-body'), map: $('#gph-map'), view: 'home', acts: [], at: 0, fresh: true };
-  const rideOn = () => ride && ride.phase !== 'leaving';
-  function phoneShow(view) {
-    if (view === false) { phone.el.hidden = true; return; }
-    phone.view = view || (rideOn() ? 'ride' : 'home');
-    phone.el.hidden = false;
-    phone.fresh = true;
-    phoneRender();
-  }
-  // the ride on the phone's map: the route still to drive (to the pick-up, or on the way to where
-  // you're going), the car, the pick-up, you, and where you're going
-  function rideMapFrame() {
-    const o = ride, st = o.drv.st, P = o.drv.path, i = P.pos(st.s, {}).i;
-    const inside = player.mode === 'ride' && player.vehicle === o, toGo = o.phase === 'coming' || o.phase === 'driving';
-    const route = toGo ? [[st.x, st.y]].concat(P.pts.slice(i + 1)) : null;
-    const dest = o.dest ? { x: o.dest.at[0], y: o.dest.at[1] } : null;
-    if (!phone.draw) phone.draw = H.rideMap(phone.map, base); // (the base map is drawn further down)
-    phone.draw({ route, car: { x: st.x, y: st.y, h: st.h }, pickup: inside || o.phase === 'arrived' ? null : o.pickup,
-      you: inside ? null : { x: player.x, y: player.y, h: player.h }, dest: inside || o.phase === 'arrived' ? dest : null, reset: phone.fresh });
-    phone.fresh = false;
-  }
-  function phoneRender() {
-    const acts = [], item = (text, note, act) => { acts.push(act); return `<button data-k="${acts.length - 1}"><kbd>${acts.length}</kbd><span><b>${text}</b>${note ? `<span class="note">${note}</span>` : ''}</span></button>`; };
-    let html = '';
-    phone.map.hidden = !(phone.view === 'ride' && rideOn());
-    if (phone.view === 'home') {
-      $('#gph-title').textContent = 'Phone';
-      html = (phone.note && clockT - phone.noteT < 8 ? `<p class="note">${phone.note}</p>` : '') // (why the ride just ordered isn't coming)
-        + `<div class="list">${item('Order a ride', rideOn() ? `${ride.name} is ${ride.phase === 'coming' ? 'on the way' : ride.phase === 'waiting' ? 'waiting for you' : 'taking you'}` : 'A car to wherever you say, here in half a minute', () => phoneShow(rideOn() ? 'ride' : 'where'))}`
-        + `${myCar ? item('Bring my car', `It's ${Math.round(Math.hypot(myCar.D.st.x - player.x, myCar.D.st.y - player.y))} m away`, () => { bringCar(); phoneShow(false); }) : ''}${life && life.phone ? life.phone.home(item, phoneShow) : ''}</div>`
-        + `<p class="note">Or raise your hand at the kerb (${touch ? '<b>Hail a taxi</b>' : '<kbd>Y</kbd>'}) and a taxi will pull in.</p>`;
-    } else if (phone.view === 'where') {
-      $('#gph-title').textContent = 'Ride · where to?';
-      const list = destinations(player.x, player.y);
-      html = `<div class="list">${list.map(d => item(d.name, d.note, () => phoneShow(orderRide(d) ? 'ride' : 'home'))).join('')}</div>`
-        + `<div class="row"><button class="btn" data-back>Back</button></div>`;
-    } else if (life && life.phone && life.phone.view(phone.view)) { // the hub's own pages (phone.js)
-      $('#gph-title').textContent = life.phone.title(phone.view);
-      html = life.phone.render(phone.view);
-    } else {
-      const o = rideOn() ? ride : null;
-      $('#gph-title').textContent = o ? (o.kind === 'taxi' ? 'Taxi' : 'Your ride') : 'Ride';
-      if (o) {
-        const st = o.drv.st, t = eta(o), walk = Math.hypot(o.pickup.x - player.x, o.pickup.y - player.y), near = Math.hypot(st.x - player.x, st.y - player.y);
-        const inside = player.mode === 'ride' && player.vehicle === o;
-        let big, line, k;
-        if (o.phase === 'coming') { big = t < 4 ? 'Now' : fmtSec(Math.ceil(t)); line = t < 4 ? `${o.name} is arriving` : `${o.name} is on the way`; k = 1 - t / Math.max(1, o.T0); }
-        else if (o.phase === 'waiting' || o.phase === 'boarding') { big = near < 12 ? 'Here' : 'Arrived'; line = near < 12 ? `${o.name} is beside you` : `${o.name} is waiting at the pick-up, ${Math.round(near)} m away`; k = 1; }
-        else if (o.phase === 'asking') { big = '–'; line = 'Tell the driver where to'; k = 0; }
-        else if (o.phase === 'driving') { big = fmtSec(Math.ceil(t)); line = `to ${o.dest.name} · ${(o.drv.remaining() / 1000).toFixed(1)} km`; k = st.s / Math.max(1, o.drv.path.len); }
-        else { big = 'Arrived'; line = o.dest ? o.dest.name : ''; k = 1; }
-        const stop = o.phase === 'coming' || o.phase === 'waiting' || o.phase === 'boarding'
-          ? `<span class="pk"></span><span>Pick-up${walk > 20 && !inside ? ` · ${Math.round(walk)} m walk` : ''}</span>` : '';
-        const to = o.dest ? `<span class="ds"></span><span>${o.dest.name}</span>` : o.kind === 'taxi' && !inside ? '<span class="ds"></span><span>Tell the driver when you get in</span>' : '';
-        html = `<div class="gph-eta"><b class="num">${big}</b><span>${line}</span></div>`
-          + `<div class="gph-bar" style="--k:${Math.max(0.02, Math.min(1, k)).toFixed(3)}"><i></i></div>`
-          + `<div class="gph-driver"><span class="av" style="--c:${o.hex}">${o.name[0]}</span><span class="who"><b>${o.name} <span class="rt">★ ${o.rating}</span></b><span class="note">${rideCar(o)[0].toUpperCase()}${rideCar(o).slice(1)}</span></span><span class="gph-plate mono">${o.plate}</span></div>`
-          + (stop || to ? `<div class="gph-trip">${stop}${to}</div>` : '')
-          + `<div class="list">${player.mode === 'foot' && o.phase !== 'boarding' ? item('Cancel the ride', '', () => { cancelRide(); phoneShow('home'); }) : ''}</div>`;
-      } else html = '<p class="note">No ride booked.</p>';
-      html += `<div class="row"><button class="btn" data-back>Back</button></div>`;
-    }
-    phone.acts = acts;
-    phone.body.innerHTML = html;
-  }
-  on($('#gph-body'), 'click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    if (b.hasAttribute('data-back')) phoneShow('home');
-    else if (phone.acts[+b.dataset.k]) phone.acts[+b.dataset.k]();
-  });
-  on($('#gph-close'), 'click', () => phoneShow(false));
-  on($('#g-phone-btn'), 'click', () => phoneShow(phone.el.hidden ? undefined : false));
+  // ------------------------------------------------------------ the phone (N): order a ride, bring your car: handset.js (tools/cut.js)
+  const { phone, phoneRender, phoneShow, rideMapFrame, rideOn } = OEGameHandset({ get $() { return $; }, get H() { return H; }, get base() { return base; }, get bringCar() { return bringCar; }, get cancelRide() { return cancelRide; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get destinations() { return destinations; }, get eta() { return eta; }, get fmtSec() { return fmtSec; }, get life() { return life; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get on() { return on; }, get orderRide() { return orderRide; }, get player() { return player; }, get ride() { return ride; }, set ride(v) { ride = v; }, get rideCar() { return rideCar; }, get touch() { return touch; } });
 
-  // ------------------------------------------------------------ trig stations: survey points with a view
-  // Hilltops, a headland and the bridge deck (game.json "viewpoints"). Each has a concrete
-  // trig pillar; surveying it turns the camera once round you and names what is in sight.
-  const pillarGeo = new THREE.CylinderGeometry(0.22, 0.34, 1.25, 4, 1).rotateY(Math.PI / 4).translate(0, 0.625, 0);
-  const pillarMat = new THREE.MeshStandardMaterial({ color: lin('#e9e6dc'), roughness: 0.85 });
-  const plateMat = new THREE.MeshStandardMaterial({ color: lin('#b08a3a'), roughness: 0.4, metalness: 0.6 });
-  const VP = (G.viewpoints || []).map(v => {
-    let f = nav.floorAt(v.at[0], v.at[1], v.z_ref ?? 400);
-    if (f && f.kind === 'deck' && v.z_ref == null) f = nav.floorAt(v.at[0], v.at[1], Math.max(0, nav.terrain(v.at[0], v.at[1])) + 1); // not up on a viaduct
-    const o = Object.assign({}, v, { x: v.at[0], y: v.at[1], z: f ? f.z : Math.max(0, nav.terrain(v.at[0], v.at[1])) });
-    const g = new THREE.Group();
-    const pillar = new THREE.Mesh(pillarGeo, pillarMat), plate = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 12).translate(0, 1.27, 0), plateMat);
-    pillar.castShadow = pillar.receiveShadow = true;
-    g.add(pillar, plate);
-    g.position.copy(W(o.x + 1.6, o.y, o.z)); // beside the spot you stand on
-    world.add(g);
-    return o;
-  });
-  const trigDone = () => qs.trig || (qs.trig = {});
+  // ------------------------------------------------------------ trig stations: survey points with a view: trig.js (tools/cut.js)
+  const { VP, trigDone } = OEGameTrig({ get G() { return G; }, get W() { return W; }, get lin() { return lin; }, get nav() { return nav; }, get qs() { return qs; }, get world() { return world; } });
 
   // ------------------------------------------------------------ wildlife: little penguins on their colony's rocks (penguins.js)
   const colonies = (G.wildlife || []).map(c => OEPenguins.create(world, c, A, nav.terrain)).filter(Boolean);
   // and silver gulls round a dropped box of chips by the water (gulls.js), marked on the map
   const flocks = (G.flocks || []).map(f => (f.kind === 'black_kite' ? OEGulls.kites(world, f) : OEGulls.create(world, f, A, nav)));
-  // ------------------------------------------------------------ fishing from the shore (docs/FISHING.md). Only where the spots are
-  // comes with the game (game.json "fishing", a city that has it: pipeline/fishing.py). fishing.js and the city's
-  // fishing.json are fetched the first time you are on foot within sight of a spot, and what they draw is made on
-  // the first cast and freed when you walk away, so nobody pays for fishing they do not do.
-  const fish = G.fishing && G.fishing.spots && G.fishing.spots.length ? { spots: G.fishing.spots, api: null, loading: null, look: 0 } : null;
-  const fishSpot = r => (player.mode === 'foot' ? fish.spots.find(sp => Math.hypot(sp.at[0] - player.x, sp.at[1] - player.y) < r) : null);
-  function fishLoad() {
-    if (fish.loading) return fish.loading;
-    const script = (src, have) => (have ? Promise.resolve() : new Promise((ok, no) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => no(new Error(`${src} did not load`)); document.head.appendChild(el); }));
-    const code = Promise.all([script('game/fishing.js', window.OEFishing), script('game/fishart.js', window.OEFishArt)]);
-    fish.loading = Promise.all([code, fetch(D.DATA + G.fishing.file).then(r => { if (!r.ok) throw new Error(`${G.fishing.file}: ${r.status}`); return r.json(); })]).then(([, data]) => {
-      if (!running) return null;
-      fish.api = OEFishing.create({ THREE, world, nav, player, cam, camera, H, A, data, cityId, clock, sun: () => sun, rain: () => (weather ? weather.state.rain : 0), tier: QC.name, reduced, touch, stage,
-        key: k, time: () => clockT, ui: () => dlg.open || uiOpen() || cine.active || photo.on,
-        walkTo: (x, y, label, then, cancel) => { player.auto = { x, y, t: 0, label, then, cancel }; },
-        stamp: (stamp, title) => { const id = `fish-${stamp.toLowerCase().replace(/\W+/g, '-')}`; if (!qs.stamps.some(q => q.id === id)) { qs.stamps.push({ id, stamp, title, at: fmtMin(clock.min) }); renderPassport(); save(); } A.thump(); H.stamp(stamp, title); } });
-      return fish.api;
-    }).catch(e => { fish.loading = null; fish.look = clockT + 30; console.warn(`fishing: ${e.message}`); return null; }); // (offline, say: asked for again in half a minute)
-    return fish.loading;
-  }
-  // each step: fetch it when a spot comes within sight, and then run it (the rises on the water, a line that is out)
-  function fishTick(dt, side) {
-    if (fish.api) fish.api.step(dt, side);
-    else if (clockT > fish.look) { fish.look = clockT + 1; if (fishSpot(160)) { fish.near = true; fishLoad(); } }
-  }
-  let dayLim = null; // sunrise and sunset for the game's date, worked out once a day
-  const dayLimits = () => { const k = `${clock.y}-${clock.m}-${clock.d}`; if (!dayLim || dayLim.k !== k) dayLim = Object.assign({ k }, S.dayLimits(clock.y, clock.m, clock.d)); return dayLim; };
+  // ------------------------------------------------------------ fishing from the shore (docs/FISHING.md). Only where the spots are: fishing.js (tools/cut.js)
   let viewingNoted = false;
+  const { dayLimits, fish, fishLoad, fishSpot, fishTick } = OEGameFishing({ get A() { return A; }, get D() { return D; }, set D(v) { D = v; }, get G() { return G; }, get H() { return H; }, get QC() { return QC; }, get S() { return S; }, get cam() { return cam; }, get camera() { return camera; }, get cine() { return cine; }, get cityId() { return cityId; }, get clock() { return clock; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get dlg() { return dlg; }, get fmtMin() { return fmtMin; }, get k() { return k; }, get nav() { return nav; }, get photo() { return photo; }, get player() { return player; }, get qs() { return qs; }, get reduced() { return reduced; }, get renderPassport() { return renderPassport; }, get running() { return running; }, set running(v) { running = v; }, get save() { return save; }, get stage() { return stage; }, get sun() { return sun; }, set sun(v) { sun = v; }, get touch() { return touch; }, get uiOpen() { return uiOpen; }, set uiOpen(v) { uiOpen = v; }, get weather() { return weather; }, get world() { return world; } });
 
-  // ------------------------------------------------------------ objective marker and GPS route in the world
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 90, 12, 1, true).translate(0, 45, 0),
-    new THREE.MeshBasicMaterial({ color: lin('#ffc23d'), transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-  beam.visible = false;
-  world.add(beam);
-  // the route: on the ground, or in the air when flying (in a story it is the pale blue of the story's own marks, so
-  // that it is not taken for the yellow tactile paving it runs beside)
-  const gold = OERoute.line(world, lin(G.story && !new URLSearchParams(location.search).has('walk') ? '#9fd0ff' : '#f2bd52'));
-  // The route line in the world: always on, only when asked (L, or Show route in the quest card), or
-  // off. The minimap keeps its route whichever: the quiet reference. Remembered in this browser.
-  const ROUTE_KEY = 'bh-route-line', ROUTE_MODES = { on: 'On', ask: 'Only when I ask', off: 'Off' };
+  // ------------------------------------------------------------ objective marker and GPS route in the world: objective.js (tools/cut.js)
   let routeMode = 'on', routePeek = -1; // (clockT until which a line asked for stays up)
-  try { const v = localStorage.getItem(ROUTE_KEY); if (ROUTE_MODES[v]) routeMode = v; } catch (e) { /* storage blocked */ }
-  function setRouteMode(m) {
-    if (!ROUTE_MODES[m]) return;
-    routeMode = m; routePeek = -1;
-    try { localStorage.setItem(ROUTE_KEY, m); } catch (e) { /* storage blocked */ }
-    $$('#gm-route button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.r === m)));
-  }
-  const ROUTE_PEEK = 8; // seconds a line asked for stays up
-  function peekRoute() {
-    if (!guide.pts) { H.toast(waypoint || objective() ? 'No route from here.' : 'No objective to lead you to. Set a waypoint on the map (<kbd>M</kbd>).'); return; }
-    routePeek = clockT + ROUTE_PEEK;
-  }
-  // whether the line is up, and its fade toward that: hidden in a conversation, a menu, a map, photo
-  // mode or a cinematic shot, and in the last few metres to the objective
-  function routeShow(dt, titled) {
-    const want = (routeMode === 'on' || clockT < routePeek) && !!guide.pts && !titled && !photo.on && !dlg.open && !uiOpen() && !cine.active && gold.left > 6 && !(story && story.finder); // (nor through the story's raised camera: seen from the eye along the ground, the band stood up in the finder as a shaft of light, issue 19)
-    gold.fade(want ? 1 : 0, dt);
-    gold.night(U.uNight.value);
-    const b = $('#gq-route');
-    if (b) b.hidden = routeMode === 'on' || !guide.pts || clockT < routePeek || titled;
-  }
+  const { ROUTE_PEEK, beam, gold, peekRoute, routeShow, setRouteMode } = OEGameObjective({ get $() { return $; }, get $$() { return $$; }, get G() { return G; }, get H() { return H; }, get U() { return U; }, get cine() { return cine; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get dlg() { return dlg; }, get guide() { return guide; }, get lin() { return lin; }, get objective() { return objective; }, get photo() { return photo; }, get routeMode() { return routeMode; }, set routeMode(v) { routeMode = v; }, get routePeek() { return routePeek; }, set routePeek(v) { routePeek = v; }, get story() { return story; }, get uiOpen() { return uiOpen; }, set uiOpen(v) { uiOpen = v; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get world() { return world; } });
 
-  // ------------------------------------------------------------ text from the model
-  const areaShare = (() => {
-    const a = {};
-    let tot = 0;
-    for (const s of B.s) { const r = s[4]; let q = 0; for (let k = 0, n = r.length / 2; k < n; k++) { const j = (k + 1) % n; q += r[2 * k] * r[2 * j + 1] - r[2 * j] * r[2 * k + 1]; } q = Math.abs(q) / 200; const src = B.b[s[0]][4]; a[src] = (a[src] || 0) + q; tot += q; }
-    for (const k in a) a[k] = Math.round(1000 * a[k] / tot) / 10;
-    return a;
-  })();
-  const placeByName = n => P.places.find(p => p.name === n);
-  const inPlace = (pl, x, y) => {
-    if (!pl) return false;
-    for (const poly of pl.polygons) {
-      let inside = false;
-      for (const ring of poly) for (let k = 0, n = ring.length / 2, j = n - 1; k < n; j = k++) {
-        const xi = ring[2 * k] / 10, yi = ring[2 * k + 1] / 10, xj = ring[2 * j] / 10, yj = ring[2 * j + 1] / 10;
-        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
-      }
-      if (inside) return true;
-    }
-    return false;
-  };
-  const centroid = pl => { let x = 0, y = 0, n = 0; for (const poly of pl.polygons) for (let k = 0; k < poly[0].length; k += 2) { x += poly[0][k] / 10; y += poly[0][k + 1] / 10; n++; } return [x / n, y / n]; };
-  const sunLine = () => {
-    if (!sun || sun.altitude <= 0) { const L = S.dayLimits(clock.y, clock.m, clock.d); return `The sun is down; it rises at ${fmtMin(L.sunrise)}.`; }
-    return `The sun is ${sun.altitude.toFixed(0)}° up, so you cast a shadow ${(1.75 / Math.tan(sun.altitude * RAD)).toFixed(1)} m long.`;
-  };
-  const acc = scene.accuracy && scene.accuracy.summary;
-  function fill(text) {
-    return (text || '').replace(/\{([a-z_]+)(?::([^}]+))?\}/g, (all, kind, arg) => {
-      if (kind === 'buildings') return B.b.length.toLocaleString();
-      if (kind === 'time') return `${fmtMin(clock.min)} ${S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min)).zone}`;
-      if (kind === 'sun_line') return sunLine();
-      // the next train out of Shibuya (game.json tonight.trains: the Yamanote's last and first): the last until it has gone,
-      // then the first; and when (the walk's line: Nagi's)
-      if (kind === 'train' || kind === 'train_when') { const t = trainNext(); return kind === 'train' ? (t.first ? 'the first train' : 'the last train') : (t.first ? 'this morning' : 'tonight'); }
-      if (kind === 'sunset') return fmtMin(dayLimits().sunset);
-      // the part of the day and the season, in the guide's words ("this evening", "autumn"), for lines about what to see now
-      if (kind === 'now') return !sun || sun.altitude < -6 ? 'tonight' : clock.min < 720 ? 'this morning' : sun.altitude < 12 && clock.min > 900 ? 'this evening' : 'this afternoon';
-      if (kind === 'season') return ['winter', 'spring', 'summer', 'autumn'][(Math.floor((clock.m % 12) / 3) + (scene.frame.lat0 < 0 ? 2 : 0)) % 4];
-      if (kind === 'penguins_from' || kind === 'penguins_to') { // when the first and the last rafts come in tonight
-        const c = colonies[0] && colonies[0].colony;
-        return c ? fmtMin(dayLimits().sunset + c.ashore_after_sunset_min[kind === 'penguins_from' ? 0 : 1]) : '–';
-      }
-      if (kind === 'share') return String(areaShare[arg] || 0);
-      if (kind === 'acc') return acc && acc[arg] != null ? String(acc[arg]) : '–';
-      if (kind === 'lidar') { const v = (arg.includes('.') ? arg : `survey.${arg}`).split('.').reduce((o, k) => (o == null ? o : o[k]), scene.lidar_check); return v == null ? '–' : String(v); }
-      if (kind === 'landmark') { const v = arg.split('.').reduce((o, k) => (o == null ? o : o[k]), scene.landmarks); return typeof v === 'number' ? String(Math.round(v * 10) / 10) : String(v ?? '–'); }
-      if (kind === 'sun') {
-        const [name, md, hhmm] = arg.split('|'), pl = placeByName(name), [m, d] = md.split('-').map(Number);
-        if (!pl) return '–';
-        const smp = sampleCache[name] || (sampleCache[name] = S.samplePlace(DSM, pl.polygons, pl.area_m2 > 60000 ? 5 : 3));
-        return String(Math.round(100 * S.fractionSunlit(DSM, smp, S.position(S.localToUtc(clock.y, m, d, S.hm(hhmm))))));
-      }
-      return all;
-    });
-  }
-  const sampleCache = {};
-  // a line as the player reads it: tokens filled, and on a touch screen without the keyboard's keys (the
-  // walking and flying keys are the stick and the buttons there, and Q and G are the Lens and Guess buttons)
-  function said(text) {
-    const t = fill(text);
-    if (!touch || !t) return t;
-    return t.replace(/ ?\((?:a hand up at the kerb, )?Y\)/g, m => (m.includes('kerb') ? ' (a hand up at the kerb)' : ''))
-      .replace(/\bpress Q\b/g, 'tap Lens').replace(/\bpress G\b/g, 'tap Guess').replace(/\(Q\)/g, '(Lens)')
-      .split(/(?<=[.!?。])\s+/).filter(s => !/^(WASD|Space to climb|V (switches|is)|[A-Z] and [A-Z] )/.test(s)).join(' ').trim();
-  }
-  const SRC_TEXT = { mapped: 'its height is surveyed in OpenStreetMap', survey: 'its top level is surveyed by the mapping agency', lidar: 'its height was measured by an airborne LiDAR scan', '3dbag': 'its height was measured by the national airborne LiDAR and modelled in the 3DBAG', floors: 'its height is its floor count times a storey height', estimate: 'its height is estimated from its neighbours', typical: 'its height is the typical one for its kind (none is mapped)', plateau: 'its height was measured from the air for Project PLATEAU', plateau_lod1: 'its height is the block height in Project PLATEAU (no survey record)', bdtopo: 'its eaves were surveyed by IGN and its roof is the typical one',
-    ml: 'its height is a machine-learning estimate, bias-corrected', reference: 'its height is the published figure (the open data was far too short)', verified: 'its height was checked by hand against a cited source', parametric: 'it is built from its published dimensions' };
-  function smalltalk(x, y) {
-    const opts = [`It's ${fill('{time}')}. ${sunLine()}`];
-    // the nearest named building in view
-    let best = null, bd = 160;
-    for (const [name, p] of Object.entries(scene.labels || {})) { const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd) { bd = d; best = name; } }
-    if (best) {
-      const m = B.b.find(b => b[0] && (b[0] === best || b[0].startsWith(best)));
-      if (m) opts.push(m[2] > 60 ? `That's ${best} up there, ${Math.round(m[2])} metres of it.` : `That's ${best}, just there.`);
-    }
-    const w = G.wharves.reduce((a, q) => (Math.hypot(q.terminal[0] - x, q.terminal[1] - y) < (a ? Math.hypot(a.terminal[0] - x, a.terminal[1] - y) : 400) ? q : a), null);
-    if (w) { const e = nextFerry(w.id); if (e) opts.push(`The next ferry from ${w.name} is ${e.v.name}, ${e.t < 5 ? 'boarding now' : `in ${fmtSec(e.t)}`}.`); }
-    opts.push(...(G.smalltalk || [G.greeting || 'G\'day.', 'Lovely spot, isn\'t it?']));
-    return opts[Math.floor(srnd() * opts.length)];
-  }
+  // ------------------------------------------------------------ text from the model: modeltext.js (tools/cut.js)
+  const { SRC_TEXT, centroid, fill, inPlace, placeByName, said, smalltalk } = OEGameModelText({ get B() { return B; }, get DSM() { return DSM; }, get G() { return G; }, get P() { return P; }, get RAD() { return RAD; }, get S() { return S; }, get clock() { return clock; }, get colonies() { return colonies; }, get dayLimits() { return dayLimits; }, get fmtMin() { return fmtMin; }, get fmtSec() { return fmtSec; }, get nextFerry() { return nextFerry; }, get scene() { return scene; }, get srnd() { return srnd; }, get sun() { return sun; }, set sun(v) { sun = v; }, get touch() { return touch; }, get trainNext() { return trainNext; } });
 
-  // ------------------------------------------------------------ clock: the place's own time, now, running in real time
-  // unless the player picks another hour or speed (the menu: 30 times real time as in GTA, 120, or paused)
-  const clock = { y: CITY.year || new Date().getFullYear(), m: 3, d: 21, min: 600, scale: 1, frozen: false, own: false };
+  // ------------------------------------------------------------ clock: the place's own time, now, running in real time: clock.js (tools/cut.js)
   let sun = null, clockUtc = Date.now();
-  // the traffic's rules by the hour (junctions.js: turns banned and streets shut at some hours) go by this clock
-  let dowKey = '', dow = 0;
-  junctions.setClock(() => { const k = `${clock.y}-${clock.m}-${clock.d}`; if (k !== dowKey) { dowKey = k; dow = (new Date(Date.UTC(clock.y, clock.m - 1, clock.d)).getUTCDay() + 6) % 7; } return { dow, min: clock.min }; });
-  // (live: the place's own time, which the clock then follows; any other hour set is kept as set)
-  function setClock(y, m, d, min, live = false) {
-    clock.own = !live;
-    const t = new Date(Date.UTC(y, m - 1, d) + Math.floor(min / 1440) * 864e5);
-    Object.assign(clock, { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate(), min: ((min % 1440) + 1440) % 1440 });
-    applySun();
-  }
-  function applySun() {
-    clockUtc = S.localToUtc(clock.y, clock.m, clock.d, clock.min);
-    sun = S.position(clockUtc);
-    Wd.setSun(sun, clock.min);
-    if (weather) { weather.clock(clock.y, clock.m, clock.d, clock.min); weather.light(); } // a weaker sun and a greyer sky under cloud
-    Wd.setSeason(clock.m, clock.d);
-    if (show) show.setClock(clock.min);
-    const night = U.uNight.value;
-    headMat.emissiveIntensity = 1.6 * night;
-    glowMat.opacity = 0.85 * night;
-    if (junctions.heads) junctions.heads.setNight(night);
-    const loc = S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min));
-    $('#g-time').textContent = `${fmtMin(clock.min)} ${loc.zone}`;
-    $('#g-date').textContent = `${clock.d} ${MONTHS[clock.m - 1]}${clock.frozen ? ' · paused' : clock.scale === 1 ? ' · real time' : ''}`;
-  }
+  const { applySun, clock, setClock } = OEGameClock({ get $() { return $; }, get CITY() { return CITY; }, get MONTHS() { return MONTHS; }, get S() { return S; }, get U() { return U; }, get Wd() { return Wd; }, get clockUtc() { return clockUtc; }, set clockUtc(v) { clockUtc = v; }, get fmtMin() { return fmtMin; }, get glowMat() { return glowMat; }, get headMat() { return headMat; }, get junctions() { return junctions; }, get show() { return show; }, get sun() { return sun; }, set sun(v) { sun = v; }, get weather() { return weather; } });
 
-  // ------------------------------------------------------------ benches in the sun
-  // People take the sun when it's cool and the shade when it's hot. The guide is the city's
-  // average daily top for the month (game.json "climate") against a comfortable 22 °C, and a
-  // low sun is gentler, so mornings and evenings lean towards the sun.
-  const CLIMATE = G.climate && G.climate.mean_max_c;
-  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  function sunWant() { // -1 looks for shade .. +1 looks for sun
-    if (!CLIMATE || !sun || sun.altitude <= 0) return 0;
-    const month = Math.max(-1, Math.min(1, (22 - CLIMATE[clock.m - 1]) / 4));
-    return Math.max(-1, Math.min(1, month + 0.8 * (1 - Math.min(1, sun.altitude / 50))));
-  }
-  const benchLit = b => (sun && sun.altitude > 0 ? S.sunlit(DSM, b.x, b.y, b.z + 1, sun) : null);
+  // ------------------------------------------------------------ benches in the sun: benches.js (tools/cut.js)
   let benchBudget = 0;
-  // how likely a passer-by is to take a free seat on a bench: what it offers against what people want
-  crowd.sitChance = b => {
-    if (!sun || sun.altitude <= 0) return 0.06; // a few still sit out after dark
-    if (b.lit == null) return 0.25;
-    const w = sunWant();
-    return 0.25 * (b.lit ? 1 + 0.9 * w : 1 - 0.9 * w);
-  };
-  // what someone on a bench says: when the sun comes to it or leaves it today, and why that suits
-  function benchTalk(b) {
-    if (!sun || sun.altitude <= 0) return 'Quiet out here after dark. I like it.';
-    const lit = benchLit(b), w = sunWant(), tmax = CLIMATE ? `${Math.round(CLIMATE[clock.m - 1])}°` : null;
-    let at = null, sets = false;
-    for (let m = Math.ceil((clock.min + 1) / 10) * 10; m < 1440; m += 10) {
-      const sp = S.position(S.localToUtc(clock.y, clock.m, clock.d, m));
-      if (sp.altitude <= 0) { sets = true; at = m; break; }
-      if (S.sunlit(DSM, b.x, b.y, b.z + 1, sp) !== lit) { at = m; break; }
-    }
-    const when = at == null ? null : fmtMin(at), month = MONTH_NAMES[clock.m - 1];
-    if (lit) {
-      const until = sets ? `until the sun goes down at about ${when}` : when ? `until about ${when}` : 'for the rest of the day';
-      if (w > 0.3) return `This bench has the sun ${until}.${tmax ? ` On a ${tmax} ${month} day, that's what you want.` : ''}`;
-      if (w < -0.3) return `Bit hot in the sun, honestly. It's on this bench ${until}.`;
-      return `This bench has the sun ${until}.`;
-    }
-    const comes = when && !sets ? `The sun gets to this bench at about ${when}.` : 'The sun won\'t get to this bench again today.';
-    if (w < -0.3) return `${tmax ? `${month} averages ${tmax} here. ` : ''}${when && !sets ? `This bench is in the shade until about ${when}.` : 'This bench is in the shade for the rest of the day.'}`;
-    return `Shady here. ${comes}`;
-  }
+  const { benchLit, benchTalk, fillTimes, menuSync, presetTime, sunWant } = OEGameBenches({ get $() { return $; }, get $$() { return $$; }, get DISTRICT() { return DISTRICT; }, get DSM() { return DSM; }, get G() { return G; }, get S() { return S; }, get clock() { return clock; }, get crowd() { return crowd; }, get fmtMin() { return fmtMin; }, get pad() { return pad; }, get setClock() { return setClock; }, get sun() { return sun; }, set sun(v) { sun = v; }, get weather() { return weather; } });
 
-  // the time of day: now, or one of sun.js's presets (sunrise, morning, noon, golden hour, sunset, blue hour,
-  // night), worked out from the sun on the clock's date, so a quest's date stays when you change the hour
-  function presetTime(kind) {
-    if (kind === 'live') { const now = S.utcToLocal(Date.now()); return setClock(now.y, now.m, now.d, now.minutes, true); } // ("Now" follows the place's clock from here on)
-    if (kind === 'postcard') return setClock(clock.y, clock.m, clock.d, OEPostcards.lightTime(DISTRICT.light, clock.y, clock.m, clock.d)); // (the light of the postcard you came by)
-    setClock(clock.y, clock.m, clock.d, S.presetTime(kind, clock.y, clock.m, clock.d) ?? 600);
-  }
-  // the buttons for those, each with its clock time on the clock's date (the title's choice and the menu's row)
-  function fillTimes(box) {
-    const was = box.querySelector('[aria-pressed="true"]'), pick = was ? was.dataset.t : null, now = box.querySelector('[data-t="live"]');
-    box.querySelectorAll('[data-t]:not([data-t="live"])').forEach(b => b.remove());
-    for (const [k, label] of S.PRESETS) {
-      const b = document.createElement('button');
-      b.dataset.t = k; b.dataset.label = label;
-      b.innerHTML = `${label}<span class="num">${fmtMin(S.presetTime(k, clock.y, clock.m, clock.d))}</span>`;
-      if (pick) b.setAttribute('aria-pressed', String(k === pick));
-      box.insertBefore(b, null);
-    }
-    if (now) { now.dataset.label = 'Now'; box.insertBefore(now, box.firstChild); }
-  }
-  function menuSync() { // the menu's slider and date follow the clock
-    $('#gm-clock').value = String(Math.round(clock.min));
-    $('#gm-clock-v').textContent = `${fmtMin(clock.min)} · sun ${sun.altitude.toFixed(0)}°`;
-    $('#gm-date').value = `${clock.y}-${pad(clock.m)}-${pad(clock.d)}`;
-    if (weather) $$('#gm-weather button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.w === weather.mode)));
-    fillTimes($('#gm-time'));
-  }
-
-  // ------------------------------------------------------------ quests, in parallel lines
-  // The lines, what is done of them and the rules a step is met by are goals.js (OEGoals), which knows no
-  // city and draws nothing; here is what the game shows when they move on, and where each step leads.
-  const goals = OEGoals.create(G, {
-    when: () => `${clock.d} ${MONTHS[clock.m - 1]} ${fmtMin(clock.min)}`,
-    save: () => save(),
-    next: s => H.toast(`<b>Next:</b> ${said(s.text)}`),
-    begun: q => H.toast(`<b>${q.title}</b><span>${said(q.steps[0].text)}</span>`),
-    done: (q, l, opened) => {
-      A.chime(); A.thump();
-      H.stamp(q.stamp, q.title);
-      if (life) { life.note(`Stamp: ${q.stamp}`, 'stamp'); life.emit('stamp', { id: q.id, stamp: q.stamp }); }
-      for (const x of opened) if (x.on_open) setTimeout(() => H.toast(x.on_open), 2600);
-      renderPassport();
-    },
-    met: s => { if (s.type === 'sun' && life) life.emit('sun', { place: s.place }); },
-    tracking: (l, asked) => { guide.key = ''; if (asked) H.toast(`Tracking <b>${l.title || questOf(l).title}</b>`); },
-  });
-  const { Q, LINES, qs, ls, lineById, lineDone, lineOpen, openLines, tracked, questOf, stepOf, quest, step, completeStep, completeQuest, startQuest } = goals;
-  function objective(l = tracked()) {
-    const q = questOf(l);
-    if (!q) return null;
-    if (!ls(l).started) { const n = npcById(q.giver); return { text: `Talk to ${n.name} (${n.role})`, at: [n.x, n.y], title: q.title, line: l }; }
-    const s = stepOf(l);
-    if (!s) return null;
-    const out = { text: said(s.text), title: q.title, line: l };
-    if (s.type === 'talk') { const n = npcById(s.npc); out.at = [n.x, n.y]; }
-    else if (s.type === 'spot') { const sp = (G.spots || []).find(q => q.id === s.spot); if (sp) out.at = sp.at.slice(0, 2); }
-    else if (s.type === 'ride') { const w = wharfById(player.mode === 'ferry' ? s.to : s.from); out.at = w.landing; }
-    else if (s.type === 'rail' && rail) { const st = rail.stations.find(o => o.id === (player.mode === 'rail' ? s.to : s.from)); if (st) out.at = [st.x, st.y]; }
-    else if (s.type === 'surface' || s.type === 'under_bridge') { const st = nav.strips.find(x => x.name === (s.surface || x.name)); if (st) out.at = st.origin.slice(); }
-    else if (s.type === 'land' || s.type === 'sun' || (s.type === 'visit' && s.place)) { const pl = placeByName(s.place); if (pl) out.at = centroid(pl); }
-    else if (s.type === 'visit' || s.type === 'penguins') out.at = s.at || (colonies[0] && colonies[0].colony.viewing[0]);
-    if (s.type === 'visit' && s.after_dark && sun.altitude >= -0.5) out.text += ` (after dark: sunset is ${fmtMin(dayLimits().sunset)})`;
-    if (s.type === 'penguins') { const n = colonies.reduce((a, c) => a + c.near(player.x, player.y, s.radius || 40), 0); out.text += ` (${n} ashore near you)`; }
-    if (s.type === 'inspect' || s.type === 'gable') out.text += ` (${ls(l).inspected.length}/${(s.sources || s.kinds).length})`;
-    return out;
-  }
-  function talkTo(n) {
-    n.talking = true;
-    const finish = () => { n.talking = false; };
-    const given = goals.talked(n.id); // a line waiting to talk to this person moves on, and may hand over its next quest
-    if (given) return giveQuest(n, given.line, given.quest);
-    if (life && life.talk(n)) return; // someone you are getting to know, when they are free (bonds.js)
-    dlg.show(n, [said(n.idle[Math.floor(srnd() * n.idle.length)]) || smalltalk(n.x, n.y)], null, finish);
-  }
-  function giveQuest(n, l, q) {
-    const talk = q.talk.map(said).filter(Boolean);
-    dlg.show(n, talk.length ? talk : q.talk.map(fill), q.choices, c => {
-      n.talking = false;
-      if (c && c.action === 'set_time') { const [m, d] = c.date; setClock(clock.y, m, d, S.hm(c.time)); H.toast(`Time set to ${c.time}, ${d} ${MONTHS[m - 1]}`); }
-      if (c && c.action === 'set_weather' && weather) {
-        if (c.date || c.time) { const [m, d] = c.date || [clock.m, clock.d]; setClock(clock.y, m, d, c.time ? S.hm(c.time) : clock.min); }
-        weather.set(c.weather || 'rain');
-        H.toast(`${OEWeather.NAMES[c.weather || 'rain']}${c.time ? ` at ${c.time}` : ''}${c.date ? `, ${c.date[1]} ${MONTHS[c.date[0] - 1]}` : ''}. Change it in the menu${touch ? '' : ' (Esc)'}.`);
-      }
-      if (c && c.action === 'dusk') { const t = Math.round(dayLimits().sunset) - 10; setClock(clock.y, clock.m, clock.d, t); H.toast(`Time set to ${fmtMin(t)}, ten minutes before sunset`); }
-      startQuest(l, q);
-      if (c && c.action === 'track' && lineById(c.line)) { qs.track = c.line; save(); } // the prologue lets you pick where to start
-    });
-  }
-  // arriving at a district: track the open line whose next quest is given by someone standing there (#359: Haru at
-  // Sangenjaya), not the map's first line, whose giver may be across the map
-  function trackNear(at, within = 250) { if (goals.trackNear(at, id => { const n = npcById(id); return n ? [n.x, n.y] : null; }, within)) guide.key = ''; }
-  const cycleTrack = id => goals.cycle(id); // track the next open line (T, or a tap on its name in the quest card)
-  // the gait on foot, shown beside the sun chip with its keys (hidden off foot)
-  let gaitShown = '', gaitRest = 0;
-  function gaitChip(g) {
-    const el = $('#g-gait');
-    if (!el) return;
-    const want = player.mode === 'foot' ? g : '';
-    if (want === gaitShown) return;
-    gaitShown = want;
-    el.hidden = !want;
-    if (!want) return;
-    el.dataset.g = want;
-    // said when it changes, then out of the way: a HUD holds what is read at a glance, not its key list
-    el.classList.remove('rest'); clearTimeout(gaitRest); gaitRest = setTimeout(() => el.classList.add('rest'), 4000);
-    el.innerHTML = touch ? `<b>${{ walk: 'Walking', run: 'Running', sprint: 'Sprinting' }[want]}</b>`
-      : `<b>${{ walk: 'Walking', run: 'Running', sprint: 'Sprinting' }[want]}</b><span><kbd>X</kbd> ${want === 'walk' ? 'run' : 'walk'} · <kbd>Shift</kbd> sprint</span>`;
-  }
-  // the world as the goals' rules read it (goals.js met)
-  const goalWorld = {
-    get mode() { return player.mode; }, get x() { return player.x; }, get y() { return player.y; }, get floor() { return player.floor; },
-    get sunState() { return sunState; }, get sunAlt() { return sun.altitude; }, clock,
-    get landed() { return heli.st.landed ? [heli.st.x, heli.st.y] : null; },
-    stripU: name => nav.stripUV(nav.strips.find(x => x.name === name), player.x, player.y)[0],
-    inPlace: (name, x, y) => inPlace(placeByName(name), x, y),
-    colonyNear: r => colonies.reduce((m, c) => Math.max(m, c.near(player.x, player.y, r)), 0),
-  };
-  const checkSteps = () => goals.check(goalWorld);
-  // who an open line wants to talk to, and where the lines you are not tracking lead
-  const wantsTalk = n => !story && goals.wantsTalk(n.id); // (in a story the people are the story's: it says who is to be spoken to)
-  const sideObjectives = () => openLines().filter(l => l !== tracked()).map(l => objective(l)).filter(o => o && o.at);
-  // the quest card's row of open lines: tap one to track it
-  let linesKey = '';
-  function renderLines() {
-    const open = openLines().filter(l => l.quests.length), cur = tracked();
-    const key = open.map(l => `${l.id}:${ls(l).qi}`).join('|') + `>${cur ? cur.id : ''}`;
-    if (key === linesKey) return;
-    linesKey = key;
-    const el = $('#gq-lines');
-    el.hidden = open.length < 2;
-    el.innerHTML = open.map(l => `<button data-line="${l.id}" aria-pressed="${l === cur}" title="Track this walk">${l.title || questOf(l).title}<span class="num">${ls(l).qi}/${l.quests.length}</span></button>`).join('')
-      + (touch ? '' : '<span class="key"><kbd>T</kbd> switch</span>');
-  }
+  // ------------------------------------------------------------ quests, in parallel lines: quests.js (tools/cut.js)
+  const { LINES, Q, checkSteps, completeQuest, completeStep, cycleTrack, gaitChip, goals, ls, objective, openLines, qs, quest, renderLines, sideObjectives, step, stepOf, talkTo, trackNear, tracked, wantsTalk } = OEGameQuests({ get $() { return $; }, get A() { return A; }, get G() { return G; }, get H() { return H; }, get MONTHS() { return MONTHS; }, get S() { return S; }, get centroid() { return centroid; }, get clock() { return clock; }, get colonies() { return colonies; }, get dayLimits() { return dayLimits; }, get dlg() { return dlg; }, get fill() { return fill; }, get fmtMin() { return fmtMin; }, get guide() { return guide; }, get heli() { return heli; }, get inPlace() { return inPlace; }, get life() { return life; }, get nav() { return nav; }, get npcById() { return npcById; }, get placeByName() { return placeByName; }, get player() { return player; }, get rail() { return rail; }, set rail(v) { rail = v; }, get renderPassport() { return renderPassport; }, get said() { return said; }, get save() { return save; }, get setClock() { return setClock; }, get smalltalk() { return smalltalk; }, get srnd() { return srnd; }, get story() { return story; }, get sun() { return sun; }, set sun(v) { sun = v; }, get sunState() { return sunState; }, set sunState(v) { sunState = v; }, get touch() { return touch; }, get weather() { return weather; }, get wharfById() { return wharfById; } });
 
   // ------------------------------------------------------------ save (this browser only)
   const KEY = `bh-game-${cityId}`;
@@ -4364,340 +3986,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
 
-  // ------------------------------------------------------------ height challenge: guess, then see how good the data is
-  // Aim at a building and press G. Your guess is scored against the model's height, and
-  // set beside the error of the data itself: a floor-count height is good to about ±20%,
-  // an estimate much less, so a guess can be as good as the open data.
-  const guess = { bi: -1, revealed: false };
-  const sigmaOf = src => (D.UNC && D.UNC.sigma && D.UNC.sigma[src]) || { mapped: 0.03, reference: 0.03, verified: 0.02 }[src] || 0.2;
-  const sliderH = v => 3 * Math.pow(320 / 3, v / 1000); // a log scale, 3 to 320 m
-  function guessStart() {
-    if (player.mode !== 'foot') return;
-    const hit = aimed();
-    if (!hit) { H.toast('Aim at a building and press G to guess its height.'); return; }
-    const m = B.b[hit.bi];
-    if (m[4] === 'parametric') { H.toast('That one is built from its published dimensions. Try another building.'); return; }
-    Object.assign(guess, { bi: hit.bi, revealed: false });
-    U.uSel.value = hit.bi;
-    clearTimeout(lens.t);
-    const name = m[0] || (m[1] ? `Unnamed ${m[1].replace(/_/g, ' ')}` : 'Unnamed building');
-    $('#g-lens').innerHTML = `<span class="eyebrow">Height challenge · ${Math.round(hit.distance)} m away</span><b>${name}</b>
-      <span class="note">How tall is it, ground to roof?</span>
-      <label class="g-guess"><input type="range" id="gg-range" min="0" max="1000" value="${Math.round(1000 * Math.log(30 / 3) / Math.log(320 / 3))}" aria-label="Your guess, in metres"><output id="gg-val" class="num"></output></label>
-      <div class="row"><button class="btn primary" id="gg-go">Check <kbd>Enter</kbd></button><button class="btn" id="gg-no">Not now</button></div>`;
-    $('#g-lens').hidden = false;
-    const show = () => { $('#gg-val').textContent = `${Math.round(sliderH(+$('#gg-range').value))} m`; };
-    show();
-    $('#gg-range').addEventListener('input', show);
-    $('#gg-range').addEventListener('keydown', e => { if (e.key === 'Enter') guessCheck(); });
-    $('#gg-go').addEventListener('click', guessCheck);
-    $('#gg-no').addEventListener('click', guessClose);
-  }
-  function guessClose() { guess.bi = -1; $('#g-lens').hidden = true; U.uSel.value = -1; }
-  function guessCheck() {
-    if (guess.bi < 0 || guess.revealed) return;
-    guess.revealed = true;
-    const m = B.b[guess.bi], h = m[2], g = Math.round(sliderH(+$('#gg-range').value));
-    const err = Math.log(g / h), pts = Math.max(0, Math.round(100 * (1 - Math.abs(err) / Math.LN2))); // 0 points at twice or half
-    const sig = sigmaOf(m[4]), lo = h * Math.exp(-1.645 * sig), hi = h * Math.exp(1.645 * sig), inside = g >= lo && g <= hi;
-    const rec = qs.guesses || (qs.guesses = { n: 0, pts: 0, inside: 0 });
-    rec.n++; rec.pts += pts; rec.inside += inside ? 1 : 0;
-    if (life) life.emit('guess', { score: pts, inside, name: m[0] || '', height: h });
-    save();
-    const off = Math.round(100 * (g / h - 1));
-    $('#g-lens').innerHTML = `<span class="eyebrow">Height challenge</span><b>${m[0] || 'This building'}: ${h.toFixed(1)} m</b>
-      <span class="verdict">${pts} points${inside ? ' · as good as the data' : ''}</span>
-      <span>Your guess, ${g} m, is ${off === 0 ? 'spot on' : `${Math.abs(off)}% ${off > 0 ? 'high' : 'low'}`}. ${SRC_TEXT[m[4]] ? SRC_TEXT[m[4]][0].toUpperCase() + SRC_TEXT[m[4]].slice(1) : 'Its height comes from the open data'},
-      good to ${Math.round(lo)}–${Math.round(hi)} m nine times in ten.${inside ? ' Your guess is inside that range.' : ''}</span>
-      <span class="note">${rec.n} guess${rec.n > 1 ? 'es' : ''}, ${Math.round(rec.pts / rec.n)} points on average; ${rec.inside} as good as the data. G for another.</span>`;
-    if (inside) A.chime();
-    clearTimeout(lens.t);
-    lens.t = setTimeout(guessClose, 12000);
-  }
+  // ------------------------------------------------------------ height challenge: guess, then see how good the data is: heights.js (tools/cut.js)
+  const { guess, guessCheck, guessStart } = OEGameHeights({ get $() { return $; }, get A() { return A; }, get B() { return B; }, get D() { return D; }, set D(v) { D = v; }, get H() { return H; }, get SRC_TEXT() { return SRC_TEXT; }, get U() { return U; }, get aimed() { return aimed; }, get lens() { return lens; }, get life() { return life; }, get player() { return player; }, get qs() { return qs; }, get save() { return save; } });
 
-  // ------------------------------------------------------------ surveying from a trig station
-  // What can you see from here? A straight line of sight through the 2 m surface model
-  // (with the Opera House shells and the bridge deck in it) to a point just under each
-  // roof: the tallest part of every building within range.
-  const roofs = (() => {
-    const r = B.b.map(() => null);
-    for (const sd of B.s) {
-      const top = (sd[1] + sd[3]) / 10, ring = sd[4];
-      if (r[sd[0]] && r[sd[0]][2] >= top) continue;
-      let x = 0, y = 0;
-      for (let k = 0; k < ring.length; k += 2) { x += ring[k]; y += ring[k + 1]; }
-      r[sd[0]] = [x / (ring.length / 2) / 10, y / (ring.length / 2) / 10, top];
-    }
-    return r;
-  })();
-  function viewshed(ex, ey, ez, range) {
-    const seen = [], { nx, ny, cell, x0, y1, data, ids } = DSM;
-    for (let b = 0; b < roofs.length; b++) {
-      const t = roofs[b];
-      if (!t) continue;
-      const dx = t[0] - ex, dy = t[1] - ey, d = Math.hypot(dx, dy);
-      if (d > range || d < 4) continue;
-      const tz = t[2] - 0.5, n = Math.ceil(d / 1.5);
-      let ok = true;
-      for (let i = 1; i < n; i++) {
-        const f = i / n, c = Math.floor((ex + dx * f - x0) / cell), r = Math.floor((y1 - ey - dy * f) / cell);
-        if (c < 0 || r < 0 || c >= nx || r >= ny) continue;
-        const k = r * nx + c;
-        if (data[k] > ez + (tz - ez) * f + 0.2) { ok = ids[k] === b; break; }
-      }
-      if (ok) seen.push(b);
-    }
-    return seen;
-  }
-  const SRC_GROUP = { mapped: 'surveyed', reference: 'surveyed', verified: 'surveyed', survey: 'surveyed', plateau: 'surveyed', plateau_lod1: 'surveyed', lidar: 'surveyed', bdtopo: 'surveyed', '3dbag': 'surveyed',
-    floors: 'floors', ml: 'estimated', estimate: 'estimated', typical: 'estimated' };
+  // ------------------------------------------------------------ surveying from a trig station: survey.js (tools/cut.js)
   let surveyLabels = [], surveyFov = BASE_FOV;
-  function survey(vp) {
-    const ez = player.z + 1.6, seen = viewshed(player.x, player.y, ez, 3000);
-    // label what is in sight: the named landmarks, then the tallest named buildings
-    const named = seen.filter(b => B.b[b][0]).sort((a, b) => roofs[b][2] - roofs[a][2]);
-    const marks = Object.entries(scene.labels || {}).map(([n, p]) => ({ n, p, b: named.find(b => B.b[b][0].startsWith(n)) })).filter(m => m.b != null);
-    const extra = named.filter(b => !marks.some(m => m.b === b)).slice(0, 6).map(b => ({ n: B.b[b][0], p: roofs[b], b }));
-    for (const m of [...marks, ...extra]) {
-      // a parametric landmark's row is only its base; its label point carries its published height
-      const row = B.b[m.b], para = row[4] === 'parametric', el = document.createElement('div');
-      el.className = 'lbl npc survey';
-      el.innerHTML = `${para ? m.n : row[0]}<span class="role">${para ? `${Math.round(m.p[2])} m · built from published dimensions`
-        : `${Math.round(row[2])} m · ${{ surveyed: 'surveyed', floors: 'from floors', estimated: 'estimated' }[SRC_GROUP[row[4]]]}`}</span>`;
-      el.hidden = true;
-      labelsEl.appendChild(el);
-      const at = para ? W(m.p[0], m.p[1], m.p[2] + 4) : W(roofs[m.b][0], roofs[m.b][1], roofs[m.b][2] + 4);
-      surveyLabels.push({ el, get: () => at, maxD: 3200, survey: true });
-    }
-    labels.unshift(...surveyLabels);
-    stage.classList.add('letterbox');
-    A.chime();
-    // You turn once round on the spot and the camera turns with you, over your right
-    // shoulder with a longer lens, the horizon at eye level, then settles back into the
-    // chase camera.
-    cam.yaw = player.h;
-    const c = head(), h0 = player.h, p0 = chasePolar(), pos = new THREE.Vector3(), lk = new THREE.Vector3();
-    const round = k => {
-      const b = Math.pow(Math.sin(Math.PI * k), 0.5), az = h0 + 2 * Math.PI * OECine.ease.inOut(k);
-      player.h = az;
-      OECine.around(c, az + Math.PI - 0.32 * b, OECine.lerp(p0.dist, 6, b), OECine.lerp(p0.h, 1, b), pos);
-      OECine.around(c, az, 300 * b, -8 * b, lk); // the skyline ahead, just below eye level
-      surveyFov = OECine.lerp(BASE_FOV, 34, b);
-      return { pos, look: lk };
-    };
-    cine.play(OECine.mix(round, () => live, k => handOver(k, 0.92)), 11, { label: 'survey', onEnd: () => {
-      player.h = cam.yaw = h0;
-      stage.classList.remove('letterbox');
-      for (const l of surveyLabels) { l.el.remove(); labels.splice(labels.indexOf(l), 1); }
-      surveyLabels = [];
-      fieldNotes(vp, ez, seen);
-    } });
-  }
-  function fieldNotes(vp, ez, seen) {
-    const first = !trigDone()[vp.id];
-    trigDone()[vp.id] = true;
-    if (life) life.emit('survey', { id: vp.id, name: vp.name, first });
-    const done = VP.filter(v => trigDone()[v.id]).length, all = done === VP.length;
-    const lines = [`${vp.name}: your eyes are ${Math.round(ez)} m above sea level, and ${seen.length.toLocaleString()} buildings are in sight within 3 km.`];
-    const top = seen.filter(b => B.b[b][0] && B.b[b][4] !== 'parametric').sort((a, b) => B.b[b][2] - B.b[a][2])[0];
-    if (top != null) lines.push(`The tallest in sight is ${B.b[top][0]}, ${Math.round(B.b[top][2])} m tall: ${SRC_TEXT[B.b[top][4]] || 'its height comes from the open data'}.`);
-    const n = { surveyed: 0, floors: 0, estimated: 0 };
-    for (const b of seen) if (SRC_GROUP[B.b[b][4]]) n[SRC_GROUP[B.b[b][4]]]++;
-    const tot = n.surveyed + n.floors + n.estimated;
-    if (tot) lines.push(`Of the heights in sight, ${Math.round(100 * n.surveyed / tot)}% are surveyed or published, ${Math.round(100 * n.floors / tot)}% come from floor counts and ${Math.round(100 * n.estimated / tot)}% are estimated.`);
-    lines.push(all ? `That's every trig station: ${done} of ${done}. The Trig master stamp is yours.` : `Trig stations surveyed: ${done} of ${VP.length}.`);
-    if (first && all && !qs.stamps.some(s => s.id === 'trig-master')) {
-      qs.stamps.push({ id: 'trig-master', stamp: 'Trig master', title: 'Every trig station surveyed', at: `${clock.d} ${MONTHS[clock.m - 1]} ${fmtMin(clock.min)}` });
-      A.chime(); A.thump();
-      H.stamp('Trig master', 'Every trig station surveyed');
-    }
-    renderPassport();
-    save();
-    dlg.show({ name: 'Field notes', role: vp.name, color: '#a8740b', pitch: 330 }, lines);
-  }
+  const { survey, viewshed } = OEGameSurvey({ get A() { return A; }, get B() { return B; }, get BASE_FOV() { return BASE_FOV; }, get DSM() { return DSM; }, get H() { return H; }, get MONTHS() { return MONTHS; }, get SRC_TEXT() { return SRC_TEXT; }, get VP() { return VP; }, get W() { return W; }, get cam() { return cam; }, get chasePolar() { return chasePolar; }, get cine() { return cine; }, get clock() { return clock; }, get dlg() { return dlg; }, get fmtMin() { return fmtMin; }, get handOver() { return handOver; }, get head() { return head; }, get labels() { return labels; }, get labelsEl() { return labelsEl; }, get life() { return life; }, get live() { return live; }, get player() { return player; }, get qs() { return qs; }, get renderPassport() { return renderPassport; }, get save() { return save; }, get scene() { return scene; }, get stage() { return stage; }, get surveyFov() { return surveyFov; }, set surveyFov(v) { surveyFov = v; }, get surveyLabels() { return surveyLabels; }, set surveyLabels(v) { surveyLabels = v; }, get trigDone() { return trigDone; } });
 
-  // ------------------------------------------------------------ photo mode
-  // The world holds still and the HUD goes. Orbit the camera round a focus that starts on
-  // you: drag to turn, scroll (or Distance) to come closer, Aperture for the depth of field, WASD and Space/C to move the
-  // focus up to 300 m away. Time sets the sun for the photo (the clock stays there when
-  // you leave); Lens is the field of view, shown as a 35 mm focal length. Saving draws a
-  // caption with the place, the time and the sun's height into the corner.
-  const FSTOPS = [1.4, 2, 2.8, 4, 5.6, 8, 11, 16]; // the aperture: depth of field focused on the focus point
-  const photo = { fstop: 2.8, on: false, focus: new THREE.Vector3(), anchor: new THREE.Vector3(), az: 0, pitch: 0.3, dist: 8, fov: BASE_FOV, turn: false };
-  const distOf = v => 1.5 * Math.pow(400 / 1.5, v / 1000), distTo = d => Math.round(1000 * Math.log(d / 1.5) / Math.log(400 / 1.5)); // a log slider, 1.5 to 400 m
-  const focal = fov => Math.round(12 / Math.tan(fov * RAD / 2)); // a full-frame 35 mm camera, 24 mm tall
-  function photoMode(on) {
-    if (on === photo.on || !$('#g-title').hidden || closeup) return;
-    if (on && dlg.open) { H.toast('Finish the conversation first.'); return; }
-    if (on && cine.active) cine.skip();
-    photo.on = on;
-    stage.classList.toggle('photo', on);
-    $('#g-photo').hidden = !on;
-    if (on) {
-      const p = OECine.polar(live.look, camera.position);
-      photo.focus.copy(live.look); photo.anchor.copy(live.look);
-      Object.assign(photo, { az: p.az, pitch: Math.atan2(p.h, Math.max(0.1, p.dist)), dist: Math.max(6, camera.position.distanceTo(live.look)), fov: camera.fov, turn: false });
-      $('#ph-turn').setAttribute('aria-pressed', 'false');
-      $('#g-photo').classList.remove('adj'); $('#ph-adj').setAttribute('aria-expanded', 'false');
-      photoSync();
-    } else {
-      player.rig.root.visible = true;
-      $('#ph-me').setAttribute('aria-pressed', 'true');
-      stage.classList.remove('grid'); $('#ph-grid').setAttribute('aria-pressed', 'false');
-      // back to the chase camera without a jump
-      const from = { pos: camera.position.clone(), look: photo.focus.clone() };
-      cine.play(OECine.mix(() => from, () => live, k => OECine.ease.smooth(k)), 0.9, { label: 'crane' });
-    }
-  }
-  // the circle of confusion of a full-frame camera at this field of view and f-number, focused at
-  // `focus` m, for a point at distance d: lensBlur(...) * |d - focus| / d of the frame's height
-  function lensBlur(fov, focus, fstop) {
-    const f = 0.012 / Math.tan(fov * RAD / 2); // the focal length, m, on a 24 mm tall frame
-    return f * f / (fstop * Math.max(0.05, focus - f)) / 0.024;
-  }
-  function photoSync() { // the sliders follow the camera and the clock
-    $('#ph-time').value = String(Math.round(clock.min));
-    $('#ph-time-v').textContent = `${fmtMin(clock.min)} · sun ${sun.altitude.toFixed(0)}°`;
-    $('#ph-fov').value = String(Math.round(photo.fov));
-    $('#ph-fov-v').textContent = `${focal(photo.fov)} mm`;
-    $('#ph-f').value = String(FSTOPS.indexOf(photo.fstop)); $('#ph-f-v').textContent = `f/${photo.fstop}`;
-    $('#ph-dist').value = String(distTo(photo.dist));
-    $('#ph-dist-v').textContent = `${photo.dist < 20 ? photo.dist.toFixed(1) : Math.round(photo.dist)} m`;
-  }
-  function photoCamera(dt) {
-    const p = photo, f = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + joy.y,
-      sd = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0) + joy.x, up = (k('Space') ? 1 : 0) - (k('KeyC') ? 1 : 0);
-    const h = p.az + Math.PI, sp = Math.max(4, p.dist * 0.7) * dt; // the way the camera looks; faster when further out
-    p.focus.x += (Math.sin(h) * f + Math.cos(h) * sd) * sp;
-    p.focus.z += (-Math.cos(h) * f + Math.sin(h) * sd) * sp;
-    p.focus.y += up * sp;
-    const off = Math.hypot(p.focus.x - p.anchor.x, p.focus.z - p.anchor.z);
-    if (off > 300) { p.focus.x = p.anchor.x + (p.focus.x - p.anchor.x) * 300 / off; p.focus.z = p.anchor.z + (p.focus.z - p.anchor.z) * 300 / off; }
-    p.focus.y = Math.min(Math.max(p.focus.y, nav.terrainBelow(p.focus.x, -p.focus.z, p.focus.y + 0.5) + 0.3), p.anchor.y + 300);
-    if (p.turn) p.az += dt * 2 * Math.PI / 45;
-    OECine.around(p.focus, p.az, p.dist * Math.cos(p.pitch), p.dist * Math.sin(p.pitch), camera.position);
-    camera.position.y = Math.max(camera.position.y, nav.groundBelow(camera.position.x, -camera.position.z, camera.position.y) + 0.4);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(p.focus);
-    if (camera.fov !== p.fov) { camera.fov = p.fov; camera.updateProjectionMatrix(); }
-    Wd.fitShadow(p.focus, THREE.MathUtils.clamp(p.dist * 1.6, 150, 1600));
-    if (f || sd || up || p.turn) photoSync();
-  }
-  // render once more and read the canvas back in the same task (it keeps no copy), then caption it
-  function snapPhoto() {
-    mirrorTick();
-    if (atmos) atmos.render(world, camera); else renderer.render(world, camera);
-    const w = canvas.width, h = canvas.height, out = document.createElement('canvas');
-    out.width = w; out.height = h;
-    const g = out.getContext('2d');
-    // a friend's night film (bonds.js "filter"): after sunset, tungsten-balanced, the lamps white and the sky a deeper blue
-    const film = life && sun.altitude < 0 ? life.ability('filter') : null;
-    if (film) g.filter = 'contrast(1.07) saturate(1.14) hue-rotate(-9deg) brightness(1.05)';
-    g.drawImage(canvas, 0, 0);
-    g.filter = 'none';
-    const loc = S.utcToLocal(S.localToUtc(clock.y, clock.m, clock.d, clock.min)), fs = Math.max(12, Math.round(h * 0.017)), pad = Math.round(fs * 0.9);
-    const lines = [`${CITY.place || CITY.name} · ${clock.d} ${MONTHS[clock.m - 1]} ${clock.y}, ${fmtMin(clock.min)} ${loc.zone} · sun ${sun.altitude.toFixed(1)}° up${film ? ` · ${film.name.toLowerCase()}` : ''}`,
-      'Blue Hour · buildings and streets © OpenStreetMap contributors, via Overture Maps'];
-    g.font = `600 ${fs}px "Public Sans", sans-serif`;
-    const tw = Math.max(...lines.map(t => g.measureText(t).width));
-    g.fillStyle = 'rgba(8, 16, 24, 0.55)';
-    g.fillRect(0, h - pad * 2 - fs * 2.3, tw + pad * 2, pad * 2 + fs * 2.3);
-    g.fillStyle = '#ffffff'; g.textBaseline = 'bottom';
-    g.fillText(lines[0], pad, h - pad - fs * 1.2);
-    g.font = `400 ${Math.round(fs * 0.8)}px "Public Sans", sans-serif`; g.fillStyle = 'rgba(255, 255, 255, 0.82)';
-    g.fillText(lines[1], pad, h - pad);
-    A.shutter();
-    // (a photograph someone on the walk asked for, or one of the views of Shibuya, with a small copy for the album: walktalk.js)
-    if (walk && walkTalk) walkTalk.photo({ z: camera.position.y, sees, thumb: () => { const c = document.createElement('canvas'); c.width = 320; c.height = Math.round(320 * h / Math.max(1, w)); c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.72); } });
-    if (life) { const b = life.day ? life.day.bounds() : null, gold = !!b && (Math.abs(clock.min - b.golden) < 50 || (sun.altitude < 8 && sun.altitude > -7)); life.emit('photo', { golden: gold, hour: sun.altitude < 0 ? 'blue hour' : 'golden hour', alt: sun.altitude }); }
-    stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
-    const name = `blue-hour-${cityId}-${clock.y}${String(clock.m).padStart(2, '0')}${String(clock.d).padStart(2, '0')}-${fmtMin(clock.min).replace(':', '')}.png`;
-    // encode now, inside the click or key press: a download started later (toBlob's callback) can
-    // outlive the user's gesture and be blocked
-    const a = document.createElement('a');
-    try { a.href = out.toDataURL('image/png'); } catch (e) { H.toast('Could not save the photo.'); return null; }
-    a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    H.toast(`Saved <b>${name}</b>`);
-    return name;
-  }
-  on($('#ph-time'), 'input', e => { setClock(clock.y, clock.m, clock.d, +e.target.value); photoSync(); });
-  on($('#ph-fov'), 'input', e => { photo.fov = +e.target.value; photoSync(); });
-  on($('#ph-f'), 'input', e => { photo.fstop = FSTOPS[+e.target.value] || 2.8; photoSync(); });
-  on($('#ph-dist'), 'input', e => { photo.dist = distOf(+e.target.value); photoSync(); });
-  on($('#ph-turn'), 'click', e => { photo.turn = !photo.turn; e.currentTarget.setAttribute('aria-pressed', String(photo.turn)); });
-  on($('#ph-grid'), 'click', e => { const g = !stage.classList.contains('grid'); stage.classList.toggle('grid', g); e.currentTarget.setAttribute('aria-pressed', String(g)); });
-  on($('#ph-me'), 'click', e => { const v = !player.rig.root.visible; player.rig.root.visible = v; e.currentTarget.setAttribute('aria-pressed', String(v)); });
-  on($('#ph-snap'), 'click', snapPhoto);
-  on($('#ph-done'), 'click', () => photoMode(false));
-  // (on a phone the lens's settings are a strip put away until asked for: the frame is the photograph's)
-  on($('#ph-adj'), 'click', e => { const o = !$('#g-photo').classList.contains('adj'); $('#g-photo').classList.toggle('adj', o); e.currentTarget.setAttribute('aria-expanded', String(o)); });
-  on($('#g-photo-btn'), 'click', () => photoMode(true));
-  on($('#gc-snap'), 'click', snapPhoto);
-  on($('#gc-done'), 'click', closeupEnd);
-  for (const b of document.querySelectorAll('#g-closer [data-hold]')) {
-    const [a, u] = b.dataset.hold.split(',').map(Number);
-    on(b, 'pointerdown', e => { gcHold.along = a; gcHold.up = u; b.setPointerCapture(e.pointerId); });
-    for (const ev of ['pointerup', 'pointercancel']) on(b, ev, () => { gcHold.along = gcHold.up = 0; });
-  }
+  // ------------------------------------------------------------ photo mode: photo.js (tools/cut.js)
+  const { lensBlur, photo, photoCamera, photoMode, photoSync, snapPhoto } = OEGamePhoto({ get $() { return $; }, get A() { return A; }, get BASE_FOV() { return BASE_FOV; }, get CITY() { return CITY; }, get H() { return H; }, get MONTHS() { return MONTHS; }, get RAD() { return RAD; }, get S() { return S; }, get Wd() { return Wd; }, get atmos() { return atmos; }, set atmos(v) { atmos = v; }, get camera() { return camera; }, get canvas() { return canvas; }, get cine() { return cine; }, get cityId() { return cityId; }, get clock() { return clock; }, get closeup() { return closeup; }, set closeup(v) { closeup = v; }, get closeupEnd() { return closeupEnd; }, get dlg() { return dlg; }, get fmtMin() { return fmtMin; }, get gcHold() { return gcHold; }, get joy() { return joy; }, set joy(v) { joy = v; }, get k() { return k; }, get life() { return life; }, get live() { return live; }, get mirrorTick() { return mirrorTick; }, get nav() { return nav; }, get on() { return on; }, get player() { return player; }, get renderer() { return renderer; }, get sees() { return sees; }, get setClock() { return setClock; }, get stage() { return stage; }, get sun() { return sun; }, set sun(v) { sun = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get world() { return world; } });
 
-  // ------------------------------------------------------------ menus, map, passport
-  function toggleMenu() { $('#g-menu').hidden = !$('#g-menu').hidden; if (!$('#g-menu').hidden) { menuSync(); talesSync(); tonightSync(); caseSync(); if (walk && walkUi && walkUi.menuSync) walkUi.menuSync(true); } }
-  // the story's own pause (issue 114): the frame the case is at, the words' size as the log has it, and the case begun
-  // again, asked twice (the frames taken are lost with it)
-  function caseSync() {
-    const at = story && story.at, w = storyLog ? storyLog.words() : null, again = $('#gm-again'), note = $('#gm-again-note');
-    if ($('#gm-case-at')) $('#gm-case-at').textContent = at ? `Frame ${at.fi + 1} of ${at.of}${at.stamp ? ` · ${at.stamp}` : ''}` : '';
-    if (w) $$('#gm-words button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.solid != null ? w.solid : +b.dataset.size === w.size)));
-    if (again) { again.classList.remove('sure'); again.textContent = 'Start the case again'; again.parentNode.hidden = !at; }
-    if (note) note.hidden = true;
-  }
-  on($('#gm-resume'), 'click', () => { $('#g-menu').hidden = true; });
-  on($('#gm-words'), 'click', e => {
-    const b = e.target.closest('button'); if (!b || !storyLog) return;
-    storyLog.setWords(b.dataset.solid != null ? { solid: !storyLog.words().solid } : { size: +b.dataset.size });
-    caseSync();
-  });
-  on($('#gm-again'), 'click', e => {
-    const b = e.currentTarget, at = story && story.at, note = $('#gm-again-note');
-    if (!at) return;
-    if (!b.classList.contains('sure')) {
-      b.classList.add('sure'); b.textContent = 'Yes, from the first card';
-      note.textContent = at.taken ? `The ${at.taken === 1 ? 'frame' : `${at.taken} frames`} taken, the file and the log go with it. Close the menu to keep the case.` : 'The case begins again from its first card. Close the menu to keep it.'; note.hidden = false;
-      return;
-    }
-    story.beginAgain();
-  });
-  // the walk's stories in its menu (walktalk.js list): each by its name, told, under way with what was asked, or not yet
-  // met with where to look
-  function talesSync() {
-    const el = $('#gm-tales');
-    if (!el) return;
-    const L = walk && walkTalk ? walkTalk.list() : [];
-    el.hidden = !L.length;
-    if (!L.length) return;
-    const n = L.filter(t => t.state === 'told').length, esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const V = walkTalk.views(), nv = V.filter(v => v.found).length;
-    el.innerHTML = `<span class="eyebrow">Stories of the walk · ${n} of ${L.length}</span><ol>${L.map(t => `<li data-s="${t.state}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></li>`).join('')}</ol>`
-      + (V.length ? `<span class="eyebrow">Views of Shibuya · ${nv} of ${V.length}</span><ul class="gm-album">${V.map(v => `<li data-f="${v.found ? 1 : 0}">${v.found && v.pic ? `<img alt="" src="${v.pic}">` : ''}<b>${esc(v.name)}</b><span>${esc(v.found ? v.when : v.hint)}</span></li>`).join('')}</ul>` : '');
-  }
-  // tonight's timetable in the walk's menu, under its stories (tonight.js)
-  function tonightSync() {
-    const el = $('#gm-tonight');
-    if (!el) return;
-    const h = walk && tonight ? tonight.menuHtml() : '';
-    el.hidden = !h;
-    if (h) el.innerHTML = h;
-  }
-  function togglePass() { renderPassport(); $('#g-pass').hidden = !$('#g-pass').hidden; }
-  const bigCanvas = $('#g-bigmap-c'), mapPop = $('#g-mappop');
+  // ------------------------------------------------------------ menus, map, passport: menus.js (tools/cut.js)
   let bigView = null, waypoint = null, bigPins = [], picked = null, travelKey = '';
-  function toggleMap() {
-    const el = $('#g-bigmap');
-    el.hidden = !el.hidden;
-    picked = null; mapPop.hidden = true;
-    if (!el.hidden) { travelKey = ''; drawBig(); }
-  }
+  const { bigCanvas, mapPop, toggleMap, toggleMenu, togglePass } = OEGameMenus({ get $() { return $; }, get $$() { return $$; }, get drawBig() { return drawBig; }, get menuSync() { return menuSync; }, get on() { return on; }, get picked() { return picked; }, set picked(v) { picked = v; }, get renderPassport() { return renderPassport; }, get story() { return story; }, get storyLog() { return storyLog; }, get tonight() { return tonight; }, set tonight(v) { tonight = v; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get walkUi() { return walkUi; }, set walkUi(v) { walkUi = v; } });
 
   // ------------------------------------------------------------ map travel
   // Any time, from the map, as Genshin Impact's and Breath of the Wild's maps let you: to the city's
@@ -4708,977 +4009,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // with a clear line of sight to its upper part through the 2 m surface model, lit from behind you
   // by day, facing it, with the camera low enough to take in its top.
   const landmarks = Object.entries(scene.labels || {}).map(([name, p]) => ({ kind: 'landmark', id: `lm-${name}`, name, at: [p[0], p[1]], top: p[2] }));
-  // ------------------------------------------------------------ the region round this map
-  // A city drawn as maps of its own (Kyoto, Tokyo: a metro group) is one world on the big map, as an open-world
-  // game's map is: zoom out past this map and the other districts are there where they really are, each map's
-  // extent framed, its stations pinned and the railway lines that join them drawn faintly underneath, so
-  // Kiyomizu-dera is found on the map from Kyoto Station rather than on another screen. A district there is
-  // picked like any place and Travel takes you into that map, at that station (index.html router, "@<travel id>").
-  // A district out of view is a chip at the map's edge, pointing to it with its distance, as games point to
-  // an objective off screen; "This district" and "All of <city>" over the map's corner switch between the two.
-  const region = (() => {
-    if (!metro || !scene.frame.lat0) return null;
-    const f = scene.frame, k = Math.cos(f.lat0 * Math.PI / 180);
-    const w = (la, lo) => [(lo - f.lon0) * 111320 * k, (la - f.lat0) * 110574]; // (the frame's transverse Mercator, near enough over a city)
-    const maps = metro.sites.filter(c => c.id !== cityId && c.game && c.frame_m).map(c => {
-      const [cx, cy] = w(c.lat, c.lon), m = c.frame_m;
-      return { id: c.id, name: c.district || c.name, native: c.native || '', x0: cx + m[0], x1: cx + m[1], y0: cy + m[2], y1: cy + m[3] };
-    });
-    if (!maps.length) return null;
-    const stations = metro.meta.districts.map((st, i) => {
-      const mp = maps.find(m => m.id === st.map);
-      return mp && { kind: 'district', id: `district-${i}`, name: st.name, native: st.native || '', at: w(st.lat, st.lon), map: mp, travel: st.travel || null, line: (st.guide || {}).line || '' };
-    }).filter(Boolean);
-    const lines = (metro.meta.lines || []).map(l => ({ colour: l.colour, loop: !!l.loop, pts: l.stops.map(([la, lo]) => w(la, lo)) }));
-    const all = maps.concat([{ x0: f.x[0], x1: f.x[1], y0: f.y[0], y1: f.y[1] }]);
-    const box = [Math.min(...all.map(m => m.x0)), Math.max(...all.map(m => m.x1)), Math.min(...all.map(m => m.y0)), Math.max(...all.map(m => m.y1))];
-    return { name: metro.name, native: metro.native || '', here: (me && (me.district || me.name)) || CITY.name, maps, stations, lines, box };
-  })();
-  const dsmAt = (x, y) => {
-    const c = Math.floor((x - DSM.x0) / DSM.cell), r = Math.floor((DSM.y1 - y) / DSM.cell);
-    return c >= 0 && r >= 0 && c < DSM.nx && r < DSM.ny ? DSM.data[r * DSM.nx + c] : 0;
-  };
-  const inFrame = (x, y, m = 30) => x > FRAME.x0 + m && x < FRAME.x1 - m && y > FRAME.y0 + m && y < FRAME.y1 - m;
-  // A phone's district (pipeline/district.py; D.district): the play area is the district's frame. A walker and a car
-  // stop at its edge as at the whole map's (the walking model ends there); the helicopter is held DISTRICT_AIR metres
-  // past it, over the streets still built there. Said once in a while, so that the edge is not a wall without a word.
-  const DISTRICT_AIR = 120;
-  let districtSaid = -1e9;
-  function districtEdge() {
-    if (clockT - districtSaid < 45) return;
-    districtSaid = clockT;
-    H.toast('<b>The edge of this district.</b> On a phone the game keeps to the streets round the start; the rest of the map is on a larger screen.');
-  }
-  // how far into the haze at the model's edge a point is, 0 to 1, as world.js edgeHaze draws it: standing in that band,
-  // everything round you is veiled, the near things too
-  const edgeFade = Math.min(500, Math.max(250, 0.1 * Math.min(FRAME.x1 - FRAME.x0, FRAME.y1 - FRAME.y0)));
-  const hazeAt = (x, y) => {
-    const ox = Math.max(0, Math.abs(x - (FRAME.x0 + FRAME.x1) / 2) - ((FRAME.x1 - FRAME.x0) / 2 - edgeFade));
-    const oy = Math.max(0, Math.abs(y - (FRAME.y0 + FRAME.y1) / 2) - ((FRAME.y1 - FRAME.y0) / 2 - edgeFade));
-    return THREE.MathUtils.smoothstep(Math.hypot(ox, oy), 0, edgeFade);
-  };
-  // the trees (places.json, decimetres: x, y, ground, height; mapped, and planted from the woods' canopy) as [x, y, top, crown radius] on a 20 m grid,
-  // built on first use: the surface model has the buildings but not the trees, and a crown hides a tower as well
-  let treeGrid = null;
-  function treesNear(x, y, r) {
-    if (!treeGrid) {
-      treeGrid = new Map();
-      const T = (P.trees || []).concat(P.woods || []);
-      for (let i = 0; i + 3 < T.length; i += 4) {
-        const tx = T[i] / 10, ty = T[i + 1] / 10, h = T[i + 3] / 10, k = `${Math.floor(tx / 20)},${Math.floor(ty / 20)}`;
-        if (!treeGrid.has(k)) treeGrid.set(k, []);
-        treeGrid.get(k).push([tx, ty, T[i + 2] / 10 + h, Math.max(3, h * 0.45)]); // a fig spreads as wide as it is tall
-      }
-    }
-    const out = [];
-    for (let i = Math.floor((x - r) / 20); i <= Math.floor((x + r) / 20); i++) for (let j = Math.floor((y - r) / 20); j <= Math.floor((y + r) / 20); j++) {
-      for (const t of treeGrid.get(`${i},${j}`) || []) if (Math.hypot(t[0] - x, t[1] - y) < r + t[3]) out.push(t);
-    }
-    return out;
-  }
-  // a spot to stand and look at a landmark from: { x, y, z, face, pitch }, or null. Back from it by its
-  // height or its breadth, whichever is more (the breadth read from the surface model round its label), so
-  // a tower stands whole in the frame and the Opera House's shells fit across it; then, of the spots round
-  // it, the one with the clearest line of sight to its upper part, room behind for the camera, and the
-  // sun behind you by day
-  // A city can steer it for the few landmarks the search gets wrong (city.json "arrivals", keyed by the label's
-  // name): "front", the compass bearing its front faces (the arrival keeps within "arc" degrees of it, 70 if not
-  // given), "dist", how far back to stand in metres, or "at", a hand-picked spot [x, y] in the local frame
-  // (with "look", the point [x, y] to face from it, where the landmark's middle is the wrong thing to face).
-  // "top" frames a lower part than the label's top (metres above the ground): a theatre's front rather than the tower behind it.
-  function standFor(lm, dbg = null) {
-    const spec = ((scene.city && scene.city.arrivals) || {})[lm.name] || {};
-    const [x, y] = lm.at, g = groundZ(x, y) ?? Math.max(0, nav.terrain(x, y)), top = spec.top ? g + spec.top : lm.top ?? g + 20, tall = Math.max(10, top - g);
-    const reach = [];
-    for (let i = 0; i < 16; i++) { // how far its high part runs out from the label, each way; the median of that
-      const a = i / 16 * Math.PI * 2, ux = Math.sin(a), uy = Math.cos(a);
-      let last = 0;
-      for (let r = 0; r <= 220; r += 4) { if (dsmAt(x + ux * r, y + uy * r) >= g + tall * 0.3) last = r; else if (r - last > 12 && (last || r > 40)) break; } // a street ends it
-      reach.push(last);
-    }
-    const R = reach.sort((a, b) => a - b)[8];
-    const D = spec.dist || THREE.MathUtils.clamp(Math.max(tall * 1.4, R * 2.2 + 40), 45, 520);
-    // off its front: 0 straight in front, rising to 0.45 at the edge of the arc, and out of it altogether beyond
-    const arc = (spec.arc ?? 70) * Math.PI / 180, front = spec.front != null ? spec.front * Math.PI / 180 : null;
-    const aside = (px, py) => {
-      if (front == null) return 0;
-      const off = Math.abs(Math.atan2(Math.sin(Math.atan2(px - x, py - y) - front), Math.cos(Math.atan2(px - x, py - y) - front)));
-      return off > arc ? Infinity : 0.45 * (1 - Math.cos(off)) / (1 - Math.cos(arc));
-    };
-    const day = sun && sun.altitude > 2, sx = day ? Math.sin(sun.azimuth * Math.PI / 180) : 0, sy = day ? Math.cos(sun.azimuth * Math.PI / 180) : 0;
-    const body = bodyOf(lm, g, top);
-    // what the camera behind you sees of the landmark from a spot (px, py, pz), facing it: the share of its body
-    // in frame and in sight (through the surface model, and the tree crowns when asked), how much was cut off
-    // by the frame's edges (and of its upper third off the top), and how much of the frame's height the part in
-    // sight fills. The camera stands where the chase rig puts it: 7.5 m behind your head, a little to the side, at
-    // the pitch (and the tilt up) that takes in its top.
-    const aspect = Math.max(0.4, camera.aspect || 1.6), tanV = Math.tan(BASE_FOV / 2 * Math.PI / 180), tanH = tanV * aspect;
-    const view = (px, py, pz, crowns, fixed = null) => {
-      const face = Math.atan2(x - px, y - py), yaw = face + 0.12, hz = pz + 1.55;
-      let el = -Infinity; // the highest point of it, seen from your head, sets the pitch: its top a little under the frame's top edge
-      for (const q of body.pts) el = Math.max(el, Math.atan2(q[2] - hz, Math.max(1, Math.hypot(q[0] - px, q[1] - py) + 7.5)));
-      // a camera under your head would be in the ground: it stays a little over it and tilts up instead (cam.tilt),
-      // as far as keeps you in the frame
-      const want = fixed ?? Math.atan(tanV * 0.78) - el, pitch = THREE.MathUtils.clamp(want, 0.06, 0.16), tilt = THREE.MathUtils.clamp(pitch - want, 0, 0.26);
-      const cp = Math.cos(pitch), cx = px - Math.sin(yaw) * cp * 7.5, cy = py - Math.cos(yaw) * cp * 7.5;
-      const cz = Math.max(hz + Math.sin(pitch) * 7.5, Math.max(0, nav.terrain(cx, cy)) + 0.5);
-      const he = Math.atan2(hz - cz, Math.hypot(px - cx, py - cy)) + tilt, hh = Math.atan2(px - cx, py - cy);
-      const fx = Math.sin(hh) * Math.cos(he), fy = Math.cos(hh) * Math.cos(he), fz = Math.sin(he);
-      let rx = fy, ry = -fx; const rl = Math.hypot(rx, ry) || 1; rx /= rl; ry /= rl; // right, level
-      const ux = ry * fz, uy = -rx * fz, uz = rx * fy - ry * fx; // up = right x forward
-      let seen = 0, cut = 0, lo = Infinity, hi = -Infinity, over = 0;
-      for (let k = 0; k < body.pts.length; k++) {
-        const q = body.pts[k], wk = body.w[k], dx = q[0] - cx, dy = q[1] - cy, dz = q[2] - cz, zf = dx * fx + dy * fy + dz * fz;
-        if (zf < 2) { cut += wk; if (q[2] >= body.high) over++; continue; }
-        const u = (dx * rx + dy * ry) / (zf * tanH), v = (dx * ux + dy * uy + dz * uz) / (zf * tanV);
-        if (q[2] >= body.high && v > 0.97) over++; // its upper part off the top of the frame, hidden or not
-        if (!sightTo(cx, cy, cz, q, body, crowns)) continue;
-        if (Math.abs(u) > 0.97 || Math.abs(v) > 0.97) { cut += wk; continue; }
-        seen += wk; lo = Math.min(lo, v); hi = Math.max(hi, v);
-      }
-      const n = body.wSum;
-      return { face, pitch, tilt, seen: seen / n, cut: cut / n, over: over / body.nHigh, fill: seen ? (hi - lo) / 2 : 0 };
-    };
-    // the score of a view: most of it in sight, filling a good part of the frame and not cut off, and the sun behind you
-    const rate = (v, px, py) => 1.6 * v.seen + 0.5 * Math.min(1, v.fill / 0.45) - v.cut - 1.2 * v.over
-      + (day ? 0.2 * Math.max(0, -((x - px) * sx + (y - py) * sy) / Math.hypot(x - px, y - py)) : 0);
-    if (spec.at) { // a hand-picked spot: on it (or the nearest ground to it), facing the landmark
-      const p = placeNear(spec.at[0], spec.at[1], Number.isFinite(spec.at[2]) ? spec.at[2] : null, null, 12);
-      if (p && spec.look) return { x: p[0], y: p[1], z: p[2], face: Math.atan2(spec.look[0] - p[0], spec.look[1] - p[1]), pitch: 0.2, tilt: 0 }; // (and what to face: a tunnel's mouth)
-      if (p) { const v = view(p[0], p[1], p[2], true); return { x: p[0], y: p[1], z: p[2], face: v.face, pitch: v.pitch, tilt: v.tilt }; }
-    }
-    // room for the chase camera behind you: the line from your head to where it will stand, as the rig tests it
-    const room = f => {
-      const yaw = f.face + 0.12, cp = Math.cos(f.pitch), hd = W(f.x, f.y, f.z + 1.55), cx = f.x - Math.sin(yaw) * cp * 7.5, cy = f.y - Math.cos(yaw) * cp * 7.5;
-      const leafy = (qx, qy) => treesNear(qx, qy, 0).some(t => Math.hypot(t[0] - qx, t[1] - qy) < t[3] * 0.7);
-      if (leafy(cx, cy) || leafy((cx + f.x) / 2, (cy + f.y) / 2)) return 0.5; // the camera in a crown: leaves across the lens
-      return nav.clearFraction(hd, new THREE.Vector3(cx, hd.y + Math.sin(f.pitch) * 7.5, -cy));
-    };
-    // open ground round a spot (a square, a park, the waterfront rather than a lane): the share of rings 6 and 14 m out with nothing over 3 m on them
-    const open = p => { let n = 0; for (const r of [6, 14]) for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; if (dsmAt(p[0] + Math.sin(a) * r, p[1] + Math.cos(a) * r) < p[2] + 3) n++; } return n / 32; };
-    const cands = [];
-    // rings from close under it, looking up, to well back: what the camera sees decides, not the distance
-    for (const k of spec.dist ? [1, 0.75, 1.3] : [1, 0.45, 0.7, 1.35]) for (let i = 0; i < 16; i++) {
-      const a = (i + (k === 1 || k === 0.45 ? 0 : 0.5)) / 16 * Math.PI * 2, px = x + Math.sin(a) * D * k, py = y + Math.cos(a) * D * k, pz = nav.terrain(px, py);
-      if (!inFrame(px, py) || pz <= -0.5 || aside(px, py) === Infinity || Math.hypot(px - x, py - y) < 25) continue;
-      if (dsmAt(px, py) > Math.max(0, pz) + 3) continue; // inside a building
-      cands.push({ px, py, score: rate(view(px, py, Math.max(0, pz), false), px, py) - 0.08 * Math.abs(k - 1) - aside(px, py) - 3 * hazeAt(px, py) });
-    }
-    cands.sort((a, b) => b.score - a.score);
-    // the rig lifts a camera that a wall or the ground in front of it would block, looking down more: the view it will have
-    const rig = (p, v) => {
-      const hd = W(p[0], p[1], p[2] + 1.55), yaw = v.face + 0.12;
-      for (const lift of [0, 0.25, 0.5, 0.8]) {
-        const pt = Math.min(1.35, v.pitch + lift), cp = Math.cos(pt);
-        const pos = new THREE.Vector3(hd.x - Math.sin(yaw) * cp * 7.5, hd.y + Math.sin(pt) * 7.5, hd.z + Math.cos(yaw) * cp * 7.5);
-        if (nav.clearFraction(hd, pos) >= 0.97) return lift ? Object.assign(view(p[0], p[1], p[2], true, pt), { pitch: v.pitch, tilt: v.tilt }) : v;
-      }
-      return v;
-    };
-    const judge = p => {
-      const v = rig(p, view(p[0], p[1], p[2], true)), f = { x: p[0], y: p[1], z: p[2], face: v.face, pitch: v.pitch, tilt: v.tilt }, rm = room(f);
-      const fl = nav.floorAt(p[0], p[1], p[2] + 0.5), roof = fl && fl.kind === 'roof' ? 0.4 : 0; // the street rather than a roof level with it
-      // out from under a walkway, a flyover or an overhang, for you and for the camera behind you
-      const bx = p[0] - Math.sin(f.face + 0.12) * 7, by = p[1] - Math.cos(f.face + 0.12) * 7;
-      const covered = (dsmAt(p[0], p[1]) > p[2] + 4 ? 0.6 : 0) + (dsmAt(bx, by) > p[2] + 4 ? 0.6 : 0);
-      const score = rate(v, p[0], p[1]) + (rm > 0.97 ? 0.3 : rm === 0.5 ? -0.3 : -1) + 0.8 * open(p) - roof - covered - aside(p[0], p[1]) - 3 * hazeAt(p[0], p[1]);
-      if (dbg) dbg.push({ p: p.map(v => Math.round(v)), seen: +v.seen.toFixed(2), cut: +v.cut.toFixed(2), over: +v.over.toFixed(2), fill: +v.fill.toFixed(2), room: +rm.toFixed(2), open: +open(p).toFixed(2), score: +score.toFixed(2) });
-      return { f, score, rm, seen: v.seen };
-    };
-    // none of the rings sees much of it (a short building among towers): every open spot on a grid round it, once
-    const grid = () => {
-      if (best && best.seen >= 0.6) return [];
-      const step = Math.max(10, D / 10), out = [];
-      for (let gx = x - D * 1.6; gx <= x + D * 1.6; gx += step) for (let gy = y - D * 1.6; gy <= y + D * 1.6; gy += step) {
-        const d = Math.hypot(gx - x, gy - y), pz = nav.terrain(gx, gy);
-        if (d < 25 || d > D * 1.6 || !inFrame(gx, gy) || pz <= -0.5 || aside(gx, gy) === Infinity || dsmAt(gx, gy) > Math.max(0, pz) + 3) continue;
-        out.push({ px: gx, py: gy, score: rate(view(gx, gy, Math.max(0, pz), false), gx, gy) - 3 * hazeAt(gx, gy) });
-      }
-      return out.sort((a, b) => b.score - a.score).slice(0, 12);
-    };
-    let best = null;
-    for (let pass = 0; pass < 2; pass++) for (const c of pass ? grid() : cands.slice(0, 24)) {
-      const p = placeNear(c.px, c.py, null, null, 12);
-      if (!p) continue;
-      let j = judge(p);
-      // a wall or a crown behind you: a few steps either side, or nearer or further, may clear it
-      if (j.rm <= 0.97) {
-        const ux = (x - p[0]) / Math.hypot(x - p[0], y - p[1]), uy = (y - p[1]) / Math.hypot(x - p[0], y - p[1]);
-        for (const [s, t] of [[6, 0], [-6, 0], [0, 8], [0, -8], [12, 0], [-12, 0]]) {
-          const q = placeNear(p[0] + uy * s + ux * t, p[1] - ux * s + uy * t, null, null, 3);
-          if (q) { const k = judge(q); if (k.score > j.score) j = k; }
-        }
-      }
-      if (!best || j.score > best.score) best = j;
-    }
-    if (best) return best.f;
-    const p = placeNear(x, y, null, null, 150); // at its foot, or the nearest ground to it
-    if (!p) return null;
-    const v = view(p[0], p[1], p[2], false);
-    return { x: p[0], y: p[1], z: p[2], face: v.face, pitch: v.pitch, tilt: v.tilt };
-  }
-  // the landmark's body, as points to look at: the cells of the surface model its buildings cover (those named
-  // after it, or the one under its label), their tops and, along their edges, their walls; for a landmark the
-  // surface model leaves out (an open iron tower), a column at its label. Cut at its "top" when a city.json
-  // "arrivals" entry gives one.
-  const bodies = new Map();
-  function bodyOf(lm, g, top) {
-    if (bodies.has(lm.name)) return bodies.get(lm.name);
-    const [x, y] = lm.at, C = DSM.cell, rad = 250, c0 = Math.floor((x - DSM.x0) / C), r0 = Math.floor((DSM.y1 - y) / C), n = Math.ceil(rad / C);
-    // named after it: the label's name, or the start of it ("Kabuki-za" of "Kabuki-za 歌舞伎座"), or any word of it in
-    // another script ("歌舞伎座"), whole; not a longer name that starts the same ("Town Hall Station" for "Town Hall")
-    const toks = lm.name.toLowerCase().split(/\s+/), cjk = t => /[^\x00-\x7f]/.test(t), lead = toks.slice(0, Math.max(1, toks.findIndex(cjk))).join(' ');
-    const words = new Set([lm.name.toLowerCase(), toks.some(cjk) ? lead : '', ...toks.filter(t => cjk(t) && t.length > 1)].filter(Boolean));
-    // or a name that ends in the label's words after a place's ("Tsim Sha Tsui Clock Tower" for "Clock Tower")
-    const tail = ' ' + lm.name.toLowerCase();
-    const named = id => { const m = B.b[id] && B.b[id][0] && B.b[id][0].toLowerCase(); return !!m && m.length > 1 && (words.has(m) || m.endsWith(tail)); };
-    const ids = new Set(), near = new Map(), tall = new Set();
-    for (let r = r0 - n; r <= r0 + n; r++) for (let c = c0 - n; c <= c0 + n; c++) {
-      if (r < 0 || c < 0 || r >= DSM.ny || c >= DSM.nx) continue;
-      const id = DSM.ids[r * DSM.nx + c];
-      if (id < 0) continue;
-      const d = Math.hypot(c - c0, r - r0) * C;
-      if (d < 150 && named(id)) ids.add(id);
-      if (d < 16 && DSM.data[r * DSM.nx + c] > g + Math.min(8, (top - g) * 0.3)) near.set(id, (near.get(id) || 0) + 1);
-      if (d < 40 && DSM.data[r * DSM.nx + c] >= g + (top - g) * 0.6) tall.add(id); // its high part, whatever building the cells were drawn for
-    }
-    // a landmark found by its name keeps to it and its unnamed parts: a neighbour named for something else is not
-    // its high part (Hong Kong's Cultural Centre behind the Clock Tower), and framing both crops a phone's narrow view
-    const byName = ids.size > 0;
-    if (!ids.size && near.size) { const most = Math.max(...near.values()); for (const [id, k] of near) if (k >= most * 0.3) ids.add(id); }
-    for (const id of tall) if (!byName || !(B.b[id] && B.b[id][0] && B.b[id][0].length > 1)) ids.add(id);
-    const cells = [];
-    for (let r = r0 - n; r <= r0 + n; r++) for (let c = c0 - n; c <= c0 + n; c++) {
-      if (r < 1 || c < 1 || r >= DSM.ny - 1 || c >= DSM.nx - 1) continue;
-      const i = r * DSM.nx + c;
-      if (ids.has(DSM.ids[i]) && DSM.data[i] > g + 2) cells.push([r, c, i]);
-    }
-    const pts = [], stride = Math.max(1, Math.ceil(Math.sqrt(cells.length / 90)));
-    for (const [r, c, i] of cells) {
-      const edge = !ids.has(DSM.ids[i - 1]) || !ids.has(DSM.ids[i + 1]) || !ids.has(DSM.ids[i - DSM.nx]) || !ids.has(DSM.ids[i + DSM.nx]);
-      if (!edge && (r % stride || c % stride)) continue;
-      if (edge && (r + c) % stride) continue;
-      const px = DSM.x0 + (c + 0.5) * C, py = DSM.y1 - (r + 0.5) * C, h = Math.min(DSM.data[i], top);
-      pts.push([px, py, h]);
-      if (edge) for (const f of [0.25, 0.6]) pts.push([px, py, g + (h - g) * f]);
-    }
-    if (pts.length < 6) { pts.length = 0; ids.clear(); for (const f of [0.1, 0.3, 0.5, 0.7, 0.9, 1]) for (const s of [-3, 3]) pts.push([x + s, y, g + (top - g) * f]); }
-    // a part over its buildings that the surface model leaves out (HEP FIVE's wheel, a spire, an open iron tower on
-    // a base): a column at its label up to its top, as many points as the buildings have, so it counts as much
-    const hi = pts.reduce((m, q) => Math.max(m, q[2]), g);
-    if (top > hi + Math.max(8, (top - g) * 0.15) && ids.size) { const k = Math.max(6, pts.length); for (let i = 0; i < k; i++) pts.push([x + (i % 2 ? 3 : -3), y, hi + (top - hi) * (i + 1) / k, 1]); } // over them: their roofs hide it
-    // its upper third, which a frame cut off at the top loses first
-    const zs = pts.map(q => q[2]).sort((a, b) => a - b), zTop = zs[zs.length - 1], high = g + (zTop - g) * 0.67;
-    // each point weighs by its height: a tower is known by its upper floors, the podium round its foot is not
-    const w = pts.map(q => 0.3 + Math.max(0, q[2] - g) / Math.max(1, zTop - g)), wSum = w.reduce((a, v) => a + v, 0);
-    const b = { ids, pts, w, wSum, high, nHigh: Math.max(1, pts.filter(q => q[2] >= high).length) };
-    bodies.set(lm.name, b);
-    return b;
-  }
-  // how much of a landmark the camera sees now: the share of its body in frame and in sight (for tools/travel_shot.js)
-  function seenNow(lm) {
-    const spec = ((scene.city && scene.city.arrivals) || {})[lm.name] || {}, [x, y] = lm.at, g = groundZ(x, y) ?? Math.max(0, nav.terrain(x, y));
-    const body = bodyOf(lm, g, spec.top ? g + spec.top : lm.top ?? g + 20), c = camera.position, v = new THREE.Vector3();
-    camera.updateMatrixWorld();
-    let n = 0;
-    body.pts.forEach((q, k) => {
-      v.copy(W(q[0], q[1], q[2])).project(camera);
-      if (Math.abs(v.x) < 0.97 && Math.abs(v.y) < 0.97 && v.z < 1 && sightTo(c.x, -c.z, c.y, q, body, true)) n += body.w[k];
-    });
-    return n / body.wSum;
-  }
-  // a clear line from the camera (cx, cy, cz) to a point of a landmark's body: through the surface model in 2 m
-  // steps until it meets the body itself (a wall of it in front of the point counts as seen, but not in front of
-  // a point of the part over its roofs), and through the mapped tree crowns when asked
-  function sightTo(cx, cy, cz, q, body, crowns) {
-    const d = Math.hypot(q[0] - cx, q[1] - cy), n = Math.max(1, Math.ceil(d / 2));
-    for (let k = 1; k < n; k++) {
-      const t = k / n, qx = cx + (q[0] - cx) * t, qy = cy + (q[1] - cy) * t, line = cz + (q[2] - cz) * t;
-      const c = Math.floor((qx - DSM.x0) / DSM.cell), r = Math.floor((DSM.y1 - qy) / DSM.cell);
-      if (c < 0 || r < 0 || c >= DSM.nx || r >= DSM.ny) continue;
-      const i = r * DSM.nx + c;
-      if (DSM.data[i] > line + 0.5) return !q[3] && body.ids.has(DSM.ids[i]);
-      if (crowns && k % 2 === 0 && d * (1 - t) > 6 && treesNear(qx, qy, 0).some(tr => tr[2] > line && Math.hypot(tr[0] - qx, tr[1] - qy) < tr[3] * 0.8)) return false;
-    }
-    return true;
-  }
-  // where a destination puts you: { x, y, z, face?, pitch? }, or null
-  // a landmark that is a place to go up (an observation deck with its own lift, game.json "lifts", named for it):
-  // its deck, where the city names a place to travel to up there (or else the lift's top stop), facing out from
-  // its middle over the city; not a view of it from the street half a kilometre off
-  function deckOf(lm) {
-    const n = lm.name.toLowerCase(), l = lifts.find(l => l.stops.length > 1 && n.startsWith(l.name.toLowerCase()) && Math.hypot(l.stops[0].at[0] - lm.at[0], l.stops[0].at[1] - lm.at[1]) < 150);
-    if (!l) return null;
-    const g = Math.min(...l.stops.map(s => s.at[2]));
-    const places = (G.travel || []).filter(t => t.at.length > 2 && t.at[2] > g + 60 && Math.hypot(t.at[0] - lm.at[0], t.at[1] - lm.at[1]) < 150).map(t => t.at);
-    const stops = l.stops.filter(s => s.at[2] > g + 60).map(s => s.at);
-    const all = [...places.sort((a, b) => b[2] - a[2]), ...stops.sort((a, b) => b[2] - a[2])];
-    return all.length ? all : null;
-  }
-  // where on a deck you can stand: the first of its places with a floor at that level (not the street under it)
-  function deckStand(decks) {
-    for (const at of decks) { const p = placeNear(at[0], at[1], at[2], null, 45); if (p && Math.abs(p[2] - at[2]) < 6) return p; }
-    return null;
-  }
-  // on a deck the chase camera looks down over the city past you, as you would at the glass (and under a deck's roof)
-  const DECK_PITCH = 0.4;
-  // the side of a deck that looks at the city: towards where the game starts (the heart of it: Shibuya's
-  // scramble under SKY EDGE, Senso-ji from the Skytree), not over the edge of the map
-  const heart = lm => { const dx = G.start.at[0] - lm.at[0], dy = G.start.at[1] - lm.at[1], n = Math.hypot(dx, dy); return n > 20 ? [dx / n, dy / n] : null; };
-  const outward = (lm, p) => { const u = heart(lm); if (u) return Math.atan2(u[0], u[1]); const dx = p[0] - lm.at[0], dy = p[1] - lm.at[1]; return Math.hypot(dx, dy) > 2 ? Math.atan2(dx, dy) : null; };
-  // a deck's spots, the one on its city side first: as far out from the landmark's middle as the deck's own spot is
-  const facingSide = (lm, decks) => {
-    const u = heart(lm);
-    return u ? [...decks.map(at => { const r = Math.hypot(at[0] - lm.at[0], at[1] - lm.at[1]); return [lm.at[0] + u[0] * r, lm.at[1] + u[1] * r, at[2]]; }), ...decks] : decks;
-  };
-  function arrival(d) {
-    const deck = d.kind === 'landmark' ? deckOf(d) : null;
-    if (deck) {
-      const p = deckStand(facingSide(d, deck));
-      if (p) return { x: p[0], y: p[1], z: p[2], face: outward(d, p), pitch: DECK_PITCH };
-    }
-    if (d.kind === 'landmark') return standFor(d);
-    if (d.kind === 'car' && myCar) {
-      const st = myCar.D.st, dr = doorAt(myCar, 'driver'), p = placeNear(dr.x, dr.y, st.z + 0.5, carBoxes(st.x, st.y, 12));
-      return p && { x: p[0], y: p[1], z: p[2], face: Math.atan2(st.x - p[0], st.y - p[1]), pitch: 0.24 };
-    }
-    const [x, y, z] = d.at, p = placeNear(x, y, Number.isFinite(z) ? z : null, null, d.kind === 'point' ? 150 : 45); // on a roof, or the ground
-    if (!p) return null;
-    // high up on a landmark (a deck the city names as a place): facing out over the city, as from its deck
-    const lm = p[2] - Math.max(0, nav.terrain(p[0], p[1])) > 60 && landmarks.find(l => deckOf(l) && Math.hypot(l.at[0] - p[0], l.at[1] - p[1]) < 150);
-    if (lm) return { x: p[0], y: p[1], z: p[2], face: outward(lm, p), pitch: DECK_PITCH };
-    // else facing what the place is for (game.travel "look": a gate's mouth, the view; "pitch" the camera's, if its own), or the landmark there
-    const look = d.kind === 'place' ? lookOf(d, p) : null;
-    return look ? { x: p[0], y: p[1], z: p[2], face: Math.atan2(look[0] - p[0], look[1] - p[1]), pitch: d.pitch ?? 0.2 } : { x: p[0], y: p[1], z: p[2] };
-  }
-  // what you face on arriving at a travel place: its own "look" [x, y], or else the nearest landmark's label
-  // within 200 m (not one you stand on), so you arrive looking at what you came for, not wherever you last faced
-  function lookOf(t, p = t.at) {
-    if (t.look) return t.look;
-    let best = null, bd = 200;
-    for (const q of Object.values(scene.labels || {})) { const e = Math.hypot(q[0] - p[0], q[1] - p[1]); if (e > 8 && e < bd) { bd = e; best = q; } }
-    return best;
-  }
-  function travelTo(d) { // a shot playing (the start, a survey) is skipped by the hop, which plays its cues
-    if (d.kind === 'district') { // another map of the city: saved here, then that map loads and you arrive at the station
-      save();
-      $('#g-bigmap').hidden = true; mapPop.hidden = true; picked = null;
-      H.toast(`To ${d.map.name}: ${d.name}…`);
-      location.hash = `play-${d.map.id}${d.travel ? `@${d.travel}` : ''}`;
-      return true;
-    }
-    if (bounds && d.at && !bounds.inside(d.at[0], d.at[1], 'ground', 10)) { H.toast(G.bounds.lines.closed || 'Not open yet.'); return false; } // (past the planned area's edge)
-    if (!['foot', 'car', 'ride'].includes(player.mode)) {
-      H.toast({ heli: 'Land and get out of the helicopter first, then travel from the map.', ferry: 'Get off the ferry first (E at a wharf), then travel from the map.', rail: 'Get off first, then travel from the map.' }[player.mode] || 'Not now.');
-      return false;
-    }
-    const to = arrival(d);
-    if (!to) { H.toast(`There is nowhere to stand near ${d.name}.`); return false; }
-    $('#g-bigmap').hidden = true; mapPop.hidden = true; picked = null;
-    if (player.auto) { const a = player.auto; player.auto = null; if (a.cancel) a.cancel(); }
-    const was = player.mode, name = d.kind === 'point' ? 'your pin' : d.name;
-    // in your car, the kerb nearest the spot, and the camera looking past the car at the landmark
-    const kerb = was === 'car' && myCar ? kerbNear(to.x, to.y, to.z, 0) : null;
-    // no street near the spot (the end of a pier): you go on foot, and the car waits on the nearest street there is
-    const park = was === 'car' && myCar && !kerb ? kerbNear(to.x, to.y, null, 0, 1500) : null;
-    const carYaw = kerb && (d.kind === 'landmark' ? Math.atan2(d.at[0] - kerb.pose.x, d.at[1] - kerb.pose.y) : to.face ?? kerb.pose.h);
-    const cue = () => {
-      inSeason(d);
-      // (a place to watch a train from: the next one is that many seconds off as you arrive, rail.js cue)
-      const tv = (G.travel || []).find(t => t.id === d.id);
-      if (tv && tv.train && rail && rail.cue && player.mode !== 'rail') rail.cue(rail.sNear(tv.at[0], tv.at[1]), tv.train.in ?? 40, tv.train.dir || 0);
-      if (kerb) { // the car comes too, facing along the street
-        parkMyCar(kerb.pose);
-        Object.assign(player, { x: kerb.pose.x, y: kerb.pose.y, z: kerb.pose.z, h: kerb.pose.h, speed: 0 });
-        cam.mode = 'chase'; cam.yaw = carYaw; cam.pitch = Math.max(0.08, to.pitch ?? 0.2); cam.tilt = to.tilt || 0; cam.dist = 7.5;
-        groundLod(kerb.pose.x, kerb.pose.y); save();
-        return;
-      }
-      if (was === 'car' && myCar && player.mode === 'car') {
-        stepOut(myCar, 'driver', [to.x, to.y, to.z]);
-        if (park) { parkMyCar(park.pose); H.toast(`Your car is on the nearest street, ${fmtDist(Math.hypot(park.pose.x - to.x, park.pose.y - to.y))} away.`); }
-      }
-      if (was === 'ride' && ride && player.mode === 'ride') { stepOut(ride, rideSeat(ride), [to.x, to.y, to.z]); rideAway(); }
-      [player.x, player.y, player.z] = [to.x, to.y, to.z];
-      player.speed = 0; player.vz = 0; player.ground = true;
-      if (to.face != null) player.h = to.face;
-      cam.mode = 'chase'; cam.dist = 7.5;
-      // the landmark a little left of the player rather than behind their head
-      if (to.face != null) { cam.yaw = to.face + 0.12; cam.pitch = to.pitch ?? 0.3; cam.tilt = to.tilt || 0; } else { cam.yaw = player.h; cam.pitch = FOOT.pitch; cam.dist = FOOT.dist; cam.tilt = 0; }
-      groundLod(to.x, to.y); save();
-    };
-    hopTo(kerb ? kerb.pose.x : to.x, kerb ? kerb.pose.y : to.y, kerb ? kerb.pose.z : to.z, name,
-      { cue, yaw: kerb ? carYaw : to.face != null ? to.face + 0.12 : null, pitch: kerb ? Math.max(0.08, to.pitch ?? 0.2) : to.pitch });
-    return true;
-  }
-  // a place at its best in a season of its own (game.travel "best": {from, to, date [m, d], what}: the jacarandas
-  // over Circular Quay in late spring): arriving out of it, the clock's date moves to that day, the time kept
-  function inSeason(d) {
-    const b = d.kind === 'place' && d.best;
-    if (!b || !b.date || ![...b.from, ...b.to].every((v, i) => v >= 1 && v <= (i % 2 ? 31 : 12)) || b.date[0] > 12) return; // (a window that is not months and days is none)
-    const md = (m, dd) => m * 100 + dd, now = md(clock.m, clock.d), f = md(...b.from), t = md(...b.to);
-    if (f <= t ? now >= f && now <= t : now >= f || now <= t) return;
-    setClock(clock.y, b.date[0], b.date[1], clock.min);
-    H.toast(`${b.what || d.name} flower from ${b.from[1]} ${MONTHS[b.from[0] - 1]} to ${b.to[1]} ${MONTHS[b.to[0] - 1]}: the date is now ${b.date[1]} ${MONTHS[b.date[0] - 1]}.`);
-  }
-  // everywhere the map offers, in groups, nearest first within a group except the landmarks (the city's own order)
-  function travelGroups() {
-    const quick = [];
-    if (waypoint) quick.push({ kind: 'point', id: 'waypoint', name: 'Your waypoint', at: waypoint });
-    if (myCar && player.mode !== 'car') quick.push({ kind: 'car', id: 'car', name: 'Your car', at: [myCar.D.st.x, myCar.D.st.y] });
-    quick.push({ kind: 'start', id: 'start', name: 'Where you started', at: G.start.at });
-    const near = l => l.sort((a, b) => Math.hypot(a.at[0] - player.x, a.at[1] - player.y) - Math.hypot(b.at[0] - player.x, b.at[1] - player.y));
-    const open = l => (bounds ? bounds.keep(l) : l); // (nowhere past the planned area's edge: bounds.js)
-    return [
-      ['Places', (G.travel || []).map(t => ({ kind: 'place', id: t.id, name: t.name, at: t.at, look: t.look, pitch: t.pitch, best: t.best }))],
-      ['Landmarks', landmarks],
-      ['Trig stations', near(VP.map(v => ({ kind: 'trig', id: v.id, name: v.name, at: [v.x, v.y, v.z] })))],
-      ['Fishing spots', fish ? near(fish.spots.map(f => ({ kind: 'fish', id: `fish-${f.id}`, name: f.name, at: f.at }))) : []],
-      ['Ferry wharves', near(G.wharves.map(w => ({ kind: 'wharf', id: w.id, name: w.name, at: w.landing })))],
-      [region ? `Elsewhere in ${region.name}` : '', region ? near(region.stations.slice()) : []],
-      ['Shortcuts', quick],
-    ].map(([t, l]) => [t, open(l)]).filter(([, l]) => l.length);
-  }
-  const fmtDist = m => (m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(m < 9500 ? 1 : 0)} km`);
-  let travelList = [];
-  function renderTravel() {
-    const groups = travelGroups(), key = groups.map(([t, l]) => `${t}:${l.map(d => `${d.id}@${Math.round(Math.hypot(d.at[0] - player.x, d.at[1] - player.y) / 50)}`).join(',')}`).join('|');
-    if (key === travelKey) return;
-    travelKey = key; travelList = [];
-    $('#g-travel').innerHTML = groups.map(([title, list]) => `<li class="g-tgroup"><h4>${title}</h4><ul>${list.map(d => {
-      travelList.push(d);
-      return `<li><button data-k="${travelList.length - 1}"${d.kind === 'district' ? ' class="g-tdistrict"' : ''}><span>${d.name}${d.kind === 'district' ? `<small>${d.map.name} map</small>` : ''}</span><span class="num">${fmtDist(Math.hypot(d.at[0] - player.x, d.at[1] - player.y))}</span></button></li>`;
-    }).join('')}</ul></li>`).join('');
-  }
-  // the card over the map for a picked pin or spot: travel there, or set a waypoint
-  function pick(d, cx, cy) {
-    picked = d;
-    $('#g-mappop-name').textContent = d.kind === 'point' ? 'Your pin' : d.name;
-    const deck = d.kind === 'landmark' && deckOf(d) && deckStand(deckOf(d)), up = deck ? ` · travel takes you up to its deck, ${Math.round(deck[2] - Math.max(0, nav.terrain(deck[0], deck[1])))} m up` : '';
-    $('#g-mappop-note').textContent = `${{ landmark: 'Landmark', place: 'Place', trig: 'Trig station', fish: 'Fishing spot', wharf: 'Ferry wharf', car: 'Your car', start: 'Where you started', point: 'Waypoint set' }[d.kind] || ''} · ${fmtDist(Math.hypot(d.at[0] - player.x, d.at[1] - player.y))} away${up}`;
-    if (d.kind === 'district') $('#g-mappop-note').textContent = `${d.map.name} map · ${fmtDist(Math.hypot(d.at[0] - player.x, d.at[1] - player.y))} away · its own map loads`;
-    $('#g-mappop-line').textContent = d.kind === 'district' ? d.line : '';
-    $('#g-mappop-line').hidden = d.kind !== 'district' || !d.line;
-    $('#g-mappop-go').textContent = d.kind === 'district' ? `Go to ${d.map.name}` : 'Travel here';
-    $('#g-mappop-way').hidden = d.kind === 'point' || d.kind === 'district';
-    mapPop.hidden = false;
-    placePop(cx, cy);
-    $('#g-mappop-go').focus({ preventScroll: true });
-  }
-  function placePop(cx, cy) {
-    const box = bigCanvas.getBoundingClientRect(), w = mapPop.offsetWidth, h = mapPop.offsetHeight;
-    mapPop.style.left = `${Math.max(6, Math.min(box.width - w - 6, cx - w / 2))}px`;
-    mapPop.style.top = `${cy - h - 14 > 6 ? cy - h - 14 : Math.min(box.height - h - 6, cy + 14)}px`;
-  }
-  // the map's zoom (1: the whole city fits) and the base-map pixel at its centre, kept while the map is closed;
-  // the names are laid out afresh at each zoom, so the ones crowded out come back as you zoom in
-  const mapZ = { z: 1, cx: null, cy: null }, touches = new Map();
+  // ------------------------------------------------------------ the region round this map: region.js (tools/cut.js)
   let mapDrag = null, dragged = false, bigNames = []; // a pan under way, and whether the press that ends it moved (then it is no click)
-  const mapZMax = () => Math.max(4, 2 / (bigView ? bigView.fit : 0.25)); // up to about a metre a screen pixel
-  const mapZMin = () => (bigView ? bigView.zmin : 1); // below 1, the region round this map (region, above)
   let bigChips = []; // the chips at the map's edge for the districts out of view: [x0, y0, x1, y1, map]
-  function drawBig() {
-    const box = bigCanvas.parentElement.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
-    const cw = Math.round(box.width * dpr), ch = Math.round(box.height * dpr);
-    if (bigCanvas.width !== cw || bigCanvas.height !== ch) { bigCanvas.width = cw; bigCanvas.height = ch; }
-    const bw = base.canvas.width, bh = base.canvas.height, fit = Math.min(cw / bw, ch / bh);
-    // the extent that can be shown: this map, or with the region the whole city's maps (base-map pixels)
-    const ext = region ? [base.X(region.box[0]), base.Y(region.box[3]), base.X(region.box[1]), base.Y(region.box[2])] : [0, 0, bw, bh];
-    // (the whole city fits clear of the switch over the top corner and the zoom buttons at the side)
-    const zmin = region ? Math.min(1, Math.min((cw - 110 * dpr) / (ext[2] - ext[0]), (ch - 120 * dpr) / (ext[3] - ext[1])) / fit) : 1;
-    mapZ.z = THREE.MathUtils.clamp(mapZ.z, zmin, Math.max(4, 2 / fit));
-    const g = bigCanvas.getContext('2d'), s = fit * mapZ.z;
-    // the centre held where the extent still fills the frame on that axis (or centred where it is narrower); this map's centre by default
-    const half = (c, a, b, n, full) => ((b - a) * s <= full ? (n * s <= full && !(mapZ.z < 1 - 1e-3) ? n / 2 : (a + b) / 2) : THREE.MathUtils.clamp(c ?? n / 2, a + full / s / 2, b - full / s / 2));
-    mapZ.cx = half(mapZ.cx, ext[0], ext[2], bw, cw); mapZ.cy = half(mapZ.cy, ext[1], ext[3], bh, ch);
-    const ox = cw / 2 - mapZ.cx * s, oy = ch / 2 - mapZ.cy * s;
-    bigView = { s, ox, oy, dpr, fit, zmin };
-    g.clearRect(0, 0, bigCanvas.width, bigCanvas.height);
-    const P2 = (x, y) => [ox + base.X(x) * s, oy + base.Y(y) * s];
-    const out = mapZ.z < 1 - 1e-3; // zoomed out past this map, into the region
-    if (region) { // the other maps, under this one: their extents, and the railway lines joining them
-      g.save();
-      for (const m of region.maps) {
-        const [x0, y0] = P2(m.x0, m.y1), [x1, y1] = P2(m.x1, m.y0);
-        g.fillStyle = 'rgba(22, 29, 38, 0.92)'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
-        const gr = g.createLinearGradient(x0, y0, x0, y1); gr.addColorStop(0, 'rgba(255, 176, 102, 0.07)'); gr.addColorStop(1, 'rgba(255, 176, 102, 0.015)');
-        g.fillStyle = gr; g.fillRect(x0, y0, x1 - x0, y1 - y0);
-      }
-      g.lineWidth = 2.2 * dpr; g.lineJoin = g.lineCap = 'round'; g.globalAlpha = 0.55;
-      for (const l of region.lines) {
-        g.strokeStyle = l.colour; g.beginPath();
-        l.pts.forEach((p, i) => { const [x, y] = P2(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); });
-        if (l.loop) g.closePath();
-        g.stroke();
-      }
-      g.restore();
-    }
-    g.drawImage(base.canvas, ox, oy, base.canvas.width * s, base.canvas.height * s);
-    if (region) { // every map's edge over the lot: the others dashed, this one in gold once you are out past it
-      g.save(); g.lineWidth = 1.2 * dpr;
-      g.setLineDash([5 * dpr, 4 * dpr]); g.strokeStyle = 'rgba(255, 176, 102, 0.6)';
-      for (const m of region.maps) { const [x0, y0] = P2(m.x0, m.y1), [x1, y1] = P2(m.x1, m.y0); g.strokeRect(x0, y0, x1 - x0, y1 - y0); }
-      if (out) { g.setLineDash([]); g.strokeStyle = 'rgba(255, 210, 150, 0.9)'; g.lineWidth = 1.6 * dpr; g.strokeRect(ox, oy, bw * s, bh * s); }
-      g.restore();
-    }
-    g.lineWidth = 2 * dpr;
-    for (const r of G.ferries) { g.strokeStyle = 'rgba(30,91,58,0.75)'; g.setLineDash([6 * dpr, 4 * dpr]); for (const l of r.legs) { g.beginPath(); l.path.forEach((p, i) => { const [x, y] = P2(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); } }
-    g.setLineDash([]);
-    const way = guide.pts && gold.ahead(); // the gold route still to go, as on the minimap and in the world
-    if (way && way.length > 1) {
-      g.save(); g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--sun') || '#ffc23d'; g.lineWidth = 3.5 * dpr; g.lineJoin = g.lineCap = 'round';
-      g.beginPath(); let pen = false; for (const p of way) { if (!p) { pen = false; continue; } const [x, y] = P2(p[0], p[1]); if (pen) g.lineTo(x, y); else g.moveTo(x, y); pen = true; } g.stroke(); g.restore(); // (a null: the break at a lift)
-    }
-    g.save(); g.scale(dpr, dpr);
-    bigPins = [];
-    const marks = [], ctl = []; // every icon drawn, which the names keep clear of, and the controls over the map
-    for (const el of [$('#g-mapzoom'), region && $('#g-mapscope')]) {
-      if (!el) continue;
-      const r = el.getBoundingClientRect(), c = bigCanvas.getBoundingClientRect();
-      if (r.width) ctl.push([r.left - c.left - 4, r.top - c.top - 4, r.right - c.left + 4, r.bottom - c.top + 4]);
-    }
-    const icon = (ic, x, y, d) => { H.drawIcon(g, ic, x / dpr, y / dpr); marks.push([x / dpr - 7, y / dpr - 7, x / dpr + 7, y / dpr + 7]); if (d) bigPins.push({ x: x / dpr, y: y / dpr, d }); };
-    // the landmarks and travel points; their names go on last, over everything but the player, the city's first
-    // ones first, each beside its pin where it covers no other pin or name (else left off: a pin names itself when picked)
-    const named = [...(G.travel || []).map(t => ({ kind: 'place', id: t.id, name: t.name, at: t.at, look: t.look, pitch: t.pitch, best: t.best })), ...landmarks];
-    for (const d of named) icon({ kind: d.kind }, ...P2(d.at[0], d.at[1]), d);
-    if (region) for (const d of region.stations) icon({ kind: 'district' }, ...P2(d.at[0], d.at[1]), d);
-    for (const w of G.wharves) icon({ kind: 'wharf' }, ...P2(...w.terminal), { kind: 'wharf', id: w.id, name: w.name, at: w.landing });
-    for (const h of G.helipads) icon({ kind: 'pad' }, ...P2(h.at[0], h.at[1]));
-    for (const v of VP) icon({ kind: 'trig', done: !!trigDone()[v.id] }, ...P2(v.x, v.y), { kind: 'trig', id: v.id, name: v.name, at: [v.x, v.y, v.z] });
-    if (fish) for (const f of fish.spots) icon({ kind: 'fish' }, ...P2(f.at[0], f.at[1]), { kind: 'fish', id: `fish-${f.id}`, name: f.name, at: f.at });
-    for (const f of flocks) if (!f.soaring) icon({ kind: 'gull' }, ...P2(f.at[0], f.at[1]));
-    for (const v of fer.vessels) icon({ kind: 'ferry' }, ...P2(v.x, v.y));
-    if (player.mode !== 'heli') icon({ kind: 'heli' }, ...P2(heli.st.x, heli.st.y));
-    if (myCar && player.mode !== 'car') icon({ kind: 'car' }, ...P2(myCar.D.st.x, myCar.D.st.y), { kind: 'car', id: 'car', name: 'Your car', at: [myCar.D.st.x, myCar.D.st.y] });
-    if (ride && ride.phase !== 'leaving') {
-      const st = ride.drv.st, P = ride.drv.path;
-      if (ride.phase === 'coming' || ride.phase === 'driving') {
-        g.restore(); H.rideLine(g, [[st.x, st.y]].concat(P.pts.slice(P.pos(st.s, {}).i + 1)), x => P2(x, 0)[0], y => P2(0, y)[1], dpr); g.save(); g.scale(dpr, dpr);
-      }
-      if (ride.phase === 'coming' || ride.phase === 'waiting') icon({ kind: 'pickup' }, ...P2(ride.pickup.x, ride.pickup.y));
-      if (player.mode !== 'ride') icon({ kind: 'ridecar', rot: st.h }, ...P2(st.x, st.y));
-    }
-    for (const n of npcs) icon({ kind: 'npc', color: wantsTalk(n) ? '#e0a21a' : '#5b6b77', label: n.name[0] }, ...P2(n.x, n.y));
-    for (const o of sideObjectives()) icon({ kind: 'quest2' }, ...P2(...o.at));
-    const ob = objective();
-    if (ob && ob.at) icon({ kind: 'quest' }, ...P2(...ob.at));
-    if (waypoint) icon({ kind: 'waypoint' }, ...P2(...waypoint));
-    const [px, py] = P2(player.mode === 'heli' ? heli.st.x : player.mode === 'ferry' ? player.vehicle.x : player.x, player.mode === 'heli' ? heli.st.y : player.mode === 'ferry' ? player.vehicle.y : player.y);
-    // the city's first five landmarks are named over anything but another pin; the rest keep clear of every icon,
-    // and a landmark is named before a travel place, which the list beside the map names too
-    const me = [px / dpr - 11, py / dpr - 11, px / dpr + 11, py / dpr + 11], pinBox = bigPins.map(q => [q.x - 7, q.y - 7, q.x + 7, q.y + 7]);
-    const taken = marks.concat([me], ctl), first = new Set(landmarks.slice(0, 5)), firstTaken = pinBox.concat([me], ctl);
-    g.font = '600 11px "Public Sans", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-    const said = []; // pins already named: a place and a landmark on the same spot take one name
-    // the other districts' stations first when out in the region, which is what that view is for; else after this map's own
-    const rank = q => (q.d.kind === 'district' ? (out ? 3 : -1) : first.has(q.d) ? 2 : q.d.kind === 'landmark' ? 1 : 0); // then the landmarks, then the travel places
-    // the maps' own names, set in their top corner as a game's map names its regions
-    if (region) {
-      g.save(); g.textBaseline = 'top'; g.textAlign = 'left';
-      for (const m of region.maps.map(m => ({ ...m, me: false })).concat(out ? [{ name: region.here, native: '', x0: scene.frame.x[0], y1: scene.frame.y[1], x1: scene.frame.x[1], me: true }] : [])) {
-        const [x0, y0] = P2(m.x0, m.y1), [x1, y1] = P2(m.x1, m.me ? scene.frame.y[0] : m.y0);
-        if (x1 / dpr - x0 / dpr < 70) continue;
-        const t = m.name.toUpperCase().split('').join(String.fromCharCode(8202));
-        g.font = '500 10.5px "Zalando Sans Expanded", "Michroma", "Public Sans", sans-serif';
-        const tw = g.measureText(t).width, lw = tw + 4, L = [x0 / dpr, y0 / dpr, x1 / dpr, y1 / dpr];
-        // a corner of the map's frame clear of pins, in view and (for another map) off this one where it can be
-        const own = [P2(scene.frame.x[0], 0)[0] / dpr, P2(0, scene.frame.y[1])[1] / dpr, P2(scene.frame.x[1], 0)[0] / dpr, P2(0, scene.frame.y[0])[1] / dpr];
-        const hit = (r, list) => list.some(q => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
-        const corners = [[L[0] + 8, L[1] + 8], [L[2] - 8 - lw, L[1] + 8], [L[0] + 8, L[3] - 34], [L[2] - 8 - lw, L[3] - 34]]
-          .map(([x, y]) => ({ x, y, r: [x - 2, y - 2, x + lw + 2, y + 27] }))
-          .filter(c => c.r[0] > 2 && c.r[1] > 2 && c.r[2] < box.width - 2 && c.r[3] < box.height - 2);
-        const score = c => (hit(c.r, taken) ? 2 : 0) + (!m.me && !out && hit(c.r, [own]) ? 1 : 0);
-        const best = corners.sort((a, b) => score(a) - score(b))[0];
-        if (!best || score(best) >= 2) continue;
-        const X0 = best.x, Y0 = best.y;
-        g.strokeStyle = 'rgba(6, 10, 18, 0.85)'; g.lineWidth = 3.2; g.strokeText(t, X0, Y0);
-        g.fillStyle = m.me ? '#ffd296' : '#ffb066'; g.fillText(t, X0, Y0);
-        g.font = '400 9px "JetBrains Mono", ui-monospace, monospace';
-        const sub = m.me ? 'You are here' : `${m.native ? `${m.native} · ` : ''}another map`;
-        g.strokeText(sub, X0, Y0 + 15); g.fillStyle = 'rgba(244, 239, 230, 0.7)'; g.fillText(sub, X0, Y0 + 15);
-        taken.push([X0 - 2, Y0 - 2, X0 + Math.max(tw, g.measureText(sub).width) + 4, Y0 + 27]); firstTaken.push(taken[taken.length - 1]);
-      }
-      g.restore();
-      g.font = '600 11px "Public Sans", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif'; g.textBaseline = 'middle';
-    }
-    for (const q of bigPins.slice().sort((a, b) => rank(b) - rank(a))) {
-      if ((q.d.kind !== 'landmark' && q.d.kind !== 'place' && q.d.kind !== 'district' && q.d.kind !== 'fish') || said.some(o => Math.hypot(o.x - q.x, o.y - q.y) < 16)) continue;
-      const w = g.measureText(q.d.name).width;
-      // right, left, above or below its pin: [text x, text y, align]
-      for (const [tx, ty, al] of [[q.x + 10, q.y, 'left'], [q.x - 10, q.y, 'right'], [q.x, q.y - 15, 'center'], [q.x, q.y + 15, 'center']]) {
-        const x0 = al === 'left' ? tx - 1 : al === 'right' ? tx - w - 2 : tx - w / 2 - 2, r = [x0, ty - 7, x0 + w + 3, ty + 7];
-        if (r[0] < 2 || r[2] > box.width - 2 || r[1] < 2 || r[3] > box.height - 2 || (first.has(q.d) ? firstTaken : taken).some(t => r[0] < t[2] && r[2] > t[0] && r[1] < t[3] && r[3] > t[1])) continue;
-        taken.push(r); firstTaken.push(r); said.push(q);
-        g.textAlign = al;
-        g.strokeStyle = 'rgba(6, 10, 18, 0.82)'; g.lineWidth = 3.2; g.strokeText(q.d.name, tx, ty);
-        g.fillStyle = q.d.kind === 'district' ? '#ffb066' : q.d.kind === 'place' ? '#ffd9a8' : q.d.kind === 'fish' ? '#9fd8ee' : '#f4efe6'; g.fillText(q.d.name, tx, ty);
-        break;
-      }
-    }
-    bigNames = said.map(q => q.d.name);
-    g.translate(px / dpr, py / dpr); g.rotate(player.mode === 'heli' ? heli.st.h : player.h);
-    g.fillStyle = '#ffffff'; g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg'); g.lineWidth = 2; // white on the gold route
-    g.beginPath(); g.moveTo(0, -10); g.lineTo(7, 8); g.lineTo(0, 4); g.lineTo(-7, 8); g.closePath(); g.fill(); g.stroke();
-    g.restore();
-    edgeChips(g, P2, cw, ch, dpr);
-    zoomUi();
-    if (picked && !mapPop.hidden) { // the card follows its place as the map moves, and goes when it leaves the frame
-      const q = picked.kind === 'point' ? waypoint || picked.at : picked.at, [cx, cy] = P2(q[0], q[1]);
-      if (cx < 0 || cy < 0 || cx > cw || cy > ch) { mapPop.hidden = true; picked = null; } else placePop(cx / dpr, cy / dpr);
-    }
-    renderTravel();
-  }
-  // a district wholly out of view: a chip on the map's edge in its direction, its name and how far; picking it
-  // shows the whole region with that district's card
-  function edgeChips(g, P2, cw, ch, dpr) {
-    bigChips = [];
-    if (!region) return;
-    const W = cw / dpr, Hh = ch / dpr, cx = W / 2, cy = Hh / 2;
-    g.save(); g.scale(dpr, dpr);
-    g.font = '600 11px "Public Sans", "Noto Sans JP", sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'left';
-    for (const m of region.maps) {
-      const [ax, ay] = P2(m.x0, m.y1), [bx, by] = P2(m.x1, m.y0);
-      if (bx / dpr > 0 && ax / dpr < W && by / dpr > 0 && ay / dpr < Hh) continue; // some of it in view
-      const mx = (ax + bx) / 2 / dpr, my = (ay + by) / 2 / dpr, dx = mx - cx, dy = my - cy;
-      const t = Math.min((W / 2 - 24) / Math.max(1e-6, Math.abs(dx)), (Hh / 2 - 22) / Math.max(1e-6, Math.abs(dy)));
-      const near = Math.hypot(Math.max(m.x0 - player.x, 0, player.x - m.x1), Math.max(m.y0 - player.y, 0, player.y - m.y1));
-      const label = `${m.name} · ${fmtDist(near)}`, tw = g.measureText(label).width, w = tw + 34, h = 26;
-      let x = cx + dx * t, y = cy + dy * t;
-      x = THREE.MathUtils.clamp(x - w / 2, 8, W - w - 52) ; y = THREE.MathUtils.clamp(y - h / 2, 8, Hh - h - 8);
-      for (const c of bigChips) if (x < c[2] + 4 && x + w > c[0] - 4 && y < c[3] + 4 && y + h > c[1] - 4) y = c[3] + 6; // stacked, not on top of one another
-      g.fillStyle = 'rgba(10, 14, 22, 0.88)'; g.strokeStyle = 'rgba(255, 176, 102, 0.75)'; g.lineWidth = 1;
-      g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 13) : g.rect(x, y, w, h); g.fill(); g.stroke();
-      g.save(); g.translate(x + 14, y + h / 2); g.rotate(Math.atan2(dy, dx)); // an arrowhead, pointing to the district
-      g.fillStyle = '#ffb066'; g.beginPath(); g.moveTo(5, 0); g.lineTo(-3.5, -4.5); g.lineTo(-1.5, 0); g.lineTo(-3.5, 4.5); g.closePath(); g.fill(); g.restore();
-      g.fillStyle = '#f4efe6'; g.fillText(label, x + 25, y + h / 2 + 0.5);
-      bigChips.push([x, y, x + w, y + h, m]);
-    }
-    g.restore();
-  }
-  // the whole region in view (zoomMap's lower bound), or back to this map
-  function showRegion(on) {
-    if (!bigView) return;
-    if (on && region) { mapZ.z = 0; mapZ.cx = mapZ.cy = null; } else { mapZ.z = 1; mapZ.cx = mapZ.cy = null; }
-    mapPop.hidden = true; picked = null;
-    drawBig();
-  }
-  // a click picks the pin under it, or drops a waypoint there; a double click travels at once
-  const mapHit = e => {
-    if (!bigView) return null;
-    const r = bigCanvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, reach = touch ? 22 : 14;
-    let best = null, bd = reach;
-    for (const p of bigPins) { const d = Math.hypot(p.x - cx, p.y - cy); if (d < bd) { bd = d; best = p; } }
-    const bx = (cx * bigView.dpr - bigView.ox) / bigView.s, by = (cy * bigView.dpr - bigView.oy) / bigView.s;
-    return { cx, cy, pin: best, at: [scene.frame.x[0] + bx * base.PX, scene.frame.y[1] - by * base.PX] };
-  };
-  // zoom about a point of the canvas (CSS pixels; its centre if none), keeping the spot under it in place
-  let mapRaf = 0;
-  const redrawBig = () => { if (!mapRaf) mapRaf = requestAnimationFrame(() => { mapRaf = 0; if (!$('#g-bigmap').hidden) drawBig(); }); };
-  function zoomMap(k, sx, sy) {
-    if (!bigView) return;
-    const r = bigCanvas.getBoundingClientRect(), { s, ox, oy, dpr } = bigView;
-    if (sx == null) { sx = r.width / 2; sy = r.height / 2; }
-    const z = THREE.MathUtils.clamp(mapZ.z * k, mapZMin(), mapZMax()), s2 = bigView.fit * z;
-    const bx = (sx * dpr - ox) / s, by = (sy * dpr - oy) / s; // the base-map pixel under the point
-    mapZ.z = z; mapZ.cx = bx - (sx * dpr - bigCanvas.width / 2) / s2; mapZ.cy = by - (sy * dpr - bigCanvas.height / 2) / s2;
-    redrawBig();
-  }
-  const panMap = (dx, dy) => { if (!bigView) return; mapZ.cx -= dx * bigView.dpr / bigView.s; mapZ.cy -= dy * bigView.dpr / bigView.s; redrawBig(); };
-  function zoomUi() {
-    const z = $('#g-mapzoom');
-    if (!z) return;
-    z.querySelector('[data-z="in"]').disabled = mapZ.z >= mapZMax() - 1e-3;
-    z.querySelector('[data-z="out"]').disabled = mapZ.z <= mapZMin() + 1e-3;
-    z.querySelector('[data-z="fit"]').disabled = Math.abs(mapZ.z - 1) < 1e-3;
-    bigCanvas.style.cursor = mapDrag && mapDrag.moved ? 'grabbing' : mapZ.z > 1 + 1e-3 || mapZ.z < 1 - 1e-3 ? 'grab' : '';
-    const sc = $('#g-mapscope');
-    if (sc && region) { const o = mapZ.z < 1 - 1e-3; sc.querySelector('[data-scope="here"]').setAttribute('aria-pressed', String(!o)); sc.querySelector('[data-scope="all"]').setAttribute('aria-pressed', String(o)); }
-  }
-  // the wheel (or a trackpad's pinch, which comes as a wheel with ctrl) zooms; a drag pans; two fingers pinch and pan
-  on(bigCanvas, 'wheel', e => {
-    e.preventDefault();
-    const r = bigCanvas.getBoundingClientRect(), dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-    zoomMap(Math.exp(-THREE.MathUtils.clamp(dy, -200, 200) * (e.ctrlKey ? 0.01 : 0.0022)), e.clientX - r.left, e.clientY - r.top);
-  }, { passive: false });
-  on(bigCanvas, 'pointerdown', e => {
-    if (e.button > 0) return;
-    touches.set(e.pointerId, [e.clientX, e.clientY]);
-    try { bigCanvas.setPointerCapture(e.pointerId); } catch (err) { /* the pointer went already */ }
-    if (touches.size === 1) { mapDrag = { x: e.clientX, y: e.clientY, moved: false }; dragged = false; } else mapDrag = { pinch: true, moved: true };
-  });
-  on(bigCanvas, 'pointermove', e => {
-    const was = touches.get(e.pointerId);
-    if (!was || !mapDrag) return;
-    if (touches.size >= 2) {
-      const [a, b] = [...touches.values()], other = a === was ? b : a;
-      const d0 = Math.hypot(was[0] - other[0], was[1] - other[1]), d1 = Math.hypot(e.clientX - other[0], e.clientY - other[1]);
-      const r = bigCanvas.getBoundingClientRect(), mx = (e.clientX + other[0]) / 2 - r.left, my = (e.clientY + other[1]) / 2 - r.top;
-      panMap((e.clientX - was[0]) / 2, (e.clientY - was[1]) / 2);
-      if (d0 > 8) zoomMap(d1 / d0, mx, my);
-      dragged = true;
-    } else {
-      if (!mapDrag.moved && Math.hypot(e.clientX - mapDrag.x, e.clientY - mapDrag.y) > (touch ? 9 : 5)) mapDrag.moved = dragged = true;
-      if (mapDrag.moved) panMap(e.clientX - was[0], e.clientY - was[1]);
-    }
-    touches.set(e.pointerId, [e.clientX, e.clientY]);
-  });
-  const lift = e => { touches.delete(e.pointerId); if (!touches.size) { mapDrag = null; zoomUi(); } else if (touches.size === 1) { const [p] = touches.values(); mapDrag = { x: p[0], y: p[1], moved: true }; } };
-  on(bigCanvas, 'pointerup', lift);
-  on(bigCanvas, 'pointercancel', lift);
-  if (region) {
-    const sc = $('#g-mapscope');
-    sc.hidden = false;
-    sc.querySelector('[data-scope="here"]').textContent = region.here;
-    sc.querySelector('[data-scope="all"]').textContent = `All of ${region.name}`;
-    on(sc, 'click', e => { const b = e.target.closest('button[data-scope]'); if (b) showRegion(b.dataset.scope === 'all'); });
-    $('#g-lg-district').hidden = false;
-    $('#g-lg-district').lastChild.textContent = `Another district of ${region.name}: a map of its own`;
-  }
-  on($('#g-mapzoom'), 'click', e => {
-    const b = e.target.closest('button[data-z]');
-    if (!b) return;
-    if (b.dataset.z === 'fit') { mapZ.z = 1; mapZ.cx = mapZ.cy = null; redrawBig(); } else zoomMap(b.dataset.z === 'in' ? 2 : 0.5);
-  });
-  on(bigCanvas, 'click', e => {
-    if (dragged) { dragged = false; return; } // the end of a drag or a pinch is not a pick
-    const h = mapHit(e);
-    if (!h) return;
-    const chip = bigChips.find(c => h.cx >= c[0] && h.cx <= c[2] && h.cy >= c[1] && h.cy <= c[3]);
-    if (chip) { // out to the region, with that district's first station picked
-      showRegion(true);
-      const st = region.stations.find(d => d.map === chip[4] && !d.travel) || region.stations.find(d => d.map === chip[4]);
-      const q = st && bigPins.find(p => p.d === st);
-      if (q) pick(st, q.x, q.y);
-      return;
-    }
-    if (h.pin) { pick(h.pin.d, h.pin.x, h.pin.y); return; }
-    const f = scene.frame;
-    if (h.at[0] < f.x[0] || h.at[0] > f.x[1] || h.at[1] < f.y[0] || h.at[1] > f.y[1]) { // off this map: in another, its nearest station
-      const m = region && region.maps.find(q => h.at[0] >= q.x0 && h.at[0] <= q.x1 && h.at[1] >= q.y0 && h.at[1] <= q.y1);
-      const st = m && region.stations.filter(d => d.map === m).sort((a, b) => Math.hypot(a.at[0] - h.at[0], a.at[1] - h.at[1]) - Math.hypot(b.at[0] - h.at[0], b.at[1] - h.at[1]))[0];
-      const q = st && bigPins.find(p => p.d === st);
-      if (q) pick(st, q.x, q.y);
-      return;
-    }
-    waypoint = h.at;
-    drawBig();
-    pick({ kind: 'point', id: 'waypoint', name: 'Your waypoint', at: waypoint }, h.cx, h.cy);
-  });
-  on(bigCanvas, 'dblclick', e => { if (dragged) return; const h = mapHit(e); if (h && bigChips.some(c => h.cx >= c[0] && h.cx <= c[2] && h.cy >= c[1] && h.cy <= c[3])) return; const f = scene.frame; if (h && !h.pin && (h.at[0] < f.x[0] || h.at[0] > f.x[1] || h.at[1] < f.y[0] || h.at[1] > f.y[1])) return; if (h) travelTo(h.pin ? h.pin.d : { kind: 'point', id: 'waypoint', name: 'Your waypoint', at: waypoint || h.at }); });
-  on($('#g-mappop-go'), 'click', () => { if (picked) travelTo(picked); });
-  on($('#g-mappop-way'), 'click', () => { if (!picked) return; waypoint = picked.at.slice(0, 2); mapPop.hidden = true; picked = null; travelKey = ''; drawBig(); H.toast(player.mode === 'car' && !pilot ? 'Waypoint set. <kbd>J</kbd>: the autopilot drives you there.' : routeMode === 'on' ? 'Waypoint set. Follow the gold route there.' : 'Waypoint set. Its route is on the minimap; <kbd>L</kbd> shows it in the world.'); });
-  on($('#g-travel'), 'click', e => { const b = e.target.closest('button[data-k]'); if (b && travelList[+b.dataset.k]) travelTo(travelList[+b.dataset.k]); });
-  $('#g-bigmap header .note').textContent = touch ? 'Tap a place to travel there · pinch to zoom' : 'Pick a place to travel there · double-click to go at once · scroll to zoom, drag to pan';
-  on($('#g-map-btn'), 'click', toggleMap);
-  // the HUD's other buttons, folded behind "more" (index.html .g-btns): open while the tour points at them, and as
-  // the player left them
-  const moreTray = (open, keep = true) => {
-    $('#g-btns').classList.toggle('open', open); $('#g-more-btn').setAttribute('aria-expanded', String(open));
-    if (keep) { try { localStorage.setItem('bh-hud-more', open ? '1' : '0'); } catch (e) { /* storage blocked */ } }
-  };
-  on($('#g-more-btn'), 'click', () => moreTray(!$('#g-btns').classList.contains('open')));
-  try { if (localStorage.getItem('bh-hud-more') === '1') moreTray(true, false); } catch (e) { /* storage blocked */ }
-  on($('#gq-lines'), 'click', e => { const b = e.target.closest('button'); if (b) cycleTrack(b.dataset.line); });
-  on($('#g-pass-btn'), 'click', togglePass);
-  on($('#g-menu-btn'), 'click', toggleMenu);
-  on($('#g-metro-btn'), 'click', openMetro);
-  on($('#gm-links'), 'click', e => {
-    if (e.target.closest('#gm-metro')) openMetro();
-    if (e.target.closest('#gm-fishlog')) { $('#g-menu').hidden = true; fishLoad().then(api => (api ? api.showLog(true) : H.toast('The log did not arrive. Try again in a moment.'))); }
-  });
-  for (const id of ['#g-bigmap-close', '#g-pass-close', '#g-menu-close']) on($(id), 'click', () => { $(id).closest('.g-overlay').hidden = true; });
-  on($('#gm-time'), 'click', e => { const b = e.target.closest('button'); if (b) { presetTime(b.dataset.t); menuSync(); H.toast(`Time: ${b.dataset.label || b.textContent}, ${fmtMin(clock.min)}`); } });
-  on($('#gm-clock'), 'input', e => { setClock(clock.y, clock.m, clock.d, +e.target.value); menuSync(); });
-  on($('#gm-date'), 'change', e => { const [y, m, d] = e.target.value.split('-').map(Number); if (y && m && d) { setClock(y, m, d, clock.min); menuSync(); } });
-  on($('#gm-speed'), 'click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    clock.frozen = b.dataset.s === '0'; if (!clock.frozen) clock.scale = +b.dataset.s;
-    if (clock.frozen || clock.scale !== 1) clock.own = true; // (a clock at another speed is the player's own from then on)
-    $$('#gm-speed button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    applySun();
-  });
-  on($('#gm-density'), 'click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    settings.density = b.dataset.d;
-    applyDensity(); cars.active = Math.round(cars.slots * density[b.dataset.d]);
-    $$('#gm-density button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  });
-  // the frame-rate cap (the governor's): the display's own rate, 60 or 30 a second; kept for the next visit
-  $$('#gm-fps button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.f === gov.cap)));
-  on($('#gm-fps'), 'click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    gov.cap = +b.dataset.f; gov.reset();
-    try { localStorage.setItem('bh-fps', String(gov.cap)); } catch (err) { /* storage blocked */ }
-    $$('#gm-fps button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  });
-  on($('#gm-route'), 'click', e => { const b = e.target.closest('button'); if (b) setRouteMode(b.dataset.r); });
-  on($('#gm-weather'), 'click', e => {
-    const b = e.target.closest('button');
-    if (!b || !weather) return;
-    weather.set(b.dataset.w, { keep: true });
-    menuSync();
-    const s = weather.season(clock.y, clock.m, clock.d, clock.min);
-    if (b.dataset.w === 'now') {
-      weather.onNow = w => H.toast(w ? `Live weather: ${OEWeather.describe(Object.assign({}, OEWeather.S, { kind: w.storm ? 'storm' : w.snow > 0.06 ? 'snow' : w.rain > 0.5 ? 'rain' : w.rain > 0.06 ? 'drizzle' : w.fog > 0.3 ? 'fog' : w.cloud > 0.6 ? 'overcast' : 'clear', cover: w.cloud, rain: w.rain, snow: w.snow, fog: w.fog, temp: w.temp, windSpeed: w.wind }))}. <a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a>` : 'Live weather could not be reached: the season\'s weather carries on.');
-      H.toast('Live weather: asking Open-Meteo for this city\'s conditions (only the city\'s coordinates are sent).');
-      return;
-    }
-    H.toast(b.dataset.w === 'live' ? `Weather as the season brings it: ${s.rain > 0.5 ? 'rain' : s.rain > 0.06 ? 'drizzle' : s.cloud > 0.6 ? 'overcast' : 'fair'} now` : `Weather: ${OEWeather.NAMES[b.dataset.w]}`);
-  });
-  setRouteMode(routeMode);
-  on($('#gq-route'), 'click', e => { e.stopPropagation(); peekRoute(); });
-  if (!lib) $('#gm-who').closest('.field').hidden = true;
-  $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.c === playerChar)));
-  on($('#gm-who'), 'click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    setPlayerCharacter(b.dataset.c).then(whoSync);
-    $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  });
-  // ... and on the story's title (docs/STORY.md "The title, as a game opens"): the title in three screens. The press:
-  // the street and the name, nothing to choose, until a key, a tap or a pad's button (the press a browser waits for
-  // before it plays a sound, so the score comes in with it). The menu: the ways in. And who you play, a screen of its
-  // own: Kagami as a woman or a man, the two portraits (tools/views/kagami.json) beside the file on them (city.json
-  // story.card.who). It comes up the first time a way in is taken, as a game with one lead played as either asks after
-  // New Game, and that way in goes on once one is chosen and confirmed; after that the choice stands, named under the
-  // menu's list and in the pause menu, and either changes it. Nothing is chosen for the player the first time.
-  // (A scripted press, a harness's, begins as before, as the woman.)
-  const whoEl = $('#gt-who'), titleEl = $('#g-title');
-  const whoKept = () => { try { return localStorage.getItem(PLAYER_KEY); } catch (e) { return null; } };
-  const whoChosen = () => { try { return !!PLAYER_LOOKS[localStorage.getItem(PLAYER_KEY)]; } catch (e) { return true; } };
-  const whoNeeded = () => !!whoEl && !whoEl.hidden && !whoChosen();
-  // (the title's first way in, the one Enter and a pad's A take: the walk's while the episodes are being finished, walk.js)
-  // (on the story's screen its Begin or Continue; on a screen with none, nothing: Enter then presses only what the hand is on)
-  const titleLead = () => [...document.querySelectorAll('#g-title .gt-go > .btn.primary')].find(b => b.offsetParent) || (story ? null : $('#gt-play'));
   let titleKeyed = false; // (a press made by the title's keys, for ownPress)
-  let whoThen = null, wayLast = null, whoFrom = 'menu'; // (the way in that brought who you play up, taken again once one is confirmed, from the screen it was on)
-  const screenOf = () => titleEl.dataset.screen || 'menu';
-  // the name carried from the middle of the press to the menu's corner, by where it stood and where it now stands (FLIP)
-  function lockupFlip() {
-    const h = $('#gt-title'), r0 = h.getBoundingClientRect();
-    return () => {
-      const r1 = h.getBoundingClientRect();
-      if (!r0.width || !r1.width || !h.animate) return;
-      h.animate([{ transformOrigin: '0 0', transform: `translate(${r0.left - r1.left}px, ${r0.top - r1.top}px) scale(${r0.width / r1.width})` }, { transformOrigin: '0 0', transform: 'none' }],
-        { duration: 1100, easing: 'cubic-bezier(0.22, 0.8, 0.12, 1)' });
-    };
-  }
-  function titleScreen(s) {
-    if (!story) s = 'menu';
-    const was = titleEl.dataset.screen;
-    if (s === was) return;
-    const flip = was === 'press' && s === 'menu' && !reduced ? lockupFlip() : null;
-    titleEl.dataset.screen = s;
-    if (flip) flip();
-    if (s !== 'who' && whoEl) whoEl.dataset.hand = '';
-    if (was === 'opts') optsLend(false);
-    if (s === 'opts') optsLend(true);
-    whoSync();
-    // (the hand: on the menu's first way in as it opens, or back on the row of the screen just left; on the story's screen
-    // on its Begin or Continue; on the options' first control)
-    const hand = s === 'menu' ? (was === 'story' ? $('#gt-story-go') : was === 'opts' ? $('#gt-opts-go') : was === 'who' ? null : titleLead())
-      : s === 'story' ? titleLead() : s === 'opts' ? $('#gt-opts .gt-opts-list :is(button, input)') : null;
-    if (hand) hand.focus({ preventScroll: true });
-    // (who you play: the hand on the one chosen; the first time on neither, not even a cursor resting on one, but on the
-    // screen itself, so that Tab, the arrows or a pad's first press put it on a portrait)
-    if (s === 'who' && whoEl) (whoEl.querySelector('.gt-who-row [aria-checked="true"]') || whoEl).focus({ preventScroll: true });
-  }
-  function whoSync() {
-    if (!whoEl) return;
-    const chosen = whoChosen(), s = screenOf();
-    const k = (chosen && whoKept()) || playerChar; // (the choice as made, while its model may still be on its way)
-    $$('#gt-who .gt-who-row [data-c]').forEach(b => b.setAttribute('aria-checked', String(chosen && b.dataset.c === k)));
-    $$('#gm-who button').forEach(x => x.setAttribute('aria-pressed', String(chosen && x.dataset.c === k)));
-    whoEl.classList.toggle('open', !chosen);
-    whoEl.dataset.show = whoEl.dataset.hand || (chosen ? k : ''); // (the file's lines for the one the hand is on, else the one chosen)
-    const ask = whoEl.querySelector('.gt-who-ask');
-    if (chosen) ask.textContent = ''; else if (!whoEl.classList.contains('ask')) ask.textContent = 'Choose one, then confirm.';
-    $('#gt-who-go').setAttribute('aria-disabled', String(!chosen));
-    titleEl.toggleAttribute('data-choose', !chosen && !whoEl.hidden && s === 'who'); // (pad.js: A puts the hand on a portrait first)
-    const line = $('#gt-who-line'); // (under the menu's list: who you play, and the way to change it)
-    if (line) {
-      line.hidden = whoEl.hidden || !chosen;
-      const t = whoEl.querySelector(`.gt-who-row [data-c="${k}"] small`);
-      line.querySelector('small').textContent = t ? t.textContent : '';
-    }
-  }
-  // nothing goes on from the title until who you play is chosen: the button, Enter, a tap, a pad's A, and the title's
-  // other ways on (the evening again, a frame of a closed case gone back into) each bring who you play up instead, the
-  // first time, and are taken again once one is confirmed
-  function whoGate() { if (whoNeeded()) { whoAsk(); return false; } return true; }
-  function whoAsk(then) {
-    if (screenOf() !== 'who') { whoThen = then || wayLast || null; whoFrom = screenOf(); titleScreen('who'); return; }
-    whoEl.querySelector('.gt-who-ask').textContent = 'Choose who you play first.'; // (Confirm with none chosen: the two shake)
-    whoEl.classList.toggle('ask', false); void whoEl.offsetWidth; whoEl.classList.toggle('ask', true);
-    const f = whoEl.querySelector('.gt-who-row [data-c]');
-    if (f && !whoEl.querySelector('.gt-who-row').contains(document.activeElement)) f.focus({ preventScroll: true });
-  }
-  function whoDone() {
-    if (!whoChosen()) { whoAsk(); return; }
-    const then = whoThen; whoThen = null;
-    titleScreen(whoFrom || 'menu');
-    if (then && then.isConnected) then.click(); else { const l = titleLead(); if (l) l.focus({ preventScroll: true }); }
-  }
-  function whoBack() {
-    whoThen = null; titleScreen(whoFrom || 'menu');
-    const l = whoFrom === 'menu' && $('#gt-who-line'), f = l && !l.hidden ? l : whoFrom === 'menu' ? titleLead() : null; if (f) f.focus({ preventScroll: true });
-  }
-  async function whoPick(c) {
-    if (!PLAYER_LOOKS[c]) return;
-    const first = !whoChosen();
-    const done = setPlayerCharacter(c); // (kept at once; the model swapped in when it has come)
-    whoSync();
-    if (first && screenOf() === 'who') $('#gt-who-go').focus({ preventScroll: true }); // (chosen: the next press confirms)
-    await done; whoSync();
-  }
-  if (whoEl) {
-    whoEl.hidden = !(lib && story);
-    on(whoEl, 'click', e => { const b = e.target.closest('.gt-who-row [data-c]'); if (b) whoPick(b.dataset.c); });
-    // (the hand on a portrait, the pointer's or the keys', shows that one's lines in the file before it is chosen)
-    const hand = c => { if (whoEl.dataset.hand !== c) { whoEl.dataset.hand = c; whoSync(); } };
-    on(whoEl, 'pointerover', e => { const b = e.target.closest('.gt-who-row [data-c]'); hand(b ? b.dataset.c : ''); });
-    on(whoEl, 'pointerleave', () => hand(''));
-    on(whoEl, 'focusin', e => { const b = e.target.closest('.gt-who-row [data-c]'); hand(b && b.matches(':focus-visible') ? b.dataset.c : ''); });
-    on($('#gt-who-go'), 'click', whoDone);
-    on($('#gt-who-back'), 'click', whoBack);
-    on($('#gt-who-line'), 'click', () => { whoThen = null; whoFrom = 'menu'; titleScreen('who'); });
-    on(titleEl, 'click', e => { const b = e.target.closest('.gt-go > .btn, #gt-eps button'); if (b) wayLast = b; }, { capture: true }); // (before the way's own press asks)
-    whoSync();
-  }
-  // the press: a tap anywhere on it, or its prompt pressed (a pad's A presses it: button.go, pad.js), opens the menu
-  on($('#gt-press'), 'click', () => titleScreen('menu'));
-  // the menu's rows (docs/STORY.md "The title, as a game opens"): Continue, while a case is going, takes it up where it was
-  // left (asking who you play first, for a case begun before the title asked); the story opens its screen, the options
-  // theirs; each screen's Back, Esc or B goes back to the menu
-  const ownPress = e => e.isTrusted || !!(gamepad && gamepad.pressing) || titleKeyed; // (a person's press: the mouse's, a tap, the keys', a pad's)
-  if ($('#gt-cont-go')) on($('#gt-cont-go'), 'click', e => { if (ownPress(e) && whoNeeded()) { whoAsk(); return; } startGame(false); });
-  if ($('#gt-story-go')) on($('#gt-story-go'), 'click', () => titleScreen('story'));
-  if ($('#gt-opts-go')) on($('#gt-opts-go'), 'click', () => titleScreen('opts'));
-  for (const q of ['#gt-eps-back', '#gt-opts-back']) if ($(q)) on($(q), 'click', () => { const E = $('#gt-eps'); if (!(E && E.sure && E.sure())) titleScreen('menu'); });
-  // options before play: the pause menu's own controls for the sound, the crowd and the frame rate, lent to the title's
-  // screen while it is up and given back as it goes (each keeps one home, one handler and one state)
-  const optLent = ['#gm-sound', '#gm-density', '#gm-fps'].map(q => { const e = $(q), n = e && (e.closest('.field') || e.closest('label')); return n ? { n, home: n.parentNode, next: n.nextSibling } : null; }).filter(Boolean);
-  function optsLend(on) {
-    const list = $('#gt-opts .gt-opts-list');
-    if (!list) return;
-    if (on) for (const o of optLent) list.appendChild(o.n);
-    else for (const o of [...optLent].reverse()) o.home.insertBefore(o.n, o.next && o.next.parentNode === o.home ? o.next : null); // (the last first, so that each goes back before what followed it)
-  }
-  on($('#gm-sound'), 'change', e => A.setMuted(!e.target.checked));
-  on($('#gm-intro'), 'click', () => { $('#g-menu').hidden = true; OEOnboard.forgetCoaches(); startTour(); }); // (and the first flight's coach again)
-  // the map's overture again, from wherever you are: it ends where it always does (overture.js)
-  on($('#gm-overture'), 'click', () => { $('#g-menu').hidden = true; if (overture && !overture.active && player.mode === 'foot') overture.play(null); });
-  on($('#gm-reset'), 'click', () => {
-    try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
-    if (life) life.reset();
-    if ((player.mode === 'car' || player.mode === 'ride') && !stepOut(player.vehicle, player.mode === 'car' ? 'driver' : rideSeat(player.vehicle))) { player.vehicle.C.body.remove(player.rig.root); world.add(player.rig.root); player.rig.root.scale.setScalar(1); player.mode = 'foot'; player.vehicle = null; }
-    if (ride) rideAway();
-    goals.reset(); renderPassport(); spawn(); H.toast('A fresh start: a new passport.'); $('#g-menu').hidden = true;
-  });
+  const { DISTRICT_AIR, bodyOf, deckOf, deckStand, districtEdge, drawBig, inFrame, lookOf, mapZ, moreTray, ownPress, region, screenOf, seenNow, standFor, titleEl, titleLead, titleScreen, travelGroups, travelTo, whoAsk, whoBack, whoDone, whoGate, whoNeeded, whoPick, whoSync, zoomMap } = OEGameRegion({ get $() { return $; }, get $$() { return $$; }, get A() { return A; }, get B() { return B; }, get BASE_FOV() { return BASE_FOV; }, get CITY() { return CITY; }, get DSM() { return DSM; }, get FOOT() { return FOOT; }, get FRAME() { return FRAME; }, get G() { return G; }, get H() { return H; }, get KEY() { return KEY; }, get MONTHS() { return MONTHS; }, get P() { return P; }, get PLAYER_KEY() { return PLAYER_KEY; }, get PLAYER_LOOKS() { return PLAYER_LOOKS; }, get VP() { return VP; }, get W() { return W; }, get applyDensity() { return applyDensity; }, get applySun() { return applySun; }, get base() { return base; }, get bigCanvas() { return bigCanvas; }, get bigChips() { return bigChips; }, set bigChips(v) { bigChips = v; }, get bigNames() { return bigNames; }, set bigNames(v) { bigNames = v; }, get bigPins() { return bigPins; }, set bigPins(v) { bigPins = v; }, get bigView() { return bigView; }, set bigView(v) { bigView = v; }, get bounds() { return bounds; }, get cam() { return cam; }, get camera() { return camera; }, get carBoxes() { return carBoxes; }, get cars() { return cars; }, get cityId() { return cityId; }, get clock() { return clock; }, get clockT() { return clockT; }, set clockT(v) { clockT = v; }, get cycleTrack() { return cycleTrack; }, get density() { return density; }, get doorAt() { return doorAt; }, get dragged() { return dragged; }, set dragged(v) { dragged = v; }, get fer() { return fer; }, get fish() { return fish; }, get fishLoad() { return fishLoad; }, get flocks() { return flocks; }, get fmtMin() { return fmtMin; }, get gamepad() { return gamepad; }, get goals() { return goals; }, get gold() { return gold; }, get gov() { return gov; }, get groundLod() { return groundLod; }, get groundZ() { return groundZ; }, get guide() { return guide; }, get heli() { return heli; }, get hopTo() { return hopTo; }, get kerbNear() { return kerbNear; }, get landmarks() { return landmarks; }, get lib() { return lib; }, set lib(v) { lib = v; }, get life() { return life; }, get lifts() { return lifts; }, get mapDrag() { return mapDrag; }, set mapDrag(v) { mapDrag = v; }, get mapPop() { return mapPop; }, get me() { return me; }, get menuSync() { return menuSync; }, get metro() { return metro; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get nav() { return nav; }, get npcs() { return npcs; }, get objective() { return objective; }, get on() { return on; }, get openMetro() { return openMetro; }, get overture() { return overture; }, set overture(v) { overture = v; }, get parkMyCar() { return parkMyCar; }, get peekRoute() { return peekRoute; }, get picked() { return picked; }, set picked(v) { picked = v; }, get pilot() { return pilot; }, set pilot(v) { pilot = v; }, get placeNear() { return placeNear; }, get player() { return player; }, get playerChar() { return playerChar; }, set playerChar(v) { playerChar = v; }, get presetTime() { return presetTime; }, get rail() { return rail; }, set rail(v) { rail = v; }, get reduced() { return reduced; }, get renderPassport() { return renderPassport; }, get ride() { return ride; }, set ride(v) { ride = v; }, get rideAway() { return rideAway; }, get rideSeat() { return rideSeat; }, get routeMode() { return routeMode; }, set routeMode(v) { routeMode = v; }, get save() { return save; }, get scene() { return scene; }, get setClock() { return setClock; }, get setPlayerCharacter() { return setPlayerCharacter; }, get setRouteMode() { return setRouteMode; }, get settings() { return settings; }, get sideObjectives() { return sideObjectives; }, get spawn() { return spawn; }, get startGame() { return startGame; }, get startTour() { return startTour; }, get stepOut() { return stepOut; }, get story() { return story; }, get sun() { return sun; }, set sun(v) { sun = v; }, get titleKeyed() { return titleKeyed; }, set titleKeyed(v) { titleKeyed = v; }, get toggleMap() { return toggleMap; }, get toggleMenu() { return toggleMenu; }, get togglePass() { return togglePass; }, get touch() { return touch; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get trigDone() { return trigDone; }, get wantsTalk() { return wantsTalk; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get weather() { return weather; }, get world() { return world; } });
 
   // ------------------------------------------------------------ start
   // A city's opening shot (game.start.shot, #110): the title looks at shot.look (absolute, in metres) from behind
@@ -6097,7 +4432,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (tools/flyover.js); the plate has none, and resolves false
   // the loader stays up until the scene has been drawn twice: the shaders compile on the first
   // draw, which can take seconds, and a loader that faded before it showed a black frame
-  let framesDrawn = 0, firstDrawn;
+  let framesDrawn = 0, firstDrawn, cleanBy = 0;
   const drawn = new Promise(r => { firstDrawn = r; });
   // (and the passes the title doesn't draw: the opening shot's depth of field and motion blur, atmosphere.js)
   try { performance.mark('oe:built', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the scene built (telemetry.js)
@@ -6105,10 +4440,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   loadMsg('Compiling the shaders for this view', 1);
   // (the loader's first set, issue 27: what is shown and the passes that are on; the rest behind the title, warmRest)
   // (each part's time from "built", in the log as "warm: ...": what the loader waits for, tools/entry_cost.js)
-  const wt0 = performance.now(), wlog = [], wpart = (k, p) => Promise.resolve(p).then(r => { wlog.push(`${k} ${((performance.now() - wt0) / 1000).toFixed(1)} s`); return r; });
+  const wt0 = performance.now(), wlog = [], wpart = (k, p) => Promise.resolve(p).then(r => { wlog.push(`${k} ${((performance.now() - wt0) / 1000).toFixed(1)} s`); try { performance.mark(`oe:warm-${k.replace(' ', '-')}`, { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } return r; }); // (and marked for the telemetry's load: warm_prog_ms, warm_tex_ms, warm_buf_ms)
   const warm = Promise.all([wpart('programs', earlyWarm.then(() => compileFor(world, world, { only: OEWorld.shown }))), wpart('passes', atmos && atmos.warm ? atmos.warm({ first: true }) : null), wpart('textures', OEWorld.uploadSliced ? (window.OETex ? OETex.settled() : Promise.resolve()).then(() => OEWorld.uploadSliced(renderer, world)) : null), wpart('far trees', Wd.ready)]) // (and its textures sent, in slices too, and the far trees' atlas drawn)
-    .then(() => OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null })) // (then its vertex buffers, in slices)
-    .finally(() => console.info(`warm: from built, ${wlog.join(', ')}, buffers ${((performance.now() - wt0) / 1000).toFixed(1)} s`));
+    .then(() => wpart('buffers', OEWorld.uploadBuffers && OEWorld.uploadBuffers(renderer, world, camera, { target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null }))) // (then its vertex buffers, in slices)
+    .finally(() => console.info(`warm: from built, ${wlog.join(', ')}`));
   // and behind the loader the rain's passes are drawn once too (its streaks, the occlusion map from
   // above and the wet street's mirror), so that the first rain of a visit comes on without a stall; the
   // mirror's variant of every shader compiles in slices behind the title, not holding the loader up
@@ -6537,12 +4872,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // street it is behind the parapets, and its instanced meshes, each over a cell of the map, were never out of view:
     // 72,000 triangles of every frame on foot. On a roof, in a lift's glass and from the helicopter the camera is up)
     if (QC.lean && Wd.roofKit) Wd.roofKit.visible = camera.position.y - Math.max(0, nav.terrain(camera.position.x, -camera.position.z)) > 12;
+    const held0 = renderer.__gate ? renderer.__gate.n.held + renderer.__gate.n.late : 0;
     if (atmos) atmos.render(world, camera); else renderer.render(world, camera);
     const gc0 = performance.now();
     glCheck(now); // (on the first frame it waits for the GPU to draw it: the first draw of each program is where a driver finishes it)
     if (!framesDrawn) console.info(`warm: the first frame ${((performance.now() - wt0) / 1000).toFixed(1)} s from built, ${((performance.now() - gc0) / 1000).toFixed(1)} s of it waiting for the GPU to draw it`);
     care.drawn();
-    if (framesDrawn < 2 && ++framesDrawn === 2) firstDrawn();
+    // (the loader goes on a frame the gate left nothing out of, world.js gate: no mesh comes in under the title; 1.5 s at most, past
+    // which what is still linking comes in under the title: a software renderer's links took longer, and each of its frames 1.4 s)
+    const heldF = renderer.__gate ? renderer.__gate.n.held + renderer.__gate.n.late - held0 : 0;
+    if (framesDrawn === 1 && heldF && performance.now() < (cleanBy || (cleanBy = performance.now() + 1500))) { /* drawn again next frame */ }
+    else if (framesDrawn < 2 && ++framesDrawn === 2) { firstDrawn(); if (cleanBy) console.info(`warm: the loader waited ${((performance.now() - cleanBy + 1500) / 1000).toFixed(1)} s for a frame the gate left nothing out of${heldF ? ' (and went without it)' : ''}`); }
     else if (framesDrawn === 1) try { performance.mark('oe:frame', { detail: { view: 'game', city: cityId } }); } catch (e) { /* no User Timing */ } // the load's first frame (telemetry.js)
     if (framesDrawn === 1) firstFrame();
     if (!unseenFrame()) updateLabels(); // (the names over the street are placed for the frame drawn: none in a check's frame not drawn)
@@ -6687,7 +5027,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'seat') {
       if (perch && perch.seat) { // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
-        const l = perch.lap(); player.rig.legRake = perch.seat.rake; player.rig.reach = l ? W(...l) : null; // (the hands in the lap, not down through the stone)
+        const l = perch.lap(); player.rig.legRake = perch.seat.rake; player.rig.seatH = perch.seat.seat; player.rig.reach = l ? W(...l) : null; // (the hands in the lap, not down through the stone)
       }
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'lift') {
@@ -6796,6 +5136,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       n.rig.animate(dt, n.walkSpeed || 0, mode, clockT + n.pitch);
     }
     player.rig.lookTarget = gaze;
+    if (visitors) visitors.update(dt, clockT, { x: camera.position.x, y: -camera.position.z, z: camera.position.y }, !story || (walk && walkUi.walking)); // (the people a place keeps: near the camera only)
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
     npcStream(dt, cx, cy);
     crowd.bodies = crowdKeep(cx, cy, false, dt);
@@ -7625,7 +5966,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (L < 0.8) return 1;
       let t = 1;
       for (const q of postsNear(b.x, -b.z, 2.5)) {
-        if (q.kind !== 'tree' && q.kind !== 'lamp') continue; // (a planter's low rail and a queue belt are under the lens)
+        if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue; // (a planter's low rail and a queue belt are under the lens; a level's wall is wallCut's)
         if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
         const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
         if (d2 > R * R || (1 - s) * L > 1.5) continue;
@@ -7638,7 +5979,24 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // shoulder (issue 71), a trunk or a pole filled half a phone's frame and hid you behind it, at Hachiko and frame 7's
     // corner; there the camera comes in past it, as for a wall)
     // (in the air nothing is looked past: what the probe meets up there is a tower's corner, not a post)
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g); };
+    // a hero level's walls (posts in a row, q.wall), which nav.clearFraction does not hold: the fraction of the line from your
+    // head to the lens before it meets one, from its foot to 6 m over it, never looked past (in the air, over them)
+    const wallCut = (a, b) => {
+      if (air) return 1;
+      const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
+      if (L < 0.3) return 1;
+      let t = 1;
+      for (const q of postsNear(ax + dx / 2, ay + dy / 2, L / 2 + 0.6)) {
+        if (!q.wall) continue;
+        const R = q.r + 0.3, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
+        if (d2 > R * R) continue;
+        const e = Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L), z = a.y + (b.y - a.y) * e;
+        if (z < q.z - 0.5 || z > q.z + 6) continue;
+        t = Math.min(t, e);
+      }
+      return t;
+    };
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b)); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
     // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
@@ -7697,6 +6055,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // sight and the other not, and the helicopter was hidden behind the roof's edge for seconds)
     const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
+    // (behind a level's wall the lens comes in front of it at once, as in the air: eased in, a swing round put it behind the
+    // wall for a few frames, the wall's back filling the picture)
+    const wallIn = pull < 1 && wallCut(camTarget, camPos) < 0.97;
     // (in the air a tower comes between in a frame: the lens is in front of it in that frame, and eases back out after it.
     // Eased in as on the street, at 170 km/h the helicopter went behind a tower's corner for a few frames and came out
     // again, hidden and shown, as if the model had a hole in it: the owner's report, November 2026)
@@ -7709,7 +6070,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const fa = Math.min(clear(aheadT, aheadP), clear(aheadM, aheadP));
       if (fa < 1) pullAhead = Math.min(pull, Math.max(0.15, fa - 0.04));
     }
-    if (jumped) { /* (set above) */ } else if (air && pull < cam.pull) cam.pull = pull;
+    if (jumped) { /* (set above) */ } else if ((air || wallIn) && pull < cam.pull) cam.pull = pull;
     else cam.pull += pullAhead < cam.pull ? -Math.min(cam.pull - pullAhead, Math.max(dt * (air ? 3 : 2), (cam.pull - pullAhead) * dt * 4)) : Math.min(pullAhead - cam.pull, dt * 0.8);
     if (cam.pull < 1) camPos.lerpVectors(camTarget, camPos, cam.pull);
     // pulled in that close by a wall, it may be over a car: then it looks down over the roof
@@ -7720,7 +6081,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camWant.subVectors(camPos, camTarget);
     if (jumped || camSmooth.distanceTo(camPos) > 60 || camOff.distanceTo(camWant) > 60) camOff.copy(camWant);
     camOff.lerp(camWant, close ? 1 - Math.exp(-dt * 10) : veh ? 1 - Math.exp(-dt * 16) : air ? 1 - Math.exp(-dt * 7) : 1);
-    if (air && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
+    if ((air || wallIn) && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
     camPos.addVectors(camTarget, camOff);
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
@@ -7745,7 +6106,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (f < 1) camPos.lerpVectors(camTarget, camPos.clone(), Math.max(0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
-    if (cam.trace) Object.assign(cam.trace, { jumped, f, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
+    if (cam.trace) Object.assign(cam.trace, { jumped, f, wallIn, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
     live.pos.copy(camPos);
     live.look.copy(camTarget);
     // looking up at a landmark on arrival (cam.tilt): over your head, until you move, steer or drag the view
@@ -8445,7 +6806,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
   // the street's own people (regulars.js, issue 168): a few of the crowd with a routine the clock carries, on the walk
   if (window.OERegulars && G.regulars && crowd.enlist) regulars = OERegulars.create({ data: G.regulars, crowd, redress: (p, d) => !!(crowdDraw && crowdDraw.redress && crowdDraw.redress(crowd.P.indexOf(p), d)), clock: () => clock.min, day: () => clock.y * 372 + clock.m * 31 + clock.d, rain: () => !!(weather && weather.state && weather.state.rain > 0.15), here: () => player, ground: (x, y) => { const w = nav.walk(x, y, nav.terrain(x, y) + 0.6, true); return w.ok ? w.z : null; } }); // (the street's ground there, whatever floor you are on)
-  window.__game = { marks, bounds: () => bounds, walkStart: sp => startWalk(sp), heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, storyTalking: talking, tonight: () => tonight, regulars: () => regulars, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { marks, bounds: () => bounds, visitors, speakers, walkStart: sp => startWalk(sp), heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, storyTalking: talking, tonight: () => tonight, regulars: () => regulars, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },
