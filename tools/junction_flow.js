@@ -92,7 +92,8 @@ function watch({ x, y, secs, R }) {
       const g = window.__game, JN = g.junctions, L = g.cars.netL, out = [];
       g.hopTo(x, y, g.player.z, 'the kerb'); g.advance(40);
       for (const j of JN.J.filter(q => q.sig && q.mid == null && Math.hypot(q.x - x, q.y - y) < R)) {
-        out.push(`junction ${j.id} at ${j.x.toFixed(0)},${j.y.toFixed(0)}${j.scramble ? ' scramble, reach ' + j.reach.toFixed(0) : ''} green ${j.green} allred ${j.allred || 1} amber ${j.amber} arrow ${!!j.arrow} inner pieces ${j.inner.length}`);
+        out.push(`junction ${j.id} at ${j.x.toFixed(0)},${j.y.toFixed(0)}${j.scramble ? ' scramble, reach ' + j.reach.toFixed(0) : ''} green ${j.green} allred ${j.allred || 1} amber ${j.amber} arrow ${!!j.arrow}${j.lead ? `, run from scramble ${j.lead.id} (its stage ${j.leadPh} with that one's traffic)` : ''}${j.cycle ? `, cycle ${j.cycle} s at most` : ''}${j.staged ? ', stages set by what crosses' : ''}`);
+        if (j.scramble) out.push(`  (all scrambles: ${JN.scrambles.map(q => `${q.id} at ${q.x.toFixed(0)},${q.y.toFixed(0)}`).join('; ')}; run from one: ${JN.J.filter(q => q.lead).map(q => `${q.id} at ${q.x.toFixed(0)},${q.y.toFixed(0)} from ${q.lead.id}`).join('; ')})`);
         const M = [];
         for (const a of j.arms) {
           const l = L[a.line], far = JN.armBy(a.line, 1 - a.end);

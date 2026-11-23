@@ -3173,6 +3173,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // is there room for car c on exit e of a junction, beyond it, behind the last car going out
     // that way (and the cars already crossing to it)?
     // (on an exit with two lanes, behind the cars in the lane it will be in)
+    // the arm with signals whose queue car c stands in, by the cars ahead of it (each queued behind the next), or null
+    function queuedFor(c) {
+      let x = c.front;
+      if (c.why === 'room' && c.lineArm && !c.lineArm.j.sig) x = c;
+      for (let n = 0; n < 8 && x && x.q; n++) {
+        const a = x.lineArm;
+        if (a && a.j.sig) return a;
+        if (a && x.why === 'light' && x.ex2 && x.ex2.a && x.ex2.a.j.sig) return x.ex2.a; // (held at this line by the light of the junction just after)
+        if (a && x.why === 'room' && x.lineEx) { const b = JN.armBy(x.lineEx.m.line, 1 - x.lineEx.m.end); return b && b.in && b.j.sig ? b : null; }
+        x = x.front;
+      }
+      return null;
+    }
     function room(c, e) {
       const m = e.m, ml = net.L[m.line], out = m.end === 0 ? 1 : -1, two = JN.lanesOf(ml) > 1, ln = c.ln && e.lanes.includes(c.ln) ? c.ln : 0;
       let free = JN.reach(e), need = 2 * c.half + 2.5;
@@ -4025,7 +4038,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                 if (light2 && jArm.j.lead === a2.j && jArm.phase !== jArm.j.leadPh) noRoom = true;
                 // (held at this line by the next one's light: a call for its phase, as if at its line, and the time
                 // counted lost on this green, junctions.js; a 6 s green at Shinjuku's 1105 went by on 1103's red, #264)
-                if (c.ex2.e && lt2 && lt2 !== 'g') { if (!a2.j.scramble) JN.want(a2); if (toLine - c.half < 3 && jArm.j.sig) jArm.lost1 = true; }
+                // (at a scramble's, counted in that arm's queue instead: its turn is run for its queues, and passed over with
+                // none. The cars down Dogenzaka wait for 109's fork at the line of the junction before it, 9 m short, and
+                // unseen there they stood 150 s while their turn was passed over, issue 175)
+                if (c.ex2.e && lt2 && lt2 !== 'g') { if (!a2.j.scramble) JN.want(a2); else if (toLine - c.half < 3) a2.qn1 = (a2.qn1 || 0) + 1; if (toLine - c.half < 3 && jArm.j.sig) jArm.lost1 = true; }
               }
               // (in it already: its way through this junction let in, or, crossing two close junctions together, this
               // one's let in with the one just after, mv0: then a light turning red behind it, or the room beyond
@@ -4227,9 +4243,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         c.q = atLine || (why === 'person' && walker >= 0 && c.v < 0.5 && lineGap < gap + 4) || (byCar && c.v < 0.5 && (front != null ? !!front.q && !(front.line === c.line && front.dir !== c.dir) : why === 'you' && youQ)); // (not behind one coming the other way, queued at its own line: a wait on that is a narrow street's, turned round in the end, #283) // queueing at a junction (behind a car, or a ride, queueing there; or held by the crowd crossing at its line, not by you, who may stand there for good)
         // counted at its arm for the signals' max-pressure (junctions.js): queued, and whether the head of the queue waits for room beyond
         if (c.q && c.lineArm && c.lineArm.j.sig && c.toLine < 80) { const a = c.lineArm; a.qn1 = (a.qn1 || 0) + 1; if (why === 'room' && c.toLine - c.half < 3) a.full1 = true; if (why === 'cross' && c.toLine - c.half < 3) a.lost1 = true; }
-        // (and one at a junction without signals, waiting for room on the piece that leads to a signal's line: the back of
-        // that line's queue, which its green is run for, issue 175)
-        else if (c.q && why === 'room' && c.lineArm && !c.lineArm.j.sig && c.lineEx) { const b = JN.armBy(c.lineEx.m.line, 1 - c.lineEx.m.end); if (b && b.in && b.j.sig) b.qn1 = (b.qn1 || 0) + 1; }
+        // (and one further back: behind the cars of that line's queue on the pieces before it, or at a junction without
+        // signals waiting for room on the piece that leads to it. The back of the queue a scramble's green is run for:
+        // seen only on the last piece of its arm, 25 m of the Scramble's east arm, a queue of eight had its green end
+        // with three through, issue 175)
+        else if (c.q) { const b = queuedFor(c); if (b) b.qn1 = (b.qn1 || 0) + 1; }
         // caught up in another car (two stopped for each other can't get out by waiting): the
         // one in front creeps on, as far as that frees it, and the other backs off (below)
         // (getting out of one never takes it into another: `caught` holds the ones it is caught up with)

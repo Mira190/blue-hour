@@ -86,7 +86,7 @@ window.OEJunctions = (function () {
   // while its queues are there to its share; SCR_GAP after the last of its queue has gone it ends. SCR_CLEAR: the all
   // red between its two turns (the walk's is longer: a wide box, and the crowd). SCR_URGED: with you on foot at its
   // kerb, the turn that cannot be passed over for your walk runs this long at most
-  const SCR_CYCLE = 120, SCR_SHARE = 4.2, SCR_SPLIT = 0.57, SCR_GMIN = 7, SCR_GAP = 3, SCR_CLEAR = 2, SCR_URGED = 12;
+  const SCR_CYCLE = 120, SCR_SHARE = 4.2, SCR_SPLIT = 0.57, SCR_GMIN = 7, SCR_GAP = 4, SCR_CLEAR = 2, SCR_URGED = 12;
   const NEAR = 12;      // (m: two junctions with signals whose lines are nearer than this run from one controller: follow)
   const AMBER = 3, ALLRED = 1, CALL = 12, GAP_MIN = 5, FLASH = 3, RED = 10; // seconds; a phase with nobody waiting on the other turns after CALL more; nobody waits at a red longer than RED
   const MID_CLEAR = 2; // (s: a crossing's walk flashing after its green, before its all red: 2 + 4 + 2 + 2 = RED for its cars)
@@ -1068,7 +1068,7 @@ window.OEJunctions = (function () {
         // phase's runs on, up to MP_MAX times its green but never past `cap`, so no red is waited over RED.
         // Only the queues at hand: nothing to forecast
         // a scramble's turn (issue 175): as long as its share of the cycle (timing) while its queues are there, and
-        // ended SCR_GAP after the last of them has gone and nobody is within 5 s of its lines, SCR_GMIN at least: an
+        // ended SCR_GAP after the last of them has gone and nobody is within 6 s of its lines, SCR_GMIN at least: an
         // actuated signal's minimum, extension and maximum (SUMO's actuated lights, A/B Street's variable stages). An
         // arm whose head waits for room beyond counts for nothing: its green moves nobody. With you on foot at its
         // kerb its turn is SCR_URGED at most
@@ -1077,7 +1077,7 @@ window.OEJunctions = (function () {
         if (j.scramble && j.st === 'g' && j.ph < 2) {
           if (j.urged != null && j.urged >= frame - 2) gLen = Math.min(gLen, SCR_URGED);
           let q = 0; for (const a of j.arms) if (a.in && a.phase === j.ph && !a.full) q += (a.qn || 0) + (a.qnX || 0);
-          if (!q && j.seen >= frame - 2) for (const o of j.near) if (j.arms[o.k].phase === j.ph && o.eta < 5 && (o.c.v || 0) > 1) { q = 1; break; }
+          if (!q && j.seen >= frame - 2) for (const o of j.near) if (j.arms[o.k].phase === j.ph && o.eta < 6 && (o.c.v || 0) > 1) { q = 1; break; }
           j.gapT = q > 0 || j.t < dt * 1.5 ? 0 : (j.gapT || 0) + dt;
           if (j.cut == null && j.t >= SCR_GMIN && j.gapT >= SCR_GAP) j.cut = j.t;
         }
@@ -1099,8 +1099,11 @@ window.OEJunctions = (function () {
             // if someone waits for it, else back to the main road's: RED holds for both)
             // (a scramble's turn with nobody waiting on it is passed over, as an actuated signal skips a stage: the walk
             // sooner, or after the walk the turn that has a queue)
-            const need = ph => W(ph) || stageQ(ph) > 0;
-            j.nxt = j.scramble ? (j.ph === 0 ? (need(1) ? 1 : 3) : j.ph === 1 ? 3 : !need(0) && need(1) ? 1 : 0) : j.ph === 0 ? (arrowCall && !W(1) ? 2 : 1) : j.ph === 2 ? (W(1) ? 1 : 0) : 0;
+            // (never the same turn twice running: a queue the signals do not see, round a bend or behind a junction
+            // without lights, has its turn at least every other cycle)
+            const need = ph => W(ph) || stageQ(ph) > 0 || j.missed === ph;
+            const skip = ph => { if (need(ph)) { if (j.missed === ph) j.missed = null; return false; } j.missed = ph; return true; };
+            j.nxt = j.scramble ? (j.ph === 0 ? (skip(1) ? 3 : 1) : j.ph === 1 ? 3 : need(1) && skip(0) ? 1 : 0) : j.ph === 0 ? (arrowCall && !W(1) ? 2 : 1) : j.ph === 2 ? (W(1) ? 1 : 0) : 0;
           }
         } else if (j.st === 'y' && j.t >= (j.mid != null && j.ph === 1 ? MID_CLEAR : j.amber)) { j.st = 'r'; j.t = 0; dirty.add(j); } // (a crossing's walk ends in its flashing, not a car's amber)
         // (the walk's all-red is held 10 s at most for the last of its crowd, not 25: one walker lingering on the road
