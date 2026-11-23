@@ -2253,12 +2253,16 @@ CROSSING_SCREENS = [
     # screen's size is an estimate from photographs of 2024-25): it plays its own programme, not the synchronised slot
     {"name": "Taiseido corner screen", "building": "w136690966", "edge": [[323.6, -975.2], [329.9, -969.4]], "w": 5.6, "h": 5.0, "z": 7.4, "off": 0.9,
      "clips": ["game", "beauty", "music", "movie"], "phase": 7.0, "pitch": 0.008, "sync": False},
-    # SW: on the roof of the Shibuya Ekimae building, the station-front vision (Tokyu, from 2019): 21.6 x
-    # 12.144 m over a 21.6 x 4.176 m banner screen; and south of it, on the roof of the Oto building, HIT's
-    # Shibuhachi Hit Vision, 24.32 x 17.28 m. The two buildings are one footprint in the open data
-    {"name": "Shibuya Ekimae Vision", "building": "渋谷駅前ビル", "w": 21.6, "h": 12.144, "roof": True, "lift": 5.4, "along": 12.5,
+    # SW: on the roof of the Shibuya Ekimae building (Dogenzaka 2-3-1), the station-front vision (Tokyu, from 2019,
+    # "facing the Scramble crossing"): 21.6 x 12.144 m over a 21.6 x 4.176 m banner screen, one 16.32 m panel, 16 mm
+    # pitch (Tokyu's release of 20 December 2018; the TOKYU OOH media sheet of 17 March 2023); and south of it, on the
+    # roof of the Osoto building (2-3-2), HIT's Shibuhachi Hit Vision, 24.32 x 17.28 m. The two buildings are one
+    # footprint in the open data (OSM way 60739635, PLATEAU), its corner at the crossing cut by a 15.7 m face. The
+    # station-front vision faces the crossing on that face, 2 m back on the roof, its ends past the face's on legs over
+    # the roof behind them: set 12.5 m north along the east face, its north end stood 5 m past the roof (issue 172)
+    {"name": "Shibuya Ekimae Vision", "building": "渋谷駅前ビル", "w": 21.6, "h": 12.144, "roof": True, "lift": 5.4, "pick": 1, "back": 2.0,
      "clips": ["live", "soda", "fashion", "phone", "noodle"], "phase": 6.0, "pitch": 0.016},
-    {"name": "Shibuya Ekimae Vision banner", "building": "渋谷駅前ビル", "w": 21.6, "h": 4.176, "roof": True, "lift": 1.0, "along": 12.5,
+    {"name": "Shibuya Ekimae Vision banner", "building": "渋谷駅前ビル", "w": 21.6, "h": 4.176, "roof": True, "lift": 1.0, "pick": 1, "back": 2.0,
      "clips": ["live", "soda", "fashion", "phone", "noodle"], "phase": 10.0, "pitch": 0.016},
     # Shibuhachi Hit Vision (HIT, June 2014; about 420 m2) is bent round the Oto building's south-east corner:
     # its foot runs north along the face over the station square and turns onto the south face, the corner
