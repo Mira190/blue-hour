@@ -2708,8 +2708,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // and taps that waited 3.7 s on an iPhone, issue 206. One rig of each, never shown, the exposure laid on, compiled)
   const warmGhosts = () => {
     if (!lib || !G.story || !OEPeople.exposure) return Promise.resolve();
-    const who = new Set();
-    for (const ep of G.story.episodes || []) for (const fr of ep.frames || []) for (const a of [fr.afterimage, fr.afterimage2]) if (a && a.character && !a.alive) who.add(a.character);
+    // (the frame the case is at first: a story taken up again at its Stop finds its afterimage made; the rest in order)
+    const who = new Set(), at = story && story.state ? story.state.fi || 0 : 0;
+    for (const ep of G.story.episodes || []) { const F = ep.frames || []; for (const fr of [...F.slice(at), ...F.slice(0, at)]) for (const a of [fr.afterimage, fr.afterimage2]) if (a && a.character && !a.alive) who.add(a.character); }
     let p = Promise.resolve(), halo = true;
     for (const c of who) p = p.then(() => lib.require(c)).then(() => {
       if (!lib.tpl[c]) return null;
@@ -4614,7 +4615,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
     if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
     // and the story's stopped air: its leaves, birds and motes, made at the first beat after the tap (stopfx.js warm)
-    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => stopFx.warm(warmFor)).then(() => warmGhosts()), reduced ? 0 : 1000); // (and the afterimages' look, warmGhosts)
+    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => Promise.all([stopFx.warm(warmFor), warmGhosts()])), reduced ? 0 : 1000); // (and the afterimages' look, warmGhosts)
     setTimeout(() => { if (QC.lean) afterPlayable().then(heliIn); else heliIn(); }, reduced ? 0 : 900);
   });
   // What the first frame doesn't need, fetched once the game can be played, as the helicopter's model is (issue 335):
