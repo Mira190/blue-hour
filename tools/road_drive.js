@@ -8,7 +8,8 @@
 // A leg's pieces are counted as it passes them, so most legs drive several.
 //   xvfb-run -a node tools/road_drive.js shibuya [radius=320]        (MINUTES=40 of the game's time at most; LOG=1)
 // TRACE=1 prints each stand of a drive (when, where, how long, why, and the light it stood at); TIMED=1 fails a drive
-// that takes longer than its road at 6 m/s and one cycle of the map's slowest scramble (issue 175).
+// that takes longer than its road at 6 m/s and one cycle of each scramble on its way, or than its start's own figure
+// ("x,y@180") (issue 175).
 // An errand's drive instead: TO=x,y FROM="x,y;x,y;x,y" drives from each start (the car brought to the kerb there, as
 // the C key does) to the place, and fails if one does not arrive within r=35 m; OUT=dir takes a still every EVERY=8 s
 // of each drive. PHONE=1 plays a phone's district.
@@ -19,7 +20,7 @@ const { pinClock } = require('./pin_clock');
 const [,, city = 'shibuya', RADIUS = '320'] = process.argv;
 const TO0 = process.env.TO ? process.env.TO.split(',').map(Number) : null, TO = TO0;
 // (a start may name its own place to drive to, "x,y>x,y": the drive back across the Scramble beside the drives to 109)
-const FROM = (process.env.FROM || '').split(';').filter(Boolean).map(s => { const [a, b] = s.split('>'), f = a.split(',').map(Number); if (b) f.to = b.split(',').map(Number); return f; });
+const FROM = (process.env.FROM || '').split(';').filter(Boolean).map(s => { const [ab, cap] = s.split('@'), [a, b] = ab.split('>'), f = a.split(',').map(Number); if (b) f.to = b.split(',').map(Number); if (cap) f.cap = +cap; return f; });
 const OUT = process.env.OUT, EVERY = +(process.env.EVERY || 8);
 
 // (in the page) into the driver's seat of your car, brought to the kerb at (x, y) when given
@@ -114,7 +115,10 @@ function driveFor({ secs, mark }) {
       const no = await p.evaluate(seatAt, FROM[k]);
       if (no) { console.log(`FAIL start ${k + 1} (${FROM[k]}): ${no}`); bad++; continue; }
       const TO = FROM[k].to || TO0;
-      const leg = await p.evaluate(({ to }) => { const g = window.__game, st = g.myCar().D.st; window.__drive = null; const ok = g.pilotTo({ id: 'errand', name: 'the errand', at: to }, { quiet: true }); return { ok, len: ok ? g.pilot().len : 0, turns: ok ? g.pilot().turns.length - 1 : 0, from: [+st.x.toFixed(0), +st.y.toFixed(0)] }; }, { to: TO });
+      const leg = await p.evaluate(({ to }) => { const g = window.__game, st = g.myCar().D.st; window.__drive = null; const ok = g.pilotTo({ id: 'errand', name: 'the errand', at: to }, { quiet: true });
+        // (the scrambles on its way, each with the junctions run from it: one cycle of each is the most their lights can cost it)
+        let cyc = 0; if (ok) { const S = new Set(); for (const nd of g.pilot().drv.st.route.nodes || []) { const a = g.junctions.armAt(nd.line, nd.end), j = a && a.in ? a.j.lead || a.j : null; if (j && j.scramble && j.cycle && !S.has(j)) { S.add(j); cyc += j.cycle; } } }
+        return { ok, cyc, len: ok ? g.pilot().len : 0, turns: ok ? g.pilot().turns.length - 1 : 0, from: [+st.x.toFixed(0), +st.y.toFixed(0)] }; }, { to: TO });
       if (!leg.ok) { console.log(`FAIL start ${k + 1} (${FROM[k]}): no road from there reaches ${TO}`); bad++; continue; }
       let r = null, n = 0;
       for (let t = 0; t < 600; t += EVERY) {
@@ -123,9 +127,10 @@ function driveFor({ secs, mark }) {
         if (r.done) break;
       }
       const d = Math.hypot(r.at[0] - TO[0], r.at[1] - TO[1]), S = await p.evaluate(() => window.__drive);
-      // (TIMED=1, issue 175: a drive takes no longer than its road at 6 m/s and one whole cycle of the slowest scramble
-      // on the map, 118 s at Shibuya's: 179 s for the 364 m across the Scramble to 109, which took 401)
-      const limit = process.env.TIMED ? leg.len / 6 + cycle : Infinity, slow = r.t > limit;
+      // (TIMED=1, issue 175: a drive takes no longer than its road at 6 m/s and one whole cycle of each scramble on its
+      // way, 118 s at Shibuya's and 63 at 109's fork; and no longer than the figure its start names, "x,y@180": the
+      // 364 m from SKY GATE across the Scramble to 109, which took 401 s, in the three minutes the issue asks)
+      const limit = process.env.TIMED ? Math.min(leg.len / 6 + (leg.cyc || cycle), FROM[k].cap || Infinity) : Infinity, slow = r.t > limit;
       const ok = d <= 35 && !S.bad.length && !slow;
       if (process.env.TRACE) { // (each stand of 3 s or more: when, where, how long, why at its start and its end, the light then)
         let run = null; const put = r => { if (r && r.n >= 6) console.log(`   stood ${String(r.n / 2).padStart(5)} s from ${String(r.t).padStart(5)} s at ${r.x},${r.y}: ${r.why} [${r.j}] ... ${r.why1} [${r.j1}]`); };

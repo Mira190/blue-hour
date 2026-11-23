@@ -1074,7 +1074,19 @@ window.OEJunctions = (function () {
         // kerb its turn is SCR_URGED at most
         let gLen = j.green[j.ph];
         const stageQ = ph => { let n = 0; for (const a of j.arms) if (a.in && a.phase === ph) n += (a.qn || 0) + (a.qnX || 0); return n; };
+        if (j.scramble && j.st === 'g' && j.ph === 3 && j.t < dt * 1.5) j.g0At = null;
         if (j.scramble && j.st === 'g' && j.ph < 2) {
+          // (the traffic's time split between its two turns by the queues that wait as each begins, the longest of each
+          // turn's arms, as a signal's split follows its critical flows: 109's fork gave Dogenzaka's downhill arm, a turn
+          // of its own, 12 s of 29 whatever stood on it, and a queue of six took two cycles. The two together stay
+          // within the cycle: the second has what the first left)
+          if (j.t < dt * 1.5) {
+            const crit = ph => { let m = 0; for (const a of j.arms) if (a.in && a.phase === ph) m = Math.max(m, (a.qn || 0) + (a.qnX || 0)); return m; };
+            const c0 = crit(0), c1 = crit(1), veh = j.green[0] + j.green[1];
+            j.gNow = c0 + c1 > 0 ? Math.max(SCR_GMIN + 3, Math.min(veh - SCR_GMIN - 3, veh * crit(j.ph) / (c0 + c1))) : j.green[j.ph];
+            if (j.ph === 0) j.g0At = clock; else if (j.g0At != null) j.gNow = Math.max(SCR_GMIN, Math.min(j.gNow, veh - (clock - j.g0At - (j.amber || AMBER) - SCR_CLEAR)));
+          }
+          gLen = j.gNow || gLen;
           if (j.urged != null && j.urged >= frame - 2) gLen = Math.min(gLen, SCR_URGED);
           let q = 0; for (const a of j.arms) if (a.in && a.phase === j.ph && !a.full) q += (a.qn || 0) + (a.qnX || 0);
           if (!q && j.seen >= frame - 2) for (const o of j.near) if (j.arms[o.k].phase === j.ph && o.eta < 6 && (o.c.v || 0) > 1) { q = 1; break; }
