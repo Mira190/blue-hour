@@ -275,7 +275,8 @@ window.OpenEarthGame = async function game(cityId) {
   }
   // a lost WebGL context pauses the game under a note and comes back redrawn (glcare.js)
   // (on a phone the walls' shading lives on the GPU alone, world.js gpuOnly: there a lost context reloads the view)
-  const care = OEGLCare.watch({ renderer, host: stage, onRestored: () => { if (Wd.gpuOnly) throw new Error('held on the GPU only'); Wd.restoreGPU(); resize(); } });
+  // (and a view that cannot be redrawn reloads: where the player was is noted for the next load to take up, noteResume)
+  const care = OEGLCare.watch({ renderer, host: stage, onRestored: () => { if (Wd.gpuOnly) throw new Error('held on the GPU only'); Wd.restoreGPU(); resize(); }, onGiveUp: () => noteResume() });
   U.uTime = { value: 0 };
   // Close up, 1 m aerial imagery is a blur, lit twice (the photo's own sun and shadows, then the
   // scene's) and far too pale for paving: a sunlit forecourt read as a white sheet with grey
@@ -5785,10 +5786,45 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   $('#gt-skip').hidden = !OEOnboard.done(); // a returning player (any map): the intro is skipped unless they untick it
   // the title orbit's centre, so the camera can be carried with the player when the game starts somewhere else
   // (Continue, a district from the subway map): the arrival then starts from the same view of the new place
+  // A lost context the page cannot redraw reloads it (glcare.js: on a phone always, since the walls live on the GPU alone
+  // there, world.js gpuOnly), a level lighter on a phone (quality.js lost). The player was on the title before (#118: four
+  // losses in five minutes in frame 1, each back to the title, its film and the first frame's call). Now the page notes
+  // where they were as it gives up (noteResume: in this tab's session storage, nothing else), and the next load takes
+  // them up there (takeResume, at the title): the story at the frame it was at, from that frame's beginning (what a
+  // frame's Stop holds, the afterimage's words and the photograph, is not kept part way), with no film and no call
+  // again; the walk at its hour and sky; on foot, where they stood (in a car, the helicopter or
+  // a film, where the frame or the walk begins).
+  const RESUME = 'bh-resume';
+  let resumeAt = null;
+  function noteResume() {
+    if (!playing) return;
+    const S = story && story.state, inStory = !!(S && story.on && S.phase !== 'done'), kind = inStory ? 'story' : walk ? 'walk' : null;
+    if (!kind) return;
+    const film = !!(S && (S.mov || /^(flight|ride)$/.test(S.beat))) || !!(overture && overture.active);
+    const foot = player.mode === 'foot' && !player.vehicle && !film && Number.isFinite(player.x);
+    const o = { city: cityId, t: Date.now(), kind, pos: foot ? [+player.x.toFixed(2), +player.y.toFixed(2), +player.z.toFixed(2)] : null, h: +(player.h || 0).toFixed(3) };
+    if (inStory) o.story = { fi: S.fi | 0, begun: !(S.phase === 'idle' || S.phase === 'dressed' || ((S.fi | 0) === 0 && S.phase === 'go' && (S.beat === 'prologue' || S.beat === 'order'))) };
+    else o.walk = walk.t === 'here' ? { t: sun && sun.altitude < -10 ? 'night' : 'blue', w: walk.w } : { t: walk.t, w: walk.w };
+    try { sessionStorage.setItem(RESUME, JSON.stringify(o)); } catch (e) { /* storage blocked: the title, as before */ }
+  }
+  function takeResume() {
+    let o = null;
+    try { o = JSON.parse(sessionStorage.getItem(RESUME) || 'null'); sessionStorage.removeItem(RESUME); } catch (e) { o = null; }
+    return o && o.city === cityId && Date.now() - o.t < 6 * 3600e3 && (o.kind === 'story' ? !!story : o.kind === 'walk' && !!walkUi) ? o : null;
+  }
+  // where a resumed player stands: as they stood, if that is still somewhere to stand
+  const resumeSpot = R => {
+    if (!R || !Array.isArray(R.pos) || !R.pos.every(Number.isFinite) || !nav.floorAt(R.pos[0], R.pos[1], R.pos[2] + 1)) return false;
+    spawn(R.pos, R.pos[2] + 0.5, [R.pos[0] + Math.sin(R.h || 0) * 10, R.pos[1] + Math.cos(R.h || 0) * 10]);
+    return true;
+  };
   const startGame = cont => {
     A.start();
     playing = true;
     const was = [player.x, player.y, player.z];
+    const R = !cont && resumeAt && resumeAt.kind === 'story' ? resumeAt : null;
+    resumeAt = null;
+    if (R) resumeSpot(R);
     if (cont && saved) {
       goals.load(saved.qs);
       // back on the deck or roof where you left off; at the start if that is no longer in the map (a map split in two)
@@ -5811,18 +5847,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const dv = W(player.x, player.y, player.z).sub(W(...was));
     if (dv.lengthSq() > 1) { camera.position.add(dv); titleLook.add(dv); }
     const skip = OEOnboard.done() && $('#gt-skip-on').checked;
-    const then = () => (story && !cont ? (story.tidy(), storyLog && storyLog.restore(story.state.ep && story.state.ep.id), story.begin()) : cont ? OEOnboard.markDone(CITY.id) : skip ? welcome(true) : startTour(() => welcome(false)));
+    const then = () => (story && !cont ? (story.tidy(), storyLog && storyLog.restore(story.state.ep && story.state.ep.id), story.begin(R && R.story)) : cont ? OEOnboard.markDone(CITY.id) : skip ? welcome(true) : startTour(() => welcome(false)));
     if (story && !cont) story.dress(); // (the evening its first episode is set in, before the opening shot)
     // the map's overture (overture.js) the first time here, unless you continue or arrive at a district; else the opening shot
     // (a story opens on the overture every time, in the evening its first episode is set in; ?overture=0 goes straight to the street)
     const open = () => {
-      const filmIt = overture && !cont && !arrive && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
+      const filmIt = overture && !cont && !arrive && !R && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
       // (on iOS the first touch may be Play itself: the loading cue is begun in that touch, after the opening's score was
       // rendered with its own bed because there was no cue yet (film-score.js plan.under). One piece of music: the
       // opening's own, and the cue let go before it sounds)
       if (filmIt && cue && overture.scorePlan && !overture.scorePlan().under) cueOut();
       if (filmIt && overture.play(then)) { renderPassport(); return; }
-      if (openingHere()) { // (#110: the opening shot, the scramble's walk turning green as it comes down)
+      if (!R && openingHere()) { // (#110: the opening shot, the scramble's walk turning green as it comes down)
         const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
         if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
       }
@@ -5905,6 +5941,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (playing) return;
     A.start();
     playing = true; walk = Object.assign({}, sp);
+    const R = resumeAt && resumeAt.kind === 'walk' ? resumeAt : null; // (taken up after a lost context: noteResume)
+    resumeAt = null;
+    if (R) { const was = W(player.x, player.y, player.z); if (resumeSpot(R)) { const dv = W(player.x, player.y, player.z).sub(was); camera.position.add(dv); titleLook.add(dv); } }
     stage.classList.add('walk');
     if (SND_GUARD && cue && !(walkFilmDue() && !walkNoFilm)) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone with no film to play, the cue plays on until the street does: sndHold. The walk's film has a score of its own)
     walkDress(sp);
@@ -5921,7 +5960,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (film.play(() => { overture = was; walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); })) return; // (and the first time, the office rings as you reach your shoulder: walkIntro)
       overture = was;
     }
-    if (openingHere()) { // (down from the title's view to your shoulder, the scramble turning to walk as you come down, as the story's opening does without its film)
+    if (!R && openingHere()) { // (down from the title's view to your shoulder, the scramble turning to walk as you come down, as the story's opening does without its film)
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
@@ -6089,12 +6128,15 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
     $('#g-title').hidden = false;
+    // a load after a lost context the page could not redraw: the player taken up where they were (noteResume), no card
+    { const R = takeResume();
+      if (R) { resumeAt = R; stage.classList.add('story-auto'); if (R.kind === 'story') setTimeout(() => startGame(false), 0); else { walkAuto = true; walkNoFilm = true; setTimeout(() => walkUi.auto(R.walk), 0); } } }
     // come from a story's link on the globe (title.js): no card to press, the story starts
     { let auto = false; try { auto = !!story && sessionStorage.getItem('bh-story-auto') === cityId; if (auto) sessionStorage.removeItem('bh-story-auto'); } catch (e) { /* storage blocked */ }
-      if (auto) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
+      if (auto && !resumeAt) { stage.classList.add('story-auto'); setTimeout(() => startGame(false), 0); } }
     // come from the story's last card (its Walk Shibuya, story ctx free): no card to press, the walk sets out
     { let sp = null; try { sp = walkUi ? JSON.parse(sessionStorage.getItem('bh-walk-auto') || 'null') : null; sessionStorage.removeItem('bh-walk-auto'); } catch (e) { sp = null; }
-      if (sp && !playing) { stage.classList.add('story-auto'); walkAuto = true; walkNoFilm = !sp.film; setTimeout(() => walkUi.auto(sp), 0); } } // (sp.film: a harness's, tools/walk_open.js)
+      if (sp && !playing && !resumeAt) { stage.classList.add('story-auto'); walkAuto = true; walkNoFilm = !sp.film; setTimeout(() => walkUi.auto(sp), 0); } } // (sp.film: a harness's, tools/walk_open.js)
     $('#g-loader').classList.add('out');
     if (window.OEBoot) OEBoot.done(); // (the first frame is behind the loader: what fails from here is the game's to say, not the loader's)
     setTimeout(() => {
