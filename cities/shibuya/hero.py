@@ -573,7 +573,21 @@ class Level:
         """The white guard pipes along the kerbs (scramble.guard_runs: the same runs the landmarks make solid),
         drawn finely: a post every 2 m on a base plate, two rails."""
         G = self.geo
+        from shapely.geometry import Point
+        # (none along a floor the level lays itself, `no_guard`: a hall's forecourt opens onto its road, and a fence
+        # there stood across the way the story walks to the lift)
+        clear = getattr(self, "no_guard", None)
+        runs = []
         for run in self.S.guard_runs(self.plan):
+            part = []
+            for q in list(run) + [None]:
+                if q is not None and (clear is None or clear.distance(Point(*q)) > 1.5):
+                    part.append(q)
+                    continue
+                if len(part) > 2:
+                    runs.append(part)
+                part = []
+        for run in runs:
             pts = [self.Gp(*q, LIFT + 0.01) for q in run]
             for p in pts:
                 G.cylinder("metal_guard", p, 0.038, 0.8, 8)

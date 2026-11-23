@@ -270,6 +270,7 @@ class Level(H.Level):
         # walked 0.75 m under it: tools/guide_way.js, issue 196)
         own = self.planked().union(self.hall_ground()).buffer(0.05)
         self.roads = self.roads.difference(own).buffer(0)
+        self.no_guard = own
         self.paintable = self.roads.buffer(-(H.GUTTER_M + 0.12))
         self.S.write_plan(self.plan, self.D, roads=self.roads, own=own)
         self.carriageway()
