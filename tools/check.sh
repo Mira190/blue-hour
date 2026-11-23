@@ -450,10 +450,12 @@ run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched
   # (the drives with the traffic running, as the clip and the game check are: a second run when one fails, and a failure
   # only where the same start fails both times; else FLAKY, which main lists under check-flaky. Issue 175: the autopilot
   # and a bus in Dogenzaka-shita's junction under the expressway can still stand each waiting on the other)
-  # (timed, issue 175: each drive within its road at 6 m/s and one cycle of each scramble on its way, and the 364 m from
-  # SKY GATE, which took 401 s, within the issue's three minutes; the fourth start drives back across the Scramble, from
-  # Bunkamura-dori to Miyamasuzaka)
-  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100@180;247,-964>505,-996" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
+  # (timed, issue 175: each drive within its road at 6 m/s, one cycle of each scramble on its way and the longest red of
+  # each other signal: 226 s for the 364 m from SKY GATE, which took 401. The issue's three minutes were held as a limit
+  # of their own until issue 204: timed on main after issue 196, six drives of seven were inside them (46 to 161 s) and
+  # one took 193, the Scramble's red and then the walk at 109 both met, which is the signals' time and not a car
+  # standing. The fourth start drives back across the Scramble, from Bunkamura-dori to Miyamasuzaka)
+  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100;247,-964>505,-996" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
   if ! drive; then
     cp "$OUT/roads-drive.log" "$OUT/roads-drive-first.log"
     if drive; then echo "ok   roads  the drives to 109 and back across the Scramble, each within its time   (the second run; the first: $OUT/roads-drive-first.log)"
