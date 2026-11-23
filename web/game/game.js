@@ -6490,6 +6490,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!best) for (const n of npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (n.name === who.name && n.rig && d < bd) { bd = d; best = n.rig; } }
     return best && best.face ? best : null;
   };
+  const faceWas = new Set(); // (the rigs whose faces were in play last frame)
   function faceChoose() {
     faceWho.clear();
     if (!window.OEFace) return;
@@ -6514,6 +6515,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const c of near.slice(0, FACE_NEAR)) faceWho.set(c.rig, c.o);
     // (the player's own face in a talk, or with the camera close to it: from the chase view it is the back of a head)
     if (player.rig.face && (spEye || W(player.x, player.y, player.z + 1.55).distanceTo(camera.position) < 3.5)) faceWho.set(player.rig, { name: 'Kagami', look: spEye || player.rig.lookTarget || null, listen: !!sp, held: false });
+    // A face no longer chosen is put to rest here, not left to its rig's next animate (faceAfter): one whose rig is not
+    // animated again (someone gone away, hidden, their frame over) kept its moving geometry and the shapes' texture
+    // three.js makes for it, for good. A phone played from the title held 55 of them by frame 7 where one opened at
+    // frame 7 holds 16: 19 MB (issue 130).
+    for (const r of faceWas) if (!faceWho.has(r)) { faceWas.delete(r); if (r.face && r.face.active) r.face.rest(); }
+    for (const r of faceWho.keys()) faceWas.add(r);
   }
   function simulate(dt) {
     faceChoose();
