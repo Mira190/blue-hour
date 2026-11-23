@@ -1,0 +1,59 @@
+[
+ {
+  "name": "ekimae-crossing-dusk",
+  "eye": [
+   352,
+   -1000
+  ],
+  "eyeUp": 1.6,
+  "look": [
+   318,
+   -1018
+  ],
+  "lookUp": 40,
+  "time": "17:30",
+  "street": true,
+  "at": [
+   352,
+   -1000
+  ]
+ },
+ {
+  "name": "ekimae-hachiko-dusk",
+  "eye": [
+   350,
+   -1030
+  ],
+  "eyeUp": 1.6,
+  "look": [
+   320,
+   -1022
+  ],
+  "lookUp": 40,
+  "time": "17:30",
+  "street": true,
+  "at": [
+   350,
+   -1030
+  ]
+ },
+ {
+  "name": "ekimae-crossing-night",
+  "eye": [
+   352,
+   -1000
+  ],
+  "eyeUp": 1.6,
+  "look": [
+   318,
+   -1018
+  ],
+  "lookUp": 40,
+  "time": "20:30",
+  "street": true,
+  "at": [
+   352,
+   -1000
+  ]
+ }
+]

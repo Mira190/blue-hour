@@ -14,6 +14,7 @@ A spec:
     z             the foot above the street; negative: the top that far below the roof
     roof, lift    standing on the roof, its foot `lift` metres above it (default 1.2)
     along         metres along the face, to the right seen from in front
+    back          metres back from the face onto the roof (a roof screen wider than its face: its legs on the roof)
     toward        the point the face looks to (default: the site's node); pick takes the next best face
     edge          two points: the face itself, where the footprint rounds a front off
     near          picks among buildings of the same name (the closest)
@@ -174,7 +175,7 @@ def place(city, sc, node):
         base = z1 + sc.get("lift", 1.2)
     else:
         base = z0 + sc["z"] if sc["z"] >= 0 else z1 + sc["z"] - sc["h"]   # above the street, or down from the roof
-    return mid + t * sc.get("along", 0.0), n, t, base, z0, z1
+    return mid + t * sc.get("along", 0.0) - n * sc.get("back", 0.0), n, t, base, z0, z1
 
 
 def bend(points, radius, steps=6):
