@@ -1758,7 +1758,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     let k = off ?? OECars.kerbOf(l0.c, l0.cw);
     // (its outer side inside the asphalt the street's class draws, street_ground.py's half width: kerbOf's 4.4 m on a
     // street drawn 4.5 m out stood half the car on the kerb wherever no hero level draws the ground: docs/ROADS.md, the first drive)
-    if (off == null) k = Math.max(OECars.LANE, Math.min(k, (l0.cw > 0 ? l0.cw / 2 : ROAD_HALF[l0.c] || 3.5) - 0.95 - 0.25));
+    if (off == null) k = Math.max(OECars.LANE, Math.min(k, rwOf(l0) / 2 - 0.95 - 0.25));
     // (where a hero level draws the carriageway, pulled in only as far as its kerb, never over it onto the paving: by the
     // west exit Jingu-dori's one lane took your car 4.4 m out, onto the footway, as the rides were by Hachiko, #54)
     if (off == null && nav.carriageway) {
