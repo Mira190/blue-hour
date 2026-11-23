@@ -8,7 +8,7 @@
 const { chromium } = require('playwright');
 const os = require('os');
 (async () => {
-  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+  const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] /* (a Mac's own GPU) */ : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args });
   const p = await b.newPage();
   const r = await p.evaluate(() => {

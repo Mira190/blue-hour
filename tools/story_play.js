@@ -59,7 +59,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
+  // (ENGINE=webkit: Playwright's WebKit, which takes none of Chromium's switches; HEADED=1 for its window)
+  const b = process.env.ENGINE === 'webkit' ? await require('playwright').webkit.launch({ headless: !process.env.HEADED }) : await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   // (DPR=3 PHONE=1: the page as an iPhone has it, three device pixels to the point and its user agent, as tools/mem_check.js opens it)
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +process.env.DPR || 1, hasTouch: w < 500, isMobile: w < 500,
     ...(process.env.PHONE ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' } : {}) });
@@ -194,6 +195,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(2000);
+  // (which GPU drew this play: a number from a real device is worth nothing without it)
+  console.log(`renderer: ${await p.evaluate(() => { const d = document.createElement('canvas').getContext('webgl2'), x = d && d.getExtension('WEBGL_debug_renderer_info'); return d ? (x ? d.getParameter(x.UNMASKED_RENDERER_WEBGL) : d.getParameter(d.RENDERER)) : 'no WebGL2'; })}`);
+  // GOVLOG=1 (a real GPU, DPR=2 for a dense display): the governor runs as on a player's device (under a harness it
+  // stands still, quality.js), and every five seconds a line says the frame, the governor's scale/extras and frame time,
+  // the tier, and the frames drawn in those five seconds with their median and their slowest tenth.
+  if (process.env.GOVLOG) {
+    await p.evaluate(() => { window.__game.governor.auto = true; const T = window.__gaps = []; let l = 0; const f = t => { if (l) T.push(t - l); l = t; requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    setInterval(() => p.evaluate(() => { const g = window.__game, G = g.governor, T = window.__gaps.splice(0).sort((a, b) => a - b), s = g.story && g.story.state, c = g.renderer.domElement;
+      return `gov: frame ${s ? s.fi + 1 : '-'} ${s ? s.phase : ''}: ${G.scale.toFixed(2)}/${G.extras}, ${(G.frameMs || 0).toFixed(1)} ms, tier ${window.OEQuality.tier().name}; ${T.length} frames in 5 s, median ${T.length ? (1000 / T[T.length >> 1]).toFixed(0) : '-'} fps, slowest tenth from ${T.length ? T[Math.floor(T.length * 0.9)].toFixed(0) : '-'} ms; canvas ${c.width}x${c.height}`; }).then(l => console.log(l)).catch(() => {}), 5000).unref();
+  }
   // (a still is of frames drawn whole: every frame drawn from the one before it until it is taken)
   let whole = 0;
   const ONE = process.env.ONE !== '0';
@@ -914,7 +925,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180 / Math.PI;
         // (counted in frames, not the wall's time: the game moves 0.05 s a frame at most, so on a software renderer the raise's
         // half a second is many seconds of the wall's; after 20 frames, a second of the game's own time, it is up)
-        const settle = R.slice(20), first = settle[0], last = settle[settle.length - 1];
+        // (and on a real GPU twenty frames are a third of a second: a phone's page at sixty a second was caught half way up,
+        // "moves by itself" by 6 to 10 degrees in five frames of seven. The second is counted in the game's own time, a frame's
+        // wall time or 0.05 s, whichever is less; never fewer than the twenty frames)
+        let up = 1, gameMs = 0; while (up < R.length - 2 && (up < 20 || gameMs < 1000)) { gameMs += Math.min(50, R[up].t - R[up - 1].t); up++; }
+        const settle = R.slice(up), first = settle[0], last = settle[settle.length - 1];
         let jit = 0; for (let i = 1; i < settle.length; i++) jit = Math.max(jit, ang(settle[i].d, settle[i - 1].d));
         const drift = ang(first.d, last.d), q = last.q, inFrame = q[2] < 1 && Math.abs(q[0]) < 0.7 && Math.abs(q[1]) < 0.7;
         await snap(`${s.fi + 1}-raised`);
