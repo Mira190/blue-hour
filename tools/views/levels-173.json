@@ -1,0 +1,7 @@
+{"times": {"day": "13:00", "dusk": "sunset+15", "night": "21:00"},
+ "views": [
+  {"name": "span-rail", "eye": [885, -1585, 40], "look": [815, -1650, 4], "fov": 50},
+  {"name": "span-rail-foot", "eye": [856, -1582, 1.6], "look": [820, -1645, 4], "fov": 55},
+  {"name": "hump-inari", "eye": [552, -1238, 22], "look": [583, -1199, 1], "fov": 50},
+  {"name": "hump-river", "eye": [772, -1425, 22], "look": [797, -1392, 1], "fov": 50}
+ ]}

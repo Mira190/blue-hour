@@ -5,7 +5,8 @@
 // from the height it was at. Every place one of them fails is listed with what nav.floorAt found there (the floor's kind
 // and height, the terrain, the paving), and the run fails (exit 1) where it fails on a surface with no water drawn and no
 // wall within a car's width and where the car itself, driven through it, stops: "Too steep a drop." or a bump on dry,
-// open road.
+// open road, where a car can go: inside the planned area and the band past its edge where it is turned back (docs/BOUNDS.md);
+// what is found past that is listed and does not fail.
 //   xvfb-run -a node tools/car_edges.js [radius=900] [outDir]
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -94,11 +95,27 @@ const [,, RADIUS = '900', OUT] = process.argv;
       e.met = stop ? `${stop.type}${stop.what ? ' ' + stop.what : ''} ${passed.toFixed(1)} m from it` : passed >= 3 ? '' : `stopped ${(-passed).toFixed(1)} m short`;
     }
     Object.assign(D.st, st0);
+    // where a car can go: the planned area (game.json "bounds", docs/BOUNDS.md), and the band past its edge in which it
+    // is eased to a stop and turned back. Past that no car is ever driven: what is found there is listed, not failed
+    const B = G.bounds && G.bounds.ground, poly = B ? B.poly : null, soft = B ? B.soft || 0 : 0;
+    const reach = (x, y) => {
+      if (!poly) return true;
+      let inside = false, near = Infinity;
+      for (let i = 0, n = poly.length, j = n - 1; i < n; j = i++) {
+        const [ax, ay] = poly[j], [bx, by] = poly[i];
+        if ((ay > y) !== (by > y) && x < ax + (bx - ax) * (y - ay) / (by - ay)) inside = !inside;
+        const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2 || 1)));
+        near = Math.min(near, Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay)));
+      }
+      return inside || near <= soft + 10;
+    };
+    for (const e of found) e.reach = reach(e.at[0], e.at[1]);
     return { driven: Math.round(driven), found, start: [sx, sy], lines: L.length };
   }, +RADIUS);
-  const dry = r.found.filter(e => !e.water && !e.wall && e.met);
-  console.log(`driven ${(r.driven / 1000).toFixed(1)} km of ${r.lines} road lines within ${RADIUS} m: ${r.found.length} places the rules stop a car, ${r.found.filter(e => e.met).length} where the car driven through stops, ${dry.length} of them on dry, open road`);
+  const open = r.found.filter(e => !e.water && !e.wall && e.met), dry = open.filter(e => e.reach), past = open.filter(e => !e.reach);
+  console.log(`driven ${(r.driven / 1000).toFixed(1)} km of ${r.lines} road lines within ${RADIUS} m: ${r.found.length} places the rules stop a car, ${r.found.filter(e => e.met).length} where the car driven through stops, ${open.length} of them on dry, open road: ${dry.length} where a car can go, ${past.length} past the planned area's edge`);
   for (const e of dry.slice(0, 60)) console.log(`  ${e.kind} at ${e.at.join(', ')} heading ${e.h} (line ${e.line} ${e.name} ${e.c}, lane ${e.lane}): ${e.met}; ${JSON.stringify(e.why)}`);
+  for (const e of past.slice(0, 20)) console.log(`  (past the edge) ${e.kind} at ${e.at.join(', ')} (line ${e.line} ${e.c}, lane ${e.lane}): ${e.met}`);
   if (OUT) { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, 'car_edges.json'), JSON.stringify(r, null, 1)); }
   await b.close();
   process.exit(dry.length ? 1 : 0);

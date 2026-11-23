@@ -99,6 +99,12 @@ FOOT_WEIGHT = 0.05   # a footpath's say in a node a street reaches too
 PIT_M = 1.0          # a node this far under the median of the eight round it, by a street, is a pit: filled
 BANK_M = 1.5         # a node in that feather further off the street's level is a bank's or a wall's: left
 ON_GROUND_M = 0.3    # a line's point within this of the ground lies on it (otherwise a deck, a ramp, a tunnel)
+SPANS = 1            # the rule of spans_nothing(), as recorded with the survey: raise it when the rule changes
+RAMP = 0.12          # a street's steepest (docs/LEVELS.md: the road standard's 12 %)
+CLEAR_M = 2.5        # what a deck stands over, at the least, to be over anything (web/game/decks.js RISE)
+LEVEL_M = 8.5        # the data lifts a bridge one level, 6 m: a run higher than that over its ground is a viaduct
+DIP_M = 1.5          # ground this far under the line between a run's two ends is a dip the run does span
+RAIL_M = 8.0         # a railway within this of a run is under it
 SPREAD_M = 0.4       # where the lines that reach a node disagree on its level by more (a street under a footbridge, a
                      # cutting with stairs down its sides, lines at two levels), it is left
 JUNCTION_M = 10.0    # (more where the lines are steep: a junction on a hill, see level())
@@ -321,9 +327,65 @@ def on_ground(cid, game, G):
         if sv:
             sv["on"] = rec
             json.dump(sv, open(sp, "w", encoding="utf8"))
+    if rec.get("spans") != SPANS and spans_nothing(rec, kinds, game, G):
+        rec["spans"] = SPANS
+        if sv:
+            sv["on"] = rec
+            json.dump(sv, open(sp, "w", encoding="utf8"))
     for v, row in zip(kinds.values(), rec["lines"]):
         for e, bits in zip(v, row):
             e["_on"] = np.frombuffer(bits.encode(), np.uint8) == 49
+
+
+def spans_nothing(rec, kinds, game, G):
+    """A bridge that spans nothing lies on the ground (issue 173): the runs of a line's points that stand off the
+    ground with nothing under them to be over, marked on the ground in the record. How many points were.
+
+    The data gives a bridge one level (6 m over its ends) whatever it crosses, and the map draws a walled river only
+    where it is open: where the river runs under a street the ground is kept across it (inland_water.py "decks"), and
+    upstream of where it comes out there is no river at all. A point lifted there stood 6 m over level ground between
+    two ends on the ground 16 to 24 m apart, the page laid a deck through the three (decks.js), and your car met a
+    hump of 1 to 3 m rising at 30 %, its end a wall. Nothing can be bridged in that length: at a street's steepest
+    (RAMP) a deck needs CLEAR_M / RAMP either side to clear anything. So a run off the ground between two ends on it
+    is the street itself where it is shorter than that, or stands less than a clearance over its ground, and where no
+    water is drawn under it, no railway runs under it and the ground does not fall away under it (a dip it does span).
+    A real bridge keeps its deck, and the page lays it."""
+    T, cell = G.T, G.cell
+    wm = game.get("water")
+    water = np.unpackbits(np.frombuffer(base64.b64decode(wm["bits"]), np.uint8))[:T.size].reshape(T.shape).astype(bool) if wm else np.zeros(T.shape, bool)
+    wet = lambda x, y: water[np.clip(np.round((G.y1 - y) / cell).astype(int), 0, T.shape[0] - 1), np.clip(np.round((x - G.x0) / cell).astype(int), 0, T.shape[1] - 1)]
+    rails = [np.asarray(t["p"], np.float64).reshape(-1, 3)[:, :2] / 10 for t in (game.get("trains") or {}).get("tracks", [])]
+    rails = np.concatenate(rails) if rails else np.zeros((0, 2))
+    n_on = 0
+    for v, row in zip(kinds.values(), rec["lines"]):
+        for li, e in enumerate(v):
+            p = np.asarray(e["p"], np.float64).reshape(-1, 3) / 10
+            on, n, k = np.frombuffer(row[li].encode(), np.uint8) == 49, len(p), 1
+            while k < n - 1:
+                if on[k] or not on[k - 1]:
+                    k += 1
+                    continue
+                j = k
+                while j + 1 < n and not on[j + 1]:
+                    j += 1
+                if j + 1 < n:   # (a run that ends in the air at the line's end is another line's to settle)
+                    q = p[k - 1:j + 2]
+                    d = np.hypot(*np.diff(q[:, :2], axis=0).T)
+                    m = max(2, int(d.sum()) + 1)
+                    s = np.linspace(0, d.sum(), m)
+                    c = np.r_[0, np.cumsum(d)]
+                    x, y = np.interp(s, c, q[:, 0]), np.interp(s, c, q[:, 1])
+                    g = G.at(x, y)
+                    over = q[1:-1, 2] - G.at(q[1:-1, 0], q[1:-1, 1])
+                    chord = np.interp(s, [0, d.sum()], [q[0, 2], q[-1, 2]])
+                    short = d.sum() < 2 * CLEAR_M / RAMP or over.max() < CLEAR_M
+                    if (short and over.min() > 0 and over.max() < LEVEL_M and not wet(x, y).any() and (chord - g).max() < DIP_M
+                            and (not len(rails) or np.hypot(rails[:, 0][:, None] - x, rails[:, 1][:, None] - y).min() > RAIL_M)):
+                        on[k:j + 1] = True
+                        n_on += j + 1 - k
+                k = j + 1
+            row[li] = "".join("1" if o else "0" for o in on)
+    return n_on
 
 
 def load_survey(cid, t):

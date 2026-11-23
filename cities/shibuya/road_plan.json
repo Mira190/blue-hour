@@ -64,7 +64,7 @@
    "source": "OpenStreetMap contributors (ODbL), the OSM API's map call, fetched 2026-11-21: highway ways open to cars, the ways of route=bus relations, amenity=taxi, barrier nodes on roads; lon/lat. GTFS shapes: 都営バス (東京都交通局), feed version 20261122_030832, CC BY 4.0, from the Public Transportation Open Data Center"
   },
   "bus_routes": 113,
-  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-22): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
+  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-23): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
   "one_way_from_osm": 9,
   "gaps_joined": 0,
   "joined_under_cover": 4,
