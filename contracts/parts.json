@@ -977,6 +977,7 @@
     "web/outposts.js",
     "web/water.js",
     "web/visibility.js",
+    "web/batch.js",
     "web/visibility-sweep.js",
     "web/visibility-worker.js",
     "web/bvh-worker.js",
@@ -997,6 +998,10 @@
     "astc"
    ],
    "offers": {
+    "OEBatch": [
+     "merge",
+     "pool"
+    ],
     "OEBuildings": [
      "PIER",
      "POST",
