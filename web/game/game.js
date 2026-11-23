@@ -6141,6 +6141,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       carsHeld = false;
       lateBusy = true;
       lateOn = Promise.all([...people, carsIn(), treesIn()]).finally(() => { lateBusy = false; });
+      // then the pictures of what is in the scene and not drawn yet, one a frame (world.js uploadRest, issue 184)
+      lateOn.then(() => (OEWorld.uploadRest ? OEWorld.uploadRest(renderer, world) : 0)).then(n => { if (n) console.info(`late: ${n} pictures sent ahead of their first draw`); }).catch(() => {});
     } else {
       // (and none of it under the opening's film, before any step or any one of the people: the city seen whole from the
       // air is the most a phone holds, and what came in beside it was the step its GPU died on, eight seconds into the
@@ -6213,6 +6215,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.setShadowSize) { const S = Wd.shadowSize; gov.rung('shadow', [S, Math.max(1024, S / 2), 1024], v => Wd.setShadowSize(v)); }
   // the crowd: whole, whole, and three in four with none (crowd.active, as the menu's density sets it)
   gov.rung('crowd', [1, 1, 0.75], v => { govCrowd = v; applyDensity(); });
+  // A tier down, or back up, when the governor has nothing left to give on this one (quality.js tierStep, issue 184): the
+  // new tier's canvas, scene budget, multisampling and shadow map at once; what the world was built with (its set of
+  // details, the woods, the cast) from the next load, which starts on the tier this one ended on.
+  gov.tierRoom = gov.auto ? OEQuality.room() : 0; gov.tierDown = QC.stepped || 0; gov.upWait = OEQuality.stepped(cityId).wait;
+  gov.onTier(dir => {
+    const was = QC.name;
+    gov.tierDown = OEQuality.tierStep(dir, cityId);
+    Object.assign(QC, OEQuality.city());
+    gov.tierRoom = OEQuality.room(); gov.upWait = OEQuality.stepped(cityId).wait;
+    if (Wd.setShadowSize) { const S = QC.shadow; gov.revalue('shadow', [S, Math.max(1024, S / 2), 1024]); }
+    resize();
+    console.info(`Frame budget: tier ${was} → ${QC.name} (${gov.frameMs.toFixed(1)} ms a frame at ${gov.scale.toFixed(2)}/${gov.extras})`);
+    if (window.OETelemetry) { if (OETelemetry.set) OETelemetry.set({ tier: QC.name }); if (OETelemetry.track) OETelemetry.track('tier_step', { from: was, to: QC.name, ms: +gov.frameMs.toFixed(1), scale: +gov.scale.toFixed(2), shed: 2 - 2 * gov.extras }); }
+  });
   gov.on((extras, scale, extrasChanged) => {
     resize();
     if (window.OETelemetry && OETelemetry.set) OETelemetry.set({ scale: +scale.toFixed(2), shed: 2 - 2 * extras, msaa: atmos && atmos.composer ? atmos.composer.samples : QC.samples || 0, cap: gov.cap }); // (each step is a "quality" event: telemetry.js)

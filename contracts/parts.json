@@ -694,6 +694,7 @@
      "shown",
      "upload",
      "uploadBuffers",
+     "uploadRest",
      "uploadSliced",
      "warmPasses"
     ]
@@ -728,8 +729,11 @@
      "city",
      "governor",
      "held",
+     "room",
      "sinceDeath",
-     "tier"
+     "stepped",
+     "tier",
+     "tierStep"
     ],
     "OETelemetry": [
      "consent",

@@ -1,0 +1,7 @@
+[
+ {"name": "kagami-front-1739", "at": [376.9, -1013.1], "eye": [375.8, -1011.45], "eyeUp": 1.6, "look": [376.9, -1013.1], "lookUp": 1.5, "me": true, "face": [375.8, -1011.45], "street": true, "time": "17:39", "date": [10, 10]},
+ {"name": "kagami-back-1739", "at": [376.9, -1013.1], "eye": [377.9, -1014.2], "eyeUp": 1.65, "look": [376.9, -1013.1], "lookUp": 1.45, "me": true, "face": [358.8, -985.5], "street": true, "time": "17:39", "date": [10, 10]},
+ {"name": "kagami-front-1755", "at": [376.9, -1013.1], "eye": [375.8, -1011.45], "eyeUp": 1.6, "look": [376.9, -1013.1], "lookUp": 1.5, "me": true, "face": [375.8, -1011.45], "street": true, "time": "17:55", "date": [10, 10]},
+ {"name": "kagami-front-night", "at": [376.9, -1013.1], "eye": [375.8, -1011.45], "eyeUp": 1.6, "look": [376.9, -1013.1], "lookUp": 1.5, "me": true, "face": [375.8, -1011.45], "street": true, "time": "20:30", "date": [10, 10]},
+ {"name": "kagami-front-day", "at": [376.9, -1013.1], "eye": [375.8, -1011.45], "eyeUp": 1.6, "look": [376.9, -1013.1], "lookUp": 1.5, "me": true, "face": [375.8, -1011.45], "street": true, "time": "13:00", "date": [10, 10]}
+]

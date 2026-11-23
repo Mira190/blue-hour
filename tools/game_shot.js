@@ -69,6 +69,8 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
   p.on('console', m => { if (m.text().startsWith('[clear]')) console.log(m.text()); else if (['error', 'warning'].includes(m.type())) logs.push(`${m.type()}: ${m.text().slice(0, 300)}`); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
   fs.mkdirSync(outDir, { recursive: true });
+  // (PEOPLE=file: that people.js in the game's place, for a still of the people before a change beside one after)
+  if (process.env.PEOPLE) await p.route(/\/game\/people\.js(\?.*)?$/, r => r.fulfill({ contentType: 'text/javascript', path: process.env.PEOPLE }));
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.QUERY || "?walk=1"}#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 600000 });
   // and the loader gone: the game draws its first frame only once its shaders and uploads are done (world.js
