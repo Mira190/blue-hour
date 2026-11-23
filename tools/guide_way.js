@@ -61,7 +61,7 @@ const LEADS = [
   };
   // (as a case left at frame 4 and opened again: the dog is met, and the frame's goal is the lift)
   await p.addInitScript(() => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 3, left: 4, prints: [0, 1, 2].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0${process.env.QUERY || ""}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());
   const t0 = Date.now();
