@@ -4018,6 +4018,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               // turn on the short piece between, as a driver does, issue 175)
               const twin = () => { const q = JN.after(jEx, 2 * c.half + 3); return q && jArm.j.lead === q.j && jArm.phase !== jArm.j.leadPh ? null : q; };
               const pair = go ? twin() : null;
+              // (and only a vehicle that fits on that short piece: a bus from the side street by 109 stood across the
+              // junction's box with its nose at the scramble's line, and the road it shares stood behind it)
+              if (go && !pair && JN.reach(jEx) < 2 * c.half + 1) { const q = JN.after(jEx, 2 * c.half + 3); if (q && jArm.j.lead === q.j && jArm.phase !== jArm.j.leadPh) { go = false; noRoom = true; } }
               const through = pair && !(onLine.get(jEx.m.line) || []).some(j => C[j] !== c && C[j].dir === (jEx.m.end === 0 ? 1 : -1));
               if (go && !through && !room(c, jEx)) { go = false; noRoom = true; }
               let narrowOut = false;

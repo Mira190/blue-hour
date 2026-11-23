@@ -190,10 +190,14 @@ The drive on the autopilot, a desktop's page, the traffic running, each figure o
 
 | | Before | After |
 |---|---|---|
-| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s | 49, 55, 55, 66, 69, 80, 83, 83, 85, 102, 111 s |
-| The Scramble's kerb to 109, 594 m | 112 s (the issue's) | 100, 111, 157 s |
-| The street under the railway to 109, 493 m | 165 s (the issue's) | 80, 82, 128, 130 s |
-| Back across the Scramble, Bunkamura-dori to Miyamasuzaka, 434 m | not driven | 123 s |
+| SKY GATE to 109, 364 m | 72, 203, 401 (the issue's), 557 s; a phone's page 155 (the issue's) | 49 to 127 s over fourteen drives, median 80; a phone's page 74, 108 |
+| The Scramble's kerb to 109, 594 m | 112 s (the issue's) | 100, 111, 157, 252 s; a phone's page 105 |
+| The street under the railway to 109, 493 m | 165 s (the issue's) | 78, 80, 82, 128, 130 s; a phone's page 60 |
+| Back across the Scramble, Bunkamura-dori up Miyamasuzaka, 458 m | not driven | 110, 111 s; a phone's page 84, 89 |
+
+The same count on a phone's page (its district, five minutes) after: the Scramble's cycle 69 s, its arms passing their
+queues (4.0 of 4.0 on the west arm, first away after 6.8 s), 806 westbound 88 an hour, 1.4 of the crowd standing within
+a pace of a kerb in the carriageway's edge during the traffic's turns, 3 at most.
 
 ### What held the queues, in the order the count found them
 
@@ -203,7 +207,8 @@ The drive on the autopilot, a desktop's page, the traffic running, each figure o
    away after 11 to 13 s of a 17 s green). Now a movement holds another only until its car, tail and 1.5 m more, has
    gone by the stretch where the two ways come within a car's width (`junctions.js` `zoneEnd`, `past`): the conflict
    area of SUMO's internal lanes and of an intersection manager's tiles, not the whole movement. In a scramble's wide
-   box a bus sweeps its own way 4.4 m wide, not the whole junction.
+   box a bus sweeps its own way 4.4 m wide, not the whole junction. A car's place on its way is followed from step
+   to step: the way of the turn from the station's front round into Dogenzaka doubles back past itself.
 2. **The stages were set by the arms' bearings, not by what crosses.** The one-way street out of the station's front
    (the Scramble's south-west arm) lay 41 degrees off the east-west road and was put in its turn, though every way out
    of it cuts both of that road's directions. A scramble's two turns are now the split of its arms that crosses least,
@@ -215,21 +220,32 @@ The drive on the autopilot, a desktop's page, the traffic running, each figure o
    once: 109's turn was 10 s in 60. A junction whose line is within 12 m of a scramble's now runs from that scramble's
    controller (`follow`): the road they share is green through both of the scramble's turns, the side roads and the
    walkers over the shared road have theirs with the scramble's walk. A car from the side road crosses its own
-   junction alone and waits the scramble's turn on the short piece.
-4. **A game's cycle.** The turns were 10 and 8 s. With 3 s of amber, 4 of all red and 4 to 6 before the first car was
+   junction alone and waits the scramble's turn on the short piece; a bus, which does not fit there, takes another
+   way out.
+4. **A game's cycle.** The turns were 10 and 8 s (17 and 9 as the queues stretched them). With 3 s of amber, 4 of all red and 4 to 6 before the first car was
    away, a turn passed one or two cars: 55 to 84 an hour a lane, against a saturation flow of 1,800 to 2,000. They are
    now the real cycle's (below), run as an actuated signal runs them: 7 s at least, on while the queue is there, ended
-   4 s after the last of it has gone, a turn with nobody waiting passed over (never twice running). The all red
+   4 s after the last of it has gone, a turn with nobody waiting passed over (never twice running); the traffic's time
+   is split between the two turns by the queues that wait as each begins. With you on foot at a scramble's kerb the
+   walk still comes next, and the turn that cannot be passed over for you runs 12 s at most. The all red
    between the two turns is 2 s, since what is late in the box now holds only what it crosses.
-5. **The signals saw a queue only on the last piece of an arm.** The Scramble's east arm is 25 m from the junction
+5. **The Scramble and 109's fork each ran their own cycle, with room for four cars between them.** Once each passed
+   its queue, the 29 m of Dogenzaka between the Scramble's western line and the junction beside 109 was what held: the
+   Scramble's east-west green filled it in its first seconds and stood full, 109's emptied it into a red, and a queue
+   of fourteen on Miyamasuzaka moved three cars a cycle (306 s to 109 in one drive of the check). A scramble joined to
+   a greater one by less than 45 m of road now runs on that one's cycle (`coordinate`): Dogenzaka's two directions have
+   their green at both together, Bunkamura-dori has its turn with the Scramble's north-south, the walks come together.
+   109's cycle is then the Scramble's, not shorter as the issue put it: what the issue wanted of it is that it pass
+   its cars, and on a cycle of its own it could not.
+6. **The signals saw a queue only on the last piece of an arm.** The Scramble's east arm is 25 m from the junction
    before it and 109's downhill arm 9 m: the cars behind stood unseen, their green ended with three of eight through
    or their turn was passed over (a car stood 150 s at the junction before 109). A car is counted for the line whose
    queue it stands in, through the cars ahead and across a junction without lights (`actors.js` `queuedFor`).
-6. **A walker and a driver each waited on the other.** One of the crowd sent to the nearest kerb of the Scramble in a
+7. **A walker and a driver each waited on the other.** One of the crowd sent to the nearest kerb of the Scramble in a
    straight line, 30 m off and across Dogenzaka, stood in the lane at the western stop line with a car before it for
    150 s. The scramble's crowd no longer steps off the pavement outside its walk; one standing in a driver's way off
    the walk is asked aside after 3 s, as the traffic's cars already asked.
-7. **The autopilot read a long red as a jam.** A car stood 40 s was "longer than a red light lasts", and the drive went
+8. **The autopilot read a long red as a jam.** A car stood 40 s was "longer than a red light lasts", and the drive went
    round by another way (213 s). The limit is now the red of the scramble the road leads to, and a wait in the queue
    for a red is not counted as a road that will not clear.
 
@@ -268,9 +284,12 @@ How simulators do it, and what was adopted:
 In the `roads` target: `tools/junction_flow.js` with `CHECK=1` counts the Scramble for four minutes and fails on a
 cycle over 130 s, on more than a quarter of an arm's queued greens passing nobody, and on an arm that passes under a
 third of its queue. `tools/road_drive.js` with `TIMED=1` fails a drive that takes longer than its road at 6 m/s and
-one whole cycle of the Scramble (118 s): 179 s for the 364 m from SKY GATE. The figure is the worst an undisturbed
-drive can meet (a mean of 8 m/s between lines, and a car that comes up as its turn ends waits the rest of the cycle),
-with a quarter of the speed in hand for the queue to start; the issue asked for under three minutes. `TRACE=1` prints
+one whole cycle of each scramble on its way (118 s at the Scramble; half as much again for 109's fork, which runs on
+the Scramble's cycle: a car that comes to it out of the Scramble's other turn waits the walk and the rest), and the
+364 m from SKY GATE to 109 that takes longer than the three minutes the issue asks (`@180` on its start). The figure is the worst an
+undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
+comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
+Scramble, from Bunkamura-dori up Miyamasuzaka. `TRACE=1` prints
 each stand of a drive: where, how long, behind what, at which light. `DUMP=1 node tools/junction_flow.js` prints a
 junction as built: arms, stop lines, ways across, which cross and where, and where footways cross its arms.
 =======
