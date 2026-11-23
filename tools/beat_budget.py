@@ -10,6 +10,7 @@ its stills (of what a frame draws, the second heaviest: a thing drawn once is no
   tools/beat_budget.py set   <samples.jsonl>... <desktop|phone> [--margin 0.1] the budgets from a play, or better from
                                                     several of the same code: each measure the median of them, the room
                                                     over it never under three times what they differed by (only their beats)
+                                                    --parts a.jsonl b.jsonl ...: the files are parts of one play
                                                     --down: only where the play is under the budget it has (after a cut)
   tools/beat_budget.py table [--map shibuya]                                    the budgets as a table for the docs
   tools/beat_budget.py show  <samples.jsonl>                                    a play's beats as measured
@@ -112,6 +113,13 @@ def main(a):
         return 0
     dev = a[-1] if cmd in ('set', 'check') else None
     files = a[1:-1] if dev else a[1:]
+    if '--parts' in files:   # the files are the parts of one play (the story's check plays in three): one play, its beats the heaviest of any part
+        files = [f for f in files if f != '--parts']
+        import tempfile
+        whole = tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False)
+        for p in files:
+            whole.write(open(p).read().rstrip('\n') + '\n')
+        whole.close(); files = [whole.name]
     plays = [beats(p) for p in files]
     meta = plays[-1][1]
     # several plays of the same code: each beat's measure is the median of them, with how far they lay apart
