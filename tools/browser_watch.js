@@ -92,6 +92,9 @@ function logger() { return undefined; }
 
 // a page's own reloads and lost contexts, said as they happen; also the default wait for a click or a still made long
 // enough for a software renderer under load (a frame there can take many seconds: it was 30 s, Playwright's own)
+// a reload the play asks for (the last card's back into a frame, its Walk Shibuya, Play it again, the title's return):
+// marked at the step that clicks it, so the next load is said as asked for, and one nobody asked for stays a `page:` line
+function expectReload(p, why) { p.__reloadWhy = why; }
 function watch(p, { timeout = 180000 } = {}) {
   let loads = 0;
   const t0 = Date.now(), at = () => `${((Date.now() - t0) / 1000).toFixed(0)} s`;
@@ -99,7 +102,9 @@ function watch(p, { timeout = 180000 } = {}) {
   p.on('console', m => { const t = m.text(); if (/CONTEXT_LOST|context lost|context restored|WebGL context/i.test(t)) console.log(`gl:  ${t.slice(0, 200)} (at ${at()})`); });
   p.on('framenavigated', f => {
     if (f !== p.mainFrame()) return;
-    if (++loads > 1) console.log(`page: loaded again at ${at()}: ${f.url().replace(/^https?:\/\/[^/]+/, '')}`);
+    if (++loads < 2) return;
+    if (p.__reloadWhy) { console.log(`(the page loaded again at ${at()}, as the play asked: ${p.__reloadWhy})`); p.__reloadWhy = null; } // (expectReload)
+    else console.log(`page: loaded again at ${at()}: ${f.url().replace(/^https?:\/\/[^/]+/, '')}`);
   });
   p.on('crash', () => console.log(`page: the renderer crashed at ${at()}`));
   p.exposeFunction('__glNote', t => console.log(`page: glcare's note at ${at()}: ${t}`)).catch(() => {});
@@ -113,4 +118,4 @@ function watch(p, { timeout = 180000 } = {}) {
   }).catch(() => {});
 }
 
-module.exports = { logger, watch };
+module.exports = { logger, watch, expectReload };

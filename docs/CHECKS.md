@@ -669,6 +669,21 @@ frames and its load order, and is where most of these came from. What was found,
 | `budget` and the story's beats, frame 7 (issue 151) | A still's count was begun by the harness before it asked for the still's frame and ended after it heard of it: a frame the play drew of itself in between (one in DRAW) was counted with it, twice the passes and triangles under one still's name, or the still's own frame was missed and two of the game's frames were sampled instead (`frames: 2`). And the sky's light taken afresh (world.js setSun, three.js's PMREMGenerator.fromScene: a cube of targets 256 x 256 and smaller) fell in whichever frame it fell in and was counted as that beat's cost | The count begins and ends inside the still's frame, round its own calls (`tools/story_play.js`, the frame's flush). The sky's refresh is counted as what it is: `sky_refresh` with its draws and triangles beside the frame's, not in them (`tools/beat_count.js`; `tools/sky_count.js` forces one inside a counted frame and fails unless it is counted apart) | Frame 7 played with one frame in five drawn: 3 of 20 stills with `frames: 2` | 64 of 64 stills of their own frame in two plays; a forced refresh, 32 draws, counted apart |
 | `guide1`, frame 4's lead to SKY's lift (main's checks, about three runs in eight) | Not the check: the walk. A level whose floor is its own (SKY's street lift hall, `hero[].floor`) was walked on at its floor grid's height, one value a 0.5 m cell taken at the cell's middle (`game.js` `heroCover`). Where a plank's step or a kerb crossed a cell, the whole cell took one side's height, and the guide stood 7 to 9 cm in the air on the other side, whenever the crowd put his way over such a cell | Each cell of such a level keeps the floor's upward triangles over it, and the height is read at the point itself (the grid's value only where no triangle is over it). `tools/floor_grid.js` compares the height walked on with a ray onto the drawn floor every 5 cm over the level's circle | 140 of 80,844 points (0.17%) more than 6 cm out, the worst 38.5 cm | none; the worst 0.0 cm |
 
+## The set-up's bake (issue 194)
+
+`web/data/<map>/setup.bin` and `d/setup.bin` are the set-up's fixed work computed once (docs/PERFORMANCE.md, "The set-up's fixed
+work, baked"). Two checks hold them: the static `bake` (`node tools/bake_setup.js --check`) fails when one is missing or older
+than the packs it was made from or the set-up's `BAKE_V`; and the page computing is compared with each bake field
+by field (`--compare`, at the end of `mem`, which loads the whole page and so is played wherever that code changes), failing with "the set-up's output changed" when a change to the code it runs (decks, nav, collision,
+route, actors, junctions) changes what it computes. Either way the answer is `xvfb-run -a node tools/bake_setup.js` (or
+`python pipeline/pack.py`, which bakes after it packs), and the two `setup.bin` committed with the change. Never merge one by
+hand: bake again on the merged tree.
+
+So a repack needs the browser: `python pipeline/pack.py` ends with `node tools/bake_setup.js --if-stale`, which does nothing
+while the bake is fresh (a hash, no browser), and where a pack it reads changed loads the page twice in Chromium (the map and a
+phone's district; under `xvfb-run` where there is no display, serving `web/` itself): about a minute on a session's machine.
+The static check (`--check`) is a hash of `game.bin`, `buildings.bin`, `landmarks.bin` and `BAKE_V` alone, no browser.
+
 ## What is not checked
 
 - The story past its first episode: `tools/story_play.js` plays episode one. A new episode adds its
@@ -823,8 +838,39 @@ map's NPC does (`posts`, kind `story`), so the player's step stops at their shou
 guide keeps his body off them, one of them who walks goes round whoever stands in the way, and a player on whom
 someone is set down steps out of them at a walk.
 
-Not measured, and said so: the skin itself (hair and collar against the neck are told by the fitted parts only), the
-crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+Not measured by the probe, and said so: the skin itself (hair and collar against the neck are told by the fitted parts
+only), the crowd's limbs (their middles only, as before), and anything a real GPU, Safari or iOS draws differently.
+
+### At the skin (issue 157)
+
+`tools/clip_people.js` is the close measure for the cases the probe leaves as notes. It skins each model on the CPU as
+the GPU does (morphs and bones), calls a point of one body inside another when rays from it along the axes cross that
+body's triangles an odd number of times, and gives its depth as the distance to the nearest triangle. Three modes, each
+with stills on a desktop's page or a phone's (`TIER=low PHONE=1`, 390x844):
+
+- **`into`**: the player walked straight at each of the map's people named from eight directions with the key held, as
+  the play walks into them, and then run past them. What it found on main: the hand that leads the stride 2 to 4.5 cm
+  inside a back or an arm in the one frame the middle stopped at their shoulder, from every side. The cause was the
+  stride and not the post: `walkStep` kept the point the stride reaches out of walls, and not out of people. It now
+  does both, so a walk stops about 0.69 m from someone's middle and a run 0.83 m, and the measure reads no hand in
+  anyone.
+- **`look`**: someone's head, hair and neck against their own chest and shoulders, and their hands and forearms
+  against their trunk, through five seconds of their clip, with a still each second from four sides and one of the
+  deepest reading. Taro's head, 3.8 cm in his chest by the probe's ellipsoids through his Photo clip, is 1.4 cm at the
+  skin at one point and shows nothing in the stills. Shun's ponytail reads 4.5 cm into his upper back and is a
+  ponytail lying on a back in every still; hair fails past 6 cm.
+- **`seats`**: the player at the wheel of their car and in the helicopter, on the map without the story (the story's
+  flight shows no player). It waits for each model to come before boarding: boarded earlier, the helicopter is its
+  stand-in and the car is not drawn at all. The probe's seat measure had thrown at its first ray since it was written
+  (a lamp's sprite in the ray's way asks the ray for a camera), so no seat had been read. Read at last: in the
+  helicopter the head stood 9 cm through the cabin roof and the hands hung into the seat's sides, fixed in `game.js`
+  `heliSit` (the head kept under the roof over it as `cars.js` `sit` does, by `vehicles.js` `roofOver`; the hands in
+  the lap). At the wheel the pose is right; what the probe still prints there is a bucket seat round the thighs and
+  the wheel's rim in the hands. Sinking the body 8 cm for the roof puts the soles that far under the cabin's floor,
+  as it does in the car: under an opaque floor, and printed.
+
+The probe's limb measure in a seat is taken from the limb's own middle out to its points, met from either side: taken
+from the pelvis, the front edge of any cushion stood between a seated hip and its shin and read 15 to 43 cm.
 
 ## Nobody paces (issue 168)
 

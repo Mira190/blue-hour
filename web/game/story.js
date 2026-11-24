@@ -210,6 +210,10 @@ window.OEStory = (function () {
     // the camera taught, the first time it is in the hand (task.teach): what to do, in order, and what each step does,
     // ticked as it is done (teachTick below)
     const teachEl = el('g-story-teach', '');
+    // how far up the stage the card reaches (--teach-up, story.css): on a phone it is a strip at the foot whose height
+    // is its step's words, and a word said over the picture is set above it rather than at a height guessed for it
+    // (the M3's play, issue 13: "In the frame · the planetarium's board" lay half under the card)
+    if (window.ResizeObserver) new ResizeObserver(() => { const s = ctx.stage.getBoundingClientRect(), r = teachEl.getBoundingClientRect(); if (r.height) ctx.stage.style.setProperty('--teach-up', `${Math.round(s.bottom - r.top)}px`); }).observe(teachEl);
     hintBtn.type = 'button'; hintBtn.addEventListener('click', e => { e.stopPropagation(); hint(); });
     const movEl = el('g-story-mov', `<p></p><button type="button">${ctx.touch ? 'Tap to skip' : 'Space to skip'}</button>`);
     movEl.querySelector('button').addEventListener('click', e => { e.stopPropagation(); movEnd(true); });
@@ -413,6 +417,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const KEY = () => `bh-story-${st.ep ? st.ep.id : ''}`;
     let keptAs = 'full';
     const keep = () => {
+      if (st.phase === 'done') return; // (the case is closed: a note filed after the last card does not make it one going again, its photographs a second time in the store)
       const how = save(KEY(), { v: shape(st.ep), fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 });
       // (said once, when it first happens: what is lost if the page is closed, and that the evening goes on)
       if (how !== 'full' && keptAs === 'full' && ctx.toast) ctx.toast(how === 'lean' ? 'This browser\'s storage is full. Your photographs stay on the roll while this page is open; your place in the evening is still kept.'
@@ -1358,7 +1363,10 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
     const CLOSED = id => `bh-story-${id}-closed`;
     const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && same(c, shape(eps.find(e => e.id === id) || {})) && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
     const closedNow = () => (st.ep ? closedOf(st.ep.id) : null);
-    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
+    // (the case that was going is taken out first: with it kept, the seven photographs were in the store twice, more than
+    // Safari's five million characters on a desktop's prints, the write failed and the last card had no way back in;
+    // and where one copy is still too much the case is kept without its pictures, save())
+    function close() { forget(); save(CLOSED(st.ep.id), { v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') }); }
     const goBack = C => (C ? `<nav class="back" aria-label="Go back into a frame"><small>Go back into a frame</small><span>${C.stamps.map((t, i) => (C.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span></nav>` : '');
     enterLater = (i) => enter(i, eps[0]);
     function enter(i, ep = st.ep) {
