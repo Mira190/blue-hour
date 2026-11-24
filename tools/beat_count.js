@@ -42,7 +42,14 @@ exports.hook = () => {
   // whichever frame it falls, and counted with that frame it doubled the frame's targets and showed as a beat's cost
   // (issue 151). It is counted as what it is: sky_refresh, with its draws and triangles beside the frame's, not in them
   const aside = (gl, k, a) => { const c = B.cur; if (!/^draw/.test(k)) return; const mode = a[0], count = k === 'drawRangeElements' ? a[3] : k === 'drawElements' || k === 'drawElementsInstanced' ? a[1] : a[2], inst = k === 'drawArraysInstanced' ? a[3] : k === 'drawElementsInstanced' ? a[4] : 1; c.sky_draws++; c.sky_tris += mode === 4 ? (count / 3) * inst : mode === 5 || mode === 6 ? Math.max(0, count - 2) * inst : 0; };
-  addEventListener('three-ready', () => { const G = window.THREE && window.THREE.PMREMGenerator; if (!G || G.prototype.__beat) return; const f = G.prototype.fromScene; G.prototype.__beat = true; G.prototype.fromScene = function (...a) { const was = B.aside; if (B.on && B.cur) B.cur.sky++; B.aside = true; try { return f.apply(this, a); } finally { B.aside = was; } }; }, { once: true });
+  // The same for a kept cube's light (a hero level's reflection probe, hero.js probe: three.js makes its glass's map of it
+  // with PMREMGenerator.fromCubemap once the cube is whole, and once when it is first filled with the sky). Since the cube
+  // is taken a face a frame (issue 192) that is two conversions as a level comes into view, each in whichever frame it
+  // falls: in the full play both fell on frame 4's lift ride and its second heaviest still read 5.8 canvases of pixels
+  // shaded over a ceiling of 5.43, a once-a-level cost read as the beat's (main red, 24 November). Counted beside the
+  // frame's, as the sky's is (sky_refresh; tools/beat_count.js report), not in them
+  addEventListener('three-ready', () => { const G = window.THREE && window.THREE.PMREMGenerator; if (!G || G.prototype.__beat) return; G.prototype.__beat = true;
+    for (const k of ['fromScene', 'fromCubemap', 'fromEquirectangular']) { const f = G.prototype[k]; if (!f) continue; G.prototype[k] = function (...a) { const was = B.aside; if (B.on && B.cur && !was) B.cur.sky++; B.aside = true; try { return f.apply(this, a); } finally { B.aside = was; } }; } }, { once: true });
   wrap('drawArrays', (gl, a) => tri(gl, a[0], a[2], 1, false));
   wrap('drawElements', (gl, a) => tri(gl, a[0], a[1], 1, true));
   wrap('drawRangeElements', (gl, a) => tri(gl, a[0], a[3], 1, true));

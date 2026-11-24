@@ -153,8 +153,8 @@ window.OEBatch = (function () {
     const makeIndex = bytes => { const b = gl.createBuffer(), vao = gl.getParameter(0x85B5); gl.bindVertexArray(null); gl.bindBuffer(0x8893, b); gl.bufferData(0x8893, bytes, gl.STATIC_DRAW); gl.bindBuffer(0x8893, null); gl.bindVertexArray(vao); return b; };
     const regrow = (b, was, now, index = false) => { const n = index ? makeIndex(now) : make(now); gl.bindBuffer(CR, b); gl.bindBuffer(CW, n); gl.copyBufferSubData(CR, CW, 0, 0, was); gl.bindBuffer(CR, null); gl.bindBuffer(CW, null); gl.deleteBuffer(b); return n; };
     const room = (nv, ni) => { // buffers for nv vertices and ni indices more than fit now
-      // (a tenth over what is asked: the room is the GPU's memory, and a phone's cells are 20 MB of it)
-      const vc = Math.ceil((V.cap + nv) * 1.1), ic = Math.ceil((I.cap + ni) * 1.1);
+      // (a fiftieth over what is asked: the room is the GPU's memory, and a phone's cells are 20 MB of it)
+      const vc = Math.ceil((V.cap + nv) * 1.02), ic = Math.ceil((I.cap + ni) * 1.02);
       for (const a of lay) bufs[a.name] = bufs[a.name] ? regrow(bufs[a.name], V.cap * a.size * a.bytes, vc * a.size * a.bytes) : make(vc * a.size * a.bytes);
       ibuf = ibuf ? regrow(ibuf, I.cap * 4, ic * 4, true) : makeIndex(ic * 4);
       V.grow(vc); I.grow(ic); attach(); stats.grown = (stats.grown || 0) + 1;
@@ -187,6 +187,35 @@ window.OEBatch = (function () {
       return s;
     }
     function remove(s) { if (!s || !slots.delete(s)) return; V.give(s.v0, s.nv); I.give(s.i0, s.ni); used.v -= s.nv; used.i -= s.ni; mesh.userData.batched = slots.size; }
+    // What is held and not used, given back. A range a cell has left is free for the next cell that fits, but the
+    // buffers were never smaller for it: played from the title to frame 7, with the map built round SKY and round
+    // Hachiko again, a phone's arena held 25.9 MB for the 20.7 MB of its cells, and frame 7's GPU memory read 251.4 MB
+    // over a budget of 250 (main red, 24 November; tools/arena_probe.js). When more than a megabyte and a twenty-fifth
+    // of the whole is idle, the cells are moved up together into buffers of their own size: an attribute at a time
+    // (the GPU holds one attribute twice for a moment, never the arena twice), each cell's range copied on the GPU,
+    // and the indices, which count from their cell's first vertex, read back once, moved by as much as their cell
+    // was, and sent again. Called where the cells have just changed (buildings.js put), not in a frame of its own
+    function trim(force = false) {
+      if (!lay || !slots.size || !gl.getBufferSubData) return false;
+      const vb = lay.reduce((n, a) => n + a.size * a.bytes, 0), held = V.cap * vb + I.cap * 4, idle = held - used.v * vb - used.i * 4;
+      if (!force && idle < Math.max(1 << 20, held / 25)) return false;
+      const vc = Math.ceil(used.v * 1.02) + 16, ic = Math.ceil(used.i * 1.02) + 48;
+      const was = new Uint32Array(I.cap); gl.bindBuffer(CR, ibuf); gl.getBufferSubData(CR, 0, was); gl.bindBuffer(CR, null);
+      const order = [...slots].sort((a, b) => a.v0 - b.v0), to = new Int32Array(order.length), now = new Uint32Array(ic);
+      let v = 0, i = 0;
+      order.forEach((s, k) => { to[k] = v; const d = v - s.v0; for (let j = 0; j < s.ni; j++) now[i + j] = was[s.i0 + j] + d; s.i0 = i; v += s.nv; i += s.ni; });
+      for (const a of lay) {
+        const st = a.size * a.bytes, n = make(vc * st);
+        gl.bindBuffer(CR, bufs[a.name]); gl.bindBuffer(CW, n);
+        order.forEach((s, k) => gl.copyBufferSubData(CR, CW, s.v0 * st, to[k] * st, s.nv * st));
+        gl.bindBuffer(CR, null); gl.bindBuffer(CW, null); gl.deleteBuffer(bufs[a.name]); bufs[a.name] = n;
+      }
+      order.forEach((s, k) => { s.v0 = to[k]; });
+      gl.deleteBuffer(ibuf); ibuf = makeIndex(ic * 4); gl.bindBuffer(CW, ibuf); gl.bufferSubData(CW, 0, now); gl.bindBuffer(CW, null);
+      V = ranges(vc); V.take(used.v); I = ranges(ic); I.take(used.i);
+      attach(); stats.trimmed = (stats.trimmed || 0) + 1;
+      return true;
+    }
     // room made once for cells about to come (nv vertices and ni indices in all), not cell by cell
     function reserve(nv, ni, like) {
       if (!lay) { if (!like || !layout(like)) return; }
@@ -218,8 +247,9 @@ window.OEBatch = (function () {
       one.needsUpdate = which.needsUpdate = true;
     };
     if (renderer.domElement && renderer.domElement.addEventListener) renderer.domElement.addEventListener('webglcontextrestored', back);
+    mesh.userData.arena = () => ({ cells: slots.size, used: [used.v, used.i], cap: V ? [V.cap, I.cap] : [0, 0], mb: lay ? +(lay.reduce((n, q) => n + V.cap * q.size * q.bytes, I.cap * 4) / 1048576).toFixed(2) : 0, used_mb: lay ? +(lay.reduce((n, q) => n + used.v * q.size * q.bytes, used.i * 4) / 1048576).toFixed(2) : 0, grown: stats.grown || 0, trimmed: stats.trimmed || 0 }); // (for the harnesses: what it holds and what of that is in use)
     stats.batches++;
-    return { mesh, add, remove, reserve, slots, info: () => ({ cells: slots.size, vertices: V ? V.cap : 0, indices: I ? I.cap : 0, bytes: lay ? lay.reduce((n, a) => n + V.cap * a.size * a.bytes, I.cap * 4) : 0 }),
+    return { mesh, add, remove, reserve, trim, slots, info: () => ({ cells: slots.size, vertices: V ? V.cap : 0, indices: I ? I.cap : 0, bytes: lay ? lay.reduce((n, a) => n + V.cap * a.size * a.bytes, I.cap * 4) : 0 }),
       dispose() { for (const k in bufs) gl.deleteBuffer(bufs[k]); if (ibuf) gl.deleteBuffer(ibuf); one.dispose(); which.dispose(); slots.clear(); } };
   }
   return { merge, pool, arena, stats, off };

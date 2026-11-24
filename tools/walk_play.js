@@ -581,6 +581,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                       const sat = await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return { me: g.player.mode, her: !!n.sit, wait: g.walkLine().wait }; });
                       if (sat.me !== 'seat' || !sat.her || !sat.wait) fail(`Wait with her: not the two of them sat on the wall (${JSON.stringify(sat)})`);
                       else ok('Wait with her: the two of you on Hachiko\'s wall, the night passing');
+                      // (her sit is laid on in her next pose, and the seat's thigh slope comes to rest a step a frame: measured after
+                      // a second of the game's own clock, not the wall's. Beside another browser no frame had run in the 400 ms act()
+                      // waits, and she was read standing, her hips 0.52 m over the stone, or half sat, 0.026: issue 211)
+                      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20; i++) g.frame(0.05); });
                       for (const r of await p.evaluate(drawnSeat, { rigs: ['nagi'] })) { if (r.ok === null) console.log(`(${r.who}: what is drawn under them cannot be read here: this device let go of its vertices)`); else if (!r.ok) fail(`Wait with her: ${r.who} is not sat on anything drawn (${JSON.stringify(r.under)})`); else ok(`Wait with her: ${r.who} on the drawn stone`); }
                       await shot('4b-wait');
                       if (!(await p.waitForFunction(() => window.__game.walkLine().gate === 'ask', null, { timeout: 900000, polling: 500 }).then(() => true, () => false))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
@@ -598,9 +602,20 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                           await beside(1.8);
                           if ((await line()).gate !== 'shown' || !(await waitPrompt(/Talk to Nagi/))) fail(`her last photograph is not the one she asked for (${JSON.stringify(await line())})`);
                           else {
-                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
-                            await through(); await p.waitForTimeout(1500); await through();
-                            await p.waitForFunction(() => window.__game.walkLine().gate === 'going', null, { timeout: 120000, polling: 250 }).catch(() => {}); // (the walkers go by the page's own frames)
+                            // (her talk opens in a frame after E: up to a second of the game's clock after each press, not 600 ms of the
+                            // wall's. Beside another browser the three presses ran out before it opened, the talk was left unread, and she
+                            // never went: issue 211)
+                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20 && !g.dlg.open; i++) g.frame(0.05); }); }
+                            // (what she says when shown it, a pause of 900 ms of the wall's clock, then her last words, and only then does
+                            // she go: walktalk.js gateTalk. Each talk read as it opens, until she goes, the page's frames and the wall's
+                            // clock both running. Read twice with 1.5 s between, her last words opened after the second read on a slow
+                            // machine and stayed open: she never went, and every talk after it was shut out: issue 211)
+                            for (let t0 = Date.now(); Date.now() - t0 < 120000;) {
+                              await through();
+                              if (await p.evaluate(() => window.__game.walkLine().gate === 'going')) break;
+                              await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 4 && !g.dlg.open; i++) g.frame(0.05); });
+                              await p.waitForTimeout(250);
+                            }
                             await shot('4b-goes');
                             const gone = await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 600000, polling: 500 }).then(() => true, () => false);
                             const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
@@ -697,7 +712,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
             if (chs.length < 2) fail(`Ren asks the way, but there are no answers to choose (${JSON.stringify(chs)})`);
             else {
               await shot('4f-street');
-              if (phone) await press('#gd-choices button'); else await p.keyboard.press('Digit1');
+              // (a phone's answer is tapped once its button has stopped sliding in: a tap at where it was going missed, the talk
+              // stayed open, and every prompt after it read "" on a phone, main's walk2 on 6b0d8ee. Where a tap does not take,
+              // which kind of miss it was is said: a tap outside the box as it then stood is the harness's, and is tapped
+              // again once; one inside it the game did not take, as a player's would not be, and fails)
+              if (phone) {
+                const box = () => p.evaluate(() => { const r = document.querySelector('#gd-choices button').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+                const still = () => p.evaluate(async () => { let a = null; for (let i = 0; i < 20; i++) { const r = document.querySelector('#gd-choices button').getBoundingClientRect(), k = `${r.x.toFixed(0)},${r.y.toFixed(0)}`; if (k === a) return; a = k; await new Promise(o => setTimeout(o, 150)); } });
+                for (let n = 0; n < 2; n++) {
+                  await still();
+                  const r0 = await box(), tx = r0.x + r0.w / 2, ty = r0.y + r0.h / 2;
+                  await p.touchscreen.tap(tx, ty); await p.waitForTimeout(1500);
+                  if (!(await p.evaluate(() => window.__game.dlg.hasChoices))) break;
+                  const r1 = await box(), inside = tx >= r1.x && tx <= r1.x + r1.w && ty >= r1.y && ty <= r1.y + r1.h;
+                  if (inside) { fail(`Ren asks the way: a tap on the answer inside its box (${tx.toFixed(0)}, ${ty.toFixed(0)}) was not taken by the game`); break; }
+                  console.log(`(the answer's box moved from (${r0.x.toFixed(0)}, ${r0.y.toFixed(0)}) to (${r1.x.toFixed(0)}, ${r1.y.toFixed(0)}) under the tap: tapped again)`);
+                  if (n === 1) fail('Ren asks the way: the answer\'s box would not stand still to be tapped');
+                }
+              } else await p.keyboard.press('Digit1');
               await through();
               const done = await p.evaluate(() => window.__game.walkTalk().events.done);
               if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);

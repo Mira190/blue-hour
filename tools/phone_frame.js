@@ -75,6 +75,7 @@ const line = (name, c) => `${name.padEnd(14)} ${String(c.draws).padStart(5)} dra
     }
     // (EVAL=file.js: a function of the page's own, run on foot after the counts, its answer printed: a probe of what is drawn)
     if (process.env.EVAL) console.log(JSON.stringify(await p.evaluate(fs.readFileSync(process.env.EVAL, 'utf8')), null, 1));
+    if (process.env.EVAL && STILLS) { await p.waitForTimeout(2500); await p.screenshot({ path: `${out}/after-eval.png` }); } // (what the probe left on screen)
     if (BY) {
       const heavy = all.sort((x, y) => y.tris - x.tris)[0];
       for (const g of heavy.groups.slice(0, 25)) console.log(`   ${String(g.draws).padStart(4)} ${String(Math.round(g.tris / 100) / 10).padStart(7)}k  ${g.group}`);
