@@ -2121,6 +2121,122 @@ def docomo(K, d):
     lathe_at(K("lamp", "lit"), cx, cy, [(z1 - 0.6, 0.3), (z1 + 0.3, 0.0)], 8)
 
 
+DECK_STEP_M, DECK_TREAD_M, DECK_STAIR_W = 0.16, 0.30, 2.4
+
+
+def deck_stairs(K):
+    """The stairs down from a deck over a road (buildings.json "decks", pipeline/stations.py; issue 212): every flight
+    OpenStreetMap maps from a deck to the ground (highway=steps on a layer, in cities/<id>/scramble_osm.json), as built,
+    from the ground the game draws (pipeline/levels.py) to the deck's walkway. A straight flight on its mapped line,
+    risers of 16 cm, treads of 30 cm (the flight runs further out from the deck where the mapped line is shorter than
+    that), granite treads on a concrete mass, steel stringers and a handrail on each side. Without them the west exit
+    deck ended in the air."""
+    import json as _json
+    import cityctx
+    from levels import Levels
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(os.path.dirname(here))
+    G_FWD = cityctx.City(CITY).fwd.transform
+    out = os.path.join(root, "web", "data", CITY)
+    B = _json.load(open(os.path.join(out, "buildings.json"), encoding="utf8"))
+    if not B.get("decks"):
+        return 0
+    L = Levels(CITY)
+    decks = []
+    for si in B["decks"]:
+        s = B["s"][si]
+        P_ = Polygon(np.asarray(s[4], float).reshape(-1, 2) / 10).buffer(0)
+        decks.append((P_, (s[1] + s[2]) / 10 + 0.9))   # (its walkway: buildings-geo.js deck(), SLAB)
+    raw = _json.load(open(os.path.join(here, "scramble_osm.json"), encoding="utf8"))
+    # which end of a flight is its head: the one OpenStreetMap joins to a way up on a layer (a bridge's walkway), not
+    # to one on the ground; failing that, the one nearer a deck
+    up, down = set(), set()
+    for w in raw["ways"]:
+        t = w.get("tags", {})
+        if t.get("highway") in ("footway", "pedestrian", "path") and w.get("nodes"):
+            (up if (t.get("bridge") or t.get("layer") not in (None, "0")) else down).update((w["nodes"][0], w["nodes"][-1]))
+    n = 0
+    for w in raw["ways"]:
+        t = w.get("tags", {})
+        if t.get("highway") != "steps" or not t.get("layer") or len(w["ll"]) < 2:
+            continue
+        ends = (w["nodes"][0], w["nodes"][-1]) if w.get("nodes") else (None, None)
+        a, b = np.array(G_FWD(*w["ll"][0])), np.array(G_FWD(*w["ll"][-1]))
+        top = next(((P_, z) for P_, z in decks if P_.distance(Point(*a)) < 1.5 or P_.distance(Point(*b)) < 1.5), None)
+        if not top:
+            continue
+        P_, ztop = top
+        head_up = [e in up and e not in down for e in ends]
+        if head_up[0] and not head_up[1]:
+            a, b = b, a                                    # (a: the foot, b: the head, at the walkway up on its layer)
+        elif head_up[0] == head_up[1] and P_.distance(Point(*b)) > P_.distance(Point(*a)):
+            a, b = b, a                                    # (else the head is the end nearer the deck)
+        f = unit(b - a)
+        zfoot = float(L.at(*a))
+        rise = ztop - zfoot
+        if rise < 1.0:
+            continue
+        steps = int(round(rise / DECK_STEP_M))
+        r = rise / steps
+        run = steps * DECK_TREAD_M
+        foot = b - f * run                                 # (the flight's own length back from the head)
+        zfoot = float(L.at(*foot))
+        r = (ztop - zfoot) / steps
+        Pf = frame(foot, f)
+        hw = DECK_STAIR_W / 2
+        T, M, S = K("granite", "deck_steps"), K("concrete", "deck_steps"), K("steel", "deck_steps")
+        # (the flight's underside is one sloped soffit, as a cast flight's is, 0.4 m under the nosings: each step's mass
+        # reaches down to it, so that from below it reads as a slab, not as a stack of boxes)
+        soff = lambda u: zfoot - 0.1 + (ztop - 0.4 - zfoot + 0.1) * u / run
+        for j in range(steps):
+            u0, z = j * DECK_TREAD_M, zfoot + (j + 1) * r
+            block(T, Pf, u0, u0 + DECK_TREAD_M + 0.02, -hw, hw, z - 0.06, z)
+            block(M, Pf, u0, u0 + DECK_TREAD_M + 0.02, -hw + 0.05, hw - 0.05, min(soff(u0), z - 0.2), z - 0.06)
+        M.quad(Pf(0, hw - 0.05, soff(0)), Pf(run, hw - 0.05, soff(run)), Pf(run, -hw + 0.05, soff(run)), Pf(0, -hw + 0.05, soff(0)))
+        for v in (-hw - 0.08, hw + 0.08):                 # the stringers and the handrails, along the slope
+            for j in range(steps):
+                u0, z = j * DECK_TREAD_M, zfoot + (j + 1) * r
+                block(S, Pf, u0, u0 + DECK_TREAD_M, v - 0.06, v + 0.06, z - 0.32, z + 0.05)
+                block(S, Pf, u0, u0 + DECK_TREAD_M, v - 0.025, v + 0.025, z + 0.85, z + 0.9)
+                if j % 4 == 0:
+                    block(S, Pf, u0, u0 + 0.05, v - 0.025, v + 0.025, z, z + 0.88)
+        n += 1
+    # the walkways up on a layer that join a deck to its stairs (OpenStreetMap's bridge=yes footways that the deck's
+    # outline does not take in: しぶにしデッキ's arm to its stair at 370,-1103): a slab at the deck's walkway level, 3 m
+    # wide, with its edge, a glass parapet each side and a steel rail on it
+    G, E = K("glass_dark" if "glass_dark" in MATERIALS else "steel_dark", "deck_walk"), K("concrete", "deck_walk")
+    import road_ground
+    road = road_ground.of_game(CITY).asphalt.buffer(0.6)   # (its piers stand off the surveyed carriageway)
+    for w in raw["ways"]:
+        t = w.get("tags", {})
+        if t.get("highway") != "footway" or not t.get("bridge") or len(w["ll"]) < 2:
+            continue
+        pts = [np.array(G_FWD(*q)) for q in w["ll"]]
+        near = [z for P_, z in decks if min(P_.distance(Point(*q)) for q in pts) < 1.5]
+        if not near:
+            continue
+        z = max(near)
+        for p0, p1 in zip(pts[:-1], pts[1:]):
+            l = float(np.linalg.norm(p1 - p0))
+            if l < 0.5:
+                continue
+            if all(any(P_.buffer(-0.5).contains(Point(*q)) for P_, _ in decks) for q in (p0, p1)):
+                continue                                   # (inside the deck: the deck's own walkway)
+            Pw = frame(p0, p1 - p0)
+            block(E, Pw, -0.3, l + 0.3, -1.5, 1.5, z - 0.9, z)
+            m = max(1, int(round(l / 12.0)))                # a round steel pier every 12 m or so, where it is not in the road
+            for k in range(m + 1):
+                q = p0 + (p1 - p0) * k / m
+                if road.contains(Point(*q)) or any(P_.contains(Point(*q)) for P_, _ in decks):
+                    continue
+                zg = float(L.at(*q))
+                block(K("steel_dark", "deck_walk"), frame(q, p1 - p0), -0.25, 0.25, -0.25, 0.25, zg, z - 0.9)
+            for v in (-1.45, 1.45):
+                block(G, Pw, -0.3, l + 0.3, v - 0.03, v + 0.03, z, z + 1.1)
+                block(K("steel", "deck_walk"), Pw, -0.3, l + 0.3, v - 0.05, v + 0.05, z + 1.1, z + 1.16)
+    return n
+
+
 def districts_meshes(lm):
     K = Kit("p5", floodlit=("lamp", "neon_red", "neon_pink", "clock_face"))   # (the scramble's crosswalks: scramble.py)
     if "hachiko" in lm:
@@ -2133,6 +2249,7 @@ def districts_meshes(lm):
         if TOYOKO_WORKS:
             toyoko_site(K, lm)
         today_sites(K, lm)
+        deck_stairs(K)   # (the stairs down from the decks over the roads: issue 212)
         # (QFRONT itself, its glass and its signs: scramble.py)
         if "signs" in lm:
             crossing_wall_signs(K, lm)
