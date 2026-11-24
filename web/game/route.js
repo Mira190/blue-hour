@@ -60,9 +60,12 @@ window.OERoute = (function () {
   // requestAnimationFrame: a harness that draws one frame in n counts every frame callback as one of the game's. Before, a slice
   // ran 10 ms or more and the next began at once (a zero timeout), and the build took most of every frame. `until`: when the
   // slice under way stops; due(): whether it has (a clock read, cheap)
-  let until = 0, sliceMs = 4;
+  // (gentle only while the title is up, create's gentle(): once the player is in, a case taken up at frame 4 wants its guide's way
+  // at once, and the build runs as it did, 10 ms slices one after another; tools/guide_way.js's frame 4 from a late start)
+  let until = 0, sliceMs = 4, gentle = null;
   const due = () => performance.now() >= until;
   const slice = () => new Promise(r => {
+    if (!gentle || !gentle()) { setTimeout(() => { until = performance.now() + 10; r(); }, 0); return; }
     const t0 = performance.now();
     setTimeout(() => { const rest = performance.now() - t0; sliceMs = Math.max(4, Math.min(250, rest / 3)); until = performance.now() + sliceMs; r(); }, sliceMs * 3);
   });
@@ -143,7 +146,8 @@ window.OERoute = (function () {
     return run < 250 ? { q: null, d: null } : { q, d };
   }
 
-  function create({ nav, footNet, roadNet, DSM, helipads = [], lifts = [], ground = null }) {
+  function create({ nav, footNet, roadNet, DSM, helipads = [], lifts = [], ground = null, gentle: gentleFn = null }) {
+    gentle = gentleFn; // (the build's slices kept to a quarter of the main thread while it returns true: slice, above)
     // ------------------------------------------------------------ what a walker can do
     // stand at (x, y) on the floor of a line at height zl: the floor stood on, or NaN
     function standZ(x, y, zl, tol = LEVEL) {

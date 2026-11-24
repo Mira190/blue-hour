@@ -1880,7 +1880,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const carCfg = Object.assign({ model: 'Car_Super', colour: '#0b0d11', accent: '#d9a441', seat: '#6e4228' }, (G.vehicles || {}).car);
   if (vlib && vlib.info.cars && !vlib.info.cars.models[carCfg.model]) carCfg.model = 'Car_Hatch';
   // the ways you can actually go, on foot, by road and in the air (route.js), worked out in slices behind the title
-  const ways = OERoute.create({ nav, footNet, roadNet, DSM, helipads: G.helipads, lifts: G.lifts || [], ground: lineGround });
+  const ways = OERoute.create({ nav, footNet, roadNet, DSM, helipads: G.helipads, lifts: G.lifts || [], ground: lineGround, gentle: () => !playing }); // (built gently behind the title, at full pace once the player is in: route.js slice)
   roadNet.avoid = ways.drive;
   // (a street whose lane has room for no vehicle anywhere along it, by the width pass above, is one a car can't
   // get along, as one the data runs through a building is: kept off by the traffic and the routes alike, #202)
