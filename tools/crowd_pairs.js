@@ -42,7 +42,8 @@ const NEAR = +process.env.NEAR || 0.25, RANGE = +process.env.RANGE || 25, LAST =
       for (let f = 0; f < 30; f++) {
         g.player.speed = 0; if (g.cine && g.cine.active) g.cine.skip();
         g.frame(1 / 30); Q.frames++;
-        const rows = R.umbrellaReport(RANGE); Q.drawn = Math.max(Q.drawn, rows.length);
+        const all = R.umbrellaReport(RANGE), rows = all.filter(r => Number.isFinite(r.x) && Number.isFinite(r.y)); Q.drawn = Math.max(Q.drawn, rows.length);
+        for (const r of all) if (!(Number.isFinite(r.x) && Number.isFinite(r.y))) { Q.nan = Q.nan || new Map(); const q = P[r.i]; if (!Q.nan.has(r.i)) Q.nan.set(r.i, { i: r.i, x: q.x, y: q.y, rx: q.rx, ry: q.ry, state: q.state, ph: q.ph, n: 0 }); Q.nan.get(r.i).n++; }
         const now = new Set();
         for (let a = 0; a < rows.length; a++) for (let c = a + 1; c < rows.length; c++) {
           const A = rows[a], B = rows[c], d = Math.hypot(A.x - B.x, A.y - B.y);
@@ -60,8 +61,9 @@ const NEAR = +process.env.NEAR || 0.25, RANGE = +process.env.RANGE || 25, LAST =
     }, [NEAR, RANGE]);
     await p.evaluate(() => new Promise(r => requestAnimationFrame(() => r())));
   }
-  const Q = await p.evaluate(() => { const Q = window.__pairs; return { frames: Q.frames, drawn: Q.drawn, pairs: [...Q.seen.values()].sort((a, b) => b.longest - a.longest) }; });
+  const Q = await p.evaluate(() => { const Q = window.__pairs; return { nan: Q.nan ? [...Q.nan.values()] : [], frames: Q.frames, drawn: Q.drawn, pairs: [...Q.seen.values()].sort((a, b) => b.longest - a.longest) }; });
   const long = Q.pairs.filter(c => c.longest > LAST);
+  if (Q.nan.length) console.log(`(${Q.nan.length} of the crowd read with no place: ${JSON.stringify(Q.nan.slice(0, 4))})`);
   console.log(`crowd_pairs: ${Q.frames} frames (${(Q.frames / 30).toFixed(0)} s of the game) in ${((Date.now() - t0) / 1000).toFixed(0)} s, up to ${Q.drawn} of the crowd drawn within ${RANGE} m; ${Q.pairs.length} pairs nearer than ${NEAR} m, ${long.length} of them for more than ${LAST} frames`);
   for (const c of Q.pairs.slice(0, 20)) console.log(`${c.longest > LAST ? 'FAIL' : 'note'} ${c.min} m apart at (${c.at}), ${c.n} frames, the longest run ${c.longest}, from frame ${c.f0}: ${JSON.stringify(c.a)} | ${JSON.stringify(c.b)}`);
   await b.close();
