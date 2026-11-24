@@ -371,7 +371,7 @@ about 0.1 % of each sample to audio a page reads back, too little alone. So a ph
 `tools/score_files.js` renders each score here (the story's opening, the walk's, frame 5's flight under the story's
 music and alone) by the same code from the same plan, and ships it as `web/assets/story/late/score-<key>.mp3`, the key a
 hash of the score's spec and its shots (`scores.json`, with a hash of film-score.js). `overture.js` `prepareScore` plays
-that file on a phone, and renders as before only where no file matches (`tools/score_files.js --check`, in the static
+that file on a phone, and where no file matches plays the film without its score, never a render of its own (`tools/score_files.js --check`, in the static
 checks, fails then). `tools/tune_levels.js` decodes every file a phone plays and fails on broadband noise (the energy of
 the sample-to-sample difference against the signal's over 0.25 in any half second; the files read 0.05 to 0.09) and on
 a peak over −1 dBFS; `tools/opening_audio.js` fails when a phone renders a score in the page or an element plays any file
