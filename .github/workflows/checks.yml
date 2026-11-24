@@ -161,6 +161,15 @@ jobs:
       - name: What the browser took
         if: always() && matrix.target != 'static'
         run: grep -h 'played in\|^title\|GPU peak' "$RUNNER_TEMP"/check/*.log 2>/dev/null | cut -c1-200 || true
+      # (each beat's frames by their own cost on a phone's tier, kept a month: issue 220 records the hitches a week before
+      # they are held, tools/beat_hitch.py show)
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'push' && startsWith(matrix.target, 'budget')
+        with:
+          name: hitch-${{ matrix.target }}
+          path: ${{ runner.temp }}/check/*-hitch.jsonl
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
