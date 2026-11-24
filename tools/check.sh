@@ -393,9 +393,11 @@ budget_part() {   # <name> <FROM> <UPTO> <what a pass says>
   # picture: frames 5 and 6 took 461 s drawn and 250 s dry, frame 7 264 s and 173 s, with the same counts. Main's full
   # tier draws them, one frame in sixty, as the budgets were measured)
   local n=$1 log="$OUT/$1.log" still=${STILLS:-$([ "$TIER" = full ] && echo 1 || echo 0)} draw=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || { [ "$TIER" = full ] && echo 60 || echo 1000; })}
-  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" PHONE=1 DPR=3 TIER=low FROM=$2 UPTO=$3 STILLS=$still DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 390x844 >"$log" 2>&1; then
+  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" HITCH="$OUT/$n-hitch.jsonl" PHONE=1 DPR=3 TIER=low FROM=$2 UPTO=$3 STILLS=$still DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 390x844 >"$log" 2>&1; then
     printf 'ok   %-6s %s; %s\n' "$n" "$4" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
     beats_of "$n" phone "$OUT/$n-budget.jsonl"
+    # (each beat's longest frame and its p99, recorded and not yet held: issue 220)
+    [ -s "$OUT/$n-hitch.jsonl" ] && printf 'note %-6s hitches, recorded: %s\n' "$n" "$(python3 tools/beat_hitch.py line "$OUT/$n-hitch.jsonl" 2>&1 | cut -c1-400)"
   else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
 }
 # The story on a phone's page, by touch (issue 120): the win played with a finger, as the desktop's is with keys. No
