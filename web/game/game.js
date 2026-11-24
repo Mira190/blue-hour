@@ -2287,6 +2287,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const GUIDE_BODY = 0.7; // (the guide's reach from where it stands until his model has said: blender/build_dog.py's Akita, 0.52 m behind to 0.72 m in front)
   // (and once it has, his own: companion.js measures it from the model, so another animal is kept off posts by its size)
   const guideReach = g => (guideMade && guideMade.reach) || GUIDE_BODY * (g.scale || 1);
+  // (the boxes round a cell the guide's planner asks of, for its stand: carBoxes(x, y, 4)'s, from one gathering a frame of
+  // all within 34 m of where the first ask fell, kept while the asks stay within 30 m of it, issue 206)
+  let standAt = null;
+  const standBoxes = (x, y) => { if (!standAt || standAt.t !== last || Math.abs(x - standAt.x) > 30 || Math.abs(y - standAt.y) > 30) standAt = { t: last, x, y, b: carBoxes(x, y, 34) }; return standAt.b; };
+  // (and while the world is held, nothing stand reads moves (the cars, the trains, the gates, the posts): each answer is
+  // kept for the hold, by the place asked to 5 cm. A plan that found no way was made again the next frame on the same
+  // grid, 226,000 asks in one talk of frame 3. A post added, moved or taken away, or the world running, and they are
+  // asked again)
+  let standMemo = null;
+  for (const k of ['add', 'move', 'remove']) { const f = posts[k]; posts[k] = (...a) => { standMemo = null; return f.apply(posts, a); }; }
+  const standHeld = (x, y, z, ask) => {
+    if (!(story && story.stopped && story.scale === 0)) { standMemo = null; return ask(); }
+    if (!standMemo || standMemo.size > 250000) standMemo = new Map();
+    const k = (Math.round(x * 20) * 100003 + Math.round(y * 20)) * 1000 + Math.round(z * 2);
+    let v = standMemo.get(k); if (v === undefined) { v = ask(); standMemo.set(k, v); }
+    return v;
+  };
   // the way from where a frame is taken to what it is of, kept clear: of the crowd who stand in it, a walker is sent on
   // elsewhere (out of sight, as anyone the crowd is done with) and someone crossing a square or the Scramble steps to
   // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
@@ -2705,6 +2722,27 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
     return haloTex;
   };
+  // (an afterimage's look compiled before the Stop it stands in, as the title waits: people.js exposure makes a program of
+  // its own for each of their materials, and each Stop's afterimage, made under the flash, linked three to five of them in
+  // the Stop's first frames, with the halation's when it first came up: a frame of 0.2 to 2.9 s on a session's machine,
+  // and taps that waited 3.7 s on an iPhone, issue 206. One rig of each, never shown, the exposure laid on, compiled)
+  const warmGhosts = () => {
+    if (!lib || !G.story || !OEPeople.exposure) return Promise.resolve();
+    // (the frame the case is at first: a story taken up again at its Stop finds its afterimage made; the rest in order)
+    const who = new Set(), at = story && story.state ? story.state.fi || 0 : 0;
+    for (const ep of G.story.episodes || []) { const F = ep.frames || []; for (const fr of [...F.slice(at), ...F.slice(0, at)]) for (const a of [fr.afterimage, fr.afterimage2]) if (a && a.character && !a.alive) who.add(a.character); }
+    let p = Promise.resolve(), halo = true;
+    for (const c of who) p = p.then(() => lib.require(c)).then(() => {
+      if (!lib.tpl[c]) return null;
+      // (two of them: one still, one with its face's shapes live, as it is while it speaks, face.js: a program of its own)
+      const g = new THREE.Group(), r = makeRig({ character: c }), q = makeRig({ character: c });
+      for (const x of [r, q]) { OEPeople.exposure(x.root); x.animate(0, 0, 'ground', 0); g.add(x.root); }
+      if (q.face) q.face.after(0, {});
+      if (halo) { halo = false; g.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xd6e4ff, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }))); }
+      return warmFor(g).then(() => { if (q.face) q.face.rest(); });
+    }).catch(() => null);
+    return p;
+  };
   const storyFigure = (a, at) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
     const old = a.alive && a.age >= 70, bend = [], look = [];
@@ -2850,7 +2888,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
     // (and never a step that takes his body into one of the crowd, issue 65: he waits, and they step aside for him, crowdKeep)
     slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), r = guideReach(g), c = OECars.pushOut(m.x, m.y, z, r, carBoxes(m.x, m.y, 4)), o = posts.pushOut(c.x, c.y, r, z); return nav.walk(o.x, o.y, z, true).ok && guideClear(x, y, o.x, o.y) ? o : { x, y }; },
-    stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, guideReach(g), z).hit && !OECars.pushOut(x, y, z, guideReach(g), carBoxes(x, y, 4)).hit,
+    // (stand is asked once a cell of his planner's grid, thousands of times a plan round the held crowd: the boxes of the
+    // cars, the trains, the helicopter and the gates are gathered once a frame for 30 m round, not once a cell. Each cell
+    // made every train's boxes again, and the Stop's seek ran at 1 to 5 fps on an iPhone, issue 206)
+    stand: (x, y, z) => standHeld(x, y, z, () => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, guideReach(g), z).hit && !OECars.pushOut(x, y, z, guideReach(g), standBoxes(x, y)).hit),
     // (the Scramble's own crowd too, q.pz: waiting at its kerbs, out crossing, standing about the square. They are kept on
     // no footway line, and he walked into the waiters at Sumiko's kerb as if nobody stood there, issue 65)
     people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push([qx, qy]); } return out; },
@@ -4597,7 +4638,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
     if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
     // and the story's stopped air: its leaves, birds and motes, made at the first beat after the tap (stopfx.js warm)
-    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => stopFx.warm(warmFor)), reduced ? 0 : 1000);
+    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => Promise.all([stopFx.warm(warmFor), warmGhosts()])), reduced ? 0 : 1000); // (and the afterimages' look, warmGhosts)
     setTimeout(() => { if (QC.lean) afterPlayable().then(heliIn); else heliIn(); }, reduced ? 0 : 900);
   });
   // What the first frame doesn't need, fetched once the game can be played, as the helicopter's model is (issue 335):
