@@ -2771,7 +2771,7 @@ passes a frame are the device's work whatever renders them; their milliseconds a
 | low (a phone's set) | 220 | 3,876 | 9 | 74 |
 
 (The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
-beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`); the laptop's medium is not held yet.
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`). The laptop's medium is recorded beside them ("medium": the story's three parts at 1440 x 900, `beat_budget.py set ... --parts medium`), to be held by a CI shard of its own once a few runs have shown its noise.
 
 ### Not checked here
 
