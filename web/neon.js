@@ -337,6 +337,14 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
       lights.push(L);
     }
     const look = new THREE.Vector3(), tmp = new THREE.Color();
+    // the middle of what the camera sees on the ground: along its line of sight to the ground, 15 to 120 m out (60 m
+    // when it looks level or up)
+    const fwd = new THREE.Vector3(), vAt = new THREE.Vector3();
+    function view(camera) {
+      const cp = camera.position; camera.getWorldDirection(fwd);
+      const gz = ground(cp.x, -cp.z), d = fwd.y < -0.05 ? Math.max(15, Math.min(120, (cp.y - gz) / -fwd.y)) : 60;
+      return vAt.copy(cp).addScaledVector(fwd, d);
+    }
     let last = -1;
     function colourOf(s, t, hour, night) {
       const m = s.entry.m, mat = s.entry.mat;
@@ -364,9 +372,12 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
         const t = info.clock.t.value, hour = info.clock.hour.value, night = info.night.value;
         for (const L of cards) L.intensity = L.userData.k * night;
         if (last < 0) last = t;
-        const cp = camera.position;
-        for (const s of screens) s.score = cp.distanceTo(s.c) / Math.sqrt(s.area);
-        const want = screens.filter(s => s.n.dot(look.copy(cp).sub(s.c)) > -0.3 * cp.distanceTo(s.c) || cp.distanceTo(s.c) < 30)
+        // (the lights go to the screens that light what is in view: the screens nearest the ground the camera looks at,
+        // by their size and brightness, not nearest the lens. Chosen nearest the lens, four lights left a
+        // raised view of the Starbucks corner without the wash of the screens across from it: issue 191)
+        const cp = camera.position, v = view(camera);
+        for (const s of screens) s.score = v.distanceTo(s.c) / Math.sqrt(s.area) / Math.max(0.2, s.bright || 1);
+        const want = screens.filter(s => s.n.dot(look.copy(v).sub(s.c)) > -0.3 * v.distanceTo(s.c) || cp.distanceTo(s.c) < 30)
           .sort((a, b) => a.score - b.score).slice(0, lights.length);
         const k = 1 - Math.exp(-dt / 0.35);
         for (const L of lights) if (L.userData.screen && !want.includes(L.userData.screen)) L.userData.want = 0; else L.userData.want = 1;
