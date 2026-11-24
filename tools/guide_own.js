@@ -51,10 +51,11 @@ module.exports = ({ R, live, STUCK_S, STUCK_M, TRACE }) => new Promise(done => {
     // a step asked for and not gone, STUCK_S running
     if (!arrived && hist.length > 5 && t - hist[0][0] > STUCK_S * 0.9 && hist.every(q => q[3] > 0.5) && Math.hypot(dog.x - hist[0][1], dog.y - hist[0][2]) < STUCK_M) fault('stuck', `${dog.state} at ${dog.x.toFixed(2)}, ${dog.y.toFixed(2)}, ${dog.z.toFixed(2)} (player ${pl.x.toFixed(1)}, ${pl.y.toFixed(1)}; ${(lp - ld).toFixed(1)} m ${lp < ld ? 'ahead of' : 'behind'} him on the way)`);
     // The owner's rule, both ways (issue 207). The player ahead of him (past him on his line, or further on along
-    // another): he does not wait; he runs, and is in front again within BACK_S. The player behind him (dropped back):
+    // another): he does not wait; he runs, and is in front again within 20 s (at 1.35 times his run against a player's 6 m/s he
+    // gains 2 m a second: 16 m behind, where the people waiting at a crossing sent him round, took him 12 s, issue 207). The player behind him (dropped back):
     // he waits, turned to look back, and does not run off: never more than RUNOFF_M ahead of them along the way, and
     // standing by the end of the pause
-    if (lp < ld - 1.5 && !paused) { backT += dt; if (backT > 8) fault('never-in-front', `the player ${(ld - lp).toFixed(1)} m further on for 8 s; he is at ${dog.x.toFixed(1)}, ${dog.y.toFixed(1)}, ${dog.state}`); } else backT = 0;
+    if (lp < ld - 1.5 && !paused) { backT += dt; if (backT > 20) fault('never-in-front', `the player ${(ld - lp).toFixed(1)} m further on for 20 s; he is at ${dog.x.toFixed(1)}, ${dog.y.toFixed(1)}, ${dog.state}`); } else backT = 0;
     if (paused && lp - ld > 14) fault('runs-off', `he is ${(lp - ld).toFixed(1)} m ahead of a player who stopped, at ${dog.x.toFixed(1)}, ${dog.y.toFixed(1)}`);
     if (R.pause && t >= R.pause[1] - 0.3 && t < R.pause[1] && !arrived && dog.speed > 0.5 && lp > ld) fault('no-wait', `still going at ${dog.speed.toFixed(1)} m/s ${(lp - ld).toFixed(1)} m ahead of a player who stopped ${(R.pause[1] - R.pause[0]).toFixed(0)} s ago`);
     // waiting while the player is further along than he is
