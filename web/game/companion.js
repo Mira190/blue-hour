@@ -621,7 +621,7 @@ window.OECompanion = (function () {
           else {
           // (the gap measured along the way, not across it: a player level with him on the far side of a planter, or a
           // street's width off his line, is not someone to stand and wait for)
-          const on = onAhead(), ahead = Math.min(dp, Math.max(0, lead())), want = on ? Math.max(RUN * 1.25, ps * 1.35) : Math.max(0, Math.min(RUN * 1.45, ps + (gap - ahead) * 1.6));
+          const on = onAhead(), ahead = Math.min(dp, Math.max(0, lead())), want = on ? Math.max(RUN * 1.35, ps * 1.4) : Math.max(0, Math.min(RUN * 1.45, ps + (gap - ahead) * 1.6));
           s.v = (s.v || 0) + (want - (s.v || 0)) * Math.min(1, dt * 4);
           if (s.v < (s.speed ? 0.25 : 0.6)) { s.speed = 0; face(px, py, dt); lookAt = [px, py, player.z + 1.5]; } // (waiting for them, looking back)
           else {

@@ -44,7 +44,7 @@ module.exports = ({ R, live, STUCK_S, STUCK_M, TRACE }) => new Promise(done => {
       // here the same, so that a jammed guide stops this player as he would stop yours)
       if (dog.makeWay) dog.makeWay();
       if (dog.jammed && dog.spineNear) { const [cx, cy] = dog.spineNear(pl.x, pl.y), ex = pl.x - cx, ey = pl.y - cy, e = Math.hypot(ex, ey) || 1e-3; if (e < dog.clearance) { heldT += dt; if (heldT > 0.3) fault('held-by-him', `the player stopped at his flank at ${pl.x.toFixed(1)}, ${pl.y.toFixed(1)}`); pl.x = pl0[0]; pl.y = pl0[1]; s -= R.speed * dt; } else heldT = 0; } else heldT = 0;
-    } else pl.speed = 0;
+    } else pl.speed = paused || Math.hypot(to[0] - pl.x, to[1] - pl.y) <= (R.short || 2.5) ? 0 : R.speed; // (between steps held back by the distance cap they are still running: their pace, as a player's at a run)
     hist.push([t, dog.x, dog.y, dog.speed]);
     while (hist.length && t - hist[0][0] > STUCK_S) hist.shift();
     const lp = left(pl.x, pl.y), ld = left(dog.x, dog.y), arrived = Math.hypot(to[0] - dog.x, to[1] - dog.y) < 3.5;
