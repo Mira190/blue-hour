@@ -160,7 +160,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       for (const fn of q.values()) { try { fn(last); } catch (e) { setTimeout(() => { throw e; }); } }
       const counted = B ? B.end() : null; if (counted && D.rendered) D.counted = counted;
       D.js += performance.now() - t0; if (D.rendered) { D.steps++; if (D.on) { D.drawn++; if (!D.all) D.own++; } split(t0, performance.now() - t0); }
-      if (D.rendered && D.hit) { const H = D.hit; const ms = +(performance.now() - t0).toFixed(1); H.fr.push([ms, D.all ? 2 : D.on ? 1 : 0, H.links, +(H.up / 1048576).toFixed(2)].concat(ms > 100 && H.names.length ? [H.names] : [])); H.links = 0; H.up = 0; H.names = []; } // (HITCH: the frame's own cost, below)
+      if (D.rendered && D.hit && D.hit.plate) { const L = document.getElementById('g-loader'); if (!L || L.hidden) D.hit.plate = false; } // (the loader's frames under its plate are not the player's: from the first after it)
+      if (D.rendered && D.hit && D.hit.plate) { D.hit.links = 0; D.hit.up = 0; D.hit.names = []; } else if (D.rendered && D.hit) { const H = D.hit; const ms = +(performance.now() - t0).toFixed(1); H.fr.push([ms, D.all ? 2 : D.on ? 1 : 0, H.links, +(H.up / 1048576).toFixed(2)].concat(ms > 100 && H.names.length ? [H.names] : [])); H.links = 0; H.up = 0; H.names = []; } // (HITCH: the frame's own cost, below)
       // (the still's frame drawn, below: the page's frames held at once, so that the still is of it and no frame drawn whole
       // after it is begun while the harness hears of it, a second of llvmpipe's that the screenshot then waited for)
       if (D.twice && D.rendered) { D.one = false; if (D.oneHold) { D.hold = true; D.splitHeld(); } const w = D.oneDone; D.oneDone = null; if (w) w(); }
@@ -255,13 +256,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // HITCH=file (with BUDGET and DRAW=n): each of the game's frames by its own cost, the time its callbacks took on the page,
   // not the wall's, which a software renderer stretches; and what may have made a long one long, the programs linked and
   // the megabytes sent to the GPU in it (and, in a frame over 100 ms, the programs it linked, by name). A line a still, of the frames since the one before (tools/beat_hitch.py; issue
-  // 220: hitches recorded per beat on a phone's tier, to be held as the budgets are once there is a week of them)
+  // 220: hitches recorded per beat on a phone's tier, to be held as the budgets are once there is a week of them). Counted
+  // from the first frame after the loader's plate: its warm-up under the plate (74 programs, 113 MB) is the loader's, which
+  // the plate hides as it animates on the compositor; booked to the title, it read as a second-long first frame
   const HITCH = BUDGET && DRAW > 1 ? process.env.HITCH || '' : '';
   if (HITCH) {
     fs.writeFileSync(HITCH, '');
     await p.addInitScript(() => {
       const D = window.__draw; if (!D) return;
-      const H = D.hit = { fr: [], links: 0, up: 0, names: [] }, P = WebGL2RenderingContext.prototype, link = P.linkProgram;
+      const H = D.hit = { fr: [], links: 0, up: 0, names: [], plate: true }, P = WebGL2RenderingContext.prototype, link = P.linkProgram;
       // (and the programs a frame linked, by three.js's name for each with the defines that make its variant, so that a long frame
       // that linked says what: tools/beat_hitch.py prints them for the beat's longest frame)
       const src = new WeakMap(), named = new WeakMap(), ss = P.shaderSource, as = P.attachShader;
