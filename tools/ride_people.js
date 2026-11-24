@@ -203,7 +203,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   for (const x of W.railHits) console.log('  rail', JSON.stringify(x));
   console.log('overlaps', JSON.stringify(W.worst));
   for (const x of W.hits) console.log('  ', JSON.stringify(x));
-  console.log('ride', ended, errors.length ? `| ${errors.length} page errors` : '');
+  console.log('ride', ended, errors.length ? `| ${errors.join(' | ').slice(0, 600)}` : ''); // (what failed, said: the page's errors and the ride's own, which were counted as "page errors" and never named)
   await b.close();
   const bad = Object.keys(W.worst).length > 0 || Object.keys(W.rail).length > 0 || ended !== 'arrived' || errors.length > 0 || (+process.env.PIN > 0 && !(W.pinned > 0 && W.setAt));
   process.exit(bad ? 1 : 0);
