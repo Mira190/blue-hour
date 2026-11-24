@@ -98,7 +98,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   fs.mkdirSync(out, { recursive: true });
   await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
-  if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 209; off by default, the walk check being near its time cap)
+  if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 226; off by default, the walk check being near its time cap)
   if (process.env.LENSGUARD === '0') await p.addInitScript(() => { window.__lensGuardOff = true; }); // (the game's lens guard off, to weigh its cost)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
@@ -1055,7 +1055,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     }
   }
   await pace();
-  { // the camera's window in nobody's body, every frame of the walk so far, on foot, by car and in the helicopter (issue 209)
+  { // the camera's window in nobody's body, every frame of the walk so far, on foot, by car and in the helicopter (issue 226)
     const ci = require('./cam_intrude'), R = process.env.CAM_IN !== '1' ? { off: true } : await ci.report(p), { errs } = R.off ? { errs: [] } : ci.print(R);
     if (!R.off && (!R || R.err)) fail(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
     for (const e of errs) fail(`cam: ${e}`);

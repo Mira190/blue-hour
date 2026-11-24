@@ -179,7 +179,7 @@ raising the pitch before pulling in. Modes switch by code paths, not by blends.
   real shadows. Nothing else can show the exact sun on a real place, so this fits
   the project well. The share card can carry the sun position and the time.
 
-**The lens's window: a camera never enters a body (issue 209).** The owner's still of
+**The lens's window: a camera never enters a body (issue 226).** The owner's still of
 frame 3 had the chase view a few decimetres over the player's head looking straight down, the
 near plane through the hair and the skull. A camera takes its picture through a window, not
 from a point: the near plane's rectangle, `camera.near` ahead of the lens (0.3 m in play), as

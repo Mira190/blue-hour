@@ -1,4 +1,4 @@
-// The lens's last resort, faded (issue 209): stills of the one you play going out of the picture where the lens cannot
+// The lens's last resort, faded (issue 226): stills of the one you play going out of the picture where the lens cannot
 // leave them (the view held by a hand into the wall at your back) and coming back as it is let go, and what it costs.
 // The fade is FADE_S (0.2 s) in play; here it is slowed to 0.5 s (window.__fadeS) and a still taken every frame, five each
 // way, as a session's machine draws a frame in seconds; then it is run at its own speed and its frames counted. And the cost: game.js lensGuard's time a
