@@ -31,8 +31,18 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(4000);
   for (let k = 0; k < 15; k++) {
-    if (await p.evaluate(() => { const t = document.getElementById('g-title'); if (!t || t.hidden) return true; const x = document.getElementById('gt-play'); if (x) x.click(); return false; })) break;
+    if (await p.evaluate(late => { const t = document.getElementById('g-title'); if (!t || t.hidden) return true; const vis = id => { const e = document.getElementById(id); return e && e.offsetParent ? e : null; };
+      // (a case left at a frame, FROM=n: Continue takes it up there; Play began the case again at frame 1, and every reading
+      // said fi 1 whatever FROM asked)
+      const x = (late ? vis('gt-continue') || vis('gt-cont-go') : null) || vis('gt-story-go') || vis('gt-cont-go') || document.getElementById('gt-play'); if (x) x.click(); return false; }, !!process.env.FROM)) break;
     await p.waitForTimeout(1500);
+  }
+  // (a late case first plays its arrival, a film any key skips, and the frame begins only after it: skipped, and waited for
+  // until the story has left the title's 'dressed', so that FROM's frame is the one measured and not the film over frame 1)
+  if (process.env.FROM) for (let k = 0; k < 60; k++) {
+    const st = await p.evaluate(() => { const g = window.__game, s = g.story && g.story.state; if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); return s ? s.phase : ''; });
+    if (st && st !== 'dressed') break;
+    await p.waitForTimeout(1000);
   }
   await p.evaluate(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; requestAnimationFrame(f); });
   const cdp = await p.context().newCDPSession(p);
