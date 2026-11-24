@@ -1,10 +1,13 @@
 // The browser a harness opens: Chromium on the software renderer as the checks run it (under xvfb-run with llvmpipe,
 // SwiftShader without a display), on a Mac's own GPU (GPU=metal), or Playwright's WebKit (ENGINE=webkit, HEADED=1 for
-// its window). WebKit takes none of Chromium's switches and has no DevTools session: `cdp` is null there.
+// its window), or Safari itself on a Mac (ENGINE=safari: over WebDriver, tools/safari.js, which gives a harness the
+// part of a Playwright page it uses). WebKit and Safari take none of Chromium's switches and have no DevTools
+// session: `cdp` is null there.
 //   const { launch, ENGINE } = require('./engine'); const b = await launch(['--a-chromium-switch']);
 const pw = require('playwright');
 const ENGINE = process.env.ENGINE || 'chromium';
 function launch(extra = []) {
+  if (ENGINE === 'safari') return require('./safari').launch();   // (Safari itself, over WebDriver: tools/safari.js)
   if (ENGINE !== 'chromium') return pw[ENGINE].launch({ headless: !process.env.HEADED });
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];

@@ -5,7 +5,8 @@
 // renderer as on a GPU; what WebGL holds is tools/gl_mem.js's.
 //   JOB_WAIT=540 tools/job.sh run frame -- xvfb-run -a node tools/phone_frame.js [out dir]
 // PORT (8800), QUERY=&a=b added to both pages' addresses, SIZE=390x844, BY=1 the heaviest things drawn on foot, by name,
-// SETTLE=s on foot before counting (20), HOUR=19.5 the walk's clock (dusk), STILLS=0 none, EVAL=file.js a probe run in the page.
+// SETTLE=s on foot before counting (20), HOUR=19.5 the walk's clock (dusk), STILLS=0 none, EVAL=file.js a probe run in the page,
+// NOEXT=name,name the page without those WebGL extensions.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const out = process.argv[2] || 'out/phone_frame';
@@ -22,6 +23,8 @@ const line = (name, c) => `${name.padEnd(14)} ${String(c.draws).padStart(5)} dra
     await p.addInitScript(() => { try { localStorage.setItem('bh-quality', 'low'); } catch (e) { /* storage blocked */ } });
     await p.addInitScript(require('./gl_mem').hook);
     await p.addInitScript(require('./beat_count').hook);
+    // (NOEXT=WEBGL_multi_draw: the page as a browser without that extension, to see what it falls back to)
+    if (process.env.NOEXT) await p.addInitScript(no => { const f = WebGL2RenderingContext.prototype.getExtension, g = WebGL2RenderingContext.prototype.getSupportedExtensions; WebGL2RenderingContext.prototype.getExtension = function (n) { return no.includes(n) ? null : f.call(this, n); }; WebGL2RenderingContext.prototype.getSupportedExtensions = function () { return g.call(this).filter(n => !no.includes(n)); }; }, process.env.NOEXT.split(','));
     if (BY) await p.addInitScript(() => { window.__beat.top = 400; }); // (every thing drawn, by name, not the heaviest forty)
     return p;
   };

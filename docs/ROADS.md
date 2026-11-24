@@ -637,8 +637,10 @@ In the `roads` target: `tools/junction_flow.js` with `CHECK=1` counts the Scramb
 cycle over 130 s, on more than a quarter of an arm's queued greens passing nobody, and on an arm that passes under a
 third of its queue. `tools/road_drive.js` with `TIMED=1` fails a drive that takes longer than its road at 6 m/s and
 one whole cycle of each scramble on its way (118 s at the Scramble; half as much again for 109's fork, which runs on
-the Scramble's cycle: a car that comes to it out of the Scramble's other turn waits the walk and the rest), and the
-364 m from SKY GATE to 109 that takes longer than the three minutes the issue asks (`@180` on its start). The figure is the worst an
+the Scramble's cycle: a car that comes to it out of the Scramble's other turn waits the walk and the rest), and
+the longest red of each other signal on its way: 226 s for the 364 m from SKY GATE to 109. The three minutes the issue
+asks were a limit of their own (`@180` on a start) until issue 204: timed on main after issue 196, six drives of seven
+were inside them (46 to 161 s) and one took 193 s, with the Scramble's red and then the walk at 109 both met. The figure is the worst an
 undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
 comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
 Scramble, from Bunkamura-dori to Miyamasuzaka. `TRACE=1` prints
