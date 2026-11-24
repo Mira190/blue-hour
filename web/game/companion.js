@@ -614,7 +614,11 @@ window.OECompanion = (function () {
           // and when they are further along than he is, he runs past them
           // (held four seconds running, getting nowhere, with the player further on: found at their heels, as when left far
           // behind; they are never kept for him, issue 207)
-          if (s.held >= 4 && onAhead()) { catchUp(); s.held = 0; }
+          // (and held behind a player who has stopped a pace or two ahead, in a doorway or between a lift's belts: he
+          // stands at their heels until they go on, not walking on the spot against their legs, issue 207)
+          if (s.held >= 1 && ps < 0.3 && dp < 2.5 && onAhead()) { s.v = 0; s.speed = 0; s.gain = 0; s.gainT = 0; const w = onWay() || s.to; face(w[0], w[1], dt); }
+          else if (s.held >= 4 && onAhead()) { catchUp(); s.held = 0; }
+          else {
           // (the gap measured along the way, not across it: a player level with him on the far side of a planter, or a
           // street's width off his line, is not someone to stand and wait for)
           const on = onAhead(), ahead = Math.min(dp, Math.max(0, lead())), want = on ? Math.max(RUN * 1.25, ps * 1.35) : Math.max(0, Math.min(RUN * 1.45, ps + (gap - ahead) * 1.6));
@@ -637,6 +641,7 @@ window.OECompanion = (function () {
               }
             }
             move(w[0], w[1], Math.max(speeds.walk * 0.7, s.v), dt); if (dp > gap * 1.3) lookAt = [px, py, player.z + 1.5];
+          }
           }
         }
       } else if (s.state === 'heel') { // at the player's side, a pace behind: off when they are, still when they stop
