@@ -103,8 +103,33 @@ def over_roads(B, city, game):
         if s[3] - low < 15:
             continue   # (lower than a vehicle passes under: left as the record has it, and listed by the check)
         s[2] = max(s[2], low)
+        B.setdefault("over_roads", [])
+        if si not in B["over_roads"]:
+            B["over_roads"].append(si)
+            B["over_roads"].sort()
         n += 1
     return n
+
+
+DECK_M = 6.0      # a raised solid no deeper than this, over the road, of a building with no foot on the ground: a deck
+
+
+def decks(B):
+    """The solids drawn as a deck (buildings.json "decks", web/buildings-geo.js): raised over a road by over_roads(), of
+    a building none of whose solids touches the ground, and no deeper than DECK_M from underside to top. Shibuya's west
+    exit deck (しぶにしデッキ) is a walkway at the second floor's level under a canopy; drawn with its building's walls
+    and windows it read as a row of shopfronts lifted onto piers (issue 212). A raised solid deeper than that (a bridge
+    with rooms between two buildings) keeps its walls."""
+    by_b = defaultdict(list)
+    for k, s in enumerate(B["s"]):
+        by_b[s[0]].append(k)
+    out = []
+    raised = set(B.get("over_roads") or [])
+    for bi, ks in by_b.items():
+        if not raised.intersection(ks) or any(B["s"][k][2] <= 0 for k in ks):
+            continue
+        out += [k for k in ks if B["s"][k][3] - B["s"][k][2] <= DECK_M * 10]
+    return sorted(out)
 
 
 def piers(B, game):
@@ -177,6 +202,11 @@ def main():
     before = json.dumps(B, sort_keys=True)
     n = restyle(B, typology.region_name(cfg) == "japan")
     raised = over_roads(B, a.city, game)
+    D = decks(B)
+    if D:
+        B["decks"] = D
+    else:
+        B.pop("decks", None)
     P = piers(B, game)
     if P:
         B["piers"] = P
