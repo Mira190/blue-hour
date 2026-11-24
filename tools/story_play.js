@@ -1064,11 +1064,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!off.on || off.now !== 0 || off.done !== '0000' || off.cam || off.btn || off.formed !== 0 || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the camera still down and no button for it, the card on its first step, nothing of 1964 formed, no light underfoot)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
         await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
-        const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
+        // (each state looked for until it comes, up to a minute of the wall's: on a phone's tier a drawn frame carries little of
+        // the game's time, and three of frame 1's reads after so many frames failed on CI on 24 November. What may not happen
+        // off the light is still read after its fixed wait)
+        const until = async ok => { const t0 = Date.now(); let c = await card(); while (!ok(c) && Date.now() - t0 < 60000) { await frames(4); c = await card(); } return c; };
+        const inL = await until(c => c.now === 1 && c.here && c.btn); await snap(`${s.fi + 1}-teach-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
         if (inL.now !== 1 || inL.done !== '1000' || !inL.here || !inL.btn) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do and its button up, the ground lit)`); console.log(errors[errors.length - 1]); }
         await raise(true); await frames(24); await p.waitForTimeout(1500);
-        const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
+        const up = await until(c => c.formed >= 1 && c.ready && c.now === 3); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));
         if (up.formed < 1 || up.off || !up.ready || up.done !== '1110' || up.now !== 3) { errors.push(`frame ${s.fi + 1}: raised in the light, ${JSON.stringify(up)} (the thing formed in the lines, ready, the card at its last step)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
