@@ -523,7 +523,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (!back) bad('the title never opened on its menu');
     else {
       await p.waitForTimeout(2500);
-      const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden'; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
+      const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
       if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
       if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
       if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);

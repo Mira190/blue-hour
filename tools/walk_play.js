@@ -116,6 +116,35 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   });
 
   // the title, the first time
+  // the menu's Title screen (menus.js #gm-title), from the walk: the title again on its menu, with nothing of the walk
+  // left on it, and the case begun from there (the play's last step; WALK_ONLY=title plays it alone, out from a fresh page)
+  const titleBack = async () => {
+    await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
+    const t = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(); return { on: !!e && !!e.closest('#gw-menu') && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1 }; });
+    if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first) fail('the walk\'s Title screen is below its first screen');
+    await shot('9-menu-title');
+    await press('#gm-title');
+    if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
+    else {
+      await p.waitForTimeout(2500);
+      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }; return [document.getElementById('game-stage').classList.contains('walk') && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line'].filter(Boolean); });
+      if (left.length) fail(`back at the title, left over: ${left.join(', ')}`); else ok('Title screen: the title on its menu, nothing of the walk left');
+      await shot('9-title-back');
+      await press('#gt-story-go'); await until(() => document.getElementById('g-title').dataset.screen === 'story', null, 20000);
+      await press('#gt-play');
+      if (await until(() => document.getElementById('g-title').dataset.screen === 'who', null, 5000)) { await press('#gt-who [data-c="W"]'); await p.waitForTimeout(500); await press('#gt-who-go'); }
+      if (!(await until(() => { const s = window.__game.story.state; return document.getElementById('g-title').hidden && s.phase !== 'idle' && s.phase !== 'dressed'; }, null, 600000))) fail('from the title, the case did not begin');
+      else ok('from the title, the case begins');
+    }
+  };
+  if (process.env.WALK_ONLY === 'title') {
+    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
+    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 900000))) fail('the walk never set out');
+    else { await p.waitForTimeout(3000); await titleBack(); }
+    await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk title: all passed'); process.exit(errors.length ? 1 : 0);
+  }
   await title();
   let s = await state();
   const story0 = { eyebrow: s.eyebrow, clock: s.clock };
@@ -963,27 +992,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await p.waitForTimeout(1500);
     await shot('8-from-end');
   }
-  // the menu's Title screen (menus.js #gm-title): the title again on its menu, with nothing of the walk left on it, and the
-  // case begun from there
-  if (!process.env.NO_TITLE) {
-    await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
-    const t = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(); return { on: !!e && !!e.closest('#gw-menu') && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1 }; });
-    if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first) fail('the walk\'s Title screen is below its first screen');
-    await shot('9-menu-title');
-    await press('#gm-title');
-    if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
-    else {
-      await p.waitForTimeout(2500);
-      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden'; }; return [document.getElementById('game-stage').classList.contains('walk') && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line'].filter(Boolean); });
-      if (left.length) fail(`back at the title, left over: ${left.join(', ')}`); else ok('Title screen: the title on its menu, nothing of the walk left');
-      await shot('9-title-back');
-      await press('#gt-story-go'); await until(() => document.getElementById('g-title').dataset.screen === 'story', null, 20000);
-      await press('#gt-play');
-      if (await until(() => document.getElementById('g-title').dataset.screen === 'who', null, 5000)) { await press('#gt-who [data-c="W"]'); await p.waitForTimeout(500); await press('#gt-who-go'); }
-      if (!(await until(() => { const s = window.__game.story.state; return document.getElementById('g-title').hidden && s.phase !== 'idle' && s.phase !== 'dressed'; }, null, 600000))) fail('from the title, the case did not begin');
-      else ok('from the title, the case begins');
-    }
-  }
+  if (!process.env.NO_TITLE) await titleBack();
   console.log(errors.length ? `FAIL ${errors.length}` : 'ok   the walk: two ways in, its hour and sky, out on the street with nothing of the story or the old game');
   await b.close();
   process.exit(errors.length ? 1 : 0);
