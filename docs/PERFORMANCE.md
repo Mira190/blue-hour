@@ -2661,6 +2661,18 @@ pictures that need it. What is left in the first minute is the warm-up's own com
 people's programs, compiled in slices by `world.js compile` and waited on by a draw that came first: `alu_fin`,
 `ginza_joint`, seconds each on a software renderer); a follow-up.
 
+The queue's order (issue 194, November 2026): a class, then the distance to the player. The hero level first (`first`),
+then what a caller waits on to show it (a person's body, a train, a picture swapped in, a ground tile), then the
+background `uploadRest` sends ahead of its first draw; within a class the job nearest the camera, and those with no place
+(a character's template, not yet stood anywhere) in the order they came, which the game already makes nearest first
+(`afterPlayable` `near()`, the crowd's `need`). `?wq=fifo` keeps the old order, and `OEWorld.uploadStats()` gives each
+class's count and waits. Measured with `tools/warm_queue.js` on llvmpipe, both orders alike: on a phone's tier 81 bodies'
+and models' pictures sent within 30 s of the title (waits p50 13 s, max 22 to 25 s, the old order and the new); on a
+desktop about 150 wait behind the title, sent one an idle frame of 1 to 4 s, and `uploadRest` found nothing undrawn once
+they were in, so a body asked for then waited only for the frames (10 to 13 s, `BODY=1`). The order has nothing to
+reorder on this map today; it keeps a body asked for while a background drains from waiting behind it. What a body
+waits for is the rate, a picture an idle frame, which on a real GPU's frames is 150 pictures in two or three seconds.
+
 ### Safari
 
 Safari's WebGL crosses to the GPU process on every call, and its ANGLE on Metal resolves a multisampled half-float
