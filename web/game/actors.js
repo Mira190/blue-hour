@@ -1963,7 +1963,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
-      if (q.give) { q.give = false; if (q.ph === 'cross') q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+      // (and one of them out in the road off the walk, strolling or waiting, as a crosser is: asked only for a spot behind
+      // its kerb, one strolling through the Scramble's box toward it stood before a car that waited on it 144 s, each
+      // in the other's way, issue 204)
+      if (q.give) { q.give = false; if (q.ph === 'cross' || (pz.road && pz.road(q.x, q.y))) q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
