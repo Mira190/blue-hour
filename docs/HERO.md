@@ -1664,5 +1664,16 @@ lights it (a metal takes no diffuse light). What they are in the street is paint
 aluminium (the fins, the bands, the cladding panels, the window frames) and painted steel (the gate, the fences, the
 railway's girders), and a paint is a dielectric with a colour of its own that the lamps and the shops' light fall on.
 Tried in the page on four of them (metalness 0.25, the sky's share 0.5) the bands and fins came back to their grey at
-dusk and at night. The values are changed in `scramble.py` and the level rebuilt as the issue's second part, after
-the #196 session's rebuild of the same level has landed (claim board, #202).
+dusk and at night.
+
+What was changed (`cities/shibuya/scramble.py` `MATERIALS`, which the landmarks build, `pipeline/landmarks.py`; only
+these eight materials differ in `landmarks.json`): a silver finish (`x_fin`, `x_qf_panel`, `x_panel`, `x_alu`) at
+metalness 0.1, roughness 0.45 to 0.5; a painted colour (`x_frame` 0.05, `x_gate`, `x_fence`, `x_jr_steel`) at 0, 0.55 to
+0.6. What stands at a walker's height (the gate's posts, the fences, an entrance's panels and frame) takes the street
+lights (`lamp_lit`, world.js). A facade does not: tried on QFRONT's fins and bands, the street lights lit the tower to
+its top as if floodlit, cream-white over the crossing, which no photograph of it at night shows. And the entrances'
+stair wells, a black hole beside the police box at frame 3's Stop, are lit by their own tubes as the station's passage
+is (`x_tile`, `x_tread`, `x_riser`: an emission in their own tone, in `LIT`). Stills at dusk and night, desktop and
+phone, before and after: `docs/images/hero/issue-13-coated.jpg` (`tools/views/coated-13.json`). Compared with the
+photographs this page already names (QFRONT from the crosswalk, 2025-02; Hachiko Square, 2020-04): the floor bands read
+as the light silver they are there, the gate's posts as grey paint.
