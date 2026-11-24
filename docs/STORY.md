@@ -2483,7 +2483,9 @@ hold a close shot ([VOICES.md](VOICES.md); issues 11 and 12), the hundred metres
 (issue 13), and playtests with people who have not seen the story ([PLAYTEST.md](PLAYTEST.md); issue 14).
 
 The marks do not depend on colour: their kinds are told apart by shape and named in words, and an afterimage's speech
-mark is drawn in a broken line as well as in blue, so it is told from the living's without its colour. An answer the
+mark is filled with a pale wash as well as drawn in blue (the living's is hollow), so it is told from the living's
+without its colour. (It was a broken line until issue 206: on an iPhone's screen the dashes, and its ping's, were a ring of
+dots round the afterimage's head.) An answer the
 hand is on (the arrows on a keyboard, the d-pad on a pad) has an outline as well as its amber.
 
 What is left of the story's own, each with its issue: the living Sumiko's face in the summation's close shot does not read as a Japanese woman of 84 (issue 34); the old

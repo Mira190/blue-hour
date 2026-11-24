@@ -1390,7 +1390,7 @@ void main() {
       const just = { traverse: f => { for (const o of list) { const m = o.material; o.material = occMat; try { f(o); } finally { o.material = m; } } }, traverseVisible() {} };
       world.fog = null; renderer.setRenderTarget(occRT);
       try { renderer.compile(just, occCam, world); } catch (e) { return Promise.resolve(); } finally { world.fog = fog; renderer.setRenderTarget(prev); }
-      const progs = () => [...((renderer.properties.get(occMat).programs || new Map()).values())];
+      const progs = () => [...((renderer.properties.get(occMat).programs || new Map()).values())].filter(p => p && p.program); // (not one three.js has destroyed: GL has nothing to say of it, world.js compile)
       return new Promise(done => {
         const check = () => {
           if (progs().some(p => p.isReady && !p.isReady())) { setTimeout(check, 10); return; }

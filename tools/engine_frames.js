@@ -7,13 +7,19 @@
 // Metal) and audio are Safari's kind, but it is not Safari: no Low Power Mode, no Safari's process limits or settings.
 //   python3 -m http.server 8800 --directory web &
 //   ENGINE=webkit NODE_PATH=$(npm root -g) node tools/engine_frames.js [WxH] [seconds]     Q='walk=1' (default), DPR=2, HEADED=1, TIER=
+// On a session's machine (no GPU; issue 184), to see what the governor makes of a frame that is slow outside the script,
+// as Safari's is: ASDEV=1 the page takes the software renderer for an Apple M3's (its tier is the device's, not low's),
+// SLOW=ms each frame is drawn no sooner than ms after the last (its callbacks held to the next animation frame after
+// that: the time is spent outside the script and the same at any scale or tier), THROTTLE=n Chromium's CPU n times slower,
+// CLEAR=1 the device's records (bh-gov-, bh-tier-) cleared first, a visitor's first visit; GPU=gl Chromium on Mesa's
+// llvmpipe (under xvfb-run, about three times SwiftShader's speed).
 const pw = require('playwright');
 const { startPlay } = require('./start_play');
 const [,, size = '1440x900', secs = '120'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), ENGINE = process.env.ENGINE || 'chromium';
   const b = ENGINE === 'safari' ? await require('./safari').launch() : await pw[ENGINE].launch(ENGINE === 'chromium'
-    ? { args: process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }
+    ? { args: process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] : process.env.GPU === 'gl' ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }
     : { headless: !process.env.HEADED });
   if (b.version) console.log(b.version);
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +(process.env.DPR || 2) });
@@ -36,13 +42,23 @@ const [,, size = '1440x900', secs = '120'] = process.argv;
   // (and the page is told it has the focus: a player's page without it draws ten frames a second, game.js awayHold,
   // and an automated window loses it to whatever else opens on the screen)
   if (process.env.FREE) await p.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true }); document.hasFocus = () => true; });
+  if (process.env.ASDEV) await p.addInitScript(() => {
+    const get = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (k, a) { if (a && a.failIfMajorPerformanceCaveat) a = Object.assign({}, a, { failIfMajorPerformanceCaveat: false }); return get.call(this, k, a); };
+    for (const P of [WebGLRenderingContext.prototype, WebGL2RenderingContext.prototype]) {
+      const gp = P.getParameter;
+      P.getParameter = function (k) { const v = gp.call(this, k); return typeof v === 'string' && /llvmpipe|swiftshader|softpipe|software/i.test(v) ? 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)' : v; };
+    }
+  });
+  if (process.env.CLEAR) await p.addInitScript(() => { try { for (const k of Object.keys(localStorage)) if (/^bh-(gov|tier)-/.test(k) && !sessionStorage.getItem('cleared')) localStorage.removeItem(k); sessionStorage.setItem('cleared', 1); } catch (e) { /* storage blocked */ } });
   if (process.env.TIER) await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER);
-  await p.addInitScript(count => {
+  await p.addInitScript(([count, slow]) => {
     // each frame (COUNT=0: the WebGL calls left uncounted, to see what the counting itself costs): its gap from the last, the time inside its callbacks, its draw calls and every WebGL call
     const F = window.__frames = { gap: [], js: [], draws: [], calls: [] };
     let last = 0, js = 0, draws = 0, calls = 0;
     const raf = window.requestAnimationFrame.bind(window);
-    window.requestAnimationFrame = fn => raf(t => {   // (a frame's callbacks are all given the same time)
+    window.requestAnimationFrame = fn => raf(function run(t) {   // (a frame's callbacks are all given the same time)
+      if (slow && t !== last && t - last < slow) return raf(run); // (SLOW: not yet; held to a later frame with the others)
       if (t !== last) { if (last) { F.gap.push(t - last); F.js.push(js); F.draws.push(draws); F.calls.push(calls); } last = t; js = 0; draws = 0; calls = 0; }
       const t0 = performance.now(); try { fn(t); } finally { js += performance.now() - t0; }
     });
@@ -53,10 +69,15 @@ const [,, size = '1440x900', secs = '120'] = process.argv;
       const f = d.value, draw = /^(draw|multiDraw)/.test(k);
       P[k] = function (...a) { calls++; if (draw) draws++; return f.apply(this, a); };
     }
-  }, process.env.COUNT !== '0');
+  }, [process.env.COUNT !== '0', +(process.env.SLOW || 0)]);
+  if (process.env.THROTTLE && ENGINE === 'chromium') { const cdp = await p.context().newCDPSession(p); await cdp.send('Emulation.setCPUThrottlingRate', { rate: +process.env.THROTTLE }); }
   const t0 = Date.now();
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?${process.env.Q || 'walk=1'}&telemetry=debug#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await startPlay(p, { asIs: true });
+  // TIME=HH:MM: the place's clock set to that hour and held there (the walk otherwise begins at the place's own hour,
+  // and its crowd and its light with it: a reading at seven in the morning is not one at nine at night)
+  if (process.env.TIME) await p.evaluate(t => { const g = window.__game, [H, M] = t.split(':').map(Number), c = g.clock; g.setClock(c.y, c.m, c.d, H * 60 + M); c.frozen = true; }, process.env.TIME);
+  console.log(`the place's hour: ${await p.evaluate(() => { const c = window.__game.clock; return `${String(Math.floor(c.min / 60)).padStart(2, '0')}:${String(Math.floor(c.min % 60)).padStart(2, '0')}${c.frozen ? ' (held)' : ''}`; })}`);
   console.log(`title up and Play pressed ${((Date.now() - t0) / 1000).toFixed(1)} s after the address`);
   const dev = await p.evaluate(() => {
     const c = document.createElement('canvas').getContext('webgl2'), x = c && c.getExtension('WEBGL_debug_renderer_info'), Q = window.OEQuality;
