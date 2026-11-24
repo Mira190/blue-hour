@@ -2290,7 +2290,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (sndLoading || sndSlow) sndBusyAt = now;
     return playing && now - sndBusyAt < 3000;
   }
-  if (SND_GUARD && A.onGaveUp) A.onGaveUp(() => H.toast('The street\'s sound is off: this phone needs all it has to draw the street. Music plays on. To try the street again, turn Sound off and on in the menu.'));
+  // (said once, short, at the foot of the frame; the whole of it under the menu's Sound, where it is acted on)
+  if (SND_GUARD && A.onGaveUp) A.onGaveUp(() => {
+    H.toast('Street sound off to keep the frame smooth · Menu › Sound to retry');
+    const row = $('#gm-sound') && $('#gm-sound').closest('label');
+    if (row && !row.querySelector('.gm-snd-why')) { const w = document.createElement('small'); w.className = 'gm-snd-why'; w.textContent = 'The street\'s sound is off: this phone needs all it has to draw the street. Music plays on. Turn Sound off and on to try the street again.'; row.after(w); }
+  });
   const keep = () => { if (playing) save(); };
   on(document, 'visibilitychange', () => { if (document.hidden) keep(); });
   on(window, 'pagehide', keep);

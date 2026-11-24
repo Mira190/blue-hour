@@ -366,7 +366,11 @@ window.OEHud = (function () {
     said.push({ text, kind });
     if (saying === null) sayNext(); else waits();
   }
+  // (a frame's words still up, before they fold to their line: the notice waits behind them, story.js goal; one block of
+  // words over the play at a time)
+  const wordsUp = () => !!document.querySelector('#g-story-goal.on:not(.folded) em:not(:empty)');
   function sayNext() {
+    if (said.length && wordsUp()) { saying = ''; setTimeout(sayNext, 600); return; }
     const q = said.shift(); waits();
     if (!q) { saying = null; return; }
     saying = q.text;

@@ -401,7 +401,7 @@ is a guest of the page's frames, and gives way to them:
   stopping at the start (`sndCueOut`), so the minutes the late parts take are not silent.
 - *The guard*: a break the probe counts while the street plays and the page is seen, of 100 ms, or two of 25 ms within half
   a minute, or six of any size within four seconds, and the street **gives up** for the page: faded out, suspended, kept so.
-  The player is told once ("The street's sound is off ... To try the street again, turn Sound off and on in the menu"),
+  The player is told once, in one short line at the foot of the frame ("Street sound off to keep the frame smooth · Menu › Sound to retry"), and the whole of it stays under the menu's Sound,
   and the loading cue's loop comes back on its element in the street's place (`sndBed`), so play is never silent. The Sound
   switch turned off and on asks again.
   A context's first second and a half, made or let go again, is not read (`SETTLE`): its clock runs ahead of its output
