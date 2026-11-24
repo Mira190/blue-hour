@@ -18,8 +18,9 @@ const hook = () => {
     const r = get.call(this, type, opts);
     if (r && /webgl/.test(type) && !this.__glLost) {
       this.__glLost = true;
-      this.addEventListener('webglcontextlost', () => say('lost'));
-      this.addEventListener('webglcontextrestored', () => say('restored'));
+      // (only a canvas the page shows: one made to ask what the GPU can do, and let go with WEBGL_lose_context, is no loss)
+      this.addEventListener('webglcontextlost', () => { if (this.isConnected) say('lost'); });
+      this.addEventListener('webglcontextrestored', () => { if (this.isConnected) say('restored'); });
     }
     return r;
   };
