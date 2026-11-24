@@ -802,8 +802,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // drawn and stood in nothing, and on the owner's iPhone the player and the guide stood with one through the waist at
   // frame 5's foot of Scramble Square and frame 6's kerb under the station's deck (the Scramble's own were solid only as
   // far as its landmark lays them, 62 m from the junction). Each FC m cell a rail's body crosses, 0.1 m over the ground
-  // under it to its top, is a box in the collision world, a row of cells one box: what nav.slide stops you at, the guide's
-  // step and his planner's stand too (nav.walk). Made once, as the level first comes; tools/rail_walk.js walks into them
+  // under it to its top, is a box, a row of cells one box, in nav's walkers' own world (addFences): what nav.slide
+  // stops you at, the guide's step and his planner's stand too (nav.walk), and no car, lens or sound. Made once, as the
+  // level first comes; tools/rail_walk.js walks into them
   const FC = 0.25;
   function heroFence(h, root) {
     if (h.fenced || !h.at || !h.r) return;
@@ -830,7 +831,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     });
     // (a row's cells side by side, their feet and tops within 0.1 m, one box)
     const keys = [...cells.keys()].sort((a, b) => a - b);
-    let boxes = 0;
+    const B = [];
     for (let k = 0; k < keys.length;) {
       const j = Math.floor(keys[k] / n), i0 = keys[k] % n;
       let lo = cells.get(keys[k])[0], hi = cells.get(keys[k])[1], e = k + 1;
@@ -840,10 +841,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         lo = Math.min(lo, q[0]); hi = Math.max(hi, q[1]); e++;
       }
       const xa = x0 + i0 * FC, xb = x0 + (i0 + e - k) * FC, ya = y0 + j * FC, yb = ya + FC;
-      nav.col.addBox(xa, ya, xb, yb, lo + 0.1, hi + 0.02, nav.LFINE, -1);
-      boxes++; k = e;
+      B.push([xa, ya, xb, yb, lo + 0.1, hi + 0.02]);
+      k = e;
     }
-    h.fenceBoxes = boxes; // (for tools/rail_walk.js)
+    nav.addFences(B);
+    h.fenceBoxes = B.length; // (for tools/rail_walk.js)
   }
   // the lowest drawn ceiling over (x, y) above the height z, of the landmarks and every hero level, or null
   const heroCeil = (x, y, z) => {

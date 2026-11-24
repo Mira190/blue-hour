@@ -932,8 +932,10 @@ On the owner's iPhone the player and the guide stood with a white guard rail thr
 Scramble Square and at frame 6's kerb under the station's deck. The hero levels draw their guard rails (`metal_guard`)
 and nothing made Miyamasuzaka's solid: only the Scramble landmark's own, within 62 m of the junction
 (`scramble.py` `GUARD_NEAR`), and the page read the drawn rails for a car's kerb stop alone (#208). Now each 0.25 m cell
-a drawn rail crosses is a box in the collision world as the level comes (`game.js` `heroFence`), which stops you, the
-guide's step and his planner (`nav.slide`, `nav.walk`) on a desktop and a phone alike.
+a drawn rail crosses is a box as the level comes (`game.js` `heroFence`), in a collision world for walkers alone
+(`nav.addFences`), which stops you, the guide's step and his planner (`nav.slide`, `nav.walk`) on a desktop and a phone
+alike. A first cut put them in the world everything reads, and the car called to the kerb (`wedged`) read the rail behind
+the kerb as a wall and stopped 72 m off (the walk check).
 `tools/rail_walk.js` meets every drawn rail head on, at each place where both sides are ground at one level: you with W
 held, the guide's step as `game.js` gives it, and a minute of the crowd. On main: at 77 places on Miyamasuzaka you went
 through 154 of 154 tries and the guide 152, and through 3 of the Scramble's beyond the landmark's reach; the crowd touched
