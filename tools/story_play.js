@@ -500,8 +500,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (b.shown) {
       // (one tap, and the story given a second and a half to take it: the button turns the camera over, so a second tap
       // sent before the first is taken would put it back. Tapped again only if nothing came of it, three times at most)
-      for (let k = 0; k < 3; k++) { await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
-      const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m);
+      // (and looked at again before each tap: a step that has just moved you, off the light, say, found the button still up
+      // from the frame before, and the story took it down before the tap came, main's storyp on 3aa33f8. Gone, it is a
+      // camera with no button for it, as below; up and tapped three times with nothing coming of it, a fault)
+      let gone = false;
+      for (let k = 0; k < 3 && !gone; k++) { if (!(b = await look()).shown) { gone = true; break; } await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
+      if (!gone) { const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m); }
+      else console.log(`note touch: the camera's button went as it was to be tapped (${b.at}): the camera ${on ? 'raised' : 'lowered'} by the story's own function`);
     } else console.log(`note touch: the camera ${on ? 'raised' : 'lowered'} with no button for it on the screen (${b.at}): by the story's own function`);
     return p.evaluate(on => window.__game.story.raise(on), on); };
   const shoot = () => (TOUCH ? tapEl('#g-story-shutter') : p.evaluate(() => { window.__game.story.shoot(); }));
