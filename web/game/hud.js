@@ -368,9 +368,17 @@ window.OEHud = (function () {
   }
   // (a frame's words still up, before they fold to their line: the notice waits behind them, story.js goal; one block of
   // words over the play at a time)
-  const wordsUp = () => !!document.querySelector('#g-story-goal.on:not(.folded) em:not(:empty)');
+  // words; for 4 s at most, then the words fold to their line and the notice is said: what it says may be what to do
+  const wordsUp = () => document.querySelector('#g-story-goal.on:not(.folded):has(em:not(:empty))');
+  let heldAt = 0;
   function sayNext() {
-    if (said.length && wordsUp()) { saying = ''; setTimeout(sayNext, 600); return; }
+    const up = said.length && wordsUp();
+    if (up) {
+      if (!heldAt) heldAt = performance.now();
+      if (performance.now() - heldAt < 4000) { saying = ''; waits(); setTimeout(sayNext, 500); return; }
+      up.classList.add('folded');
+    }
+    heldAt = 0;
     const q = said.shift(); waits();
     if (!q) { saying = null; return; }
     saying = q.text;
