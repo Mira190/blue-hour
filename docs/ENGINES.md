@@ -179,6 +179,72 @@ raising the pitch before pulling in. Modes switch by code paths, not by blends.
   real shadows. Nothing else can show the exact sun on a real place, so this fits
   the project well. The share card can carry the sun position and the time.
 
+**The lens's window: a camera never enters a body (issue 209).** The owner's still of
+frame 3 had the chase view a few decimetres over the player's head looking straight down, the
+near plane through the hair and the skull. A camera takes its picture through a window, not
+from a point: the near plane's rectangle, `camera.near` ahead of the lens (0.3 m in play), as
+wide as the lens's angle makes it, its corners 0.4 m from the lens on a desktop. Whatever
+that window is in is drawn from inside. Found with `tools/cam_intrude.js` (below): the chase
+rig's pull-in floor was a fraction of the arm, `max(0.15, f - 0.04)`, not a distance. Zoomed
+to the wheel's 2.5 m with a wall behind, that is 0.375 m from your eyes, and the window was
+2 cm into the head, Spine2 and the neck within 3 cm. With a lift over the wall it was over
+the head looking down. The same floor also left the lens inside the wall it was pulled in
+for, whenever the wall was nearer than the floor. Nothing after the rig knew about bodies:
+not the ceiling's clamp, not the finder lowered from the eye, not a straight-line blend
+between two views, and a scripted shot skipped the lens's checks altogether.
+
+What the survey found (design only; no code taken):
+- **Spring arms keep the lens out of the world, not out of the character.** Unreal's
+  `USpringArmComponent` sweeps a probe sphere and has no minimum length (Epic's docs, EULA).
+  Cinemachine's Deoccluder has `MinimumDistanceFromTarget` (0.3 m by default) and the three
+  strategies above; its ThirdPersonFollow has a camera radius of 0.2 m and no minimum
+  (Unity's docs and source, `com.unity.cinemachine`). Godot's `SpringArm3D` sweeps the
+  camera's own near-plane pyramid when it has no shape, and the character has to be
+  excluded by hand (MIT). camera-controls (yomotsu, MIT) casts four rays, one through each
+  corner of the near plane. Babylon.js's `ArcRotateCamera` has only `lowerRadiusLimit`
+  (Apache-2.0). None of them protects the followed character by itself.
+- **Sweep the near window, not a point.** Godot's pyramid and camera-controls' four corner
+  rays measure the window, the thing that clips.
+- **John Nesky, "50 Game Camera Mistakes" (GDC 2014, Journey):** #13 "letting the camera's
+  near-clipping-plane intersect the avatar" (keep a gap, or fade the avatar); #12, an
+  occluder from behind pulls in rather than swings; #14 and #16, distance and pitch go
+  together, so a short arm is not a steep one.
+- **Fading the character the lens is near** is common in shipped games (Super Mario
+  Odyssey's dots, seen and described by others; Unreal's `DitherTemporalAA` recipe). No
+  primary source gives distances. This game decided the other way for people near the lens
+  (issue 129, `people.js`): a person is in the picture whole or out of it whole, with no fade
+  in any person's material. So the last resort here is the same whole take-out, and no new
+  material program is needed.
+
+Adopted, in this order (the first that works wins, and nothing fights a hand on the view):
+1. **The window comes in before anyone is touched.** Every frame, from every camera (chase,
+   talk, film, scripted shot, finder, photograph, close look), once the frame's camera is set
+   (`game.js` `lensGuard`, after the frame's camera call): if the window is in a body, the
+   near plane comes in towards the lens, down to the close look's own 0.05 m. The depth
+   buffer is reversed, so that costs the far city nothing. A body here is capsules fitted once
+   per model to the vertices each bone carries, generous (the 97th hundredth round the axis,
+   plus 2 cm). The frame allocates nothing.
+2. **The chase arm on foot is never pulled into the wall to stay out of you.** Its floor is
+   no longer a fraction of the arm. The lens stays on your side of the wall, and step 1 makes
+   room down to 0.34 m from your eyes.
+3. **Pitch shrinks with the arm.** A lift over a wall behind is not taken when its arm would
+   be short: the steepest view allowed falls from any pitch at 2.5 m to 0.5 rad at 0.8 m
+   (`pitchRoom`). The lens is never over your head looking down at your hair.
+4. **Issue 99's turn to an open side** is unchanged: not while a hand is on the view, not
+   during a story's shot.
+5. **Last resort:** only when the lens itself is inside someone, so no window clears them,
+   is that person out of the picture for the frame, whole, as `lensClear` takes people out.
+   For you, that is a wall pressed to your back while a hand holds the view into it. It
+   lasts as long as the hand holds it there.
+
+Checked by `tools/cam_intrude.js`, in every frame of `tools/story_play.js` and
+`tools/walk_play.js`: the window against each drawn body's skinned parts (the 80th hundredth,
+a little under the skin, so what it calls inside is inside). Any window in a drawn body
+fails. It prints the nearest miss, and whom the guard took out and from which camera. Run by
+itself, it stands you in the tightest spots near the frame's start (a wall at your back, a
+corner, under a low soffit, by a tree) and turns the view by hand through every bearing and
+pitch at both distances.
+
 Files: `game.js` (camera), a new `camera.js` once rigs exist.
 
 ## 3. Input

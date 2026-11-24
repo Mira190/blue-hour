@@ -19,14 +19,16 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   deploy:
     # (a pass of a push to main; a run of the checks by hand may have checked a few targets only)
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    # (one deploy at a time, and one under way is never cancelled: the group was the workflow's, so every run of the checks
+    # that ended, a cancelled one too, started a run of this one that skipped its job and still cancelled the deploy under
+    # way, 24 November. On the job, a run whose job is skipped never joins it; a deploy takes a minute, so the next waits)
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     env:
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -58,11 +60,15 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
+      # (and Vercel whether or not Pages took the deploy: a refusal on GitHub's side, "try again later", kept `live` back
+      # with it twice on 24 November. Whenever the commit checked passed and its version was written; a re-run finds its
+      # tag there already)
       - name: Tag the release, and move live to it
+        if: ${{ !cancelled() && steps.version.outcome == 'success' }}
         run: |
           tag="v${{ steps.version.outputs.version }}"
-          git tag "$tag" "$SHA"
-          git push origin "$tag"
+          git tag "$tag" "$SHA" 2>/dev/null || echo "tag $tag is there already"
+          git push origin "$tag" || echo "tag $tag was pushed already"
           # Vercel builds each move of live, and its plan allows so many deployments a day: live moves only where
           # what Vercel serves changed (docs/CHECKS.md, "One deploy a pass"). A pass of docs, tools or the pipeline's
           # data keeps Vercel on the commit before, which serves the same files; Pages and the tag take every pass.
