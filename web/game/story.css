@@ -665,7 +665,7 @@
 /* (and not there at all without a film: unseen, it took every tap and click at the top right of the street) */
 #g-story-mov:not(.on) button { pointer-events: none; }
 #g-story-mov button:is(:hover, :focus-visible) { color: var(--paper); }
-.game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
+.game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-finder, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
 @media (max-width: 640px) {
   #g-story-mov p { bottom: calc(8.5vh + 18px); width: calc(100% - 32px); font-size: 15px; }
   #g-story-mov button { right: 16px; }

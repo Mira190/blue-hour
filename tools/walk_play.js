@@ -118,7 +118,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await p.waitForTimeout(2500); // (the card's parts slide in)
   };
   const visible = sel => p.evaluate(s => { const e = document.querySelector(s); if (!e || e.hidden) return false; const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0.05; }, sel);
-  const press = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
+  // (a button seen a moment ago and gone at the press is waited for once more, and said: the corner lays itself out again as
+  // the player gets out of the car, seconds on a software renderer, and the button was seen and then laid out away, walk1 on
+  // the branch routes-yield)
+  const press = async sel => { let r = await p.locator(sel).first().boundingBox(); if (!r && (await shown(sel, 10000))) { console.log(`(${sel} gone at the press and back)`); r = await p.locator(sel).first().boundingBox(); } if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
   const shot = async n => { if (process.env.STILLS !== '0') await whole(p, () => p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${n}.png`, timeout: 120000 })).catch(() => console.log(`(no still ${n})`)); if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/walk-${n}.json`, { ctx: phone ? 'touch' : 'desk' }).catch(() => {}); };
   const state = () => p.evaluate(() => {
     const g = window.__game, c = g.clock, wx = g.weather ? g.weather.state : {};
@@ -618,6 +621,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           await p.waitForFunction(() => window.__game.walkLine().ph !== 'wait', null, { timeout: 600000, polling: 250 }).catch(() => {});
           await p.waitForFunction(() => /down|up/.test(window.__game.walkLine().ph), null, { timeout: 600000, polling: 250 }).catch(() => {}); // (the line goes by the page's own frames: seconds each on a software renderer)
           const l = await line();
+          // (not in the first calm of control, and a man running: issue 229)
+          if (l.startedAt == null || l.startedAt < 24.9) fail(`the walk's line began ${l.startedAt} s into control, inside its calm of 25 s`);
+          if (!(l.v >= 4)) fail(`the walk's line: he came at ${l.v} m/s, a walk, not a run`);
           if (l.ph !== 'down' || l.at[2] !== 'down') fail(`the walk's line: nobody walked into her, or she is not on the ground (${JSON.stringify(l)})`);
           else {
             ok(`the walk's line: he walked into her and walked on (he is at ${l.man}); she is on the ground`);
