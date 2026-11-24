@@ -265,8 +265,7 @@ window.OETelemetry = (function () {
       // the hitches a person feels (over 100 ms); the fastest rate the device kept for a twentieth of its frames
       const at = p => { let c = 0; for (let i = 0; i < f.bins.length; i++) { c += f.bins[i]; if (c >= n * p) return (i + 1) * 2; } return 200; };
       props.f95 = at(0.95); props.f99 = at(0.99); props.fmax = Math.round(f.max); props.hitch = f.hitch;
-      const hz = 1000 / (at(0.05) - 1);
-      props.hz = [30, 60, 72, 75, 90, 120, 144, 165, 240].reduce((a, b) => (Math.abs(b - hz) < Math.abs(a - hz) ? b : a));
+      props.hz = rateOf(at);
       // what the frame cost: the main thread's work and the GPU's time (medians and the 95th percentile, ms),
       // a sampled frame's draw calls, triangles and full-screen passes, and the pixels of the canvas
       const r1 = x => Math.round(x * 10) / 10;
@@ -277,7 +276,8 @@ window.OETelemetry = (function () {
       if (dr != null) { props.draws = Math.round(dr); props.tris_k = Math.round(qt(f.tris, 0.5) / 1000); props.passes = Math.round(qt(f.passes, 0.5)); }
       if (f.px) props.px_k = Math.round(f.px / 1000);
       // what held the frame rate: nothing ("ok": within a tenth of the display's rate), the GPU or the script.
-      // Without a GPU timer, a slow frame the script does not account for is put down to the GPU ("gpu?").
+      // Without a GPU timer, a slow frame the script does not account for is put down to the GPU ("gpu?"): in Safari
+      // that is the frame's WebGL calls, made by the script and spent after it (issue 184).
       props.bound = props.fps >= props.hz * 0.9 ? 'ok' : g50 != null ? (g50 >= (c50 || 0) ? 'gpu' : 'cpu') : c50 != null ? (c50 > med * 0.6 ? 'cpu' : 'gpu?') : undefined;
     }
     props.eng_s = Math.round(engFlush / 100) / 10;
@@ -296,6 +296,15 @@ window.OETelemetry = (function () {
     for (const [k, d] of cur.dwell) if (d.s >= 1) track('dwell', Object.assign({ spot: d.spot, mode: d.mode, s: Math.round(d.s * 10) / 10, eng_s: Math.round(d.eng * 10) / 10 },
       d.fn >= 10 ? { fps: Math.round(1000 * d.fn / d.fms), slow: Math.round(d.fslow / d.fn * 1000) / 1000 } : {}));
     cur.dwell.clear(); cur.dk = null;
+  }
+  // The display's rate, from the frames: the fastest twentieth of them. Not under 60 unless the frames keep a 30 Hz beat:
+  // Safari on an M3 drew 26 to 29 frames a second, its frames 26 to 57 ms apart, and with its fastest near 30 ms this
+  // took its 60 Hz display for a 30 Hz one and called the frame rate fine ("hz 30, bound ok": issue 184). A display or a
+  // browser that truly gives 30 (Low Power Mode) gives it evenly: nine frames in ten 31 to 36 ms apart.
+  // at(p): the frame time p of the frames are no slower than (the upper edge of its 2 ms bin)
+  function rateOf(at) {
+    const hz = 1000 / (at(0.05) - 1), near = [30, 60, 72, 75, 90, 120, 144, 165, 240].reduce((a, b) => (Math.abs(b - hz) < Math.abs(a - hz) ? b : a));
+    return near > 30 || (at(0.05) >= 32 && at(0.95) <= 36) ? near : 60;
   }
   // a reservoir of samples (240 kept, each as likely as any other), for a median and a 95th percentile
   const pool = () => ({ a: new Float32Array(240), n: 0 });
@@ -761,6 +770,6 @@ window.OETelemetry = (function () {
   // (switched off: nothing waits and nothing more is taken. The page's note to itself that it is alive stays: it is not
   // sent, and it is how a phone whose page died loads a level lighter the next time, quality.js)
   halt = () => { queue = []; stopped = true; api.on = false; if (L) L.extra(null); }; // (the page's own note goes on, with only what it keeps itself: lifeline.js)
-  const api = { on: true, consent, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample };   // frames, here, sample: for tools/telemetry_check.js
+  const api = { on: true, consent, track, flush, view, set, gpu: gpuFrame, gpuName, frames: () => (cur ? cur.frames.n : 0), here: () => (cur ? cur.here : null), sample, rateOf };   // frames, here, sample: for tools/telemetry_check.js; rateOf: tools/governor_unit.js
   return api;
 })();
