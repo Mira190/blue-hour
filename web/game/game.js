@@ -4460,17 +4460,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     };
     open();
   };
-  // The menus' Title screen in place (issue 215; ?inplace=1 while it is tried): the case or the walk is parked under the
+  // The menus' Title screen in place (issue 215; ?inplace=0 opens the page again, as before): the case or the walk is parked under the
   // title, not torn down. The game holds both still while the title is up (paused, story.tick and the walk's talk), so
   // leaving is the title shown over the live street with the mode's own interface put away (story.css "parked"), and
   // the same mode's way in takes it up where it was, in the middle of a frame or a drive; the street's hour and sky put
   // back as they were, for the walk's step on the title dresses the street as it is chosen. The other mode's way in
   // opens the page again straight into that mode (bh-story-auto, bh-walk-auto): one load, never a title in between.
   // Nothing is made or let go, so going back and forth costs nothing (tools/title_inplace.js counts it).
-  const INPLACE = /[?&]inplace=1\b/.test(location.search);
+  const INPLACE = !/[?&]inplace=0\b/.test(location.search); // (?inplace=0: the page load, as before; the fallback below either way)
   let parked = null; // { mode: 'story' | 'walk', cam, clock, sky, walkLine }
+  // (the page load is the fallback: whenever the street cannot be kept as it is, a lost context, or anything that throws
+  // on the way out, parkTitle says no and the menu opens the page again, menus.js)
   function parkTitle() {
     if (!INPLACE || !playing || parked || (overture && overture.active) || cine.active) return false;
+    try { if (renderer.getContext().isContextLost()) return false; } catch (e) { return false; }
+    try { return parkIn(); } catch (e) {
+      try { console.warn('the title in place failed, opening the page again', e); stage.classList.remove('parked', 'parked-story', 'parked-walk'); $('#g-title').hidden = true; parked = null; } catch (e2) { /* the page load clears it */ }
+      return false;
+    }
+  }
+  function parkIn() {
     const mode = walk ? 'walk' : story && story.on ? 'story' : null;
     if (!mode) return false;
     parked = { mode, cam: { mode: cam.mode, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, tilt: cam.tilt }, clock: { y: clock.y, m: clock.m, d: clock.d, min: clock.min, scale: clock.scale }, sky: weather ? weather.state.kind : null };

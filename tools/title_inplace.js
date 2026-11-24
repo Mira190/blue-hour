@@ -29,13 +29,29 @@ const [,, out = '/tmp/title-inplace', size = '390x844', N = '10'] = process.argv
   let loads = 0, expect = 0;
   p.on('framenavigated', f => { if (f === p.mainFrame()) loads++; });
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
+  // (what the page holds that a switch could leave behind: WebGL's own memory as asked of it, tools/gl_mem.js; the event
+  // listeners added and not taken off, by target and type; the intervals running; the timeouts waiting)
+  await p.addInitScript(require('./gl_mem').hook);
+  await p.addInitScript(() => {
+    const L = window.__lis = new WeakMap(); let n = 0; const T = window.__timers = { iv: new Set(), to: new Set() };
+    const add = EventTarget.prototype.addEventListener, rem = EventTarget.prototype.removeEventListener;
+    const key = (type, f, o) => `${type}|${typeof o === 'boolean' ? o : !!(o && o.capture)}`;
+    EventTarget.prototype.addEventListener = function (type, f, o) { if (f) { let m = L.get(this); if (!m) L.set(this, m = new Map()); const k = key(type, f, o); let s2 = m.get(k); if (!s2) m.set(k, s2 = new Set()); if (!s2.has(f)) { s2.add(f); n++; } } return add.call(this, type, f, o); };
+    EventTarget.prototype.removeEventListener = function (type, f, o) { const m = L.get(this), s2 = m && m.get(key(type, f, o)); if (s2 && s2.delete(f)) n--; return rem.call(this, type, f, o); };
+    window.__lisN = () => n;
+    const si = window.setInterval, ci = window.clearInterval, st = window.setTimeout, ct = window.clearTimeout;
+    window.setInterval = function (...a) { const id = si.apply(this, a); T.iv.add(id); return id; };
+    window.clearInterval = function (id) { T.iv.delete(id); return ci.call(this, id); };
+    window.setTimeout = function (f, ...a) { let id; id = st.call(this, typeof f === 'function' ? function (...b) { T.to.delete(id); return f.apply(this, b); } : f, ...a); T.to.add(id); return id; };
+    window.clearTimeout = function (id) { T.to.delete(id); return ct.call(this, id); };
+  });
   await p.addInitScript(() => { try { if (sessionStorage.getItem('ti-seeded')) return; sessionStorage.setItem('ti-seeded', '1'); localStorage.setItem('bh-player', 'W'); localStorage.setItem('bh-story-late', JSON.stringify({ fi: 2, left: 5, prints: [0, 1].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
   const tap = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
   const titleUp = () => p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && getComputedStyle(t).visibility !== 'hidden'; }, null, { timeout: 900000, polling: 50 });
   const shot = n => p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${n}.png`, timeout: 120000 }).catch(() => console.log(`(no still ${n})`));
   const snap = () => p.evaluate(() => { const g = window.__game, s = g.story.state, c = g.clock; return { fi: s.fi, phase: s.phase, beat: s.beat, prints: s.prints.length, at: [g.player.x, g.player.y, g.player.z], min: c.min, sky: g.weather ? g.weather.state.kind : '', mode: g.player.mode }; });
   const shown = () => p.evaluate(() => [...document.querySelectorAll('#g-story-goal, #g-story-frames, #g-story-menu, #g-walk-acts, #g-walk-where, #gd, #g-btns, #g-touch')].filter(e => { const r = e.getBoundingClientRect(), c = getComputedStyle(e); return !e.closest('[hidden]') && r.width > 0 && r.height > 0 && c.visibility !== 'hidden' && +c.opacity > 0.05; }).map(e => e.id));
-  const mem = async () => { await p.evaluate(() => { if (window.gc) { window.gc(); window.gc(); } }); await p.waitForTimeout(500); return p.evaluate(() => { const i = window.__game.renderer.info; return { heap: performance.memory ? performance.memory.usedJSHeapSize / 1048576 : 0, geo: i.memory.geometries, tex: i.memory.textures, prog: (i.programs || []).length }; }); };
+  const mem = async () => { await p.evaluate(() => { if (window.gc) { window.gc(); window.gc(); } }); await p.waitForTimeout(500); return p.evaluate(() => { const i = window.__game.renderer.info; return { heap: performance.memory ? performance.memory.usedJSHeapSize / 1048576 : 0, geo: i.memory.geometries, tex: i.memory.textures, prog: (i.programs || []).length, gpu: window.__mem ? +(window.__mem.sum / 1048576).toFixed(1) : 0, lis: window.__lisN ? window.__lisN() : 0, iv: window.__timers ? window.__timers.iv.size : 0, to: window.__timers ? window.__timers.to.size : 0 }; }); };
   const openMenu = async mode => { if (mode === 'walk') await tap('#g-walk-acts [data-do="menu"]'); else await tap('#g-story-menu'); await p.waitForFunction(() => !document.getElementById('g-menu').hidden, null, { timeout: 20000 }); await p.waitForTimeout(400); };
   const near = (a, b2) => Math.hypot(a.at[0] - b2.at[0], a.at[1] - b2.at[1], a.at[2] - b2.at[2]);
   // (the world settled first: what streams in after a mode sets out, the late parts, its people's faces and pictures, is
@@ -77,6 +93,11 @@ const [,, out = '/tmp/title-inplace', size = '390x844', N = '10'] = process.argv
     if (worst > bound) fail(`${mode}: the title took ${worst.toFixed(2)} s`);
     if (m1.heap - m0.heap > 8) fail(`${mode}: the heap grew ${(m1.heap - m0.heap).toFixed(1)} MB over ${N} switches`);
     for (const k of ['geo', 'prog']) if (m1[k] > m0[k]) fail(`${mode}: ${k} ${m0[k]} to ${m1[k]} over the switches`);
+    // (the listeners added and not taken off and the intervals running: none more for a switch; the GPU's memory within
+    // 8 MB, what the crowd's faces streaming in move it by; timeouts waiting are read, not judged: the street sets them)
+    if (m1.lis > m0.lis) fail(`${mode}: listeners ${m0.lis} to ${m1.lis} over the switches`);
+    if (m1.iv > m0.iv) fail(`${mode}: intervals ${m0.iv} to ${m1.iv} over the switches`);
+    if (m1.gpu - m0.gpu > 8) fail(`${mode}: the GPU's memory ${m0.gpu} to ${m1.gpu} MB over the switches`);
     // (textures are uploaded at their first draw: a face or a sign the crowd brings into view for the first time counts
     // as one more, switch or none; TEXWHO=1 says where each was made. The walk's CONTROL=1 rose 6 in the same time)
     if (m1.tex - m0.tex > 12) fail(`${mode}: textures ${m0.tex} to ${m1.tex} over the switches`);
