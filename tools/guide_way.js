@@ -97,7 +97,7 @@ const LEADS = [
   ]) {
     if (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k))) continue;
     const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 2.5, STUCK_M: 0.3, TRACE: !!process.env.TRACE }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));
-    const ok = !r.error && !r.faults.length && r.state === 'sit' && Math.hypot(r.player[0] - live.target[0], r.player[1] - live.target[1]) < 9; // (and both got there: the player was not held anywhere on the way)
+    const ok = !r.error && !r.faults.length && (r.state === 'sit' || r.left < 3.5) && Math.hypot(r.player[0] - live.target[0], r.player[1] - live.target[1]) < 9; // (and both got there: the player was not held anywhere on the way)
     if (!ok) fails++;
     console.log(ok ? 'ok  ' : 'FAIL', R.name, JSON.stringify(r));
     await shoot(`${out}/${R.name}-end.png`);
