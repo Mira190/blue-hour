@@ -310,6 +310,10 @@
     if (slice) await pause();
     let buf = cells ? null : Buf(), lod = 0; // (the cell being built, and its level of detail)
     const trimC = lin('#d6d2c8'), soffitC = lin('#e9e4d8'), awnC = lin('#3b3f43');
+    // a deck over a road (buildings.json "decks", pipeline/stations.py): fair-faced concrete, a paved walkway, a glass
+    // parapet and the canopy's steel. The underside is the concrete's own grey, lit by its downlights after dark (the
+    // soffit's kind), not the pale soffit of an awning, which glowed grey over the road at dusk (issue 212)
+    const deckEdgeC = lin('#b9b6ae'), deckUnderC = lin('#5f5d59'), deckFloorC = lin('#a8a397'), deckGlassC = lin('#4f5e63'), deckSteelC = lin('#5d6266');
 
     // ------------------------------------------------------------ walls
     const LEVELS = [0, 8, 24, 48, 96, 192, 384];
@@ -526,7 +530,55 @@
       quad([[...c[2], z0], [...c[2], z1], [...c[1], z1], [...c[1], z0]], 0, [ux, uy, 0], awnC, K_TRIM);
     }
 
+    // a band along a ring, facing out of it (out = true) or into it, from zLo to zHi
+    function edge(ring, zLo, zHi, bi, colour, kind, out = true) {
+      const P = BI[bi], n = ring.length / 2;
+      let area = 0;
+      for (let k = 0; k < n; k++) { const j = (k + 1) % n; area += ring[2 * k] * ring[2 * j + 1] - ring[2 * j] * ring[2 * k + 1]; }
+      const sgn = (area > 0) === out ? -1 : 1; // (the ring's left is its inside when it runs anticlockwise)
+      for (let k = 0; k < n; k++) {
+        const j = (k + 1) % n, x0 = ring[2 * k], y0 = ring[2 * k + 1], x1 = ring[2 * j], y1 = ring[2 * j + 1];
+        const l = Math.hypot(x1 - x0, y1 - y0);
+        if (l < 0.05) continue;
+        const nx = -(y1 - y0) / l * sgn, ny = (x1 - x0) / l * sgn;
+        const a = buf.v(x0, y0, zLo, nx, ny, 0, colour, 0, zLo, kind * 16 + P.si, P.storey, P.ground, P.u, 0.85, 0, 0, bi, P.code);
+        const b = buf.v(x1, y1, zLo, nx, ny, 0, colour, l, zLo, kind * 16 + P.si, P.storey, P.ground, P.u, 0.85, 0, 0, bi, P.code);
+        const c = buf.v(x1, y1, zHi, nx, ny, 0, colour, l, zHi, kind * 16 + P.si, P.storey, P.ground, P.u, 0.95, 0, 0, bi, P.code);
+        const d = buf.v(x0, y0, zHi, nx, ny, 0, colour, 0, zHi, kind * 16 + P.si, P.storey, P.ground, P.u, 0.95, 0, 0, bi, P.code);
+        if (sgn > 0) buf.idx.push(a, c, b, a, d, c); else buf.idx.push(a, b, c, a, c, d);
+      }
+    }
+    // a pedestrian deck over a road: its underside, the slab's edge, the walkway, a glass parapet with its rail, and
+    // where it is deep enough a canopy on slim posts along its edge
+    const SLAB = 0.9, PARA = 1.1, CANOPY = 0.3;
+    function deck(rings, zb, zt, bi) {
+      const zf = zb + SLAB, zp = zf + PARA;
+      cap(rings, zb, bi, deckUnderC, K_SOFFIT, 0, true);
+      cap(rings, zf, bi, deckFloorC, K_TRIM, 0);
+      rings.forEach((ring, o) => {
+        edge(ring, zb, zf, bi, deckEdgeC, K_TRIM, o === 0);
+        const inner = inset(ring, o === 0 ? 0.08 : -0.08);
+        edge(ring, zf, zp, bi, deckGlassC, K_TRIM, o === 0);
+        if (inner) edge(inner, zf, zp, bi, deckGlassC, K_TRIM, o !== 0);
+        edge(ring, zp, zp + 0.06, bi, deckSteelC, K_TRIM, o === 0);
+      });
+      if (zt - zp < 2.2) return;
+      const zc = zt - CANOPY; // the canopy: a thin roof over the walkway, its soffit lit after dark
+      cap(rings, zt, bi, BI[bi].roof, K_DECK, 0);
+      cap(rings, zc, bi, deckUnderC, K_SOFFIT, 0, true);
+      rings.forEach((ring, o) => { if (o === 0) edge(ring, zc, zt, bi, deckSteelC, K_TRIM, true); });
+      const ring = inset(rings[0], 0.35);
+      if (!ring) return;
+      const n = ring.length / 2;
+      for (let k = 0; k < n; k++) { // a post every 7.2 m along the edge, and at each corner
+        const j = (k + 1) % n, x0 = ring[2 * k], y0 = ring[2 * k + 1], x1 = ring[2 * j], y1 = ring[2 * j + 1], l = Math.hypot(x1 - x0, y1 - y0);
+        const m = Math.max(1, Math.round(l / 7.2));
+        for (let i = 0; i < m; i++) post(x0 + (x1 - x0) * i / m, y0 + (y1 - y0) * i / m, zp, zc, bi, 0.22);
+      }
+    }
+
     const deckZ = new Map(); // solid -> deck height, for rooftop plant
+    const decks = new Set(B.decks || []);
     const hidden = new Set(hiddenSolids || []); // drawn by a parametric landmark instead
     const passages = new Set(B.passages || []);
     // a mixed-use building's vertical sign hangs on one corner: of its tallest solid from the ground
@@ -543,6 +595,12 @@
       const rings = s.slice(4).map(r => r.map(q => q / 10));
       const r = lod ? null : roofOf.get(si), fronts = frontOf.get(si); // (far off, a pitched roof is a flat one at its ridge)
       const eave = r ? g0 + r[2] / 10 : zt;
+      if (decks.has(si) && !lod) { // (from the middle distance on, its box: a deck is under a pixel's detail there)
+        deck(rings, zb, zt, bi);
+        const q = B.piers && B.piers[si];
+        if (q) for (let i = 0; i < q.length; i += 2) post(q[i] / 10, q[i + 1] / 10, foot ? Math.min(g0, foot(q[i] / 10, q[i + 1] / 10)) - 0.2 : g0, zb, bi, PIER);
+        return;
+      }
       rings.forEach((ring, o) => walls(ring, bi, P.si, zb, Math.max(eave, zb + 0.1), g0, P.windows, fronts, o, o === 0 && signSolid.get(bi) === si));
       if (lod) { cap(rings, zt, bi, P.roof, roofOf.has(si) ? K_ROOF : K_DECK, photoOK && !roofOf.has(si) && meta[bi][2] < 45 ? 16 : 0); return; }
       if (foot && s[2] === 0) plinth(rings, bi, P.si, zb);
