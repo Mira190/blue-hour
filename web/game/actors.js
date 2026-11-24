@@ -736,7 +736,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
       yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
       off: undefined, pBack: undefined, reg0: undefined,
-      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined });
+      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, umbUpT: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
