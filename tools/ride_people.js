@@ -132,7 +132,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   });
   await p.evaluate(() => { const pl = window.__game.player; pl.x = 498; pl.y = -1046; }); // (where the flight sets you down)
   const t0 = Date.now();
-  let arrivedShot = false, pinned = null, rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null;
+  let arrivedShot = false, pinned = null, rode = false, shots = 0, tick = 0, ended = 'not arrived', s0 = null, stood = null;
   while (Date.now() - t0 < (+process.env.LIMIT || (process.env.PASS ? 900 : 600)) * 1000) {
     if (s0 && s0.ride && (s0.ride.phase === 'coming' || (s0.ride.phase === 'driving' && s0.mode === 'ride'))) await p.evaluate(n => window.__rpStep(n), s0.ride.v < 0.5 && s0.ride.phase === 'driving' ? 150 : 45); // (1.5 s of the world; 5 s stood at a light)
     await p.waitForTimeout(s0 && s0.dlg ? 400 : 1000);
@@ -176,6 +176,13 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       if (s.ride && s.ride.phase === 'arrived') await p.keyboard.press('KeyE'); // (out only where it sets you down: 'Get out here' is offered all the way)
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }
+    // (the car on its way to you stood still five minutes of the game's own clock, 9000 of its frames: not a light's red,
+    // which is two minutes at most, but a standstill, and said at once with what holds it, not after the play's limit.
+    // Main's ride on f69bd7d8 gave way at (531, -995.8) for 40 minutes of a runner, #235)
+    if (s.ride && (s.ride.phase === 'coming' || s.ride.phase === 'waiting') && s.ride.v < 0.1 && s.W) {
+      if (stood == null) stood = s.W.frames;
+      else if (s.W.frames - stood > 9000) { ended = `not arrived: the car coming to you stood still five minutes of the game's clock ("${s.ride.intent}", ${s.ride.why}${s.ride.jn ? `, junction ${s.ride.jn}` : ''})`; break; }
+    } else stood = null;
     if (process.env.UPTO === 'pickup' && s.mode === 'ride') { ended = 'arrived'; break; } // (UPTO=pickup: the car's way in to you alone)
   }
   // (not arrived: what holds the car up, and what holds that up in turn, ten cars on: #97)
