@@ -47,7 +47,7 @@
 // another or a foot off its floor fails the play (CLIP_OUT=file: the cases as JSON). After each talk, and in each Stop, the
 // player is walked straight into everyone within 14 m (a still of each, into-*.png) and must stop at their shoulder.
 const { chromium } = require('playwright');
-const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
@@ -661,7 +661,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.evaluate(() => window.__game.storyLog.show(false)); await p.waitForTimeout(600); await snap('goal-largest'); big = 1;
       logWas = r.lines;
       if (process.env.LOGRELOAD) { // the page opened again in the middle of the case: the log is as it was
-        await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
+        expectReload(p, 'LOGRELOAD: the page opened again in the middle of the case'); await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
         await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
         await p.waitForTimeout(1500); await listen(); await begin();
         await p.waitForFunction(() => !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 900000, polling: 500 });
@@ -1329,7 +1329,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     }
     if (+process.env.BACKTO > 1) { // into a frame again from the last card: the roll as it was on arriving there, played to its print
       const n = +process.env.BACKTO;
-      await clickEl(`#g-story-end [data-back="${n - 1}"]`);
+      expectReload(p, `the last card's back into frame ${n}`); await clickEl(`#g-story-end [data-back="${n - 1}"]`);
       await p.waitForFunction(() => !window.__game || !window.__game.story || window.__game.story.state.phase === 'idle', null, { timeout: 120000, polling: 200 }).catch(() => {});
       await p.waitForFunction(() => window.__game && window.__game.story && !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 900000, polling: 500 });
       const a = await p.evaluate(() => { const st = window.__game.story.state; return { fi: st.fi, prints: st.prints.length, flags: Object.keys(st.flags).length, file: st.file.length }; });
