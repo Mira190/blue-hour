@@ -79,7 +79,18 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   await skip(p, +(process.env.DRAW || 0));
   const errors = [];
   const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
-  const fail = m => { m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`); };
+  // (a failure that leaves the walk stuck, a talk still open or a walk's line mid-way (its incident not over), and every
+  // beat after it waited out its own timeout, up to 15 min each, on prompts that read "": walk1 ran 2215 s against 763 s
+  // where Nagi's gate stalled, 24 November. Once stuck, the state is said and the beats after it are given 20 s each:
+  // they fail as before, at once; nothing they check is changed)
+  let stuck = '';
+  const wf0 = p.waitForFunction.bind(p);
+  p.waitForFunction = (f, a, o = {}) => wf0(f, a, stuck ? { ...o, timeout: Math.min(o.timeout || 30000, 20000) } : o);
+  const fail = m => {
+    m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`);
+    if (!stuck) p.evaluate(gate => { const g = window.__game; if (!g || !g.dlg) return ''; const l = g.walkLine && g.walkLine(); return g.dlg.open ? 'a talk left open' : gate && l && l.w !== 'gone' ? `the walk's line never ended (${JSON.stringify(l)})` : ''; }, /she does not go/.test(m))
+      .then(s => { if (s && !stuck) { stuck = s; console.log(`(the walk is stuck after that: ${s.slice(0, 200)}; the beats after it are given 20 s each)`); } }).catch(() => {});
+  };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
