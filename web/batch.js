@@ -70,8 +70,10 @@ window.OEBatch = (function () {
       } catch (e) { console.warn('batch:', m.name, e); if (b) b.dispose(); continue; } // (left as they were)
       b.name = opts.name ? opts.name(m, first) : m.name || 'batch';
       b.castShadow = first.castShadow; b.receiveShadow = first.receiveShadow; b.renderOrder = first.renderOrder; b.layers.mask = first.layers.mask; b.visible = first.visible;
-      // (the squares of an opaque material need no order among themselves; a pane's are drawn far to near, as they were)
-      b.sortObjects = !!m.transparent; b.perObjectFrustumCulled = true;
+      // (the squares of an opaque material need no order among themselves; a pane's are drawn far to near, as they were.
+      // An opaque one is drawn whole: culled square by square, three rebuilt its list and sent it to the GPU as a texture
+      // every frame, 26 of them on the walk (tools/gl_calls.js, issue 191), for squares of three to seven a side)
+      b.sortObjects = !!m.transparent; b.perObjectFrustumCulled = !!m.transparent;
       b.userData.batched = s.length;
       b.computeBoundingBox(); b.computeBoundingSphere();
       b.matrixAutoUpdate = false; b.updateMatrix();
@@ -96,7 +98,9 @@ window.OEBatch = (function () {
       ids = geos.map(g => b.addGeometry(g));
       for (let i = 0; i < cap; i++) b.setVisibleAt(b.addInstance(ids[0]), false);
     } catch (e) { console.warn('batch pool:', material.name, e); if (b) b.dispose(); return null; }
-    b.frustumCulled = false; b.perObjectFrustumCulled = true; b.sortObjects = !!material.transparent; b.visible = false;
+    // (each car drawn whether in view or not: which cars there are is setVisibleAt's, and culled car by car three sent the
+    // pool's list again every frame, as many textures as pools, 18 on the walk: issue 191)
+    b.frustumCulled = false; b.perObjectFrustumCulled = false; b.sortObjects = !!material.transparent; b.visible = false;
     b.userData.batched = cap;
     const at = new Int32Array(cap).fill(0); let n = 0, shown = 0;
     stats.batches++;

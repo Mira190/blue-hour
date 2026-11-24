@@ -15,8 +15,8 @@
 //   In a play: const gc = require('./gl_calls'); await gc.install(page); ... gc.print(await gc.sample(page, 30, 'label'))
 'use strict';
 async function install(page) {
-  await page.addInitScript(() => {
-    const T = window.__glCalls = { texN: 0, beats: [], beatsOn: false, on: false, frames: 0, calls: {}, same: {}, uni: {}, uniSame: {}, pass: {}, who: {}, by: {}, progs: new Set(), switches: 0, draws: 0 };
+  await page.addInitScript(nocount => {
+    const T = window.__glCalls = { js: [], texN: 0, beats: [], beatsOn: false, on: false, frames: 0, calls: {}, same: {}, uni: {}, uniSame: {}, pass: {}, who: {}, by: {}, progs: new Set(), switches: 0, draws: 0 };
     // (these methods also by what was drawn: the work redone each frame, and the lights' uniforms)
     const BY = /^(createBuffer|deleteBuffer|bufferData|bufferSubData|createVertexArray|texParameteri|texSubImage2D|texImage2D|texStorage2D|generateMipmap|useProgram|draw|multiDraw)/;
     const P = WebGL2RenderingContext.prototype, orig = {};
@@ -27,7 +27,7 @@ async function install(page) {
     const same = k => add(T.same, k);
     const key = a => { let s = ''; for (const v of a) s += (v && v.length !== undefined && typeof v !== 'string' ? Array.prototype.join.call(v, ',') : String(v)) + '|'; return s; };
     const MISC = ['depthMask', 'colorMask', 'blendFunc', 'blendFuncSeparate', 'blendEquation', 'blendEquationSeparate', 'depthFunc', 'cullFace', 'frontFace', 'viewport', 'scissor', 'clearColor', 'clearDepth', 'polygonOffset', 'stencilFunc', 'stencilOp', 'stencilMask', 'pixelStorei', 'lineWidth', 'blendColor', 'clearStencil'];
-    for (const k of Object.getOwnPropertyNames(P)) {
+    for (const k of nocount ? [] : Object.getOwnPropertyNames(P)) { // (NOCOUNT=1: nothing wrapped, for the script's own time)
       const d = Object.getOwnPropertyDescriptor(P, k);
       if (!d || typeof d.value !== 'function' || k === 'constructor') continue;
       const f = orig[k] = d.value;
@@ -96,8 +96,8 @@ async function install(page) {
       mark = now;
       if (k && (!beat || beat.k !== k)) { beat = T.beats.find(b => b.k === k) || (T.beats.push({ k, frames: 0, calls: 0, draws: 0, uni: 0, lights: 0, up: 0, same: 0 }), T.beats[T.beats.length - 1]); }
     };
-    window.requestAnimationFrame = cb => raf(t => { if (t !== last) { last = t; if (T.on) T.frames++; if (T.want && T.frames >= T.want) T.on = false; try { hook(); if (T.beatsOn) beatTick(); } catch (e) { T.err = String(e && e.stack || e).slice(0, 300); } } cb(t); }); // (never in the page's way: a throw here would stop its frames)
-  });
+    window.requestAnimationFrame = cb => raf(t => { if (t !== last) { last = t; if (T.on) T.frames++; if (T.want && T.frames >= T.want) T.on = false; try { hook(); if (T.beatsOn) beatTick(); } catch (e) { T.err = String(e && e.stack || e).slice(0, 300); } } const t0 = performance.now(); try { cb(t); } finally { if (T.on) T.js.push(performance.now() - t0); } }); // (never in the page's way: a throw here would stop its frames)
+  }, !!process.env.NOCOUNT);
 }
 // a play's beats: every frame counted from the start, a frame's calls by beat (tools/story_play.js GLCALLS=1)
 async function installBeats(page) {
@@ -111,13 +111,14 @@ function printBeats(bs) {
 }
 // count n frames from the next one; returns the tally a frame
 async function sample(page, n = 30, label = '') {
-  await page.evaluate(n => { const T = window.__glCalls; Object.assign(T, { by: {}, calls: {}, same: {}, uni: {}, uniSame: {}, pass: {}, who: {}, progs: new Set(), switches: 0, draws: 0, frames: 0, want: n + 1, on: true }); }, n);
+  await page.evaluate(n => { const T = window.__glCalls; Object.assign(T, { js: [], by: {}, calls: {}, same: {}, uni: {}, uniSame: {}, pass: {}, who: {}, progs: new Set(), switches: 0, draws: 0, frames: 0, want: n + 1, on: true }); }, n);
   await page.waitForFunction(() => !window.__glCalls.on, null, { timeout: 30 * 60000, polling: 500 });
   return page.evaluate(label => {
     const T = window.__glCalls, f = Math.max(1, T.frames - 1), per = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v / f * 10) / 10]).sort((a, b) => b[1] - a[1]));
     const total = Object.values(T.calls).reduce((a, b) => a + b, 0);
     const g = window.__game, Q = window.OEQuality;
-    return { label, frames: f, tier: Q && Q.city && Q.city().name, scale: g && g.governor && g.governor.scale, total: Math.round(total / f), draws: Math.round(T.draws / f), programs: T.progs.size, switches: Math.round(T.switches / f),
+    const sum = T.js.reduce((a, b) => a + b, 0);
+    return { label, scriptMs: Math.round(sum / f * 10) / 10, frames: f, tier: Q && Q.city && Q.city().name, scale: g && g.governor && g.governor.scale, total: Math.round(total / f), draws: Math.round(T.draws / f), programs: T.progs.size, switches: Math.round(T.switches / f),
       by: Object.fromEntries(Object.entries(T.by).map(([k, o]) => [k, per(o)])), calls: per(T.calls), same: per(T.same), uni: per(T.uni), uniSame: per(T.uniSame), pass: per(T.pass), who: per(T.who) };
   }, label);
 }
@@ -125,6 +126,7 @@ function print(r, top = 12) {
   const pct = (a, b) => (b ? `${Math.round(100 * a / b)}%` : '-');
   const sameN = Object.values(r.same).reduce((a, b) => a + b, 0);
   console.log(`\n== ${r.label}  (${r.frames} frames, tier ${r.tier}, scale ${r.scale})`);
+  console.log(`   script ${r.scriptMs} ms a frame (inside its animation-frame callbacks${r.total ? ', counting on' : ', nothing counted'})`);
   console.log(`   ${r.total} WebGL calls a frame, ${r.draws} draws (${(r.total / Math.max(1, r.draws)).toFixed(1)} calls a draw), ${r.switches} program switches over ${r.programs} programs; ${Math.round(sameN)} calls (${pct(sameN, r.total)}) set what was already set`);
   const groups = { uniform: 0, bindTexture: 0, activeTexture: 0, bindBuffer: 0, bindVertexArray: 0, useProgram: 0, draw: 0, 'state set': 0, 'buffer/texture data': 0, other: 0 };
   for (const [k, v] of Object.entries(r.calls)) {

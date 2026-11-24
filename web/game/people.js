@@ -1203,6 +1203,22 @@ ${PAT_GLSL}`)
   const OPT = { clearArms: true };
   const HIP_OVER = 0.09; // (m: the hip joint over what a seated person sits on)
   let made = 0;
+  // One skeleton for a person (issue 191). SkeletonUtils.clone gives every skinned part its own Skeleton, even where the
+  // parts share one skin: a person's body, head and hair and the camera in the hand each computed the same bones a frame
+  // and sent them to the GPU in a texture of their own, 53 to 78 textures a frame on the walk and 190 at a Stop, each a
+  // texSubImage2D and four texParameteri (tools/gl_calls.js). Parts whose bones are the same bones with the same inverses
+  // are bound to the first one's skeleton: one update and one upload a person.
+  function oneSkeleton(model) {
+    const kept = [];
+    model.traverse(o => {
+      if (!o.isSkinnedMesh || !o.skeleton) return;
+      const s = o.skeleton, B = s.bones, I = s.boneInverses;
+      const k = kept.find(t => t !== s && t.bones.length === B.length && t.bones.every((b, i) => b === B[i]) && t.boneInverses.every((m, i) => m.equals(I[i])));
+      if (!k) { if (!kept.includes(s)) kept.push(s); return; }
+      o.bind(k, o.bindMatrix);
+      s.dispose();
+    });
+  }
   function person(lib, look) {
     if (!up) {
       up = new THREE.Vector3(0, 1, 0); tv = new THREE.Vector3(); tq = new THREE.Quaternion(); tq2 = new THREE.Quaternion(); hp = new THREE.Vector3();
@@ -1213,6 +1229,7 @@ ${PAT_GLSL}`)
     const T = lib.tpl[look.character], speeds = T.speeds || lib.info.ground_speed[T.pack];
     const alias = n => (T.bones && T.bones[n]) || n; // the old characters' bone names on a main character's rig
     const model = noCover(THREE.SkeletonUtils.clone(T.scene));
+    oneSkeleton(model);
     let mesh = null, head = null;
     const bone = {};
     model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; if (o.isBone) bone[o.name] = o; });
