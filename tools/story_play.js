@@ -554,7 +554,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
     console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
     await still('menu');
-    await clickEl('#gm-title');
+    expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
     const back = await p.waitForFunction(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
     if (!back) bad('the title never opened on its menu');
     else {

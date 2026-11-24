@@ -125,7 +125,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first && t.tall) fail('the walk\'s Title screen is below its first screen');
     await shot('9-menu-title');
     await p.locator('#gm-title').scrollIntoViewIfNeeded().catch(() => {});
-    await press('#gm-title');
+    expectReload(p, 'the walk\'s Title screen'); await press('#gm-title');
     if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
     else {
       await p.waitForTimeout(2500);
@@ -144,7 +144,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (process.env.WALK_ONLY === 'title') {
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
-    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    expectReload(p, 'out on the walk at once'); await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 900000))) fail('the walk never set out');
     else { await p.waitForTimeout(3000); await titleBack(); }
     await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk title: all passed'); process.exit(errors.length ? 1 : 0);
