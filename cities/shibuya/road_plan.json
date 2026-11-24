@@ -3,24 +3,24 @@
  "report": {
   "pieces": 4905,
   "km": 360.36,
-  "closed": 15,
-  "closed_km": 1.07,
+  "closed": 17,
+  "closed_km": 1.34,
   "closed_why": {
-   "the built model stands across it": 6,
-   "no car fits along it": 3,
+   "the built model stands across it": 7,
+   "no car fits along it": 4,
    "no car fits between its walls: 4.6 m along most of it (a two-way street needs 5.5 m)": 1,
    "no car fits between its walls: 4.4 m along most of it (a two-way street needs 5.5 m)": 1,
    "a one-way street into a dead end: no car may leave it": 3,
    "leads only into a lane closed to cars": 1
   },
-  "quiet": 360,
-  "quiet_km": 23.49,
-  "bus": 1206,
-  "bus_km": 97.92,
+  "quiet": 362,
+  "quiet_km": 23.73,
+  "bus": 1204,
+  "bus_km": 97.85,
   "one_way": 1656,
   "node_degrees": {
-   "1": 558,
-   "2": 149,
+   "1": 560,
+   "2": 146,
    "3": 2126,
    "4": 585,
    "5": 35,
@@ -29,8 +29,8 @@
   },
   "ends": {
    "gate": 230,
-   "dead end": 327,
-   "closure": 1
+   "dead end": 328,
+   "closure": 2
   },
   "extent": [
    -2700.0,
@@ -64,7 +64,7 @@
    "source": "OpenStreetMap contributors (ODbL), the OSM API's map call, fetched 2026-11-21: highway ways open to cars, the ways of route=bus relations, amenity=taxi, barrier nodes on roads; lon/lat. GTFS shapes: 都営バス (東京都交通局), feed version 20261122_030832, CC BY 4.0, from the Public Transportation Open Data Center"
   },
   "bus_routes": 113,
-  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-23): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
+  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-24): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
   "one_way_from_osm": 9,
   "gaps_joined": 0,
   "joined_under_cover": 4,
@@ -79,6 +79,16 @@
    "kind": "closure",
    "piece": 4288,
    "class": "trunk",
+   "beyond": "the built model stands across it"
+  },
+  {
+   "at": [
+    770.0,
+    -2952.4
+   ],
+   "kind": "closure",
+   "piece": 207,
+   "class": "tertiary",
    "beyond": "the built model stands across it"
   },
   {
@@ -2384,6 +2394,15 @@
    "kind": "dead end",
    "piece": 3699,
    "class": "residential"
+  },
+  {
+   "at": [
+    627.1,
+    -1025.3
+   ],
+   "kind": "dead end",
+   "piece": 4296,
+   "class": "unclassified"
   },
   {
    "at": [
