@@ -795,7 +795,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                 const box = () => p.evaluate(() => { const r = document.querySelector('#gd-choices button').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
                 const still = () => p.evaluate(async () => { let a = null; for (let i = 0; i < 20; i++) { const r = document.querySelector('#gd-choices button').getBoundingClientRect(), k = `${r.x.toFixed(0)},${r.y.toFixed(0)}`; if (k === a) return; a = k; await new Promise(o => setTimeout(o, 150)); } });
                 for (let n = 0; n < 2; n++) {
-                  await still();
+                  // (and not before the answers have been up 350 ms of the page's clock: hud.js lets no tap choose sooner, so
+                  // that a tap meant for the line before is not taken as an answer. A tap at once on a box already still
+                  // was dropped by it, and failed as the game's on main's walk2, 04d6cc4)
+                  await still(); await p.waitForTimeout(500);
                   const r0 = await box(), tx = r0.x + r0.w / 2, ty = r0.y + r0.h / 2;
                   await p.touchscreen.tap(tx, ty); await p.waitForTimeout(1500);
                   if (!(await p.evaluate(() => window.__game.dlg.hasChoices))) break;
