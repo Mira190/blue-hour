@@ -97,6 +97,10 @@ async function run(p, place) {
     // the hero levels round the way in and shown (and their fine parts): what the player sees
     for (let i = 0; i < 240; i++) { const H = g.hero && g.hero(), st = H ? H.state() : []; if (st.every(L => L.state !== 'loading' && L.fine !== 'loading')) break; g.advance(0.05); await new Promise(r => setTimeout(r, 250)); }
     go(a[0], a[1], Math.atan2(b[0] - a[0], b[1] - a[1])); g.advance(0.3);
+    // (and any hand-over from a shot settled, a story's view blended back to the chase camera, the lens behind your head:
+    // a blend from the set-down's shot 40 m off flew in through the station, which is not the chase camera's doing)
+    for (let i = 0; i < 120 && (g.cine.active || (g.viewBlend && g.viewBlend.t < 1) || g.camera.position.distanceTo(new T.Vector3(g.player.x, g.player.z + 1.6, -g.player.y)) > 8); i++) { if (g.cine.active) g.cine.skip(); g.advance(0.1); }
+    go(a[0], a[1], Math.atan2(b[0] - a[0], b[1] - a[1])); g.advance(0.3);
     scene.traverseVisible(o => { if ((o.isMesh || o.isInstancedMesh) && !o.isSkinnedMesh && o.geometry && o.geometry.attributes.position && o.geometry.attributes.position.array && (!o.geometry.index || o.geometry.index.array) && !drawn.includes(o) && !(o.material && o.material.transparent && o.material.opacity < 0.5)) drawn.push(o); });
     set = drawn.filter(o => w.some(q => near(o, q[0], q[1])));
     // walk the way both ways: steer at each bend towards the next point; turn on the spot and drag the view at each end
