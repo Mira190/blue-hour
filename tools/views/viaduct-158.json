@@ -1,0 +1,98 @@
+{
+ "_": "Issue 158, inside the Scramble's level: the Yamanote's bed north of the girder bridge (x 425 to 440, y -1000 to -910), which stood on the survey's embankment as a paved mound (tools/scramble_shot.js).",
+ "date": [
+  11,
+  14
+ ],
+ "times": {
+  "day": "13:00",
+  "dusk": "sunset+20",
+  "night": "21:00"
+ },
+ "views": [
+  {
+   "name": "lane_east",
+   "eye": [
+    452,
+    -985,
+    1.6
+   ],
+   "look": [
+    448,
+    -930,
+    2.0
+   ],
+   "fov": 60
+  },
+  {
+   "name": "lot_north",
+   "eye": [
+    434,
+    -888,
+    1.6
+   ],
+   "look": [
+    434,
+    -940,
+    2.5
+   ],
+   "fov": 60
+  },
+  {
+   "name": "air",
+   "eye": [
+    432,
+    -1040,
+    70
+   ],
+   "look": [
+    432,
+    -950,
+    0
+   ],
+   "fov": 50
+  },
+  {
+   "name": "bridge_north",
+   "eye": [
+    433,
+    -1000,
+    1.6
+   ],
+   "look": [
+    433,
+    -960,
+    3.0
+   ],
+   "fov": 60
+  },
+  {
+   "name": "lot_side",
+   "eye": [
+    415,
+    -896,
+    1.6
+   ],
+   "look": [
+    436,
+    -915,
+    1.5
+   ],
+   "fov": 60
+  },
+  {
+   "name": "air_north",
+   "eye": [
+    434,
+    -860,
+    45
+   ],
+   "look": [
+    434,
+    -930,
+    0
+   ],
+   "fov": 50
+  }
+ ]
+}
