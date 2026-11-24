@@ -2320,7 +2320,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (p.umbR > 0) umbSeen = true;
         if (p.state === 'walk' && p.line >= 0 && (p.av ?? p.v ?? 0) < 0.3) { // (stood on a footway: out of a canopy, from under one, or out of another's body)
-          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.inPic && (frame + i) % 8 === 0; // (bodies: whoever is drawn, one frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
+          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.whole && (frame + i) % 8 === 0; // (bodies: a whole rig, a near person drawn as one (people.js place: p.whole), where a few cm in another reads as wrong; not a far copy. One frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
           if (umbNear || bodyTurn) canopyAcross(i, p, umbNear ? dt : dt * 8, bodyTurn);
         }
         if (p.state === 'walk') { // farther off, a longer step every few frames does
