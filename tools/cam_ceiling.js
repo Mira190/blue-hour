@@ -55,6 +55,8 @@ async function run(p, place) {
     let set = [];
     const hit = (from, dir, far) => { rc.set(from, dir); rc.far = far; const h = rc.intersectObjects(set, false); return h.length ? h[0] : null; };
     const V = (x, y, z) => new T.Vector3(x, z, -y);
+    // (a ceiling or a roof lies flat: a wall the line grazes at a bend as the view swings is the walls' business, not this)
+    const nW = new T.Vector3(), flat = q => !q.face || Math.abs(nW.copy(q.face.normal).transformDirection(q.object.matrixWorld).y) > 0.7;
     const check = (phase) => {
       const pl = g.player, head = V(pl.x, pl.y, pl.z + 1.7), c = g.camera.position.clone();
       if (place.built) {
@@ -69,12 +71,12 @@ async function run(p, place) {
       const ceil = roof.point.y, out = [];
       // the lens over a drawn surface higher than your head: looking down through what you stand under
       const below = hit(c, dn, c.y - pl.z + 0.5);
-      if (below && below.point.y > pl.z + 2.0 && below.point.y < c.y - 0.05) out.push(`over a surface ${(below.point.y - pl.z).toFixed(2)} m over the floor (${below.object.name || below.object.parent && below.object.parent.name || '?'})`);
+      if (below && flat(below) && below.point.y > pl.z + 2.0 && below.point.y < c.y - 0.05) out.push(`over a surface ${(below.point.y - pl.z).toFixed(2)} m over the floor (${below.object.name || below.object.parent && below.object.parent.name || '?'})`);
       // the line from your head to the lens through a drawn surface over your head
       const d = c.clone().sub(head), L = d.length();
       if (L > 0.3) {
         rc.set(head, d.normalize()); rc.far = L;
-        const h = rc.intersectObjects(set, false).find(q => q.point.y > pl.z + 2.0);
+        const h = rc.intersectObjects(set, false).find(q => flat(q) && q.point.y > pl.z + 2.0);
         if (h) out.push(`through a surface at ${(h.point.y - pl.z).toFixed(2)} m (${h.object.name || '?'})`);
       }
       if (c.y > ceil + 0.05 && Math.hypot(c.x - head.x, c.z - head.z) < 1.0) out.push(`over the ceiling right above you (${(c.y - pl.z).toFixed(2)} m, ceiling ${(ceil - pl.z).toFixed(2)})`);
