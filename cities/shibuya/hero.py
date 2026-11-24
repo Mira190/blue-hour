@@ -645,8 +645,15 @@ class Level:
         """Tall tapered steel posts with a flat LED head out over the road (the square's and the junction's own, from
         photographs), on the pavement 0.9 m behind the kerb, about 26 m apart; their light is the bake's."""
         from shapely.geometry import Point
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
         centre, R = np.asarray(self.centre), self.r
         placed = []
+        # (none under what is raised over the ground lower than the post: the station over the west exit's roads has its
+        # underside at 3.9 m, and once the level's plan stopped counting it as standing (issue 213) a 9 m post stood
+        # through it, in the way frame 6's car leaves its stop)
+        over = unary_union([Polygon(s["ring"]).buffer(0) for s in self.D.solids
+                            if len(s["ring"]) >= 3 and 2.5 <= s.get("base", 0) < 10.0]).buffer(2.0)
         for co in self.lines(self.roads.buffer(KERB_M + 0.9).boundary.intersection(self.pave)):
             P = HP.Path(np.c_[co, np.zeros(len(co))])
             d = 6.0
@@ -655,7 +662,7 @@ class Level:
                 q = q[:2]
                 to_road = r if self.roads.contains(Point(*(q + r * 1.5))) else -r
                 if (np.linalg.norm(q - centre) < R - 8 and not self.walks.buffer(1.5).contains(Point(*q)) and self.solids.distance(Point(*q)) > 1.2
-                        and all(np.linalg.norm(q - p) > 20 for p in placed)
+                        and all(np.linalg.norm(q - p) > 20 for p in placed) and not over.contains(Point(*q))
                         and self.plan.footways.distance(Point(*q)) > 1.0 and not self.plan.mouths.contains(Point(*q))):   # (never in a walker's way)
                     placed.append(q)
                     PT.lamp_post(self.geo, q, math.atan2(to_road[1], to_road[0]), self.T(*q) + LIFT + 0.01, h=9.0, arms=((1.9, 8.6),),
