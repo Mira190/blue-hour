@@ -69,6 +69,39 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
+  // FPS=1: the page's frames a second beat by beat (issues 8 and 206), counted in the page from its animation frames
+  // and named as the telemetry names a beat ("frame 3: stop seek"): for each, the frames, the median and the 95th
+  // percentile of the gap between them, and the seconds spent there. Read every half minute and printed when the
+  // play ends, however it ends. The harness's own stills fall inside the beats they are taken in.
+  // GOV=free: the governor runs as a player's does inside the tier (under automation it stands still, quality.js).
+  // In another engine than Chromium a phone's page is told it has a touch screen (tools/engine.js phone).
+  if (process.env.FPS) {
+    await p.addInitScript(() => {
+      const F = window.__fps = {}; let last = 0;
+      const raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = fn => raf(t => {
+        if (t !== last) {
+          const g = window.__game, S = g && g.story && g.story.state, T = document.getElementById('g-title');
+          const spot = !g ? 'load' : T && !T.hidden ? 'title' : !S ? 'street' : S.phase === 'done' ? 'the last card' : `frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`;
+          if (last && t - last < 5000) { const b = F[spot] || (F[spot] = { n: 0, ms: 0, bins: new Array(251).fill(0), first: Math.round(t) }); b.n++; b.ms += t - last; b.bins[Math.min(250, Math.floor((t - last) / 4))]++; }
+          last = t;
+        }
+        fn(t);
+      });
+    });
+    let seen = null;
+    const read = () => p.evaluate(() => window.__fps).then(f => { if (f) seen = f; }, () => {});
+    const every = setInterval(read, 30000); every.unref();
+    const at = (b, q) => { let c = 0; for (let i = 0; i < b.bins.length; i++) { c += b.bins[i]; if (c >= b.n * q) return i * 4 + 2; } return 1000; };
+    process.on('exit', () => {
+      if (!seen) return;
+      console.log('fps by beat (frames a second by the median gap | median gap, 95th, ms | frames | seconds):');
+      for (const [k, b] of Object.entries(seen).sort((x, y) => x[1].first - y[1].first)) if (b.n >= 5) console.log(`fps: ${k} | ${(1000 / at(b, 0.5)).toFixed(0)} | ${at(b, 0.5)}, ${at(b, 0.95)} | ${b.n} | ${(b.ms / 1000).toFixed(1)}`);
+    });
+    p.fpsRead = read;
+  }
+  if (process.env.GOV === 'free') await p.addInitScript(() => { const id = setInterval(() => { const g = window.__game && window.__game.governor; if (g) { g.auto = true; clearInterval(id); } }, 200); });
+  if (process.env.PHONE && process.env.ENGINE && process.env.ENGINE !== 'chromium') await require('./engine').phone(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
@@ -1334,6 +1367,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.GLCOUNT) console.log('WebGL calls in frames not drawn:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glIn).sort((a, b) => b[1] - a[1]).slice(0, 30))), '\nand outside the frames:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glOut).sort((a, b) => b[1] - a[1]).slice(0, 40))));
   // PRINTS=dir: the photographs taken, as files (the loading screen's frames are made from them)
   if (process.env.PRINTS) { fs.mkdirSync(process.env.PRINTS, { recursive: true }); const pr = await p.evaluate(() => window.__game.story.state.prints.map(q => q.src)); pr.forEach((src, i) => { if (src) fs.writeFileSync(`${process.env.PRINTS}/frame-${i + 1}.jpg`, Buffer.from(src.split(',')[1], 'base64')); }); }
+  if (p.fpsRead) await p.fpsRead();
   await b.close();
   process.exit(done && !errors.length ? 0 : 1);
 })();
