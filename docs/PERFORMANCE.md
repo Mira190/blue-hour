@@ -3149,10 +3149,26 @@ arena's longest frame of work went from 656 to 16 ms on the software renderer. A
 (`tools/arena_probe.js`). The mac found no difference a player sees from the streaming on a real GPU and in Safari
 (issue 192); this takes out the one stall a phone would have felt.
 
+### The player's car from afar (issue 192)
+
+The player's car is the supercar, the one model in `cars.glb` with no lighter copies, and it was drawn whole at any
+distance: 54 meshes, a draw each, and 84,000 triangles in a phone's frame from 80 m by the Scramble, where it is twenty
+pixels wide. `cars.js` `car()` now makes two far copies with the car, by hand (no helper that differs between the
+three.js versions `cars.js` serves): the body and the wheels as they stand, without the cabin's inside, each part in its
+material's colour as a vertex colour (a metal darkened by its metalness, the glass as dark as it reads from outside),
+the vertices joined on a grid of 5 cm and of 15 cm. One draw each, 25,000 and 4,400 triangles. They ride on the body, so
+they move and tilt with the car, and the lamps' glows stay. Shown past 30 and 60 m on a phone (60 and 140 m on a
+desktop), with 3 m either way so they do not flicker, judged from the view's camera alone and divided by the lens's zoom
+(a long lens counts the car nearer). Made with the car, which is parked while the page loads: 55 to 119 ms on the
+emulated phone. They are compiled with it by the warm-up, which reaches hidden meshes. `?carfar=off`: the car whole.
+
+`tools/car_look.js` stands the player at set distances from the car and takes a still cropped round it, with the copies
+on and off. From 34 m in, at day, dusk and night, the copies read as the car: the same outline, wheels and lamps. The
+one difference is the clear coat's highlight along the roof by day, which a vertex-coloured copy does not have, a few
+pixels at 34 m.
+
 ### What is left
 
-- **The player's car parked by the Scramble** (since the first drive landed): about 77,000 triangles and 40 draws
-  in a phone's frame when it is in view, its full model with a physical material.
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
 - **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
   is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.
