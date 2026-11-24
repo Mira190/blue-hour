@@ -85,6 +85,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   fs.mkdirSync(out, { recursive: true });
   await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, on foot, by car and in the helicopter: issue 209)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
   const PORT = process.env.PORT || 8800;
@@ -947,6 +948,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const { hard } = pacing.print(await pacing.report(p), m => console.log(m.replace(/^FAIL /, 'pace ')));
     if (hard.length) fail(`${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y})`).join('; ')})`);
     else ok('nobody of the crowd paced to and fro');
+  }
+  { // the camera's window in nobody's body, every frame of the walk so far, on foot, by car and in the helicopter (issue 209)
+    const ci = require('./cam_intrude'), R = await ci.report(p), { errs } = ci.print(R);
+    if (!R || R.err) fail(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
+    for (const e of errs) fail(`cam: ${e}`);
   }
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {

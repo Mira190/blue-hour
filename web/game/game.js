@@ -4831,6 +4831,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) groundLod(player.mode === 'heli' ? heli.st.x : player.x, player.mode === 'heli' ? heli.st.y : player.y);
     if (titleOn && titleYaw != null && !simHold) { titleT += dt; titleYaw = openingHere() ? openingView().yaw + OPENING.sway * Math.sin(titleT * 0.06) : DISTRICT ? titleYaw0 + 0.3 * Math.sin(titleT * 0.05) : titleYaw + dt * 0.05; }
     if (simHold) { /* (held by a harness: the camera too, which the traffic reads, what is in view; advance() moves it) */ } else if (photo.on) photoCamera(dt); else if (closeup && !titleOn) closeupCamera(dt); else updateCamera(dt, titleOn);
+    if (!titleOn) lensGuard(); // (whichever camera it was, its window in nobody: issue 209)
     if (photo.on && crowdDraw && crowdDraw.still) crowdDraw.still(); // (a photograph's crowd: everyone near enough to be seen drawn whole, the world held: issue 174)
     placeNightFill();
     marks.frame(); // (the camera as it stands for this frame, and who is drawn near it: what every mark over the picture asks, marks.js)
@@ -5882,9 +5883,126 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (q.lensOut) { crowdDraw.hide(i, true); lensNear.gone++; }
     }
   }
+  // The lens's window (issue 209). A camera takes its picture through a window, not from a point: the near plane's
+  // rectangle, camera.near in front of the lens and as wide as the lens's angle makes it, and whatever that window is
+  // inside is drawn from within. The owner's still of frame 3 had the chase view over the head looking down, the window
+  // through the hair and the skull, the eyes and the lashes seen from behind. So, every frame and from every camera (the
+  // chase view, a talk, a film, a scripted shot, the finder raised and lowered, a photograph, the close look), once the
+  // frame's camera is set: when the window is in someone's body (the one you play, the story's people, the map's people,
+  // the guide, the crowd's near people), the window first comes in towards the lens, the near plane from where that camera
+  // has it down to the close look's own 0.05 m (the depth is reversed: a near plane that close costs the far city
+  // nothing), and nobody is touched. Only someone the lens itself is inside, whom no window clears, is out of the picture
+  // for that frame, whole, as lensClear takes people out (a person of this game is in the picture whole or out of it
+  // whole: people.js, issue 129). That last case is what the chase view keeps from happening (rig: its pull-in and its
+  // lifts), and tools/cam_intrude.js measures the window against the skinned bodies every frame of a play and reads what
+  // this did (window.__lensGuard). A body here is its parts as capsules, fitted once to the vertices each bone carries,
+  // generous (the 97th hundredth of a part's vertices round its axis, and 2 cm): the measure's are the 80th, under the skin
+  const NEARS = [0.3, 0.22, 0.16, 0.12, 0.09, 0.07, 0.05];
+  const guardHid = new Set(), guardCaps = new WeakMap(), guardInv = new THREE.Matrix4(), guardA = new THREE.Vector3(), guardB = new THREE.Vector3(), guardPt = [], guardRay = [0, 0, 0, 0];
+  const GUARD_PART = /(Pelvis|Spine2|Spine1|Spine|Neck|Head|Clavicle|UpperArm|Forearm|Hand|Thigh|Calf|Foot)$/;
+  function guardFit(root) { // (once a model: its parts' capsules in their bones' own space)
+    const meshes = [], parts = new Map(), p = guardA;
+    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex) meshes.push(o); });
+    if (!meshes.length) return null;
+    const human = meshes.some(o => o.skeleton.bones.some(b => /Bip01/.test(b.name)));
+    for (const o of meshes) {
+      const g = o.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones, binv = o.skeleton.boneInverses;
+      for (let i = 0; i < pos.count; i++) {
+        let bi = 0, bw = -1;
+        for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } }
+        let b = bones[bi]; if (!b) continue;
+        if (human) for (let q = b; q && q.isBone; q = q.parent) if (GUARD_PART.test(q.name)) { b = q; break; }
+        const pi = bones.indexOf(b); if (pi < 0) continue;
+        p.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).applyMatrix4(binv[pi]);
+        let L = parts.get(b); if (!L) parts.set(b, L = []);
+        L.push(p.x, p.y, p.z);
+      }
+    }
+    const caps = [];
+    for (const [bone, L] of parts) {
+      const n = L.length / 3; if (n < 12) continue;
+      const lo = [0, 0, 0], hi = [0, 0, 0];
+      for (let k = 0; k < 3; k++) { const s = []; for (let i = 0; i < n; i++) s.push(L[i * 3 + k]); s.sort((x, y) => x - y); lo[k] = s[Math.floor(n * 0.02)]; hi[k] = s[Math.min(n - 1, Math.floor(n * 0.98))]; }
+      let ax = 0; for (let k = 1; k < 3; k++) if (hi[k] - lo[k] > hi[ax] - lo[ax]) ax = k;
+      const u = (ax + 1) % 3, w = (ax + 2) % 3, cu = (lo[u] + hi[u]) / 2, cw = (lo[w] + hi[w]) / 2, rad = [];
+      for (let i = 0; i < n; i++) rad.push(Math.hypot(L[i * 3 + u] - cu, L[i * 3 + w] - cw));
+      rad.sort((x, y) => x - y);
+      const r = rad[Math.floor(n * 0.97)], half = Math.max(0, (hi[ax] - lo[ax]) / 2 - r * 0.7), mid = (lo[ax] + hi[ax]) / 2, e0 = [0, 0, 0], e1 = [0, 0, 0];
+      e0[u] = e1[u] = cu; e0[w] = e1[w] = cw; e0[ax] = mid - half; e1[ax] = mid + half;
+      caps.push({ bone, a: new THREE.Vector3(...e0), b: new THREE.Vector3(...e1), r });
+    }
+    return caps;
+  }
+  // the deepest the window at depth n goes into the capsules laid out in guardPt (camera space): > 0 is inside
+  const guardDepth = (m, n) => {
+    const x0 = n * guardRay[0], x1 = n * guardRay[1], y0 = n * guardRay[2], y1 = n * guardRay[3];
+    let worst = -Infinity;
+    for (let i = 0; i < m; i += 28) {
+      const r = guardPt[i];
+      for (let k = 0; k < 9; k++) {
+        const x = guardPt[i + 1 + k * 3], y = guardPt[i + 2 + k * 3], z = guardPt[i + 3 + k * 3];
+        const dx = Math.max(x0 - x, 0, x - x1), dy = Math.max(y0 - y, 0, y - y1), dz = z + n, d = r - Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (d > worst) worst = d;
+      }
+    }
+    return worst;
+  };
+  // one body: laid out in camera space; the largest near (of NEARS, from `base` down) whose window clears it, or 0 for none
+  const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh) guardSig.v += o.geometry.id * guardSig.k++; };
+  function guardBody(root, base) {
+    const e = root.matrixWorld.elements, P = camera.position;
+    if (Math.abs(e[12] - P.x) > 1.8 || Math.abs(e[14] - P.z) > 1.8 || P.y < e[13] - 0.8 || P.y > e[13] + 2.8) return base;
+    guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
+    let c = guardCaps.get(root);
+    if (!c || c.sig !== sig) { try { c = { sig, caps: guardFit(root) }; } catch (err) { c = { sig, caps: null }; } guardCaps.set(root, c); }
+    if (!c.caps) return base;
+    root.updateWorldMatrix(true, true);
+    let m = 0;
+    for (const q of c.caps) {
+      guardA.copy(q.a).applyMatrix4(q.bone.matrixWorld).applyMatrix4(guardInv); guardB.copy(q.b).applyMatrix4(q.bone.matrixWorld).applyMatrix4(guardInv);
+      const me = q.bone.matrixWorld, r = q.r * Math.cbrt(Math.abs(me.determinant())) + 0.02;
+      guardPt[m] = r;
+      for (let j = 0; j < 9; j++) { const t = j / 8; guardPt[m + 1 + j * 3] = guardA.x + (guardB.x - guardA.x) * t; guardPt[m + 2 + j * 3] = guardA.y + (guardB.y - guardA.y) * t; guardPt[m + 3 + j * 3] = guardA.z + (guardB.z - guardA.z) * t; }
+      m += 28;
+    }
+    for (const n of NEARS) if (n <= base + 1e-6 && guardDepth(m, n) <= 0) return n;
+    return 0;
+  }
+  // (a frame's state, kept here so that a frame of it makes nothing new: guardOne is called for each body near the lens)
+  const guardS = { base: 0.3, near: 0.3 };
+  const layerOn = q => q.layers.enable(0), layerOff = q => q.layers.disable(0);
+  function guardOne(root, who, i) {
+    if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) return;
+    const n = guardBody(root, guardS.base);
+    if (n > 0) { if (n < guardS.near) guardS.near = n; return; }
+    if (i != null) crowdDraw.hide(i, true); else { root.traverse(layerOff); guardHid.add(root); }
+    const G = window.__lensGuard; // (for a harness: who was taken out, from which camera)
+    if (G) { const mode = cine.active ? `shot ${cine.label || ''}` : talkShot ? 'talk' : story && story.film ? 'film' : fpOn ? 'finder' : photo.on ? 'photo' : closeup ? 'closeup' : `${player.mode} ${cam.mode}`, key = `${typeof who === 'function' ? who() : who} | ${mode}`; G[key] = (G[key] || 0) + 1; }
+  }
+  const guardCrowd = (r, i) => guardOne(r.root, 'crowd', i);
+  function lensGuard() {
+    for (const o of guardHid) if (!lensHid.has(o)) o.traverse(layerOn);
+    guardHid.clear();
+    camera.updateMatrixWorld();
+    guardInv.copy(camera.matrixWorld).invert();
+    // (the window's edges per metre of depth, from the corners' rays: a talk's lens shift and a phone's narrow frame and all)
+    guardA.set(-1, -1, 0.5).applyMatrix4(camera.projectionMatrixInverse); guardB.set(1, 1, 0.5).applyMatrix4(camera.projectionMatrixInverse);
+    guardRay[0] = guardA.x / -guardA.z; guardRay[1] = guardB.x / -guardB.z; guardRay[2] = guardA.y / -guardA.z; guardRay[3] = guardB.y / -guardB.z;
+    guardS.base = guardS.near = camera.near;
+    guardOne(player.rig && player.rig.root, 'you');
+    for (let k = 0; k < storyFigs.length; k++) { const f = storyFigs[k]; if (f.rig) guardOne(f.rig.root, f.name || f.id); }
+    for (let k = 0; k < npcs.length; k++) { const q = npcs[k]; if (q.rig) guardOne(q.rig.root, q.id); }
+    if (guideMade) guardOne(guideMade.root, 'guide');
+    if (crowdDraw && crowdDraw.active) crowdDraw.active.forEach(guardCrowd);
+    if (guardS.near < guardS.base) { camera.near = guardS.near; camera.updateProjectionMatrix(); }
+  }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3(), heliMid = new THREE.Vector3(), aheadT = new THREE.Vector3(), aheadP = new THREE.Vector3(), aheadM = new THREE.Vector3();
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
+  // (the steepest a view on foot may look down from an arm that long: a lift over a wall behind that is then pulled in
+  // short stands the lens over your head looking down at your hair, the owner's still of issue 209 and issue 99's; from
+  // 2.5 m out any pitch, from 0.8 m in 0.5 rad, about the lowest lift's view over a shoulder. Issue 209)
+  const pitchRoom = arm => 0.5 + 0.85 * Math.min(1, Math.max(0, (arm - 0.8) / 1.7));
   const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
   // the people standing or walking within the camera's reach of your head (the crowd's near people, the named cast, the
   // story's figures), as [x, y, z] in the game's ground plan, for folkAcross below
@@ -6114,7 +6232,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     let want = null, open = null;
     for (const lift of CAM_LIFTS) {
       const f = clear(camTarget, orbit(lift, camProbe));
-      if (!want || f > want.f + 0.05) want = { f, lift };
+      if ((!want || f > want.f + 0.05) && (!close || !lift || cam.pitch + lift <= pitchRoom(f * dist))) want = { f, lift };
       if (f >= 0.97) {
         if (!open) open = { f, lift }; else if (lift > CROWD_LIFT) break; // (not over a wall for them: the lowest clear of it)
         const by = !!(folk && folk.n && lift < CROWD_LIFT && folkAcross(folk, camTarget, camProbe));
@@ -6162,7 +6280,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if ((cam.liftHold -= dt) <= 0) cam.lift = Math.max(want.lift, cam.lift - Math.min((cam.lift - want.lift) * dt * 2, dt * 0.5));
     // (in the air the helicopter's body as well as the point over it the lens looks at: beside a tower's roof one was in
     // sight and the other not, and the helicopter was hidden behind the roof's edge for seconds)
-    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
+    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(close ? 0.06 / dist : 0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
     // (behind a level's wall the lens comes in front of it at once, as in the air: eased in, a swing round put it behind the
     // wall for a few frames, the wall's back filling the picture)
@@ -6212,7 +6330,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // probe went round, the edge of the slab over the well: then closer in along it
     if (camPos.y !== y0 && player.mode === 'foot') {
       const f = nav.clearFraction(camTarget, camPos);
-      if (f < 1) camPos.lerpVectors(camTarget, camPos.clone(), Math.max(0.15, f - 0.04));
+      if (f < 1) camPos.lerpVectors(camTarget, camPos, Math.max(close ? 0.06 / Math.max(0.06, camTarget.distanceTo(camPos)) : 0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
     if (cam.trace) Object.assign(cam.trace, { jumped, f, wallIn, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
