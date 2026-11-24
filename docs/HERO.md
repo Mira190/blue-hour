@@ -212,6 +212,18 @@ guard pipes); the entrances, the tracks, Hachiko and the signs stay the landmark
 bands; 14,000 triangles, 0.5 MB) is fetched on the high and medium tiers once the camera is in the level, drawn
 within 60 m, and never fetched on a phone.
 
+**Filled from open data** (issue 213, the audit of the level against the open sources, 24 November 2026).
+OpenStreetMap's street detail was fetched again (`pipeline/osm_detail.py` → `cities/shibuya/scramble_osm.json`, ODbL),
+keeping the tags the rules had dropped: `crossing:markings`, `local_ref`, `shelter`, `wheelchair`, `description`,
+`network`. So: Shibuchika's pavilion signs its exit A8 (the extract had 8); a crossing is painted by its newer
+`crossing:markings` where it has one (`scramble.painted`), which paints the west bus terminal's signalled zebra and
+keeps the scramble's unmarked arms bare; an entrance with no ref beside a mapped lift (325,-983, by A6a) is the lift's
+housing, glass on a steel frame with its doors and call panel, not a covered stair. And the level's plan counts as
+standing only a solid whose underside is under 2.5 m: the decks raised over its roads (#196, #212) had cut holes in
+its ground, the page's asphalt showing through under the west exit deck and the terminal's zebra stopping 10 m short of
+its kerb. The level's carriageway is 8,888 m² (8,099 before), every kerb within the survey's 1.75 m; the walked floor
+was exported again (19,738 cells of drawn ground, 16,709 before). Views: `tools/views/opendata-213.json`.
+
 **QFRONT against its photograph.** The landmark drew the building as navy glass under a white grid with a plain
 band for a street floor. From the 2025 photograph of it across the crosswalk: the outer skin is now glass that
 mirrors the sky over a dark pane (`x_qf_glass`), each floor's edge a silver band 0.8 m deep behind the fins

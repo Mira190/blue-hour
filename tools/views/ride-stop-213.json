@@ -1,0 +1,10 @@
+{
+ "_": "The owner's report (24 November 2026): where frame 6's car sets you down (356.4, -1064.9 on main since #208), the asphalt seemed to end at paving and shop fronts under the station's overhang. Jingu-dori's north-bound lane runs on south under the station (OpenStreetMap 375676167; the 2023 orthophoto). From the car's way in, from beside it, and from above (tools/scramble_shot.js).",
+ "date": [11, 14],
+ "times": {"day": "13:00", "dusk": "sunset+20", "night": "21:00"},
+ "views": [
+  {"name": "stop_car", "eye": [360.5, -1050, 1.5], "look": [354, -1085, 1.5], "fov": 60},
+  {"name": "stop_south", "eye": [354.5, -1090, 1.5], "look": [358, -1050, 2.0], "fov": 60},
+  {"name": "stop_air", "eye": [330, -1035, 32], "look": [357, -1075, 0], "fov": 55}
+ ]
+}
