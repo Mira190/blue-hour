@@ -1066,6 +1066,7 @@
      "gate",
      "hold",
      "seenNext",
+     "shadow",
      "ungate"
     ],
     "OEWater": [],
