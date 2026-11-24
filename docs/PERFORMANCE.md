@@ -2749,6 +2749,30 @@ wrong; its scale and extras are governed as any device's, and half the rate is i
 M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
 `THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
 
+### The device floor and its tiers (issue 220)
+
+The floor the game is held to, by the owner's ask for no stutter on weak machines:
+
+| device | browser | tier it starts on | why |
+| --- | --- | --- | --- |
+| an iPhone 12-class phone | Safari | low, a phone's set (`lean`, its level from `level()`) | touch, a short side under 600 px |
+| a mid Android phone (4 GB) | Chrome | low, a phone's set | the same, and `deviceMemory` 4 |
+| a laptop with Intel's UHD (or an AMD APU), 8 GB, 4 cores | Chrome or Edge | **medium** (it was high) | `quality.js` `probe` `integrated`: the renderer string names a GPU on the processor's die; Intel's Arc cards are excluded |
+
+The laptop can step to low by the governor's judged step (above), after a visit's first 30 s. What each floor tier
+draws on the night walk where it starts, counted by `tools/gl_calls.js` on a session's machine (draws, WebGL calls and
+passes a frame are the device's work whatever renders them; their milliseconds are the mac's to read):
+
+| tier | draws | WebGL calls | passes | programs |
+| --- | --- | --- | --- | --- |
+| high (desktop) | 395 | 6,493 | 18 | 83 |
+| medium (desktop, the laptop's) | 364 | 5,660 | 18 | 85 |
+| low (desktop, the laptop's after a step) | 305 | 3,625 | 11 | 78 |
+| low (a phone's set) | 220 | 3,876 | 9 | 74 |
+
+(The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`); the laptop's medium is not held yet.
+
 ### Not checked here
 
 A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may
