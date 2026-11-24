@@ -696,7 +696,15 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
             if (chs.length < 2) fail(`Ren asks the way, but there are no answers to choose (${JSON.stringify(chs)})`);
             else {
               await shot('4f-street');
-              if (phone) await press('#gd-choices button'); else await p.keyboard.press('Digit1');
+              // (a phone's answer is tapped once its button has stopped sliding in, and again once if the choice is still
+              // up: a tap at where it was going missed, the talk stayed open, and every prompt after it read "" on a phone,
+              // main's walk2 on 6b0d8ee)
+              if (phone) {
+                const still = () => p.evaluate(async () => { let a = null; for (let i = 0; i < 20; i++) { const r = document.querySelector('#gd-choices button').getBoundingClientRect(), k = `${r.x.toFixed(0)},${r.y.toFixed(0)}`; if (k === a) return; a = k; await new Promise(o => setTimeout(o, 150)); } });
+                await still(); await press('#gd-choices button'); await p.waitForTimeout(1500);
+                if (await p.evaluate(() => window.__game.dlg.hasChoices)) { console.log('(the answer tapped did not take: tapped again)'); await still(); await press('#gd-choices button'); await p.waitForTimeout(1500); }
+                if (await p.evaluate(() => window.__game.dlg.hasChoices)) fail('Ren asks the way: the answer tapped did not take, twice');
+              } else await p.keyboard.press('Digit1');
               await through();
               const done = await p.evaluate(() => window.__game.walkTalk().events.done);
               if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);
