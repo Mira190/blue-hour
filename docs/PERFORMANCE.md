@@ -2749,6 +2749,38 @@ wrong; its scale and extras are governed as any device's, and half the rate is i
 M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
 `THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
 
+### The device floor and its tiers (issue 220)
+
+The floor the game is held to, by the owner's ask for no stutter on weak machines:
+
+| device | browser | tier it starts on | why |
+| --- | --- | --- | --- |
+| an iPhone 12-class phone | Safari | low, a phone's set (`lean`, its level from `level()`) | touch, a short side under 600 px |
+| a mid Android phone (4 GB) | Chrome | low, a phone's set | the same, and `deviceMemory` 4 |
+| a laptop with Intel's UHD (or an AMD APU), 8 GB, 4 cores | Chrome or Edge | **medium** (it was high) | `quality.js` `probe` `integrated`: the renderer string names a GPU on the processor's die; Intel's Arc cards are excluded |
+
+The laptop can step to low by the governor's judged step (above), after a visit's first 30 s. What each floor tier
+draws on the night walk where it starts, counted by `tools/gl_calls.js` on a session's machine (draws, WebGL calls and
+passes a frame are the device's work whatever renders them; their milliseconds are the mac's to read):
+
+| tier | draws | WebGL calls | passes | programs |
+| --- | --- | --- | --- | --- |
+| high (desktop) | 395 | 6,493 | 18 | 83 |
+| medium (desktop, the laptop's) | 364 | 5,660 | 18 | 85 |
+| low (desktop, the laptop's after a step) | 305 | 3,625 | 11 | 78 |
+| low (a phone's set) | 220 | 3,876 | 9 | 74 |
+
+(The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`). The laptop's medium is recorded beside them ("medium": the story's three parts at 1440 x 900 with `Q='?tex=bc7'`,
+`beat_budget.py set ... --parts medium`), to be held by a CI shard of its own once a few runs have shown its noise.
+Its pictures are packed as the laptop packs them (BC7, BC5 for normal maps: `?tex=bc7`); a software renderer otherwise
+keeps every picture raw, at four times the bytes, and the first recording read 771 to 1,552 MB for what is 435 to 743
+on the device. Its cap: 800 MB a beat. Frame 4's peak, 743 MB with BC7: textures 535, buffers 187, render targets 38.
+The largest textures there are the Sky roof pad's ORM (2048², kept as pixels: 21 MB), the night map (night.js, 2048 x
+1841: 19 MB), the buildings' facade blocks (4096 x 3680: 19 MB), the woods' and the shore's ground pictures (17 and 11
+MB, kept as pixels), two 2048² shadow maps (12 MB each: the sun's and its still copy, world.js shadowCache), the inland
+water (11 MB) and the two scene targets at 1440 x 900 (10 MB each).
+
 ### Not checked here
 
 A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may

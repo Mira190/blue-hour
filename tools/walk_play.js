@@ -98,7 +98,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   fs.mkdirSync(out, { recursive: true });
   await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
-  if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 209; off by default, the walk check being near its time cap)
+  if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 226; off by default, the walk check being near its time cap)
   if (process.env.LENSGUARD === '0') await p.addInitScript(() => { window.__lensGuardOff = true; }); // (the game's lens guard off, to weigh its cost)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
@@ -139,19 +139,23 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first && t.tall) fail('the walk\'s Title screen is below its first screen');
     await shot('9-menu-title');
     await p.locator('#gm-title').scrollIntoViewIfNeeded().catch(() => {});
-    expectReload(p, 'the walk\'s Title screen'); await press('#gm-title');
+    await press('#gm-title'); // (in place: the walk parked under the title, game.js parkTitle)
     if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
     else {
       await p.waitForTimeout(2500);
-      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }; return [document.getElementById('game-stage').classList.contains('walk') && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line'].filter(Boolean); });
+      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }; const st = document.getElementById('game-stage'); return [st.classList.contains('walk') && !st.classList.contains('parked-walk') && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line'].filter(Boolean); });
       if (left.length) fail(`back at the title, left over: ${left.join(', ')}`); else ok('Title screen: the title on its menu, nothing of the walk left');
       await shot('9-title-back');
       await press('#gt-story-go'); await until(() => document.getElementById('g-title').dataset.screen === 'story', null, 20000);
-      await press('#gt-play');
+      expectReload(p, 'the case from a parked walk'); await press('#gt-play');
       if (await until(() => document.getElementById('g-title').dataset.screen === 'who', null, 5000)) { await press('#gt-who [data-c="W"]'); await p.waitForTimeout(500); await press('#gt-who-go'); }
       // (begun: the title gone and the street not the walk's; the opening's film, where it plays, is the case's first minutes)
       const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}, walk ${document.getElementById('game-stage').classList.contains('walk')}`; }).catch(e => String(e).slice(0, 80));
-      if (!(await until(() => document.getElementById('g-title').hidden && !document.getElementById('game-stage').classList.contains('walk'), null, 120000))) fail(`from the title, the case did not begin (${await where()})`);
+      // (from a parked walk the case opens on a page of its own, game.js parkedWay: a wait cut off by the load is waited again)
+      let begun = false;
+      for (const t0 = Date.now(); !begun && Date.now() - t0 < 900000;) { begun = await until(() => !!window.__game && document.getElementById('g-title').hidden && !document.getElementById('game-stage').classList.contains('walk'), null, 30000); if (!begun) await p.waitForTimeout(1000); }
+      if (!begun)
+        fail(`from the title, the case did not begin (${await where()})`);
       else ok(`from the title, the case begins (${await where()})`);
     }
   };
@@ -861,8 +865,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // the corner's Your car (C on a desktop): it pulls in at the kerb nearest you, up the kerb's lane, and stops there
       // (from Hachiko's side of the crossing, where the car is called from most; then back where the menu's step expects you)
       const here0 = await p.evaluate(() => { const g = window.__game, at = [g.player.x, g.player.y]; g.spawn([395, -1052]); return at; });
-      await p.waitForTimeout(800);
-      if (!(await visible('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
+      // (waited for, not read 0.8 s on: put down there out of the car, the corner's buttons are the page's next frames' to
+      // lay out, seconds on a software renderer; read at once it was not there yet, and pressed a beat later it was, main's
+      // walk3 on beb0fdb)
+      if (!(await shown('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
       else {
         await press('#g-walk-acts [data-do="car"]');
         const c0 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return [s.x, s.y]; });
@@ -1055,7 +1061,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     }
   }
   await pace();
-  { // the camera's window in nobody's body, every frame of the walk so far, on foot, by car and in the helicopter (issue 209)
+  { // the camera's window in nobody's body, every frame of the walk so far, on foot, by car and in the helicopter (issue 226)
     const ci = require('./cam_intrude'), R = process.env.CAM_IN !== '1' ? { off: true } : await ci.report(p), { errs } = R.off ? { errs: [] } : ci.print(R);
     if (!R.off && (!R || R.err)) fail(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
     for (const e of errs) fail(`cam: ${e}`);

@@ -298,6 +298,11 @@ function pageSide() {
       for (const c of r.pairs) { const k = `${c.a} -> ${c.b}`, o = seen.get(k) || { ...c, n: 0, over: 0 }; o.n++; if (c.deep > DEEP) o.over++; if (c.deep > o.deep) Object.assign(o, c); seen.set(k, o); }
       await frames(EVERY);
     }
+    // (RAISED=n: n stills, a second apart, of the moments someone near holds an umbrella raised over your head, people.js umbRaise)
+    for (let k = 0, t = Date.now(); k < (+process.env.RAISED || 0) && Date.now() - t < 300000;) {
+      const up = await p.evaluate(() => { const g = window.__game, R = g.crowdDraw(); for (const i of R.active.keys()) { const q = g.crowd.P[i]; if (q && q.umbUpT > 0.6) return true; } return false; });
+      if (up) { await shot(`raised-${k}`); k++; await p.waitForTimeout(1000); } else await frames(3);
+    }
     const all = [...seen.values()].sort((x, y) => y.deep - x.deep);
     console.log(`the crowd's people against those near them: ${reads} readings over ${SECS} s, up to ${nearMax} near people of the crowd; ${all.length} pairs touching, ${all.filter(c => c.over).length} deeper than ${DEEP} m at some reading`);
     for (const c of all.slice(0, +process.env.TOP || 20)) console.log(`  ${(100 * c.deep).toFixed(1).padStart(5)} cm  ${c.a}'s ${c.part} in ${c.b}, ${c.apart} m apart (${c.pa}; ${c.pb}${c.clip ? '; clip ' + c.clip : ''}${c.umb ? '; umbrella up' : ''}), at ${c.at}; touching in ${c.n} of ${reads} readings, over ${DEEP} m in ${c.over}`);

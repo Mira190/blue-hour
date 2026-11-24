@@ -1363,10 +1363,12 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     }
     const q = {}, q2 = {};
     const end = route.end !== false; // pull in at the end (a car driving off just runs out of road)
-    const kerbStart = kerbOf(P.pos(0, q2).c, q2.cw);
     // (kerbFit(x, y, hx, hy, k, keep): the kerb as the ground drawn there has it, where it is nearer the line than its
     // street's class says: a car pulls in beside the kerb, not over it onto a square's paving, #54)
     const pk = {}, fitKerb = (s, k) => { if (!kerbFit) return k; P.at(s, pk, 3); return kerbFit(pk.x, pk.y, pk.hx, pk.hy, k, keep); };
+    // (and sets off from it so: the story's car leaving Hachiko took the class's 6 m off a 14 m street's line as its start
+    // and slid 3.4 m sideways onto the pavement under the station, where the kerb drawn is 3.7 m off the line, issue 213)
+    const kerbStart = fitKerb(0, kerbOf(P.pos(0, q2).c, q2.cw));
     let kerbEnd = fitKerb(P.len, kerbOf(P.pos(P.len, q2).c, q2.cw));
     // the way it keeps off the centre line at s: the lane, easing in to the kerb at the end and out of it at the start
     // (the lane's place on each piece of road on the way: LANE off the line, or on it along a one-way

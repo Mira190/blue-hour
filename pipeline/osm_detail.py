@@ -16,13 +16,15 @@ import urllib.request
 from cityctx import city_args
 
 API = "https://api.openstreetmap.org/api/0.6/map.json?bbox={},{},{},{}"
-UA = "open-earth-3d (https://github.com/Mira190/open-earth-3d)"
+UA = "blue-hour (https://github.com/Mira190/blue-hour)"
 # the tags that make a node or a way worth keeping (any value), and those kept only for some values
 KEEP = ("railway", "entrance", "barrier", "man_made", "tourism", "historic", "advertising", "emergency", "natural",
         "bridge", "building:part", "area:highway", "crossing", "kerb", "tactile_paving", "street_lamp", "bench",
         "covered", "highway", "building", "amenity", "shop", "leisure", "layer", "level", "name", "ref", "height",
         "min_height", "building:levels", "building:min_level", "colour", "material", "operator", "brand", "direction",
-        "oneway", "lanes", "lanes:forward", "lanes:backward", "turn:lanes", "width", "surface", "support", "lamp_type", "vending")
+        "oneway", "lanes", "lanes:forward", "lanes:backward", "turn:lanes", "width", "surface", "support", "lamp_type", "vending",
+        # (issue 213: the crossing's paint under its new tag, a bus bay's number and its shelter, a lift's entrance)
+        "crossing:markings", "local_ref", "shelter", "wheelchair", "description", "network", "public_transport", "landuse")
 WANT_NODE = {"railway", "entrance", "barrier", "man_made", "tourism", "historic", "advertising", "emergency", "natural",
              "crossing", "highway", "amenity", "kerb", "tactile_paving"}
 WANT_WAY = {"railway", "bridge", "barrier", "man_made", "building:part", "area:highway", "highway", "building", "amenity",

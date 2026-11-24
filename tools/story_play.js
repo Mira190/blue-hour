@@ -111,7 +111,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
-  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 209)
+  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 226)
   // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
   // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
   // complete until its turn in the queue is over; three.js's own wait for a link (LINK_STATUS) is not held. Each still
@@ -589,10 +589,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await p.waitForTimeout(800);
     const m = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(), note = document.getElementById('gm-title-note'); return { on: !!e && !document.getElementById('g-menu').hidden && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, note: note && !note.hidden ? note.textContent : '' }; });
     if (!m.on) bad('the case\'s pause has no Title screen'); else if (!m.first) bad('Title screen is below the menu\'s first screen');
-    if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    const loads = /[?&]inplace=0\b/.test(process.env.Q || ''); // (by default the case waits under the title as it is, game.js parkTitle; Q=?inplace=0 takes the page load)
+    if (loads && !new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    if (!loads && m.note) bad(`in place, the note says the frame is taken up from its beginning ("${m.note}")`);
     console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
     await still('menu');
-    expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
+    if (loads) expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
     const back = await p.waitForFunction(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
     if (!back) bad('the title never opened on its menu');
     else {
@@ -600,7 +602,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
       if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
       if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
-      if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      if (loads && t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
       console.log(`  the title again: Continue "${t.cont}", ${t.left.length ? `left over ${t.left.join(', ')}` : 'nothing left over'}`);
       await still('title');
       await clickEl('#gt-cont-go');
@@ -1466,7 +1468,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (C && C.bad.length) errors.push(`ceiling: ${C.bad.length} frames with the lens through the passage's ceiling`);
     else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
   }
-  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 209: tools/cam_intrude.js)
+  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 226: tools/cam_intrude.js)
     const ci = require('./cam_intrude'), R = await ci.report(p), { errs } = ci.print(R);
     if (!R || R.err) errors.push(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
     for (const e of errs) { errors.push(`cam: ${e}`); console.log(errors[errors.length - 1]); }
