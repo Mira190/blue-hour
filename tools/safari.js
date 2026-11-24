@@ -28,8 +28,24 @@ const KEEP = () => {
   window.addEventListener('unhandledrejection', e => W.err.push({ message: String(e.reason), stack: (e.reason && e.reason.stack) || '' }));
 };
 
+// STORE=1: what the story writes to localStorage, said as it happens (Safari keeps about five megabytes an origin, and a
+// string with one character outside Latin-1 costs two bytes a character: a case with its seven prints is 1.4 million
+// characters, and two of them do not fit, issue 8). Each write of a `bh-story` key over 20,000 characters, each one
+// refused, each key removed, and what the store holds after.
+const STORE = () => {
+  const set = Storage.prototype.setItem, del = Storage.prototype.removeItem;
+  const total = () => { let n = 0; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); n += k.length + localStorage.getItem(k).length; } return n; };
+  Storage.prototype.setItem = function (k, v) {
+    const big = /^bh-story/.test(k) && String(v).length > 20000;
+    try { set.call(this, k, v); if (big) console.info(`[store] wrote ${k}: ${String(v).length} characters; the store holds ${total()}`); }
+    catch (e) { console.info(`[store] REFUSED ${k}: ${String(v).length} characters (${e.name}); the store holds ${total()}`); throw e; }
+  };
+  Storage.prototype.removeItem = function (k) { if (/^bh-story/.test(k)) console.info(`[store] removed ${k}`); return del.call(this, k); };
+};
+
 async function launch() {
   const inits = [src(KEEP)];
+  if (process.env.STORE) inits.push(src(STORE));
   const server = http.createServer((q, r) => {
     let f = decodeURIComponent(q.url.split(/[?#]/)[0]); if (f.endsWith('/')) f += 'index.html';
     const file = path.join(WEB, path.normalize(f));
@@ -140,6 +156,7 @@ async function launch() {
       try {
         const d = await wd('POST', '/execute/sync', { script: 'var w = window.__wd; return w ? { log: w.log.splice(0), err: w.err.splice(0) } : null;', args: [] });
         if (d) {
+          for (const m of d.log) if (m.text.startsWith('[store]')) console.log(m.text);
           for (const m of d.log) emit('console', { text: () => m.text, type: () => m.type, args: () => m.args.map(a => ({ jsonValue: async () => a })) });
           for (const e of d.err) { const x = new Error(e.message); x.stack = `${e.message}\n${e.stack}`; emit('pageerror', x); }
         }
