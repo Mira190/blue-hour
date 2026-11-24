@@ -593,16 +593,18 @@ still has its wheels in it, and on anything heard past the tape at a Stop. "Sile
 | `kerb` Hachiko's kerb, about 160 people round you, the train 40 m off behind the station | silent, a call up to −36 | −67 to −30 | silent | silent | silent, a far event up to −40 |
 | `kerb-station` the kerb by the station, the train 6 m off on the viaduct | silent, a call up to −36 | −36 to −21 | silent | silent | silent, a far event up to −40 |
 | `deck` under the railway's deck, the train 8 m overhead | silent, a call up to −39 | −31 to −20 | silent | silent | silent, a far event up to −40 |
-| `kerb-rain` Hachiko's kerb in frame 7's rain | silent, a call up to −36 | −67 to −30 | −39 to −28 | silent | silent, a far event up to −40 |
+| `kerb-rain` Hachiko's kerb in frame 7's rain | silent, a call up to −36 | −67 to −30 | −48 to −36 | silent | silent, a far event up to −40 |
 | `roof` SHIBUYA SKY's deck, 229 m, the train 235 m below | silent | silent | −47 to −36 | silent | silent, a far event up to −36 |
 | `lift` SHIBUYA SKY's lift, riding | silent | silent | silent | −43 to −32 | silent |
 | `heli` the helicopter's cabin, hovering over the pad | silent | silent | silent | −37 to −26 | silent |
-| `car` the car's cabin, standing at the kerb, its engine running | silent, a call up to −50 | −78 to −55 | silent | −43 to −32 | silent, a far event up to −50 |
+| `car` the car's cabin, standing at the kerb, its engine running | silent, a call up to −45 | −78 to −55 | silent | −43 to −32 | silent, a far event up to −50 |
 
 The `near` and `city` columns were ranges until 24 November 2026, when the crowd's murmur and the city's bed were taken
 out ("No bed without a source", below): with them gone the `near` bus at a kerb is silent between the walk signals'
 calls, the announcements and a honk, and the `city` bus between its far events, so each cell says silent and allows the
-event that may fall inside the four seconds read. Measured on the branch that took them out, desktop and phone alike:
+event that may fall inside the four seconds read (and the traffic going by, faint at these points: the nearest moving
+car is 40 to 90 m off). The rain's `weather` range is 10 dB lower than it was: the rain was made softer and 8 dB quieter
+("Soft air"). Measured on the branch that took them out, desktop and phone alike:
 the near bus silent at every point (a red signal in each reading), the city bus silent, every other bus as before.
 
 At Hachiko the `rail` bus moves by 25 dB from run to run (−35 to −61 in the runs so far): the check's train is behind
