@@ -335,7 +335,8 @@ is not be on that path where it matters most:
 - `?music=web` plays it as it was, `?music=el` this way on any device, `?session=auto|playback|ambient` the session's
   type: for a comparison on the phone itself, with `?snd=1` showing the readings.
 - Telemetry: `snd_music` (`el 1`: on elements, how many playing; `fixed` where the volume cannot be set), `snd_el`
-  (`stalls/worst ms`: an element's own clock 400 ms and more behind the wall's), `snd_quiet` while there is no context.
+  (`stalls/worst ms`: an element's own clock 400 ms and more behind the wall's, and still behind at a reading 150 ms
+  later: a main thread held for seconds reads the clock as cached before the hold, behind once and not again), `snd_quiet` while there is no context.
 
 **One music element at a time** (issue 166, 24 November 2026). The owner's iPhone heard the noise again in the story's
 opening on Vercel (build `0.1+3745ecd`, 23 November 21:19 UTC) with `snd` reading `no context` and `snd_music` reading
