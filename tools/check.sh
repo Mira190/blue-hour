@@ -114,7 +114,7 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 storyp storyl walk walk1 walk2 walk3 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
+KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm storyp storyl walk walk1 walk2 walk3 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
 ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
@@ -153,7 +153,7 @@ eta() {
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
   case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
-    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; game) echo 2700 ;; *) echo 600 ;; esac
+    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 800 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
 static=0 want= base= looks=
@@ -276,7 +276,7 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
     # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
     # (and the story whole on a runner of its own: a case carried in one page from frame 4 to 5 and from 6 to 7, which the
     # fast tier, playing the parts, no longer plays before landing)
-    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget ;; walk) echo walk1; echo walk3; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget; echo budgetm ;; walk) echo walk1; echo walk3; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
   done
   exit 0
@@ -384,6 +384,18 @@ budgets_kept() {   # (static: the counts of each play whose pass is kept, agains
 run_budget() { budget_part budget "" "" "the episode played as a phone plays it"; }
 # and in the story's three parts (issue 131): before landing, only the parts a change reaches are played, as the story's
 # are; a part's beats are held to the same budgets as the whole play's (docs/CHECKS.md, "A phone's beats before landing")
+# (the episode on the medium tier, as a laptop with an integrated GPU starts on it, issue 220: its counts and its hitches
+# recorded, beat by beat, and not yet held; held as budget1 to budget3 are once a few runs show what a play differs from
+# itself by. A runner of its own where the budget is played: CHECK_SPLIT=1)
+run_budgetm() {
+  local n=budgetm log="$OUT/budgetm.log" draw=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)}
+  if CHROME_LOG="$OUT/$n-chrome.log" BUDGET="$OUT/$n-budget.jsonl" HITCH="$OUT/$n-hitch.jsonl" TIER=medium STILLS=${STILLS:-0} DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n" 1440x900 >"$log" 2>&1; then
+    printf 'ok   %-6s the episode played on the medium tier; %s\n' "$n" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
+    python3 tools/beat_budget.py show "$OUT/$n-budget.jsonl" >"$OUT/$n-budget.txt" 2>&1 && printf 'note %-6s counts, recorded: %s beats (see %s)\n' "$n" "$(python3 -c 'import json,sys; print(len({json.loads(l).get("fi") for l in open(sys.argv[1]) if l.strip()}))' "$OUT/$n-budget.jsonl")" "$OUT/$n-budget.txt"
+    [ -s "$OUT/$n-hitch.jsonl" ] && printf 'note %-6s hitches, recorded: %s\n' "$n" "$(python3 tools/beat_hitch.py line "$OUT/$n-hitch.jsonl" 2>&1 | cut -c1-400)"
+  else printf 'FAIL %-6s %s   (see %s)\n' "$n" "$(why "$log")" "$log"; fi
+  return 0
+}
 run_budget1() { budget_part budget1 "" 4 "frames 1 to 4 played as a phone plays them"; }
 run_budget2() { budget_part budget2 4 6 "frames 5 and 6 played as a phone plays them, from a case left at frame 5"; }
 run_budget3() { budget_part budget3 6 "" "frame 7 and the last card played as a phone plays them, from a case left at frame 7"; }
