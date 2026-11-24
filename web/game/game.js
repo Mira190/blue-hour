@@ -1755,7 +1755,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function seatMarks() {
     if (!perch || !walk) return [];
     const sat = satGet();
-    if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null && !(visitors && visitors.seated(p.at[0], p.at[1], 2.5))).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
+    const sitting = visitors && visitors.sittingN ? visitors.sittingN() : 0; // (made again as someone of the place sits down by a seat, or goes: visitors.js seated)
+    if (!seatList || seatList.n !== sat.size || seatList.sitting !== sitting) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null && !(visitors && visitors.seated(p.at[0], p.at[1], 2.5))).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; seatList.sitting = sitting; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
     return seatList;
   }
   // the next train out of Shibuya, by the walk's clock (game.json tonight.trains, the Yamanote's outer loop): the last
@@ -6452,6 +6453,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       return 1;
     };
+    // (what of that is solid: all of it but the leaves, for the lens never to stand behind it, below)
+    const solidCut = (a, b) => { const f = nav.clearFraction(a, b); return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && thin(a, b) ? 1 : f, wallCut(a, b), ceilCut(a, b)); };
     const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b), ceilCut(a, b)); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
@@ -6512,8 +6515,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(close ? 0.06 / dist : 0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
     // (behind a level's wall the lens comes in front of it at once, as in the air: eased in, a swing round put it behind the
-    // wall for a few frames, the wall's back filling the picture)
-    const wallIn = pull < 1 && wallCut(camTarget, camPos) < 0.97;
+    // wall for a few frames, the wall's back filling the picture. And behind any wall: where the lens eased in so far would
+    // stand this frame, past a building's wall, a ceiling or a level's wall on the line from your head (not leaves, nor a post
+    // or a column looked past), it is in front of it in this frame. Under the canopies south-west of the Scramble a turn on the
+    // spot put the lens 2.6 m behind a building cell's wall for 7 frames, the pull-in easing in at 0.79: issue 217)
+    const wallIn = pull < 1 && (wallCut(camTarget, camPos) < 0.97 || (!air && pull < cam.pull && solidCut(camTarget, camProbe.lerpVectors(camTarget, camPos, cam.pull)) < 0.97));
     // (in the air a tower comes between in a frame: the lens is in front of it in that frame, and eases back out after it.
     // Eased in as on the street, at 170 km/h the helicopter went behind a tower's corner for a few frames and came out
     // again, hidden and shown, as if the model had a hole in it: the owner's report, November 2026)
@@ -6539,6 +6545,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camOff.lerp(camWant, close ? 1 - Math.exp(-dt * 10) : veh ? 1 - Math.exp(-dt * 16) : air ? 1 - Math.exp(-dt * 7) : 1);
     if ((air || wallIn) && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
     camPos.addVectors(camTarget, camOff);
+    // (and where the swing's easing leaves it, on foot: the offset eased round as you turn cuts a wall's corner on its way, the
+    // lens a few decimetres behind the station passage's walls for up to 10 frames of a turn on the spot. On the line it is on,
+    // in front of whatever solid stands there, in this frame: issue 217)
+    if (close && !jumped) { const fs = solidCut(camTarget, camPos); if (fs < 0.97) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
     // decks below the player's head eased in, so walking onto a stair or a deck lifts the view smoothly
@@ -6563,7 +6573,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // lifted over steps (a stairwell's flight beside a colonnade), the line to the head can graze what the
     // probe went round, the edge of the slab over the well: then closer in along it
     if (camPos.y !== y0 && player.mode === 'foot') {
-      const f = nav.clearFraction(camTarget, camPos);
+      const f = solidCut(camTarget, camPos); // (the walls, the levels and the ceilings, as the line test above: issue 217)
       if (f < 1) camPos.lerpVectors(camTarget, camPos, Math.max(close ? 0.06 / Math.max(0.06, camTarget.distanceTo(camPos)) : 0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
