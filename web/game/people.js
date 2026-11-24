@@ -675,9 +675,10 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
   // ------------------------------------------------------------ the street lights on people
   // setLight(patch): a shader patch every person's material takes from then on (world.js
   // streetLit: after dark the street lights' pool where they stand lights them as it lights the
-  // pavement, so the player and the people they meet are not silhouettes under a lamp)
-  let streetLit = null;
-  function setLight(patch) { streetLit = patch; }
+  // pavement, so the player and the people they meet are not silhouettes under a lamp). cap: the picture's ceiling for a
+  // face that gives light (world.js faceCap, atmosphere.js), which the street's light on a person is held under (CAST_END)
+  let streetLit = null, castCap = null;
+  function setLight(patch, cap = null) { streetLit = patch; castCap = cap; }
 
   // ------------------------------------------------------------ a person in the street's light (issue 123)
   // The street lights, shop windows and screens reach a person as one colour where they stand (world.js streetLight),
@@ -719,7 +720,13 @@ float oeCastIsSkin(vec4 c) {
   cSky *= mix(1.0, 4.0, cDk);
   vec3 cSt = oeCastSt + cSky * vec3(1.0, 0.88, 0.74) * (0.3 * cDk);
   float cSkin = (oeCastSkin < 0.0 ? oeCastIsSkin(diffuseColor) : oeCastSkin) * (1.0 - oeCastHair), cCloth = (1.0 - cSkin) * (1.0 - oeCastHair);
+  // (a near-white taken down for this light, as a film's wardrobe takes a white shirt down to an off-white: the key,
+  // rim and sheen give a person more than the paving under them takes, and a shirt at cotton's 0.72 went over the
+  // tone curve's shoulder, brighter at night than at noon and without its folds. Above 0.4 a colour keeps two fifths
+  // of its lightness, its hue as it is; skin, hair and darker cloth are below it. By day this light is nothing and a
+  // white is as white as its picture: the knee is this light's alone)
   vec3 cAlb = material.diffuseColor;
+  { float cY = dot(cAlb, vec3(0.2126, 0.7152, 0.0722)); if (cY > 0.4) cAlb *= (0.4 + (cY - 0.4) * 0.4) / cY; }
   float cNV = clamp(dot(cN, cV), 0.0, 1.0);
   // the key
   vec3 cK = normalize(cV * 0.5 + cUp * 0.6 + cR * 0.65);
@@ -737,11 +744,20 @@ float oeCastIsSkin(vec4 c) {
   // skin's broad highlight toward the key
   cOut += cE * cSkin * 0.035 * pow(max(dot(cN, normalize(cK + cV)), 0.0), 22.0);
 #endif
+  // (and the whole of it held under a ceiling set where the picture is, as a sign's face is (world.js faceCap): eased in
+  // from a third of a face's and never past three fifths of it, about where a white shirt lands in the noon sun. The key,
+  // the rim, the sheen and the dusk's sky give a person more than the paving under them takes, and a near-white went
+  // past the tone curve's shoulder, the brightest thing in a crowd at the Center Gai gate and brighter than it is at noon.
+  // Taken on its luminance, so a face, whose red runs well over its lightness, stays under the knee with darker cloth)
+  { float cP = dot(cOut, vec3(0.2126, 0.7152, 0.0722)), cK = 0.35 * uCastCap, cR = 0.25 * uCastCap;
+    if (cP > cK) cOut *= (cK + cR * (1.0 - exp(-(cP - cK) / cR))) / cP; }
   totalEmissiveRadiance += cOut; }`;
+  const CAST_NOCAP = { value: 1e4 }; // (no ceiling given: none)
   function castPatch(sh) {
     if (!sh.fragmentShader.includes(CAST_LINE) || !sh.fragmentShader.includes('#include <lights_fragment_end>')) return;
+    sh.uniforms.uCastCap = castCap || CAST_NOCAP;
     sh.fragmentShader = sh.fragmentShader.replace(CAST_LINE, 'oeCastSt = streetLight(transpose(mat3(viewMatrix)) * (-vViewPosition - viewMatrix[3].xyz));')
-      .replace('#include <common>', `#include <common>\n${castFull() ? '#define OE_CAST_FULL\n' : ''}${CAST_FS}`)
+      .replace('#include <common>', `#include <common>\nuniform float uCastCap;\n${castFull() ? '#define OE_CAST_FULL\n' : ''}${CAST_FS}`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>${CAST_END}`);
   }
   function litMaterial(m) {

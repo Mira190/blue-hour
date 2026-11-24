@@ -981,10 +981,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           if (!k0.keys || !/walk/i.test(k0.how)) { errors.push(`the first Stop: not yet walked, and ${!k0.keys ? 'no walking keys on the screen' : `the goal does not say how to walk ("${k0.how}")`}`); console.log(errors[errors.length - 1]); }
           const toasts0 = await p.evaluate(() => document.querySelectorAll('.g-toast').length);
           await p.waitForFunction(() => (window.__game.story.state.seekAsked || 0) >= 1 || window.__game.story.state.beat !== 'seek', null, { timeout: 600000, polling: 250 }).catch(() => {});
-          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', n: T.length }; });
+          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', next: document.getElementById('g-toasts').dataset.next || '', n: T.length }; });
           await snap('1-seek-ask');
+          // ("your turn" said or waiting its turn behind another toast, hud.js said: the sound's own word that a phone's street
+          // went quiet stood there first on main's budget on a9737df, and the ask came after it)
           console.log(`the first Stop, standing still: ${JSON.stringify(k1)} (toasts before: ${toasts0})`);
-          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(k1.toast) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
+          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(`${k1.toast} | ${k1.next}`) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
         }
         continue;
       }
@@ -1062,11 +1064,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!off.on || off.now !== 0 || off.done !== '0000' || off.cam || off.btn || off.formed !== 0 || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the camera still down and no button for it, the card on its first step, nothing of 1964 formed, no light underfoot)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
         await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
-        const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
+        // (each state looked for until it comes, up to a minute of the wall's: on a phone's tier a drawn frame carries little of
+        // the game's time, and three of frame 1's reads after so many frames failed on CI on 24 November. What may not happen
+        // off the light is still read after its fixed wait)
+        const until = async ok => { const t0 = Date.now(); let c = await card(); while (!ok(c) && Date.now() - t0 < 60000) { await frames(4); c = await card(); } return c; };
+        const inL = await until(c => c.now === 1 && c.here && c.btn); await snap(`${s.fi + 1}-teach-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
         if (inL.now !== 1 || inL.done !== '1000' || !inL.here || !inL.btn) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do and its button up, the ground lit)`); console.log(errors[errors.length - 1]); }
         await raise(true); await frames(24); await p.waitForTimeout(1500);
-        const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
+        const up = await until(c => c.formed >= 1 && c.ready && c.now === 3); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));
         if (up.formed < 1 || up.off || !up.ready || up.done !== '1110' || up.now !== 3) { errors.push(`frame ${s.fi + 1}: raised in the light, ${JSON.stringify(up)} (the thing formed in the lines, ready, the card at its last step)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
@@ -1077,6 +1083,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // It once came up wherever that view had been pitched (on a wall's upper floors), and drifted on by itself
       if (T.subject && !T.both && !seen.has(`raise-${s.fi}`)) {
         seen.add(`raise-${s.fi}`);
+        // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
+        // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
+        // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);
