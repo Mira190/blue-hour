@@ -217,7 +217,19 @@ window.OpenEarthGame = async function game(cityId) {
   const Wd = await OEWorld.create(D, renderer, { onMsg: loadMsg, small: QC.small, shadow: QC.shadow, game: true, nearCars: ((G.crowd || {}).radius_m || 450) + 100,
     groundAt: G.start && G.start.at }); // (the aerial tiles round the start before the game opens, the rest after it: issue 335)
   const world = Wd.world, U = Wd.U;
-  if (OEWorld.gate) OEWorld.gate(renderer, { scene: world }); // (a draw whose program is still being linked comes a frame later, not waited for: world.js gate)
+  if (OEWorld.gate) OEWorld.gate(renderer, { scene: world, targets: () => (atmos && atmos.composer ? [atmos.composer.renderTarget1, atmos.composer.renderTarget2] : null) }); // (a mesh not yet drawn whose program is still being linked comes a frame later, not waited for; only in the frame's own targets: world.js gate)
+  // The set-up's fixed work, baked (issue 194: tools/bake_setup.js): what the set-up computes from the map's data alone (the decks'
+  // plan and columns, the roads' and the footways' lines, which road lines have one lane, how wide a vehicle each lesser street
+  // takes), read from setup.bin beside the packs instead of computed, 1.6 s of the M3's set-up. Taken only when it is of this
+  // BAKE_V (bumped when what the set-up means by them changes); tools/check.sh fails on a bake stale against the packs, and
+  // compares one with the page computing. ?bake=1: computed, and put on window.__bake (the tool's), ?bake=off: computed
+  const BAKE_V = 1, bakeQ = new URLSearchParams(location.search).get('bake'), bakeOut = bakeQ === '1' ? (window.__bake = { v: {}, ms: 0, done: false, packs: D.PACKS }) : null;
+  const bakeP = bakeQ === '1' || bakeQ === 'off' || typeof DecompressionStream === 'undefined' ? Promise.resolve(null)
+    : fetch(D.PACKS + 'setup.bin').then(r => (r.ok ? new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json() : null)).then(b => (b && b.bake === BAKE_V && b.v ? b.v : null), () => null);
+  let bakeMs = 0;
+  const plainOf = x => JSON.parse(JSON.stringify(x, (k, v) => (ArrayBuffer.isView(v) ? Array.from(v) : v)));
+  const bakeIn = (k, fn) => { const t = performance.now(); if (BK && BK[k]) { const v = BK[k]; bakeMs += performance.now() - t; return v; } const v = fn(); bakeMs += performance.now() - t; if (bakeOut) bakeOut.v[k] = plainOf(v); return v; };
+  let BK = null;
   fitRoot = world;
   // After dark, a soft fill that goes with you: the city's lights are drawn as an aerial photograph shows
   // them, and between the lamps (a hillside track, a shrine's woods, a deck above the town) the ground was
@@ -763,7 +775,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // bridge over a ferry's course clears the boats with someone standing on the upper deck
   const FI = vlib && vlib.ferryInfo, fstyle = G.ferry_style || {};
   const boatTop = (FI ? FI.upper_deck_m * (fstyle.length_m ? fstyle.length_m / FI.length_m : 1) : 4.2) + 2.2;
-  const deckPlan = OEDecks.plan(G.paths, nav, FRAME, { boats: (G.ferries || []).flatMap(f => (f.legs || []).map(l => l.path)), clear: boatTop, tracks: ((G.trains && G.trains.tracks) || []).map(t => t.p) });
+  BK = await bakeP;
+  const tDeck = performance.now(), deckPlan = BK && BK.decks ? BK.decks : OEDecks.plan(G.paths, nav, FRAME, { boats: (G.ferries || []).flatMap(f => (f.legs || []).map(l => l.path)), clear: boatTop, tracks: ((G.trains && G.trains.tracks) || []).map(t => t.p) });
   nav.addDecks(deckPlan.segs);
   for (const d of deckPlan.segs) {
     const L = Math.hypot(d.bx - d.ax, d.by - d.ay) || 1, nx = -(d.by - d.ay) / L * d.hw, ny = (d.bx - d.ax) / L * d.hw;
@@ -775,15 +788,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (a landmark's 2 m cells stand in for its fine ones here: laying the fine cells of the whole city
   // would cost seconds at the start, nav.js; paving, padded 0.3 m in those cells, stays under 0.45)
   const inWall = (x, y, z, r) => nav.withoutFine(() => nav.col.overlap(x, y, r, z + 0.3, z + 2.2, i => nav.col.tagOf(i) === 1 && nav.col.zhiOf(i) <= z + 0.3) || nav.landmarkHit(x, y, z + 0.45, z + 2.2));
-  deckPlan.columns = OEDecks.clearColumns(deckPlan.runs, (x, y, z, r) => roadsNow.depth(x, y, z, r), inWall);
+  if (!(BK && BK.decks)) deckPlan.columns = OEDecks.clearColumns(deckPlan.runs, (x, y, z, r) => roadsNow.depth(x, y, z, r), inWall); // (baked: its columns cleared already)
   // a deck over a railway (the expressway on Circular Quay Station's roof): the station carries it on its own
   // columns, and none of the deck's stands within a train's width of a track
-  if (G.trains) {
+  if (G.trains && !(BK && BK.decks)) {
     const near = (c, t) => { const p = t.p, rz = p[2] / 10; if (c.z1 < rz + 1 || c.z0 > rz + 4) return false; const r = 3.2 + Math.max(c.hx, c.hy);
       for (let k = 0; k + 5 < p.length; k += 3) { const ax = p[k] / 10, ay = p[k + 1] / 10, bx = p[k + 3] / 10 - ax, by = p[k + 4] / 10 - ay, u = Math.max(0, Math.min(1, ((c.x - ax) * bx + (c.y - ay) * by) / (bx * bx + by * by || 1)));
         if (Math.hypot(c.x - ax - bx * u, c.y - ay - by * u) < r) return true; } return false; };
     for (const r of deckPlan.runs) if (r.cols) r.cols = r.cols.filter(c => !G.trains.tracks.some(t => near(c, t)));
   }
+  bakeMs += performance.now() - tDeck; if (bakeOut) bakeOut.v.decks = plainOf({ runs: deckPlan.runs, segs: deckPlan.segs });
   world.add(OEDecks.mesh(deckPlan.runs, OEWorld.lin));
   // under the decks drawn over the water, the photograph of the same bridge or expressway lies on the bottom
   // and showed through the water as a road on the riverbed (Tokyo's Nihonbashi under the Shuto, issue 65):
@@ -1014,7 +1028,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (route.js), nor through a wall
   // (against a landmark's triangles where its 2 m cells would cut the way, nav.js withoutFine: a crowd's
   // way through a gate's passage or between lanterns is kept where a walker gets through)
-  const tRoad = performance.now(), footNet = OEActors.network(G.paths.foot), roadNet = OEActors.network(nav.withoutFine(() => onGround(cutAtWalls(G.paths.road, 0.5, true))));
+  const tRoad = performance.now(), footNet = OEActors.network(G.paths.foot), roadNet = OEActors.network(bakeIn('roads', () => nav.withoutFine(() => onGround(cutAtWalls(G.paths.road, 0.5, true)))));
   const roadMs = performance.now() - tRoad;
   // the planned area's edge (bounds.js, docs/BOUNDS.md): the story and the walk keep to it, on foot, by car and in the
   // air; the streets across it shut to cars, with road works on them. ?walk=1 (the builder's map) and ?bounds=off are open
@@ -1024,7 +1038,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
-  const tFoot = performance.now(), crowdNet = OEActors.network(nav.withoutFine(() => OEActors.join(cutAtWalls(OERoute.walkable(nav, G.paths.foot, (x, y, z) => roadsNow.depth(x, y, z, 0.3) > 0)), (x, y, z) => nav.solid(x, y, z, 0.1), 1.6, (x, y, z) => { const w = nav.walk(x, y, z + 0.6, true); return w.ok && Math.abs(w.z - z) < 0.6 && nav.room(x, y, z, 0.3); }))); // (joined where the footways meet, and led round what cut them: a T with no node, or a pier in the way, was the end of the way to a walker, issue 168)
+  const tFoot = performance.now(), crowdNet = OEActors.network(bakeIn('crowd', () => nav.withoutFine(() => OEActors.join(cutAtWalls(OERoute.walkable(nav, G.paths.foot, (x, y, z) => roadsNow.depth(x, y, z, 0.3) > 0)), (x, y, z) => nav.solid(x, y, z, 0.1), 1.6, (x, y, z) => { const w = nav.walk(x, y, z + 0.6, true); return w.ok && Math.abs(w.z - z) < 0.6 && nav.room(x, y, z, 0.3); })))); // (joined where the footways meet, and led round what cut them: a T with no node, or a pier in the way, was the end of the way to a walker, issue 168)
   console.info(`footways: ${Math.round(performance.now() - tFoot)} ms, the roads cut at the walls ${Math.round(roadMs)} ms`);
   // benches face their footway, or the water behind it; each has two seats the crowd can use
   const benches = nav.withoutFine(() => OEActors.benches(G.props.bench || [], crowdNet, nav)), lamps = G.props.street_lamp || [];
@@ -1196,6 +1210,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // expressway's deck, Sydney's Cahill Expressway past one at 33 m, issue 119; the data's lanes are where
   // the line is, not where the second lane is) has one lane there, so no car waits at the facade for room
   // in the first
+  const tSweep = performance.now(), oneIdx = [];
+  if (BK && BK.one) { for (const i of BK.one) roadNet.L[i].lanes = 1; junctions.oneLane = BK.one.length; } else
   { const side = KEEP === 'right' ? -1 : 1, q = {}, RL = roadNet.L;
     let one = 0;
     nav.withoutFine(() => { for (let i = 0; i < RL.length; i++) {
@@ -1211,7 +1227,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           if (!nav.room(x, y, z, 0.75, 1.4, !!q.deck)) { hit = true; break; }
         }
       }
-      if (hit) { l.lanes = 1; one++; }
+      if (hit) { l.lanes = 1; one++; oneIdx.push(i); }
     } });
     junctions.oneLane = one; }
   // the roads' half-widths as the game draws them
@@ -1220,6 +1236,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // width, knee to 1.4 m, as tools/game_check.js counts a car in a wall) that its lane has room for, the
   // least of them kept per street. The traffic keeps a vehicle wider than that off the street (actors.js
   // fits): a bus or a van doesn't turn into a lane between two facades it would scrape
+  if (BK && BK.fit) roadNet.fit = Float32Array.from(BK.fit); else
   { const side = KEEP === 'right' ? -1 : 1, q = {}, RL = roadNet.L, R = [1.15, 1.0, 0.9, 0.8, 0.72, 0.64];
     const fit = roadNet.fit = new Float32Array(RL.length).fill(9);
     nav.withoutFine(() => { for (let i = 0; i < RL.length; i++) {
@@ -1245,6 +1262,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       fit[i] = k === 0 ? 9 : k < R.length ? R[k] / 0.8 : 0; // (as a vehicle's half-width: most of it, 0.8, must have room)
     } }); }
+  bakeMs += performance.now() - tSweep;
+  if (bakeOut) { bakeOut.v.one = oneIdx; bakeOut.v.fit = Array.from(roadNet.fit); bakeOut.ms = bakeMs; bakeOut.done = true; }
+  console.info(`set-up's fixed work: ${Math.round(bakeMs)} ms, ${BK ? 'from the bake' : 'computed'}`);
   junctions.build(world, { style: Object.assign({ country: CITY.country }, G.signals || {}), ground: lineGround, eye: camera, clear: (x, y, z, r) => roadsNow.kerbside(x, y, z, r, 6, true) });
   // the signal poles, the walk-signal posts and the columns under the decks are solid too
   { const H = junctions.heads;
@@ -1257,7 +1277,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
   if (junctions.heads && junctions.heads.walkPosts) for (const q of junctions.heads.walkPosts) posts.add(q.x, q.y, q.z, 0.09, 'lamp'); // (a scramble's walk signals stand beside its crosswalks: walked round)
   // (is (x, y) in a carriageway, as the game draws the roads? nobody waits there)
-  const onRoad = (x, y) => { const q = roadNet.nearest(x, y, 8); return !!q && q.d < rwOf(roadNet.L[q.line]) / 2 + 0.3; };
+  const onRoadQ = {}, onRoad = (x, y) => { const q = roadNet.nearD(x, y, 8, onRoadQ); return !!q && q.d < rwOf(roadNet.L[q.line]) / 2 + 0.3; }; // (nearD: nearest()'s answer without its lists, asked several times a person a frame)
   // the crowd waits at the kerb for the walk signal where its footways cross a junction's roads
   // (and where a footway steps onto a road with no crossing marked, the crowd looks for a gap in the traffic:
   // road says what is carriageway, zebra where a zebra's stripes are, the cars giving way there instead)
@@ -2267,6 +2287,23 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const GUIDE_BODY = 0.7; // (the guide's reach from where it stands until his model has said: blender/build_dog.py's Akita, 0.52 m behind to 0.72 m in front)
   // (and once it has, his own: companion.js measures it from the model, so another animal is kept off posts by its size)
   const guideReach = g => (guideMade && guideMade.reach) || GUIDE_BODY * (g.scale || 1);
+  // (the boxes round a cell the guide's planner asks of, for its stand: carBoxes(x, y, 4)'s, from one gathering a frame of
+  // all within 34 m of where the first ask fell, kept while the asks stay within 30 m of it, issue 206)
+  let standAt = null;
+  const standBoxes = (x, y) => { if (!standAt || standAt.t !== last || Math.abs(x - standAt.x) > 30 || Math.abs(y - standAt.y) > 30) standAt = { t: last, x, y, b: carBoxes(x, y, 34) }; return standAt.b; };
+  // (and while the world is held, nothing stand reads moves (the cars, the trains, the gates, the posts): each answer is
+  // kept for the hold, by the place asked to 5 cm. A plan that found no way was made again the next frame on the same
+  // grid, 226,000 asks in one talk of frame 3. A post added, moved or taken away, or the world running, and they are
+  // asked again)
+  let standMemo = null;
+  for (const k of ['add', 'move', 'remove']) { const f = posts[k]; posts[k] = (...a) => { standMemo = null; return f.apply(posts, a); }; }
+  const standHeld = (x, y, z, ask) => {
+    if (!(story && story.stopped && story.scale === 0)) { standMemo = null; return ask(); }
+    if (!standMemo || standMemo.size > 250000) standMemo = new Map();
+    const k = (Math.round(x * 20) * 100003 + Math.round(y * 20)) * 1000 + Math.round(z * 2);
+    let v = standMemo.get(k); if (v === undefined) { v = ask(); standMemo.set(k, v); }
+    return v;
+  };
   // the way from where a frame is taken to what it is of, kept clear: of the crowd who stand in it, a walker is sent on
   // elsewhere (out of sight, as anyone the crowd is done with) and someone crossing a square or the Scramble steps to
   // the side of it, so that a stopped crowd at a kerb does not stand between the lens and the thing the frame is of (a
@@ -2685,6 +2722,27 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
     return haloTex;
   };
+  // (an afterimage's look compiled before the Stop it stands in, as the title waits: people.js exposure makes a program of
+  // its own for each of their materials, and each Stop's afterimage, made under the flash, linked three to five of them in
+  // the Stop's first frames, with the halation's when it first came up: a frame of 0.2 to 2.9 s on a session's machine,
+  // and taps that waited 3.7 s on an iPhone, issue 206. One rig of each, never shown, the exposure laid on, compiled)
+  const warmGhosts = () => {
+    if (!lib || !G.story || !OEPeople.exposure) return Promise.resolve();
+    // (the frame the case is at first: a story taken up again at its Stop finds its afterimage made; the rest in order)
+    const who = new Set(), at = story && story.state ? story.state.fi || 0 : 0;
+    for (const ep of G.story.episodes || []) { const F = ep.frames || []; for (const fr of [...F.slice(at), ...F.slice(0, at)]) for (const a of [fr.afterimage, fr.afterimage2]) if (a && a.character && !a.alive) who.add(a.character); }
+    let p = Promise.resolve(), halo = true;
+    for (const c of who) p = p.then(() => lib.require(c)).then(() => {
+      if (!lib.tpl[c]) return null;
+      // (two of them: one still, one with its face's shapes live, as it is while it speaks, face.js: a program of its own)
+      const g = new THREE.Group(), r = makeRig({ character: c }), q = makeRig({ character: c });
+      for (const x of [r, q]) { OEPeople.exposure(x.root); x.animate(0, 0, 'ground', 0); g.add(x.root); }
+      if (q.face) q.face.after(0, {});
+      if (halo) { halo = false; g.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xd6e4ff, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }))); }
+      return warmFor(g).then(() => { if (q.face) q.face.rest(); });
+    }).catch(() => null);
+    return p;
+  };
   const storyFigure = (a, at) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
     const old = a.alive && a.age >= 70, bend = [], look = [];
@@ -2830,7 +2888,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and off a car, a train and the helicopter, as you are kept off them, carBoxes: he was put at your heels in its cabin)
     // (and never a step that takes his body into one of the crowd, issue 65: he waits, and they step aside for him, crowdKeep)
     slide: (x, y, z, dx, dy) => { const m = nav.slide(x, y, z, dx, dy), r = guideReach(g), c = OECars.pushOut(m.x, m.y, z, r, carBoxes(m.x, m.y, 4)), o = posts.pushOut(c.x, c.y, r, z); return nav.walk(o.x, o.y, z, true).ok && guideClear(x, y, o.x, o.y) ? o : { x, y }; },
-    stand: (x, y, z) => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, guideReach(g), z).hit && !OECars.pushOut(x, y, z, guideReach(g), carBoxes(x, y, 4)).hit,
+    // (stand is asked once a cell of his planner's grid, thousands of times a plan round the held crowd: the boxes of the
+    // cars, the trains, the helicopter and the gates are gathered once a frame for 30 m round, not once a cell. Each cell
+    // made every train's boxes again, and the Stop's seek ran at 1 to 5 fps on an iPhone, issue 206)
+    stand: (x, y, z) => standHeld(x, y, z, () => nav.walk(x, y, z, true).ok && !posts.pushOut(x, y, guideReach(g), z).hit && !OECars.pushOut(x, y, z, guideReach(g), standBoxes(x, y)).hit),
     // (the Scramble's own crowd too, q.pz: waiting at its kerbs, out crossing, standing about the square. They are kept on
     // no footway line, and he walked into the waiters at Sumiko's kerb as if nobody stood there, issue 65)
     people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push([qx, qy]); } return out; },
@@ -3936,6 +3997,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     player.auto = null; player.speed = 0;
     heli.group.attach(root); // (you ride in the helicopter's frame from here)
     root.position.copy(heli.way.seat); root.rotation.set(0, 0, 0);
+    heliSit();
     player.mode = 'heli'; player.vehicle = heli;
     st.on = true; st.door = 1; st.doorTo = 0; // (shut behind you, a third of a second, as the view comes round)
     // the chase view behind it (near enough that it fills a sixth of the picture's height), come round to from where you
@@ -3947,11 +4009,37 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (!walk && !heliCoach()) H.toast(touch ? 'Door shut, rotor spooling up: it lifts at 90%. Hold <b>Up</b> to climb and <b>Down</b> to descend; the stick flies and turns; <b>View</b> changes the view.'
       : 'Door shut, rotor spooling up: it lifts at 90%. <kbd>Space</kbd> climb, <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd>, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> change view.');
   }
+  // Seated in the helicopter as in a car (cars.js sit): the top of the head kept clear of the cabin's roof over it, the
+  // body sunk a little into the cushion and, if still too tall for this cabin, a little smaller about the seat; and the
+  // hands in the lap. (At the seat's own place the player's head stood 9 cm through the roof, hair showing over it from
+  // outside, and the hands hung into the seat's sides: tools/clip_people.js seats, issue 157)
+  const heliLapV = new THREE.Vector3();
+  const heliLap = () => { const root = player.rig.root; root.updateWorldMatrix(true, false); return root.localToWorld(heliLapV.set(0, 0.56, 0.27)); };
+  function heliSit() {
+    const rig = player.rig, root = rig.root, seatY = heli.way.seat.y, REACH = 0.4, own = root.scale.x; // (own: its size in the helicopter's frame as it got in)
+    if (!rig.headTop || !heli.roofOver) return;
+    const top = new THREE.Vector3(), foot = new THREE.Vector3(), sc = new THREE.Vector3();
+    for (let k = 0; k < 5; k++) {
+      rig.reach = heliLap(); rig.animate(0, 0, 'sit', clockT);
+      heli.group.updateWorldMatrix(true, true);
+      rig.headTop(top);
+      const up = heli.roofOver(foot.copy(top).setY(top.y - REACH), root); // (from inside the head: a roof it is already through is still over the ray's foot)
+      if (up == null) break;
+      const over = REACH - up + 0.06; // (6 cm of room, for the seated idle's sway)
+      if (over <= 0.002) break;
+      const s = heli.group.getWorldScale(sc).y || 1, sunk = (seatY - root.position.y) * s;
+      if (sunk < 0.08 - 1e-4) { root.position.y -= Math.min(0.08 - sunk, over) / s; continue; }
+      const h = top.y - root.getWorldPosition(foot).y, to = root.scale.x * Math.max(0.86 * own / root.scale.x, (h - over) / Math.max(0.3, h));
+      if (Math.abs(to - root.scale.x) < 1e-4) break;
+      root.scale.setScalar(to);
+    }
+  }
   function exitHeli() {
     const st = heli.st, d = heli.doorAt(), p = placeNear(d.x, d.y, st.z + 0.5, heli.boxes()); // (beside its door, outside its hull)
     if (!p) { H.toast('Land somewhere you can step out.'); return; }
     if (coachHeli && coachHeli.active && coachHeli.id !== 'land') coachHeli.end(); // out before the end: again next flight
     world.attach(player.rig.root);
+    player.rig.root.scale.setScalar(1); player.rig.reach = null; // (a cabin too low for you made you a little smaller, and your hands lay in your lap: heliSit)
     player.mode = 'foot'; player.vehicle = null; player.speed = 0; player.ground = true; player.vz = 0; player.auto = null;
     [player.x, player.y, player.z] = p;
     player.h = st.h + HALF_PI; // (facing out from the door: three-quarters to the view)
@@ -4188,7 +4276,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // own score then leaves the bed to that one: film-score.js plan.under)
   // (opts.own: a film whose score is the only music while it plays, its own bed and all, whatever plays now: the walk's, which
   // lets the loading cue go as it sets out; opts.walk, opts.fill: the walk's film, and what its type's {tokens} say)
-  makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && (cue || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
+  // (a phone's music plays on media elements, one at a time, audio.js tune: the loading cue is let go as the film's score
+  // begins, so that score has its own bed; issue 166)
+  makeFilm = (ov, guideAt = null, opts = {}) => OEOverture.create({ G: Object.assign({}, G, { overture: ov && ov.score && !opts.own && ((cue && !A.tunes) || storyMusic) ? Object.assign({}, ov, { score: Object.assign({}, ov.score, { under: true }) }) : ov }), guideAt, scene, CITY, W, world, camera, stage, cine, get live() { return live; }, handOver: (k, f) => handOver(k, f),
     walk: !!opts.walk, fill: opts.fill || null, levelReady: () => levelReady(), get levelWait() { return LEVEL_WAIT_S; }, // (both read when played: they are declared further on)
     junctions, crowd, faceShare, footNet, crowdNet, nav, clock, setClock: (y, m, d, min) => setClock(y, m, d, min, !clock.own), player, spawn, tier: QC.name, reduced, sun: () => sun, U, DSM, Wd, weather, show, get atmos() { return atmos; },
     walkIn: (j, inS) => { junctions.walkIn(j, inS); if (inS > 0) { cars.clearBox(j.x, j.y, 45); musterScramble(); } }, holdForLevel: done => holdForLevel(done) });
@@ -4277,8 +4367,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const open = () => {
       const filmIt = overture && !cont && !arrive && !R && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
       // (on iOS the first touch may be Play itself: the loading cue is begun in that touch, after the opening's score was
-      // rendered with its own bed because there was no cue yet (film-score.js plan.under). One piece of music: the
-      // opening's own, and the cue let go before it sounds)
+      // rendered with its own bed because there was no cue yet (film-score.js plan.under); and a phone's score always has
+      // its own, its music being one element at a time (audio.js tune). One piece of music: the opening's own, and the cue
+      // let go before it sounds, faded out as the score's first second swells in from silence)
       if (filmIt && cue && overture.scorePlan && !overture.scorePlan().under) cueOut();
       if (filmIt && overture.play(then)) { renderPassport(); return; }
       if (!R && openingHere()) { // (#110: the opening shot, the scramble's walk turning green as it comes down)
@@ -4574,7 +4665,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
     if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
     // and the story's stopped air: its leaves, birds and motes, made at the first beat after the tap (stopfx.js warm)
-    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => stopFx.warm(warmFor)), reduced ? 0 : 1000);
+    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => Promise.all([stopFx.warm(warmFor), warmGhosts()])), reduced ? 0 : 1000); // (and the afterimages' look, warmGhosts)
     setTimeout(() => { if (QC.lean) afterPlayable().then(heliIn); else heliIn(); }, reduced ? 0 : 900);
   });
   // What the first frame doesn't need, fetched once the game can be played, as the helicopter's model is (issue 335):
@@ -4808,6 +4899,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (film) sndQuiet = 2;
         if (playing && !film && !held && (sndQuiet === 2 || now - (sndQuietAt || (sndQuietAt = now)) > 2000)) { sndQuiet = 0; A.quiet(false); }
       }
+      if (sndBed && sndBed.dead) sndBed = null; // (let go for a film's score: one tune at a time, audio.js tune; begun again after it)
+      if (cue && cue.dead) cue = false;
       if (playing && !film) {
         const street = !!A.ctx && A.ctx.state === 'running' && !A.holding && !A.gaveUp;
         if (sndCueOut && street) { sndCueOut = false; cueOut(); }
@@ -5087,6 +5180,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       A.rotor(heli.st.rotor, Math.abs(lift) + Math.abs(fwd) * 0.5);
       A.wind(Math.min(1, heli.st.speed / 60));
+      player.rig.reach = heliLap(); // (the hands in the lap, wherever the helicopter now is: heliSit)
       player.rig.animate(dt, 0, 'sit', clockT);
     } else if (player.mode === 'seat') {
       if (perch && perch.seat) { // (each frame: a figure swapped in while you sit, its model come late, sits on the stone too)
@@ -5390,6 +5484,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const dx = player.x - x0, dy = player.y - y0, dn = (dx * bx + dy * by) / bl;
         moved = Math.sqrt(Math.max(0, dx * dx + dy * dy - dn * dn));
       }
+      // and to someone stood ahead, one of the map's people or the story's: the hand that leads the stride reached 2 to 4.5 cm
+      // into a back or an arm in the frame the middle stopped at their shoulder, from every side and deepest at a run
+      // (tools/clip_people.js, issue 157). The point the stride reaches is kept out of them as the middle is, so the middle
+      // stops that much short of them along the way it goes, and slides round them as before where it only passes
+      { let px = player.x + hx, py = player.y + hy, hit = false;
+        posts.near(px, py, 0.35, q => { if (q.kind !== 'npc' && q.kind !== 'story') return;
+          const dx = px - q.x, dy = py - q.y, d = Math.hypot(dx, dy), m = q.r + 0.35 - d;
+          if (m > 0 && d > 1e-6) { px += dx / d * m; py += dy / d * m; hit = true; } }, player.z);
+        const nx = px - hx, ny = py - hy;
+        if (hit && nav.walk(nx, ny, player.z, true).ok) { player.x = nx; player.y = ny; moved = Math.hypot(player.x - x0, player.y - y0); } }
     }
     // cars are solid too: out of any the move went into, or one that drove into you (back where you
     // were if that is a wall), and then out of the lamp posts and trunks, which a car can't shove you into

@@ -2943,7 +2943,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     compiling++;
     return (async () => {
       const props = renderer.properties, mats = new Set(), t0 = performance.now(), flying = new Set();
-      const inFlight = () => { for (const p of flying) if (p.isReady()) flying.delete(p); return flying.size; };
+      // (a program three.js has destroyed, its material disposed while it linked, is no longer GL's to be asked about: asking
+      // read GL_INVALID_VALUE, 'Program object expected', the story's storyp check on main. One that failed to link is alive, p.program
+      // set, and three.js's first use of it reports it as ever)
+      const gone = p => !p || !p.program;
+      const inFlight = () => { for (const p of flying) if (gone(p) || p.isReady()) flying.delete(p); return flying.size; };
       let slices = 0, longest = 0;
       const n = objs.length + casters.length;
       for (let i = 0; i < n;) {
@@ -2958,7 +2962,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
           // in the call that sends it until the GPU has caught up, a stall of seconds on a software renderer or a
           // device that compiles one at a time, issue 299; the slice ends and the next one waits for them instead)
           while (i < n && performance.now() - s0 < (behind ? sliceMs(true) / 2 + (leanNow() ? 6 : 0) : SLICE_MS) && inFlight() < flight) {
-            const add = m => { mats.add(m); const p = props.get(m).currentProgram; if (p && p.isReady && !p.isReady()) flying.add(p); };
+            const add = m => { mats.add(m); const p = props.get(m).currentProgram; if (!gone(p) && p.isReady && !p.isReady()) flying.add(p); };
             if (i < objs.length) for (const m of renderer.compile(objs[i++], camera, scene)) add(m);
             else { const j = i - objs.length, k = Math.min(casters.length, j + 24); for (const m of compileDepth(renderer, casters.slice(j, k), camera, scene)) add(m); i += k - j; }
           }
@@ -2971,7 +2975,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       const all = new Set(mats);
       await new Promise(done => {
         const check = () => {
-          for (const m of mats) { const p = props.get(m).currentProgram; if (!p || !p.isReady || p.isReady()) mats.delete(m); }
+          for (const m of mats) { const p = props.get(m).currentProgram; if (gone(p) || !p.isReady || p.isReady()) mats.delete(m); }
           if (mats.size) setTimeout(check, 10); else done();
         };
         check();
@@ -2999,21 +3003,31 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // Only the scene given (the world: a post pass's quad is never left out, a frame would be black) and the shadow pass (its
   // casters' depth programs, left out of the shadow map for those frames). Without the extension nothing changes: a
   // program is linked as it is made, so there is nothing to wait for. ?gate=0 turns it off, to measure against.
-  function gate(renderer, { scene } = {}) {
+  function gate(renderer, { scene, targets = null } = {}) {
     if (!renderer || !scene || renderer.__gate || typeof renderer.renderBufferDirect !== 'function') return null;
     if (/[?&]gate=0\b/.test(location.search)) return null;
     if (!(renderer.extensions && renderer.extensions.has && renderer.extensions.has('KHR_parallel_shader_compile'))) return null;
-    const props = renderer.properties, draw = renderer.renderBufferDirect, n = { held: 0, made: 0, late: 0 }, late = new Map(), tried = new WeakSet();
+    // (issue 205: nothing that has been drawn is taken off the screen. The first cut held every draw of a material while any
+    // one of its programs was linking, so a new variant of a material long on screen (a warm-up for another target, a cube's
+    // or a photograph's first draw of it) took the Ginza level's paving, the guide's coat and a speaker's head off the screen
+    // for seconds on a GPU played slow. Now a draw is held only for a mesh never drawn yet whose material has no program
+    // ready; once a mesh is drawn it is drawn, and a variant still linking is waited for, as three.js does: a hitch, not a hole.
+    // And only into the frame's own targets (targets(): the canvas, the post stack's): a picture that is kept (a level's cube,
+    // the rain's cover map, the shadow map, the story's photographs) is drawn into a target of its own, and is drawn whole)
+    const props = renderer.properties, draw = renderer.renderBufferDirect, n = { held: 0, made: 0, late: 0, kept: 0 }, late = new Map(), tried = new WeakSet(), drawn = new WeakSet();
     let due = false;
+    const own = () => { const t = renderer.getRenderTarget(); if (t === null) return true; const ts = targets ? targets() : null; return !!ts && ts.includes(t); };
     // (a program still linking holds its draws for 10 s at most: past that it is drawn, and waited for, as before)
     const since = new WeakMap(), linking = mp => {
+      let wait = false;
       for (const p of mp.programs.values()) {
-        if (!p || !p.program || !p.isReady || p.isReady()) continue;
+        if (!p || !p.program || !p.isReady) continue;
+        if (p.isReady()) return false; // (a variant ready: drawn with it, or the one it needs made and waited for, as three.js does)
         const t = since.get(p), t1 = performance.now();
         if (t === undefined) since.set(p, t1); else if (t1 - t > 10000) continue;
-        return true;
+        wait = true;
       }
-      return false;
+      return wait;
     };
     const make = () => {
       due = false;
@@ -3025,18 +3039,25 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       renderer.setRenderTarget(was[0]); renderer.clippingPlanes = was[1];
     };
     renderer.renderBufferDirect = function (camera, sc, geometry, material, object, group) {
-      if ((sc === scene || sc === null) && material && object && !renderer.__gate.pass) {
-        const mp = props.get(material);
-        if (mp.programs && mp.programs.size) { if (linking(mp)) { n.held++; return; } }
-        // (a mesh drawn for the first time with its own material, which nothing compiled: made after the frame, in this frame's
-        // state, once. Not a material it is drawn with but does not own (a pass's override, a material swapped in its
-        // onBeforeRender): compile() makes the object's own, so that one would never be made and the mesh never drawn)
-        else if (sc === scene && !tried.has(object) && !sc.overrideMaterial && (object.material === material || (Array.isArray(object.material) && object.material.includes(material)))) {
-          if (!late.has(object)) {
-            late.set(object, [camera, sc, renderer.getRenderTarget(), renderer.clippingPlanes.slice()]); n.late++;
-            if (!due) { due = true; setTimeout(make, 0); }
+      if (sc === scene && material && object && !renderer.__gate.pass && own()) {
+        if (!drawn.has(object)) {
+          const mp = props.get(material);
+          if (mp.programs && mp.programs.size) { if (linking(mp)) { n.held++; return; } }
+          // (a mesh drawn for the first time with its own material, which nothing compiled: made after the frame, in this frame's
+          // state, once. Not a material it is drawn with but does not own (a pass's override, a material swapped in its
+          // onBeforeRender): compile() makes the object's own, so that one would never be made and the mesh never drawn)
+          else if (!tried.has(object) && !sc.overrideMaterial && (object.material === material || (Array.isArray(object.material) && object.material.includes(material)))) {
+            if (!late.has(object)) {
+              late.set(object, [camera, sc, renderer.getRenderTarget(), renderer.clippingPlanes.slice()]); n.late++;
+              if (!due) { due = true; setTimeout(make, 0); }
+            }
+            return;
           }
-          return;
+          drawn.add(object);
+        } else if (n.kept < 1e9) {
+          // (what the first cut would have taken off the screen here: a drawn mesh whose material has a variant linking)
+          const mp = props.get(material);
+          if (mp.programs) for (const p of mp.programs.values()) if (p && p.program && p.isReady && !p.isReady()) { n.kept++; break; }
         }
       }
       return draw.call(this, camera, sc, geometry, material, object, group);
@@ -3049,7 +3070,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   function firstUse(renderer, mats) {
     for (const m of mats) {
       const mp = renderer.properties.get(m), ps = mp.programs ? [...mp.programs.values()] : [mp.currentProgram];
-      for (const p of ps) try { if (p && p.getUniforms && (!p.isReady || p.isReady())) { p.getUniforms(); p.getAttributes(); } } catch (e) { /* read on its first draw instead */ }
+      for (const p of ps) try { if (p && p.program && p.getUniforms && (!p.isReady || p.isReady())) { p.getUniforms(); p.getAttributes(); } } catch (e) { /* read on its first draw instead */ } // (not one three.js has destroyed: compile, above)
     }
   }
 

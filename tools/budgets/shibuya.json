@@ -228,7 +228,7 @@
  "phone": {
   "beats": {
    "title": {
-    "draws": 255,
+    "draws": 235,
     "tris": 635000,
     "passes": 9,
     "px_x": 2.41,
@@ -238,7 +238,7 @@
     "gpu_mb": 183,
     "js_ms": 33,
     "at": {
-     "draws": 195,
+     "draws": 175,
      "tris": 463227,
      "passes": 9,
      "px_x": 2.29,
@@ -255,7 +255,7 @@
     }
    },
    "frame 1": {
-    "draws": 367,
+    "draws": 341,
     "tris": 980000,
     "passes": 10,
     "px_x": 3.46,
@@ -265,7 +265,7 @@
     "gpu_mb": 252,
     "js_ms": 160.2,
     "at": {
-     "draws": 307,
+     "draws": 281,
      "tris": 805513,
      "passes": 10,
      "px_x": 3.29,
@@ -282,7 +282,7 @@
     }
    },
    "frame 2": {
-    "draws": 365,
+    "draws": 351,
     "tris": 953000,
     "passes": 10,
     "px_x": 3.46,
@@ -292,7 +292,7 @@
     "gpu_mb": 253,
     "js_ms": 39.2,
     "at": {
-     "draws": 326,
+     "draws": 291,
      "tris": 791078,
      "passes": 10,
      "px_x": 3.29,
@@ -309,7 +309,7 @@
     }
    },
    "frame 3": {
-    "draws": 434,
+    "draws": 403,
     "tris": 1051000,
     "passes": 10,
     "px_x": 3.46,
@@ -319,7 +319,7 @@
     "gpu_mb": 254,
     "js_ms": 81,
     "at": {
-     "draws": 374,
+     "draws": 343,
      "tris": 870459,
      "passes": 10,
      "px_x": 3.29,
@@ -336,8 +336,8 @@
     }
    },
    "frame 4": {
-    "draws": 399,
-    "tris": 1048000,
+    "draws": 370,
+    "tris": 1175000,
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 506,
@@ -346,7 +346,7 @@
     "gpu_mb": 279,
     "js_ms": 58.7,
     "at": {
-     "draws": 351,
+     "draws": 310,
      "tris": 893441,
      "passes": 10,
      "px_x": 3.29,
@@ -355,7 +355,7 @@
     },
     "noise": {
      "draws": 20,
-     "tris": 60000,
+     "tris": 201000,
      "passes": 0,
      "px_x": 0.0,
      "tex_mb": 2,
@@ -390,7 +390,7 @@
     }
    },
    "frame 6": {
-    "draws": 395,
+    "draws": 372,
     "tris": 960000,
     "passes": 10,
     "px_x": 3.46,
@@ -400,7 +400,7 @@
     "gpu_mb": 260,
     "js_ms": 85.9,
     "at": {
-     "draws": 335,
+     "draws": 312,
      "tris": 779362,
      "passes": 10,
      "px_x": 3.29,

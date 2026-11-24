@@ -12,9 +12,10 @@ const { startPlay } = require('./start_play');
 const [,, size = '1440x900', secs = '120'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), ENGINE = process.env.ENGINE || 'chromium';
-  const b = await pw[ENGINE].launch(ENGINE === 'chromium'
+  const b = ENGINE === 'safari' ? await require('./safari').launch() : await pw[ENGINE].launch(ENGINE === 'chromium'
     ? { args: process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }
     : { headless: !process.env.HEADED });
+  if (b.version) console.log(b.version);
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +(process.env.DPR || 2) });
   const errs = [];
   p.on('pageerror', e => { errs.push(String(e).slice(0, 300)); console.log('pageerror', String(e).slice(0, 300)); });
@@ -32,7 +33,9 @@ const [,, size = '1440x900', secs = '120'] = process.argv;
   });
   // FREE=1: the page is not told it is automated, so its governor runs as a player's does (quality.js governor's `auto`);
   // with Q='walk=1&weather=clear&overture=0', which automation otherwise chooses for it
-  if (process.env.FREE) await p.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true }));
+  // (and the page is told it has the focus: a player's page without it draws ten frames a second, game.js awayHold,
+  // and an automated window loses it to whatever else opens on the screen)
+  if (process.env.FREE) await p.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false, configurable: true }); document.hasFocus = () => true; });
   if (process.env.TIER) await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER);
   await p.addInitScript(count => {
     // each frame (COUNT=0: the WebGL calls left uncounted, to see what the counting itself costs): its gap from the last, the time inside its callbacks, its draw calls and every WebGL call
@@ -54,6 +57,10 @@ const [,, size = '1440x900', secs = '120'] = process.argv;
   const t0 = Date.now();
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?${process.env.Q || 'walk=1'}&telemetry=debug#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await startPlay(p, { asIs: true });
+  // TIME=HH:MM: the place's clock set to that hour and held there (the walk otherwise begins at the place's own hour,
+  // and its crowd and its light with it: a reading at seven in the morning is not one at nine at night)
+  if (process.env.TIME) await p.evaluate(t => { const g = window.__game, [H, M] = t.split(':').map(Number), c = g.clock; g.setClock(c.y, c.m, c.d, H * 60 + M); c.frozen = true; }, process.env.TIME);
+  console.log(`the place's hour: ${await p.evaluate(() => { const c = window.__game.clock; return `${String(Math.floor(c.min / 60)).padStart(2, '0')}:${String(Math.floor(c.min % 60)).padStart(2, '0')}${c.frozen ? ' (held)' : ''}`; })}`);
   console.log(`title up and Play pressed ${((Date.now() - t0) / 1000).toFixed(1)} s after the address`);
   const dev = await p.evaluate(() => {
     const c = document.createElement('canvas').getContext('webgl2'), x = c && c.getExtension('WEBGL_debug_renderer_info'), Q = window.OEQuality;
