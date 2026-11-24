@@ -861,8 +861,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // the corner's Your car (C on a desktop): it pulls in at the kerb nearest you, up the kerb's lane, and stops there
       // (from Hachiko's side of the crossing, where the car is called from most; then back where the menu's step expects you)
       const here0 = await p.evaluate(() => { const g = window.__game, at = [g.player.x, g.player.y]; g.spawn([395, -1052]); return at; });
-      await p.waitForTimeout(800);
-      if (!(await visible('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
+      // (waited for, not read 0.8 s on: put down there out of the car, the corner's buttons are the page's next frames' to
+      // lay out, seconds on a software renderer; read at once it was not there yet, and pressed a beat later it was, main's
+      // walk3 on beb0fdb)
+      if (!(await shown('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
       else {
         await press('#g-walk-acts [data-do="car"]');
         const c0 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return [s.x, s.y]; });
