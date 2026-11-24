@@ -47,9 +47,8 @@ const [,, size = '390x844'] = process.argv;
     const Au = window.Audio, els = R.els = [];
     window.Audio = function (...a) { const e = new Au(...a); els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     R.wavs = []; R.most = 0;
-    // (the whole renderer starved, not only its main thread: a worker's own tick, every 50 ms, read as how late it came.
-    // Here Chromium plays an element in the renderer, so a runner short of CPU stalls it; on an iPhone the element plays
-    // in the system's player, another process, and only the page's own doing would)
+    // (the whole renderer starved, not only its main thread: a worker's own tick, every 50 ms, read as how late it came,
+    // printed beside an element's stall)
     R.wk = 0;
     try { const w = new Worker(URL.createObjectURL(new Blob(['let t=performance.now();setInterval(()=>{const n=performance.now();postMessage(n-t-50);t=n;},50);'], { type: 'application/javascript' }))); w.onmessage = e => { if (e.data > R.wk) R.wk = e.data; }; } catch (e) { /* no workers */ }
     const AC0 = window.AudioContext;
@@ -160,15 +159,9 @@ const [,, size = '390x844'] = process.argv;
     console.log(`the hand-over: ${lead < 0 ? 'no reading without music' : `no music at ${gap} readings from the film's reading ${lead}`} (allowed ${room}: the fade, the main thread held ${Math.round(held)} ms, and two); then ${after.length - quietAfter} of ${after.length} with it`);
     if (lead >= 0 && lead <= 3 && gap > room) fail(`no music at ${gap} readings in the film's start, more than the hand-over from the cue to the score takes (${room})`);
     else if (quietAfter > 1 || (lead >= 0 && lead < 3 && back < 0)) fail(`no music plays at ${back < 0 ? 'any' : quietAfter} of the readings after the score began`);
-    // (an element's stall where the whole renderer was held 400 ms and more in the three seconds before it is this
-    // machine's, said and not failed; one without is failed: issue 166, CI's walk opening and a session's story, 24 November)
-    { let mine = 0, runner = 0;
-      for (let i = 1; i < film.length; i++) if (film[i].el > film[i - 1].el) {
-        const held = Math.max(...film.filter(r => r.t > film[i].t - 3000 && r.t <= film[i].t).map(r => r.wk || 0), 0);
-        if (held >= 400) { runner++; console.log(`the music's clock stalled at ${(film[i].t / 1000).toFixed(1)} s with the whole renderer held ${Math.round(held)} ms before it: this machine short of CPU, not the page (an iPhone plays the element in another process)`); }
-        else { mine++; console.log(`the music's clock stalled at ${(film[i].t / 1000).toFixed(1)} s, the renderer held at most ${Math.round(held)} ms before it`); }
-      }
-      if (mine) fail(`the music's clock stalled ${mine} times in the film with the renderer not starved`); }
+    // (and, for whoever reads a failure, how held the whole renderer was before each: a worker's own 50 ms tick)
+    for (let i = 1; i < film.length; i++) if (film[i].el > film[i - 1].el) console.log(`the music's clock stalled at ${(film[i].t / 1000).toFixed(1)} s, the renderer held at most ${Math.round(Math.max(...film.filter(r => r.t > film[i].t - 3000 && r.t <= film[i].t).map(r => r.wk || 0), 0))} ms in the three seconds before it`);
+    if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
     // one music element at a time (audio.js tune), and nothing written for one at full scale (issue 166: the owner's
     // iPhone played two in the opening, `snd_music: el 2`, and heard noise)
     { const most = await p.evaluate(() => window.__snd.most), two = R.filter(r => r.sounding > 1), wavs = await p.evaluate(() => window.__snd.wavs);

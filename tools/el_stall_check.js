@@ -6,7 +6,9 @@
 //     held 7.8 s; read as the element's clock cached before the hold. It did not come again here in five plays of the
 //     probe as it was: this guards the rule, it does not reproduce that reading.)
 //   - the element's clock made to fall behind and stay (its rate at 0.3 for two seconds, as a player starved of its file
-//     plays late, 1.4 s behind): the probe must count one stall.
+//     plays late, 1.4 s behind): the probe must count one stall;
+//   - a tune of four seconds played to its end: none (its clock stops at the file's end before the element says it has
+//     ended; CI's walk opening and a session's story each counted one there, 24 November).
 // Not checked: an iPhone's player.
 //   python3 -m http.server 8800 --directory web &
 //   NODE_PATH=$(npm root -g) node tools/el_stall_check.js
@@ -37,8 +39,13 @@ const { chromium } = require('playwright');
     t.el.playbackRate = 0.3; await wait(2000); t.el.playbackRate = 1; await wait(1000);
     o.slip = Math.round((performance.now() - w0) - (t.el.currentTime - c0) * 1000); o.rs = t.el.readyState; o.seeking = t.el.seeking;
     o.stalled = A.probe.totEl - tot1;
+    t.stop(); await wait(300);
+    // a tune played to its end: its clock stops at the file's end before the element says it has ended
+    const m = rate * 4, e = new Float32Array(m); for (let i = 0; i < m; i++) e[i] = 0.1 * Math.sin(i * 2 * Math.PI * 330 / rate);
+    const tot2 = A.probe.totEl, t2 = A.tune(A.tuneWav([e], rate)); await wait(7000);
+    o.ended = A.probe.totEl - tot2; o.endedFlag = !!(t2.el && t2.el.ended);
     o.log = A.probe.log.join(' | ');
-    t.stop();
+    t2.stop();
     return o;
   });
   console.log(JSON.stringify(r));
@@ -46,9 +53,10 @@ const { chromium } = require('playwright');
   if (!r.playing) fails.push('the tune does not play on an element');
   if (r.held) fails.push(`a main thread held for two seconds counted ${r.held} stalls of the element, which played on`);
   if (r.stalled !== 1) fails.push(`an element's clock that fell behind and stayed counted ${r.stalled} stalls, not 1`);
+  if (r.ended) fails.push(`a tune played to its end counted ${r.ended} stalls`);
   for (const e of errors) fails.push(`pageerror: ${e.slice(0, 200)}`);
   await b.close();
   for (const f of fails) console.log('FAIL', f);
-  console.log(fails.length ? `FAIL the element's probe (${fails.length})` : "PASS the element's probe: a held main thread counts no stall, a clock that falls behind and stays counts one");
+  console.log(fails.length ? `FAIL the element's probe (${fails.length})` : "PASS the element's probe: a held main thread counts no stall, a clock that falls behind and stays counts one, a tune played to its end none");
   process.exit(fails.length ? 1 : 0);
 })();

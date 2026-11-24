@@ -1457,7 +1457,10 @@ window.OEAudio = (function () {
     const now = performance.now();
     for (const t of tunes) {
       const el = t.el;
-      if (!el || el.paused || el.ended || el.seeking || el.readyState < 3 || now - t.started < 1500) { t.base = null; t.seen = 0; continue; } // (ended: a score that has played out is not a stall)
+      // (ended: a score that has played out is not a stall; nor its last second and a half, where its clock stops at the
+      // file's end and the element says so up to a second later: CI's walk opening and a session's story each counted
+      // one there, 24 November, 38.0 and 29.5 s after the score began, the scores' lengths)
+      if (!el || el.paused || el.ended || el.seeking || el.readyState < 3 || now - t.started < 1500 || (!el.loop && el.duration > 0 && el.currentTime > el.duration - 1.5)) { t.base = null; t.seen = 0; continue; }
       const gap = now - el.currentTime * 1000;
       if (t.base === null || gap < t.base || gap - t.base > 20000) { t.base = gap; t.late = false; t.seen = 0; continue; } // (20 s and more: the loop went round)
       const lag = gap - t.base;
