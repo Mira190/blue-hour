@@ -5,12 +5,17 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/ride_people.js out_dir [WxH]       (GPU=metal on a Mac)
 // LIMIT=seconds: how long the ride may take (default 600, 900 with PASS). TIER=low|medium|high (default high).
+// UPTO=pickup: only the car's way in to you, ended once you are in. The ride is checked against the rails and posts the hero levels
+// draw (issue 208) as well as against people: "rails" in the log. Set down, you walk the station's free passage by Hachiko with
+// the chase camera, which must stay under its ceiling (tools/cam_ceiling.js; PASSAGE=0 leaves it out).
 // PIN=n: the skip's case (#50): once the ride is under way, n of the crowd are held standing where the car would stand at
 // its stop (pulled in to the kerb, off its way's line) and the trip is skipped (F); they are let go when it is set down.
 // A set-down on them fails as any overlap does.
 // SIDE=road: you stand to get in off the car's road-side flank, in the lane beside it, as before #94 (default: by the kerb
 // seat's door). PASS=1: that stand made when a car of the traffic is passing over it (#94's failure, made to happen).
 const { skip, whole } = require('./draw_skip');
+const { railsInPage } = require('./rails_drawn');
+const camCeiling = require('./cam_ceiling');
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
@@ -33,6 +38,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   await p.evaluate(() => document.getElementById('gt-play').click());
   await p.waitForTimeout(2500);
   // the watch: each frame, each car (an oriented box) against each person (a body 0.22 m round), on one level
+  await p.evaluate(railsInPage);
   await p.evaluate(() => {
     const g = window.__game, W = window.__ridePeople = { frames: 0, hits: [], worst: {}, rideV: 0, rideT: 0, rideM: 0, was: new Map() };
     const inBox = (c, half, hw, x, y, r) => { const fx = Math.sin(c.h), fy = Math.cos(c.h), dx = x - c.x, dy = y - c.y; return Math.abs(dx * fx + dy * fy) < half + r && Math.abs(-dx * fy + dy * fx) < hw + r; };
@@ -65,8 +71,24 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
           was: c0 && q0 ? { car: [+c0.x.toFixed(2), +c0.y.toFixed(2), +c0.h.toFixed(3)], at: [+q0.x.toFixed(2), +q0.y.toFixed(2)] } : null, h: +(+c.h).toFixed(3), half: +(+half).toFixed(2), hw: +(+hw).toFixed(2),
           held: c.heldBy || '', mv: !!c.mv, sq: !!c.squeezing, pw: +(c.pw || 0).toFixed(1), bus: !!c.bus, line: c.line, walker: { state: q.state || '', ph: q.ph || '', pz: !!q.pz, v: +(q.v || 0).toFixed(2), line: q.line, sq: +(q.squeeze || 0).toFixed(1), ej: !!q.ejected } });
       }
+      if (ride) rails(ride, dt);
       for (const [, c] of cars) W.was.set(c, { x: c.x, y: c.y, h: c.h });
       for (const [, q] of people) W.was.set(q, { x: q.x, y: q.y });
+    }
+    // The ride against the rails as drawn (issue 208: the car that came for you drove through a railing): the guard rails,
+    // bollards and posts the hero levels draw (their metal_guard and metal_pole meshes, the levels' own, not the walking
+    // grid's), sampled every 0.2 m along their triangles' edges between 0.15 and 1.3 m over the ground under them (a car's
+    // body; a sign's arm overhead is not met), against the ride's box less 5 cm, on every step, from the moment it is sent
+    // until it sets you down. W.rail: by phase; W.railHits: the first of them
+    W.rail = {}; W.railHits = [];
+    const R = window.__rails, railsAcross = (ax, ay, bx, by, z) => R.across(ax, ay, bx, by, z);
+    function rails(r) {
+      R.levels();
+      const c = r.drv.st, hit = R.inBox(c.x, c.y, c.z, c.h, r.C.half - 0.05, r.C.hw - 0.05);
+      if (!hit) return;
+      const ph = `${r.phase}${r.phase === 'coming' && c.end - c.s < 25 ? ' (pulling in)' : ''}`;
+      W.rail[ph] = (W.rail[ph] || 0) + 1;
+      if (W.railHits.length < 12) W.railHits.push({ phase: ph, t: +g.t().toFixed(1), car: [+c.x.toFixed(2), +c.y.toFixed(2), +c.h.toFixed(3)], v: +(c.v || 0).toFixed(1), lat: +(c.lat || 0).toFixed(2), toEnd: +(c.end - c.s).toFixed(1), rail: hit, you: [+g.player.x.toFixed(1), +g.player.y.toFixed(1)] });
     }
     // (PIN: people held where the car will stand at its stop, until the skip sets it down: W.pinned, W.setAt)
     function pin() {
@@ -98,6 +120,10 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
       const l = (side === 'road' ? -1 : 1) * Math.sign(seat.x || 1) * (C.hw + 0.55), f = seat.z + 0.2, x = st.x + fx * f - fy * l, y = st.y + fy * f + fx * l;
       let steps = 0, by = null;
       if (pass) for (; steps < 30 * 240 && !by; steps++) { g.frame(1 / 30); check(1 / 30); for (const c of g.cars.live) if (c.line >= 0 && c.v > 1 && Math.abs(c.z - st.z) < 2 && inBox(c, c.half, c.hw, x, y, -0.1)) { by = c; break; } }
+      // (#208: no rail, fence or post between the door the car stopped for you at and the pavement beside it: the drawn
+      // rails within 0.12 m of the line from 2.2 m out on the kerb side to the door, in the band they were read in)
+      const ox = -fy * Math.sign(l), oy = fx * Math.sign(l), across = railsAcross(x + ox * 2.2, y + oy * 2.2, x - ox * 0.5, y - oy * 0.5, st.z); // (from 2.2 m out on the pavement to the door)
+      if (across.length) { W.rail['between you and the door'] = across.length; W.railHits.push({ phase: 'between you and the door', door: [+x.toFixed(1), +y.toFixed(1)], car: [+st.x.toFixed(2), +st.y.toFixed(2), +st.h.toFixed(3)], rail: across[0] }); }
       g.player.x = x; g.player.y = y;
       if (by) check(0);
       return { side, seat: g.rideSeat(r), at: [+x.toFixed(1), +y.toFixed(1)], steps, passing: by ? { at: [+by.x.toFixed(1), +by.y.toFixed(1)], v: +by.v.toFixed(1) } : null, worst: W.worst };
@@ -126,7 +152,10 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
         // goal line says to get out, no longer to skip a ride that has arrived)
         const stop = await p.evaluate(() => { const g = window.__game, r = g.ride(), st = r.drv.st, C = r.C, hx = Math.sin(st.h), hy = Math.cos(st.h), cw = g.nav.carriageway, off = [];
           if (cw) for (const a of [-C.half, C.half]) for (const l of [-C.hw, C.hw]) { const x = st.x + hx * a - hy * l, y = st.y + hy * a + hx * l; if (cw(x, y) === false) off.push([+x.toFixed(1), +y.toFixed(1)]); }
-          return { at: [+st.x.toFixed(1), +st.y.toFixed(1)], lat: +(st.lat || 0).toFixed(2), off, how: (document.querySelector('#g-story-goal em') || {}).textContent || '' }; });
+          // (#208: and nothing of a rail between its kerb-side door and the pavement, where you get out)
+          const seat = C.seats[g.rideSeat(r)], l = Math.sign(seat.x || 1) * (C.hw + 0.05), dx = st.x + hx * seat.z - hy * l, dy = st.y + hy * seat.z + hx * l, ox = -hy * Math.sign(l), oy = hx * Math.sign(l);
+          const rail = window.__rails.across(dx + ox * 2.2, dy + oy * 2.2, dx - ox * 0.3, dy - oy * 0.3, st.z).slice(0, 2);
+          return { at: [+st.x.toFixed(1), +st.y.toFixed(1)], lat: +(st.lat || 0).toFixed(2), off, rail, how: (document.querySelector('#g-story-goal em') || {}).textContent || '' }; });
         console.log('stop', JSON.stringify(stop));
         // (and the car at its stop from above behind it and from across the square, the film's camera held there for the still)
         for (const [n, back, side, up] of [['stop-above', -9, 0, 7], ['stop-side', 2, -10, 3]]) {
@@ -137,24 +166,41 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
           try { await whole(p, () => p.screenshot({ path: `${out}/${n}.png`, timeout: 120000 })); } catch (e) { console.log('(no still)'); }
         }
         await p.evaluate(() => window.__game.cine.stop());
+        if (stop.rail.length) errors.push(`a rail between the car's door and the pavement where it sets you down: ${JSON.stringify(stop.rail)}`);
         if (stop.off.length) errors.push(`the car at its stop has ${stop.off.length} corners off the carriageway: ${JSON.stringify(stop.off)}`);
         if (/to be there now/.test(stop.how) || !/You are there/.test(stop.how)) errors.push(`arrived, the goal line still says "${stop.how}"`); } // (the car where it sets you down, at Hachiko, once the view has come down onto it: the page's own frames, which move the world's clock the hop runs on and the chase camera it hands over to; a step of the harness moves neither)
       if (s.ride && s.ride.phase === 'arrived') await p.keyboard.press('KeyE'); // (out only where it sets you down: 'Get out here' is offered all the way)
     }
     if (rode && s.mode === 'foot') { ended = 'arrived'; break; }
+    if (process.env.UPTO === 'pickup' && s.mode === 'ride') { ended = 'arrived'; break; } // (UPTO=pickup: the car's way in to you alone)
   }
   // (not arrived: what holds the car up, and what holds that up in turn, ten cars on: #97)
   if (ended !== 'arrived') console.log('held by', JSON.stringify(await p.evaluate(() => { const g = window.__game, r = g.ride(); if (!r) return null; const st = r.drv.st, out = [{ ride: r.phase, at: [+st.x.toFixed(1), +st.y.toFixed(1)], v: +st.v.toFixed(1), intent: st.intent, why: st.why, held: +(st.held || 0).toFixed(1), xMut: !!st.xMutual }], seen = new Set();
     let o = st.block; for (let k = 0; k < 10 && o && !seen.has(o); k++) { seen.add(o); const lx = o.leadX || null; out.push({ at: [+(+o.x).toFixed(1), +(+o.y).toFixed(1)], h: +(+o.h || 0).toFixed(2), v: +(o.v || 0).toFixed(1), why: o.why || '', youBy: o.youBy || '', heldBy: o.heldBy || '', q: !!o.q, mv: !!o.mv, line: o.line, toLine: o.toLine != null ? +(+o.toLine).toFixed(1) : null, stuck: +(o.stuck || 0).toFixed(1), walker: !!o.walker, id: o.id || '' }); o = o.front || o.xBlock || (o.block && !o.block.walker ? o.block : null) || null; }
     return out; })));
+  // (#208: set down by Hachiko, on foot, the walk through the station's free passage 50 m east, frame 4's way to SKY's lift:
+  // both ways, turning and dragging the view at its ends and in its middle, the lens never over or through its ceiling,
+  // as drawn and as built: tools/cam_ceiling.js. PASSAGE=0 leaves it out)
+  if (ended === 'arrived' && process.env.PASSAGE !== '0') {
+    await p.evaluate(() => { window.__ridePeople.was = null; window.requestAnimationFrame = () => 0; }); // (the watch over; the world stepped by the walk alone)
+    const r = await camCeiling.run(p, camCeiling.PLACES[0]);
+    for (const f of r.bad.slice(0, 6)) console.log('  ceiling', JSON.stringify(f));
+    console.log(`passage: ${r.frames} frames walked, ${r.bad.length} with the lens over or through its ceiling`);
+    if (r.bad.length) errors.push(`the lens over or through the passage's ceiling in ${r.bad.length} frames`);
+  }
   const W = await p.evaluate(() => { const W = window.__ridePeople; W.was = null; return W; });
   console.log('frames watched', W.frames, '| ride driving', W.rideT.toFixed(1), 's,', W.rideM.toFixed(0), 'm, mean', (W.rideM / Math.max(1, W.rideT) * 3.6).toFixed(1), 'km/h moving, top', (W.rideV * 3.6).toFixed(1), 'km/h');
   console.log('ride from boarding to setting down', (W.driveT || 0).toFixed(1), 's, stopped', (W.stopT || 0).toFixed(1), 's (not counting the cut on)', W.cut != null ? `; held still, cut on to its stop ${W.cut.toFixed(1)} s in` : '; never cut on');
   if (process.env.PIN) console.log('pinned', W.pinned || 0, 'at the stop; set down', JSON.stringify(W.setAt || null));
+  W.railPts = await p.evaluate(() => window.__rails.points());
+  W.railSelf = await p.evaluate(() => window.__rails.selfTest());
+  if (W.railSelf) errors.push(`the rail check is blind: ${W.railSelf}`);
+  console.log('rails', W.railPts ? `${W.railPts} points of the levels' rails and posts;` : '(no rails read: no hero level shown);', Object.keys(W.rail).length ? `the ride through them ${JSON.stringify(W.rail)} steps` : 'the ride clear of them');
+  for (const x of W.railHits) console.log('  rail', JSON.stringify(x));
   console.log('overlaps', JSON.stringify(W.worst));
   for (const x of W.hits) console.log('  ', JSON.stringify(x));
   console.log('ride', ended, errors.length ? `| ${errors.length} page errors` : '');
   await b.close();
-  const bad = Object.keys(W.worst).length > 0 || ended !== 'arrived' || errors.length > 0 || (+process.env.PIN > 0 && !(W.pinned > 0 && W.setAt));
+  const bad = Object.keys(W.worst).length > 0 || Object.keys(W.rail).length > 0 || ended !== 'arrived' || errors.length > 0 || (+process.env.PIN > 0 && !(W.pinned > 0 && W.setAt));
   process.exit(bad ? 1 : 0);
 })();
