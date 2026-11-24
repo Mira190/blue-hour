@@ -120,9 +120,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // left on it, and the case begun from there (the play's last step; WALK_ONLY=title plays it alone, out from a fresh page)
   const titleBack = async () => {
     await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
-    const t = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(); return { on: !!e && !!e.closest('#gw-menu') && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1 }; });
-    if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first) fail('the walk\'s Title screen is below its first screen');
+    const t = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(); return { on: !!e && !!e.closest('#gw-menu') && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, tall: innerHeight >= 640 }; }); // (in the first screen of a desktop's or a phone's; a short window scrolls to it)
+    if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first && t.tall) fail('the walk\'s Title screen is below its first screen');
     await shot('9-menu-title');
+    await p.locator('#gm-title').scrollIntoViewIfNeeded().catch(() => {});
     await press('#gm-title');
     if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
     else {
@@ -627,7 +628,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                           if ((await line()).gate !== 'shown' || !(await waitPrompt(/Talk to Nagi/))) fail(`her last photograph is not the one she asked for (${JSON.stringify(await line())})`);
                           else {
                             for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
-                            await through(); await p.waitForTimeout(1500); await through();
+                            // (her last words come 0.9 s of the wall after she takes yours, and are said from a frame after that: on a
+                            // slow machine the second press came before them, and her talk stood open for good)
+                            for (let k = 0; k < 40 && (await line()).gate === 'shown'; k++) { await through(); await p.waitForTimeout(1000); }
                             await p.waitForFunction(() => window.__game.walkLine().gate === 'going', null, { timeout: 120000, polling: 250 }).catch(() => {}); // (the walkers go by the page's own frames)
                             await shot('4b-goes');
                             const gone = await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 600000, polling: 500 }).then(() => true, () => false);
