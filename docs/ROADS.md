@@ -436,8 +436,31 @@ sides (half a car, the gutter and a hand past the outer lane's middle), a node o
 92 vertices of 37 pieces, 1.3 m or less but for one of 1.8 m (Meiji-dori by Scramble Square). A street with no room
 for its lanes at all is left as it is. The widths, the bus lines and the levels are made again on the lines as moved.
 
+### Nothing stands on the road (`pipeline/stations.py`, `tools/deck_check.py`)
+
+The owner's report (24 November 2026, on the deployed page, frame 3): south of Hachiko the paving ended against a
+wide stretch of asphalt that ran up to the face of a low building of shops, with no road in or out of it. The building
+was Shibuya's west exit deck (しぶにしデッキ, OpenStreetMap w1333409445: `man_made=bridge`, `layer=1`, 10 m), which the
+map's data gives a height and a footprint and no underside: the game built it from the ground up, across the bus
+terminal's carriageway, with the road (piece 1693) running through it. While the ground was a band per piece the
+paving round it hid that; on the surveyed ground the carriageway runs on to its walls.
+
+From first principles: where the survey has a driven carriageway (pipeline/road_ground.py: its carriageway with a
+piece of the map's roads through it), nothing stands on the ground. `tools/deck_check.py` lists every solid with
+30 m2 or more, and two fifths of its footprint, on one: 6 in or near the planned area, 10 on the map. `stations.py`
+`over_roads` raises each to stand over the road, its underside at 4.7 m (Japan's 4.5 m clearance, 道路構造令 第12条,
+and a little more; the west exit deck at 6.0 m, its walkway at the second floor's level as the east side's decks
+are), on piers kept off the carriageway where nothing of its building touches the ground. Raised: the west exit deck
+(three solids), a structure over the lane at 617,-1003 that a piece runs 29 m through, and four parts of buildings over
+back lanes. Two solids past the planned area are lower than a vehicle passes under (a shelter, a kiosk) and are listed,
+not raised. Views: `tools/views/deck-196.json`.
+
+Where the grading then reached the ground under the raised parts, it moved 445 nodes, none inside a hero level; at
+617,-1003 the ground east of the lane, under what had been a building, now steps down 3.7 m to the lot beside it.
+
 ### The checks
 
+- `python tools/deck_check.py shibuya`: no solid stands on a driven surveyed carriageway in or near the planned area;
 - `python pipeline/road_fit.py --city shibuya --check`: no lane driven in the planned area lies over a surveyed kerb;
 - `python pipeline/road_ground.py --city shibuya --check`: `road_ground` is what the survey gives now;
 - `python tools/hero_survey_map.py shibuya --check`: every level that draws ground, as built, against the survey:
