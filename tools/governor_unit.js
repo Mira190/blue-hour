@@ -173,11 +173,11 @@ if (has('onTier')) {
     check(T.asks.length === 0, `a device settled below its ceiling keeps its tier (${T.asks.length} steps in ten minutes, at ${g.scale.toFixed(2)}/${g.extras})`); }
 }
 // 9. the tier a desktop draws at (quality.js auto, tierStep, issue 184), on a WebGL 2 context faked as a desktop GPU's
-function desktop(ua) { return desktopWith(ua, new Map()); }
-function desktopWith(ua, store) {
+function desktop(ua, gpu) { return desktopWith(ua, new Map(), gpu); }
+function desktopWith(ua, store, gpu = 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)') {
   const window = { devicePixelRatio: 2 };
   const gl = { MAX_TEXTURE_SIZE: 1, MAX_SAMPLES: 2, RENDERER: 3, FRAMEBUFFER: 4, FRAMEBUFFER_COMPLETE: 5, TEXTURE_2D: 6, RGBA16F: 7, RGBA: 8, HALF_FLOAT: 9, COLOR_ATTACHMENT0: 10, RENDERBUFFER: 11,
-    getParameter: k => ({ 1: 16384, 2: 8, 3: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)' })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
+    getParameter: k => ({ 1: 16384, 2: 8, 3: gpu })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
     createFramebuffer() {}, bindFramebuffer() {}, deleteFramebuffer() {}, createTexture() {}, bindTexture() {}, texImage2D() {}, framebufferTexture2D() {}, deleteTexture() {},
     createRenderbuffer() {}, bindRenderbuffer() {}, renderbufferStorageMultisample() {}, framebufferRenderbuffer() {}, deleteRenderbuffer() {}, checkFramebufferStatus: () => 5 };
   const ctx = { window, navigator: { webdriver: false, userAgent: ua, maxTouchPoints: 0, hardwareConcurrency: 8, deviceMemory: 8 }, location: { search: '', hash: '' },
@@ -212,6 +212,13 @@ if (desktop('x').tierStep) {
   { const store = new Map([['bh-tier-shibuya', JSON.stringify({ down: 1, wait: 60000, upAt: 0, t: Date.now() })]]);
     const old = desktopWith('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', store);
     if (old.tierFlat) check(old.tier().name === 'medium' && old.stepped().down === 0, `a step kept before steps were judged is let go (Safari starts on ${old.tier().name})`); }
+  // the device floor's laptop (issue 220): Chrome on Windows with Intel's UHD 620, 8 GB and four cores, starts on medium
+  { const W = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36';
+    const uhd = desktop(W, 'ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direct3D11 vs_5_0 ps_5_0, D3D11)'), apu = desktop(W, 'ANGLE (AMD, AMD Radeon(TM) Graphics (0x00001638) Direct3D11 vs_5_0 ps_5_0, D3D11)');
+    const rtx = desktop(W, 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002503) Direct3D11 vs_5_0 ps_5_0, D3D11)'), rx = desktop(W, 'ANGLE (AMD, AMD Radeon RX 6600 (0x000073FF) Direct3D11 vs_5_0 ps_5_0, D3D11)');
+    const arc = desktop(W, 'ANGLE (Intel, Intel(R) Arc(TM) A770 Graphics (0x000056A0) Direct3D11 vs_5_0 ps_5_0, D3D11)');
+    const seen = [uhd, apu, rtx, rx, arc].map(q => q.tier().name).join(' ');
+    check(seen === 'medium medium high high high', `a laptop's integrated GPU starts on medium, a discrete one on high (Intel UHD, AMD APU, RTX 3060, RX 6600, Intel Arc: ${seen})`); }
   const safari = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
   check(safari.tier().name === 'medium' && safari.city().samples === 0 && safari.tier().settings.samples === 0, `a Mac's Safari starts on medium without multisampling (${safari.tier().name}, ${safari.city().samples} samples)`);
 }

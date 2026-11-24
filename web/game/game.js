@@ -6117,7 +6117,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const GUARD_PART = /(Pelvis|Spine2|Spine1|Spine|Neck|Head|Clavicle|UpperArm|Forearm|Hand|Thigh|Calf|Foot)$/;
   function guardFit(root) { // (once a model: its parts' capsules in their bones' own space)
     const meshes = [], parts = new Map(), p = guardA;
-    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex) meshes.push(o); });
+    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && !o.userData.fadeGhost) meshes.push(o); });
     if (!meshes.length) return null;
     const human = meshes.some(o => o.skeleton.bones.some(b => /Bip01/.test(b.name)));
     for (const o of meshes) {
@@ -6163,7 +6163,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return worst;
   };
   // one body: laid out in camera space; the largest near (of NEARS, from `base` down) whose window clears it, or 0 for none
-  const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh) guardSig.v += o.geometry.id * guardSig.k++; };
+  const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh && !o.userData.fadeGhost) guardSig.v += o.geometry.id * guardSig.k++; };
   function guardCapsOf(root) { // (a model's, kept: fitted again only when the copy is dressed as someone else)
     guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
     let c = guardCaps.get(root);
@@ -6172,8 +6172,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // (a fit takes about 11 ms for the one you play on a session's machine: the one you play and the guide are fitted while the
   // page is idle, ahead of the first camera to come near them, not in that camera's frame)
-  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) guardCapsOf(r); };
+  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) { guardCapsOf(r); fadeWarm(r); } };
   function guardBody(root, base) {
+    guardS.deep = -Infinity;
     const e = root.matrixWorld.elements, P = camera.position;
     if (Math.abs(e[12] - P.x) > 1.8 || Math.abs(e[14] - P.z) > 1.8 || P.y < e[13] - 0.8 || P.y > e[13] + 2.8) return base;
     const c = guardCapsOf(root);
@@ -6187,17 +6188,90 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (let j = 0; j < 9; j++) { const t = j / 8; guardPt[m + 1 + j * 3] = guardA.x + (guardB.x - guardA.x) * t; guardPt[m + 2 + j * 3] = guardA.y + (guardB.y - guardA.y) * t; guardPt[m + 3 + j * 3] = guardA.z + (guardB.z - guardA.z) * t; }
       m += 28;
     }
+    guardS.deep = guardDepth(m, NEARS[NEARS.length - 1]); // (how near the smallest window comes: the fade below begins a few cm short of it)
     for (const n of NEARS) if (n <= base + 1e-6 && guardDepth(m, n) <= 0) return n;
     return 0;
   }
+  // The last resort, faded (issue 209, the owner's ask): where no window clears someone the lens cannot leave (you, the
+  // story's people, the map's people, the guide), they go out of the picture over FADE_S, uniformly, and come back the same
+  // way, begun FADE_NEAR short of the smallest window touching them. Not issue 129's fade: that was a dither held for as long
+  // as someone stood near, read as a screen of dots, with the street and a clear umbrella seen through a body. This is never
+  // held (it runs to out or back to whole), has no pattern (one opacity over the whole person), and shows no inner faces or
+  // sorting faults: their depth is drawn first, alone (their own materials with colour writes off: the same programs), and
+  // then their colour blended at that opacity where it is the nearest surface (depthFunc LessEqual over that depth), by a
+  // copy of each of their meshes sharing its geometry, skeleton and morphs (a ghost). The blended materials are the one
+  // program each person's material needs that it had not, warmed with the one you play and the guide (guardWarm). The crowd
+  // stays as issue 129 left it: in the picture whole, or out of it whole
+  const FADE_S = 0.2, FADE_NEAR = 0.04, FADE_BACK = 0.08;
+  const fadeKits = new WeakMap(), fading = new Map();
+  const fadeMat = (mt, depth) => {
+    const c = mt.clone();
+    c.onBeforeCompile = mt.onBeforeCompile; c.customProgramCacheKey = mt.customProgramCacheKey; // (a clone is given neither: the people's light and hair patches)
+    if (depth) c.colorWrite = false;
+    else { c.transparent = true; c.depthWrite = false; c.depthFunc = THREE.LessEqualDepth; c.userData.fadeBase = mt.transparent ? mt.opacity : 1; }
+    return c;
+  };
+  const fadeSet = (mt, a) => { if (Array.isArray(mt)) for (const q of mt) q.opacity = q.userData.fadeBase * a; else mt.opacity = mt.userData.fadeBase * a; };
+  function fadeKitOf(root) {
+    guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
+    let k = fadeKits.get(root);
+    if (k && k.sig === sig) return k;
+    if (k) for (const e of k.e) { e.m.material = e.orig; if (e.g.parent) e.g.parent.remove(e.g); }
+    const list = [];
+    root.traverse(o => { if (o.isMesh && o.material && !o.userData.fadeGhost) list.push(o); });
+    if (!list.length) { fadeKits.set(root, k = { sig, e: [], warm: true }); return k; }
+    k = { sig, a: 1, t: 0, warm: false, e: list.map(m => {
+      const orig = m.material, many = Array.isArray(orig);
+      const depth = many ? orig.map(q => fadeMat(q, true)) : fadeMat(orig, true), colour = many ? orig.map(q => fadeMat(q, false)) : fadeMat(orig, false);
+      const g = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, colour) : new THREE.Mesh(m.geometry, colour);
+      if (m.isSkinnedMesh) { g.bindMode = m.bindMode; g.bind(m.skeleton, m.bindMatrix); }
+      if (m.morphTargetInfluences) { g.morphTargetInfluences = m.morphTargetInfluences; g.morphTargetDictionary = m.morphTargetDictionary; }
+      g.userData.fadeGhost = true; g.visible = false; g.castShadow = false; g.receiveShadow = m.receiveShadow; g.frustumCulled = m.frustumCulled; g.renderOrder = m.renderOrder; g.layers.mask = m.layers.mask;
+      m.add(g);
+      return { m, orig, depth, colour, g };
+    }) };
+    fadeKits.set(root, k);
+    return k;
+  }
+  // (its blended programs compiled now, off the frame: the ghosts shown for the compile's own gathering, which three.js does at once)
+  function fadeWarm(root) {
+    const k = fadeKitOf(root);
+    if (!k || k.warm) return;
+    k.warm = true;
+    for (const e of k.e) e.g.visible = true;
+    try { compileFor0(root); } finally { for (const e of k.e) e.g.visible = false; }
+  }
+  const fadeShow = (k, a) => {
+    for (const e of k.e) {
+      if (a >= 1) { e.m.material = e.orig; e.g.visible = false; continue; }
+      e.m.material = e.depth; e.g.visible = a > 0; fadeSet(e.colour, a);
+    }
+  };
+  // one of them this frame: out (the window too near them) or back; true while they are not whole
+  function fadeStep(root, out) {
+    let k = fading.get(root);
+    if (!k) { if (!out) return false; k = fadeKitOf(root); if (window.__fadeLog && root === player.rig.root) window.__fadeLog.meshes = k.e.length; if (!k.e.length) return false; k.a = 1; k.t = performance.now(); fading.set(root, k); }
+    const now = performance.now(), dt = Math.min(0.1, (now - k.t) / 1000);
+    k.t = now;
+    k.a = Math.max(0, Math.min(1, k.a + (out ? -dt : dt) / (window.__fadeS || FADE_S))); // (__fadeS: slower, for a harness's stills of it)
+    fadeShow(k, k.a);
+    if (window.__fadeLog && root === player.rig.root) window.__fadeLog.a = k.a; // (for a harness: tools/cam_fade.js)
+    if (k.a >= 1 && !out) { fading.delete(root); return false; } // (whole again only coming back: going out, its first step may be nought)
+    if (k.a <= 0) { root.traverse(layerOff); guardHid.add(root); }
+    return true;
+  }
   // (a frame's state, kept here so that a frame of it makes nothing new: guardOne is called for each body near the lens)
-  const guardS = { base: 0.3, near: 0.3, warmAt: -1e9 };
+  const guardS = { base: 0.3, near: 0.3, warmAt: -1e9, deep: -Infinity };
   const layerOn = q => q.layers.enable(0), layerOff = q => q.layers.disable(0);
   function guardOne(root, who, i) {
-    if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) return;
+    if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) { if (root && fading.has(root)) { fadeShow(fading.get(root), 1); fading.delete(root); } return; }
     const n = guardBody(root, guardS.base);
-    if (n > 0) { if (n < guardS.near) guardS.near = n; return; }
-    if (i != null) crowdDraw.hide(i, true); else { root.traverse(layerOff); guardHid.add(root); }
+    if (n > 0 && n < guardS.near) guardS.near = n;
+    if (i == null) { // (one the lens cannot leave: faded, out and back)
+      const k = fading.get(root), out = n === 0 || guardS.deep > -(k && k.a < 1 ? FADE_BACK : FADE_NEAR);
+      if (!fadeStep(root, out) || fading.get(root).a > 0) { if (n === 0 && !fading.has(root)) { root.traverse(layerOff); guardHid.add(root); if (window.__fadeLog && root === player.rig.root) window.__fadeLog.hard = (window.__fadeLog.hard || 0) + 1; } else return; }
+    } else if (n > 0) return;
+    else crowdDraw.hide(i, true);
     const G = window.__lensGuard; // (for a harness: who was taken out, from which camera)
     if (G) { const mode = cine.active ? `shot ${cine.label || ''}` : talkShot ? 'talk' : story && story.film ? 'film' : fpOn ? 'finder' : photo.on ? 'photo' : closeup ? 'closeup' : `${player.mode} ${cam.mode}`, key = `${typeof who === 'function' ? who() : who} | ${mode}`; G[key] = (G[key] || 0) + 1; }
   }

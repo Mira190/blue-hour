@@ -2749,6 +2749,30 @@ wrong; its scale and extras are governed as any device's, and half the rate is i
 M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
 `THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
 
+### The device floor and its tiers (issue 220)
+
+The floor the game is held to, by the owner's ask for no stutter on weak machines:
+
+| device | browser | tier it starts on | why |
+| --- | --- | --- | --- |
+| an iPhone 12-class phone | Safari | low, a phone's set (`lean`, its level from `level()`) | touch, a short side under 600 px |
+| a mid Android phone (4 GB) | Chrome | low, a phone's set | the same, and `deviceMemory` 4 |
+| a laptop with Intel's UHD (or an AMD APU), 8 GB, 4 cores | Chrome or Edge | **medium** (it was high) | `quality.js` `probe` `integrated`: the renderer string names a GPU on the processor's die; Intel's Arc cards are excluded |
+
+The laptop can step to low by the governor's judged step (above), after a visit's first 30 s. What each floor tier
+draws on the night walk where it starts, counted by `tools/gl_calls.js` on a session's machine (draws, WebGL calls and
+passes a frame are the device's work whatever renders them; their milliseconds are the mac's to read):
+
+| tier | draws | WebGL calls | passes | programs |
+| --- | --- | --- | --- | --- |
+| high (desktop) | 395 | 6,493 | 18 | 83 |
+| medium (desktop, the laptop's) | 364 | 5,660 | 18 | 85 |
+| low (desktop, the laptop's after a step) | 305 | 3,625 | 11 | 78 |
+| low (a phone's set) | 220 | 3,876 | 9 | 74 |
+
+(The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`). The laptop's medium is recorded beside them ("medium": the story's three parts at 1440 x 900, `beat_budget.py set ... --parts medium`), to be held by a CI shard of its own once a few runs have shown its noise.
+
 ### Not checked here
 
 A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may
@@ -3096,6 +3120,26 @@ and off; nothing counted it. A grown index buffer is first bound as an index buf
 | draws | 258 to 288 | 242 to 260 (and 291 where the player's parked car is in view) |
 | of which the buildings' cells | 27 to 45 | 1 |
 | GPU memory | 212 MB | 213 MB |
+
+### The cells' streaming on a phone (issue 220)
+
+The walk's moving beats were 35% longer on a session's machine after the cells went into one draw, and the question
+was whether a phone pays it. `tools/stream_probe.js` (with `tools/phone_frame.js`: the emulated iPhone carried 450 m
+east and back, three metres a frame, every frame timed and the arena's own work on the page's thread counted) split it:
+
+| over the walk | adding the cells (272) | giving back idle room (5 trims) | growing |
+|---|---|---|---|
+| before | 66 ms in all, 0.24 ms a cell | 2,024 ms, the longest 652 ms | 1 ms |
+| after | 73 ms | 30 ms, the longest 10 ms | 2 ms |
+
+Sending a cell's vertices is cheap, so spreading the uploads over frames would buy nothing. The trim was the hitch:
+it read the whole index buffer back from the GPU to move the cells' indices, and a read back waits for every draw
+queued before it (on a phone's GPU as on a software one). Each cell now keeps its own indices from its first vertex
+(16 bits where they fit: about 1.4 MB of the page's memory on a phone), and a trim writes them again from those. The
+arena's longest frame of work went from 656 to 16 ms on the software renderer. After four trips the arena holds
+21.2 MB for 20.8 used, and every cell's indices on the GPU, read back by the harness alone, are what they should be
+(`tools/arena_probe.js`). The mac found no difference a player sees from the streaming on a real GPU and in Safari
+(issue 192); this takes out the one stall a phone would have felt.
 
 ### What is left
 

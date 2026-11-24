@@ -799,7 +799,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                 const box = () => p.evaluate(() => { const r = document.querySelector('#gd-choices button').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
                 const still = () => p.evaluate(async () => { let a = null; for (let i = 0; i < 20; i++) { const r = document.querySelector('#gd-choices button').getBoundingClientRect(), k = `${r.x.toFixed(0)},${r.y.toFixed(0)}`; if (k === a) return; a = k; await new Promise(o => setTimeout(o, 150)); } });
                 for (let n = 0; n < 2; n++) {
-                  await still();
+                  // (and not before the answers have been up 350 ms of the page's clock: hud.js lets no tap choose sooner, so
+                  // that a tap meant for the line before is not taken as an answer. A tap at once on a box already still
+                  // was dropped by it, and failed as the game's on main's walk2, 04d6cc4)
+                  await still(); await p.waitForTimeout(500);
                   const r0 = await box(), tx = r0.x + r0.w / 2, ty = r0.y + r0.h / 2;
                   await p.touchscreen.tap(tx, ty); await p.waitForTimeout(1500);
                   if (!(await p.evaluate(() => window.__game.dlg.hasChoices))) break;
@@ -862,8 +865,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // the corner's Your car (C on a desktop): it pulls in at the kerb nearest you, up the kerb's lane, and stops there
       // (from Hachiko's side of the crossing, where the car is called from most; then back where the menu's step expects you)
       const here0 = await p.evaluate(() => { const g = window.__game, at = [g.player.x, g.player.y]; g.spawn([395, -1052]); return at; });
-      await p.waitForTimeout(800);
-      if (!(await visible('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
+      // (waited for, not read 0.8 s on: put down there out of the car, the corner's buttons are the page's next frames' to
+      // lay out, seconds on a software renderer; read at once it was not there yet, and pressed a beat later it was, main's
+      // walk3 on beb0fdb)
+      if (!(await shown('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
       else {
         await press('#g-walk-acts [data-do="car"]');
         const c0 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return [s.x, s.y]; });

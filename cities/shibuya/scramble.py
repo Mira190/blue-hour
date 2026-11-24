@@ -216,7 +216,17 @@ def crosswalk_poly(c):
 ROADW = {"motorway": 14, "trunk": 12, "primary": 12, "secondary": 10, "tertiary": 9, "residential": 7, "unclassified": 6, "living_street": 5}  # as web/game/game.js
 WALK_REACH = 10.0     # how far past a crosswalk's measured end its kerb is looked for
 ZEBRA_W = 4.0         # a crossing OpenStreetMap maps and the photograph was not measured for: the standard's least width
-ZEBRA_TAGS = ("traffic_signals", "marked", "uncontrolled", "zebra")
+ZEBRA_TAGS = ("traffic_signals", "pedestrian_signals", "marked", "uncontrolled", "zebra")
+
+
+def painted(t):
+    """Whether a crossing OpenStreetMap maps is painted: its paint under the newer tag (crossing:markings) where it has
+    one, else the older crossing=* (issue 213: the west bus terminal's signalled zebra is crossing=pedestrian_signals with
+    crossing:markings=zebra, and an unpainted scramble arm crossing:markings=no)."""
+    m = t.get("crossing:markings")
+    if m is not None:
+        return m not in ("no", "surface")
+    return t.get("crossing") in ZEBRA_TAGS
 
 
 def road_bands(D):
@@ -285,7 +295,7 @@ def zebras(D, disc=None):
         out = []
         for w in D.ways:
             t = w.get("tags", {})
-            if t.get("highway") != "footway" or t.get("crossing") not in ZEBRA_TAGS or len(w["xy"]) < 2 or t.get("layer") or t.get("tunnel") or t.get("bridge"):
+            if t.get("highway") != "footway" or not t.get("crossing") or not painted(t) or len(w["xy"]) < 2 or t.get("layer") or t.get("tunnel") or t.get("bridge"):
                 continue
             ln = LineString(w["xy"])
             if ln.distance(Point(*HERO_CENTRE)) > 130.0 or any(q.intersects(ln) for q in five) or hull.contains(ln.centroid):
@@ -459,9 +469,12 @@ class Plan:
         self.centre, self.r = c, float(r)
         self.disc = Point(*c).buffer(r, 48)
         # what stands on the ground: not a deck or a bridge over it. (`base` is the underside over the ground and
-        # `ground` the ground's height over the sea, so the test the Scramble was built with counts every solid as
-        # standing; its plan is kept as built. A level that stands under a deck says what stands: `standing`.)
-        standing = standing or (lambda s: s.get("base", 0) - s.get("ground", 0) < 2.5)
+        # `ground` the ground's height over the sea; `base` under 2.5 m is a solid on the ground. A level that stands under
+        # a deck may say otherwise: `standing`.)
+        # (issue 213: the Scramble's too, since the decks over its roads were raised, #196: counted as standing, the west
+        # exit deck and Mark City's bridge cut holes in the level's ground under them, the page's asphalt showed
+        # through, and the bus terminal's zebra stopped 10 m short of its kerb at the deck's edge)
+        standing = standing or (lambda s: s.get("base", 0) < 2.5)
         near = [Polygon(s["ring"]).buffer(0) for s in D.solids if len(s["ring"]) >= 3 and np.linalg.norm(np.mean(s["ring"], axis=0) - c) < r + 120
                 and standing(s)]
         self.solids = unary_union([p.buffer(0.12) for p in near if p.is_valid and p.area > 1]).intersection(self.disc.buffer(5))
@@ -888,8 +901,11 @@ def entrance_sites(D, near, radius=150.0):
             sgn = -1.0 if (down - c) @ f > 0 else 1.0
         else:
             sgn = 1.0 if (n["xy"] - c) @ f >= 0 else -1.0
+        # (a lift's entrance: OpenStreetMap's highway=elevator a few metres from it, the entrance's node wheelchair=yes and
+        # with no ref of its own. At 325,-983 beside A6a it was built as a covered stair: issue 213)
+        lift = not t.get("ref") and any(m["tags"].get("highway") == "elevator" and np.linalg.norm(m["xy"] - n["xy"]) < 6.0 for m in D.nodes)
         out.append({"ref": t.get("ref") or "", "name": "しぶちか" if kiosk else (t.get("name") or "渋谷駅"), "kiosk": kiosk, "si": best["si"], "c": c, "f": f * sgn, "L": L, "W": W,
-                    "g": min(D.ground(*q) for q in best["ring"]), "top": best["top"]})
+                    "g": min(D.ground(*q) for q in best["ring"]), "top": best["top"], "lift": lift})
     return out
 
 
@@ -903,6 +919,26 @@ def entrance(K, A, e):
     hl, hw, g = e["L"] / 2, e["W"] / 2, e["g"]
     zr = g + min(max(e["top"], 3.0), 3.9) - 0.32      # the roof's underside
     panel, fr, gl = K["x_panel"], K["x_frame"], K["x_glass"]
+    if e.get("lift"):
+        # a lift's housing: glass on a steel frame all round under a flat roof, its doors in the open end (a car's width,
+        # 0.9 m, in stainless steel), its call panel beside them, a strip light under the roof. No stair, no well
+        box(panel, P, -hl - 0.12, hl + 0.3, -hw - 0.12, hw + 0.12, zr, zr + 0.32)
+        for u in (-hl + 0.05, hl - 0.05):
+            for v in (-hw + 0.05, hw - 0.05):
+                box(fr, P, u - 0.05, u + 0.05, v - 0.05, v + 0.05, g, zr)
+        for v in (-hw + 0.035, hw - 0.035):
+            box(gl, P, -hl, hl, v - 0.012, v + 0.012, g, zr)
+            box(fr, P, -hl, hl, v - 0.04, v + 0.04, g, g + 0.1)
+        box(gl, P, -hl, -hl + 0.024, -hw, hw, g, zr)
+        box(fr, P, hl - 0.06, hl, -hw, hw, g + 2.15, zr)                         # the lintel over the doors
+        box(panel, P, hl - 0.05, hl, -hw, -0.55, g, g + 2.15)                     # the jambs
+        box(panel, P, hl - 0.05, hl, 0.55, hw, g, g + 2.15)
+        box(K["x_rail"], P, hl - 0.04, hl - 0.01, -0.45, 0.45, g + 0.02, g + 2.1)  # the doors, stainless
+        box(K["x_frame"], P, hl - 0.03, hl, 0.62, 0.74, g + 0.95, g + 1.25)       # the call panel
+        box(K["x_light"], P, -hl + 0.2, hl - 0.2, -0.06, 0.06, zr - 0.05, zr)
+        K["x_tactile"].quad(P(hl, -0.45, g + 0.02), P(hl, 0.45, g + 0.02), P(hl + 0.6, 0.45, g + 0.02), P(hl + 0.6, -0.45, g + 0.02))
+        A.quad(K["x_atlas"], P(hl + 0.31, -hw, zr), P(hl + 0.31, hw, zr), P(hl + 0.31, hw, zr + 0.32), P(hl + 0.31, -hw, zr + 0.32), f"exit_{e['ref']}")
+        return None
     t = 0.07                                          # the walls' thickness
     # the roof: a slab with a deeper fascia over the open end, cantilevered 0.6 m past it
     box(panel, P, -hl - 0.12, hl + 0.6, -hw - 0.12, hw + 0.12, zr, zr + 0.32)
@@ -2533,7 +2569,9 @@ class Build:
         if "center_gai" in self.lm:
             center_gai_gate(K, self.A, self.D, self.lm["center_gai"])
         for e in self.entrances:
-            clip.append({"ring": entrance(K, self.A, e), "well": True})   # (a stair well the crowd keeps out of while the station below is not built: game.js WELLS; drop the mark when it opens)
+            ring = entrance(K, self.A, e)
+            if ring:   # (a lift's housing has no well)
+                clip.append({"ring": ring, "well": True})   # (a stair well the crowd keeps out of while the station below is not built: game.js WELLS; drop the mark when it opens)
             hidden.append(e["si"])
         plan = Plan(self.D, [c["ring"] for c in clip])
         tactile(K, self.D, Plan(self.D, [c["ring"] for c in clip], r=125.0), top=self.top)   # (round the scramble a little wider than the hero level)
