@@ -65,6 +65,31 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   // ARMS=seconds: how deep the near crowd's forearms, hands and what they hold go into their own bodies (tools/hold_depth.js,
   // as tools/clip_probe.js reads it in the story), every frame for that long: the readings over its limit, and the deepest.
   // For the arms' clearance asked less often for people small on the screen (people.js armsClear, rig.clearEvery)
+  // NEARFAR=seconds: once a second, the crowd drawn on the screen within NEAR_M (5) of the lens: how many as whole people and how many as
+  // far copies, the far copies' distances, and the renderer's pick (how many near it may make, how many it wants, how many
+  // wait for their character to load): issue 174, a phone drew people three to five metres off as far copies
+  if (+process.env.NEARFAR) {
+    const M = +(process.env.NEAR_M || 5), rows = [];
+    for (let k = 0; k < +process.env.NEARFAR; k++) {
+      rows.push(await p.evaluate(M => { const g = window.__game, R = g.crowdDraw(), c = g.camera.position, P = g.crowd.P, far = [];
+        let whole = 0; for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (!q.inPic || (q.line < 0 && !q.pz)) continue; const d = Math.hypot(q.x - c.x, q.y + c.z, q.z + 1 - c.y); if (d > M) continue;
+          // (on the screen: its feet or its head inside the picture. A far copy is drawn up to 30 m outside the view for its
+          // shadow, and the pick ranks one out of view after everyone in it: those are not what issue 174 saw)
+          { const V = new THREE.Vector3(); let on = false; for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y).project(g.camera); if (V.z > -1 && V.z < 1 && Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) on = true; } if (!on) continue; } if (R.active.has(i)) whole++; else far.push(+d.toFixed(1)); if (!R.active.has(i) && d < 4) (window.__nfWho = window.__nfWho || []).push({ i, d: +d.toFixed(1), pz: q.pz ? q.ph || 1 : 0, line: q.line, moving: !!q.moving, state: q.state, mode: q.mode, rank: (R.nearInfo().top || []).findIndex(t => t[0] === i) }); }
+        const I = R.nearInfo ? R.nearInfo() : {};
+        if (far.length >= 3 && !window.__nfSnap) { const cam = g.camera, zoom = cam.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / cam.fov)) : 1, ex = c.x, ey = -c.z, top = (I.top || []);
+          window.__nfSnap = { zoom: +zoom.toFixed(2), fov: cam.fov, top, far: [] };
+          for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (!q.inPic || R.active.has(i)) continue; const d = Math.hypot(q.x - c.x, q.y + c.z, q.z + 1 - c.y); if (d > 4) continue; { const V = new THREE.Vector3(); let on = false; for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y).project(cam); if (V.z > -1 && V.z < 1 && Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) on = true; } if (!on) continue; }
+            window.__nfSnap.far.push({ i, d: +d.toFixed(2), pick: +(Math.hypot(q.x - ex, q.y - ey) / zoom * (q.moving || q.state === 'sit' ? 1 : 0.75)).toFixed(2), line: q.line, pz: q.pz ? q.ph : 0, rank: top.findIndex(t => t[0] === i), whole: !!q.whole, look: q.look && q.look.character }); } }
+        return { whole, far: far.sort((a, b) => a - b), nNear: I.nNear, want: I.want, active: I.active, unloaded: I.unloaded, capped: I.capped }; }, M));
+      await p.waitForTimeout(1000);
+    }
+    console.log(`NEARFAR snapshot: ${JSON.stringify(await p.evaluate(() => window.__nfSnap || null))}`);
+    console.log(`NEARFAR who: ${JSON.stringify(await p.evaluate(() => (window.__nfWho || []).slice(-8)))}; the pick's nearest: ${JSON.stringify(await p.evaluate(() => (window.__game.crowdDraw().nearInfo().top || []).slice(0, 14)))}`);
+    const farN = rows.map(r => r.far.length), worst = rows.reduce((a, r) => (r.far.length > a.far.length ? r : a), rows[0]);
+    console.log(`NEARFAR within ${M} m of the lens, ${rows.length} readings: far copies ${farN.join(' ')} (most ${Math.max(...farN)}, in ${farN.filter(n => n).length} readings); whole ${rows.map(r => r.whole).join(' ')}; the worst: ${JSON.stringify(worst)}`);
+    if (process.env.STILLS) { fs.mkdirSync(process.env.STILLS, { recursive: true }); await whole(p, () => p.screenshot({ path: `${process.env.STILLS}/${phone ? 'phone' : 'desktop'}-nearfar.png`, timeout: 120000 })); }
+  }
   if (+process.env.ARMS) {
     const r = await p.evaluate(secs => new Promise(done => { const R = window.__game.crowdDraw(), H = window.__holdDepth, t0 = performance.now(); let n = 0, over = 0, deep = 0, frames = 0; const all = [];
       const step = () => { frames++; for (const [, rig] of R.active) { if (!rig.root.visible) continue; const m = H.measure(rig.root); if (!m) continue; const d = Math.max(m.R_forearm || -1, m.R_hand || -1, m.L_forearm || -1, m.L_hand || -1, m.held || -1); n++; all.push(d); if (d > 0.02) over++; if (d > deep) deep = d; }
