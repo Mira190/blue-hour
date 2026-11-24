@@ -42,7 +42,7 @@ function pageSide(DEEP) {
   let T = null, inv = null, a = null, b = null, m = null;
   const build = root => {
     const parts = new Map(), meshes = [];
-    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex) meshes.push(o); });
+    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && !o.userData.fadeGhost) meshes.push(o); });
     if (!meshes.length) return null;
     const human = meshes.some(o => o.skeleton.bones.some(q => /Bip01/.test(q.name)));
     const partOf = q0 => { if (!human) return q0; for (let q = q0; q && q.isBone; q = q.parent) if (MAIN.test(q.name)) return q; return q0; };
@@ -80,7 +80,9 @@ function pageSide(DEEP) {
     if (r === undefined || (r && r.none && C.frames - r.at > 90)) { try { r = build(root) || { none: true, at: C.frames }; } catch (e) { r = { none: true, at: 1e12 }; C.err = C.err || `build: ${e && e.message}`; } C.rigs.set(root, r); }
     return r.none ? null : r;
   };
-  const shown = (o, cam) => { if (!o.layers.test(cam.layers)) return false; for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  // (drawn: on the camera's layers and visible. A mesh drawing its depth alone, and a fading copy of one, are the game's
+  // fade, game.js fadeStep: counted apart, as fading, not as drawn)
+  const shown = (o, cam) => { if (!o.layers.test(cam.layers) || o.userData.fadeGhost || [].concat(o.material).every(q => q && q.colorWrite === false)) return false; for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
   const modeOf = ctx => {
     const g = window.__game || {}, pl = ctx.player, st = ctx.story;
     if (g.cine && g.cine.active) return `shot ${g.cine.label || ''}`.trim();

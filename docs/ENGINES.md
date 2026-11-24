@@ -232,10 +232,21 @@ Adopted, in this order (the first that works wins, and nothing fights a hand on 
    (`pitchRoom`). The lens is never over your head looking down at your hair.
 4. **Issue 99's turn to an open side** is unchanged: not while a hand is on the view, not
    during a story's shot.
-5. **Last resort:** only when the lens itself is inside someone, so no window clears them,
-   is that person out of the picture for the frame, whole, as `lensClear` takes people out.
-   For you, that is a wall pressed to your back while a hand holds the view into it. It
-   lasts as long as the hand holds it there.
+5. **Last resort, faded:** only when the lens itself is inside someone, so no window clears them,
+   is that person taken out of the picture. You, the story's people, the map's people and the guide
+   fade out over 0.2 s, evenly over the whole body, starting 4 cm before the smallest window would
+   touch them, and fade back the same way once it can. Their depth is drawn first, alone (their own
+   materials with colour writes off: the same programs), then their colour, blended at that opacity
+   wherever it is the nearest surface, by a copy of each mesh that shares its geometry, skeleton and
+   morphs. So no inner face, no sorting fault and no pattern shows. This is not issue 129's fade:
+   that was a dither, read as dots at a desktop's size, held for as long as someone stood near, with
+   a clear umbrella seen through a body. This fade is never held (it runs to out or back to whole),
+   and it has one opacity, no pattern. The blended materials are the one extra program a person's
+   material needs; they are compiled when the page is idle, with the one you play and the guide.
+   The crowd stays as issue 129 left it, in the picture whole or out of it whole. For you this
+   happens with a wall pressed to your back while a hand holds the view into it.
+   `tools/cam_fade.js` takes its stills and times it (`out/fade`): 3 frames at a desktop's 1440×900
+   here and 4 at a phone's, the guard 0.15 to 0.18 ms a frame meanwhile.
 
 Checked by `tools/cam_intrude.js`, in every frame of `tools/story_play.js` and
 `tools/walk_play.js`: the window against each drawn body's skinned parts (the 80th hundredth,
