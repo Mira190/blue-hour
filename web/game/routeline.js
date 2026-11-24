@@ -1,7 +1,7 @@
 // The route to go: the gold line by the way you are going (on foot, by car, in the helicopter) and the way on foot
 // the guide leads. A part of the game cut out of game.js (tools/cut.js; docs/SEAMS.md, "The cut of game.js").
 // `g` is the rest of the game, by name. What this part asks of it:
-//   G, H, driveTo, gold, groundZ, heli, keepSign, myCar, nav, npcs, pilot, player, ride, roadNet, roads, rq, stepOf,
+//   firstFramed, G, H, driveTo, gold, groundZ, heli, keepSign, myCar, nav, npcs, pilot, player, ride, roadNet, roads, rq, stepOf,
 //   story, waypoint, ways, wharfById
 // and what it gives back:
 //   guide, updateRoute, wayOnFoot
@@ -14,7 +14,11 @@ window.OEGameRouteLine = function (g) {
   // leads you to it first. Worked out again when the target moves, when you stray off the line,
   // and (a ride, a ferry) as the trip goes on.
   const guide = { key: '', at: -9, pts: null, fail: false, n: 0 };
-  g.ways.build().then(() => { guide.key = ''; }).catch(e => console.warn('Routes unavailable:', e));
+  // (built once the first frame is drawn, not beside the loader's warm-up: on a phone's tier its ticks were 1 to 2 s of the main
+  // thread between "built" and the first frame, issue 194. Nothing before play reads it: the line, the mark and the guide ask
+  // for ways.ready first. The log says when it was ready against the first frame, for tools/check.sh mem)
+  Promise.resolve(g.firstFramed).then(() => { const t0 = performance.now(); return g.ways.build().then(() => { guide.key = ''; console.info(`routes: built after the first frame, ready ${Math.round(performance.now() - t0)} ms after it`); }); })
+    .catch(e => console.warn('Routes unavailable:', e));
   // The way on foot from you to a story's goal, for its mark: the gold line's own points while it is drawn to that goal,
   // else the same route worked out here (route.js ways.walk, which the dog follows too), again only when the goal moves or
   // you are 4 m off it (where you are along it is found every frame: a way worked out again as you walk hitched a phone's

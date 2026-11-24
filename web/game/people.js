@@ -1233,7 +1233,7 @@ ${PAT_GLSL}`)
     let gs = [...String(look.character || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
     const grnd = () => ((gs = (gs * 1664525 + 1013904223) >>> 0) / 4294967296);
     const idleAt = (made = (made + 0.6180339887) % 1); // (what one waits doing begins here in it: spread by the golden ratio, in the order people are made)
-    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
+    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character, clearEvery: 1 }; // (clearEvery: armsClear)
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
     model.traverse(o => { if (o.isBone) bones[o.name] = o; });
@@ -1654,16 +1654,23 @@ ${PAT_GLSL}`)
       root.updateWorldMatrix(true, false);
       for (const nd of c.chain) upd(nd);
       root.matrixWorld.decompose(cps, cRq, csc); cRi.copy(cRq).invert();
-      for (const b of c.owners) skinM(c, b, c.M.get(b));
+      let skinned = false; // (the torso's bones as they carry it: worked out once a frame, and only if an arm asks this frame)
       c.frame++; // (each slice's frame made when a point first falls in it this frame: sliceAt)
+      // (rig.clearEvery: an arm asked every so many frames, set by the crowd for a person small on the screen, issue 130.
+      // Between, the turns last asked are kept in the body's own frame and laid on through the same springs. 1 by default:
+      // the story's people, the player and the walk's are asked every frame)
+      const every = rig.clearEvery > 1 ? rig.clearEvery : 1;
       for (let side = 0; side < 2; side++) {
         const a = arms[side], A = c.arm[side];
         // (not the arm that holds an open umbrella or a rod: its pose is laid on whole, umbHold, and what it holds is no thing at the chest)
         if (side === 1 && (umbUp || rig.hold)) continue;
-        if (!A.tSh) { A.tSh = new THREE.Vector3(); A.tEl = new THREE.Vector3(); A.pSh = new THREE.Vector3(); A.pEl = new THREE.Vector3(); A.vSh = new THREE.Vector3(); A.vEl = new THREE.Vector3(); }
+        if (!A.tSh) { A.tSh = new THREE.Vector3(); A.tEl = new THREE.Vector3(); A.pSh = new THREE.Vector3(); A.pEl = new THREE.Vector3(); A.vSh = new THREE.Vector3(); A.vEl = new THREE.Vector3(); A.gSh = new THREE.Vector3(); A.gEl = new THREE.Vector3(); A.since = side; A.asked = false; }
         A.tSh.set(0, 0, 0); A.tEl.set(0, 0, 0);
         const q0 = A.q0 || (A.q0 = [new THREE.Quaternion(), new THREE.Quaternion()]);
         q0[0].copy(a.ua.quaternion); q0[1].copy(a.la.quaternion);   // (the arm as it came in: the clip's, or the umbrella's)
+        if (every > 1 && A.asked && (A.since = (A.since + 1) % every) !== 0) { A.tSh.copy(A.gSh).applyQuaternion(cRq); A.tEl.copy(A.gEl).applyQuaternion(cRq); } // (not this arm's frame: the turns last asked)
+        else {
+        if (!skinned) { skinned = true; for (const b of c.owners) skinM(c, b, c.M.get(b)); }
         const held = A.held || (A.held = []);
         held.length = 0;
         for (const g of accObjs) if (g.parent === a.wr) for (const m of g.children) if (m.geometry) {
@@ -1693,6 +1700,8 @@ ${PAT_GLSL}`)
           keepArm(side);
           if (wsS) { upTo(wSh.divideScalar(wsS), 0.3); turnBone(a.ua, wSh, [a.la, a.wr]); aimFore(a, cwr); A.tSh.add(wSh); }
           if (wsE) { upTo(wEl.divideScalar(wsE), 0.3); turnBone(a.la, wEl, [a.wr]); A.tEl.add(wEl); }
+        }
+        A.gSh.copy(A.tSh).applyQuaternion(cRi); A.gEl.copy(A.tEl).applyQuaternion(cRi); A.asked = true; // (kept for the frames between asks)
         }
         // through the springs, and laid on the arm as it came in
         spring(A.pSh, A.vSh, A.tSh, d0); spring(A.pEl, A.vEl, A.tEl, d0);
@@ -2457,7 +2466,9 @@ transformed = crowdPose(transformed, false);`);
     }
     const free = {}, active = new Map();
     let dtNow = 0, tNow = 0, frameNo = 0, ended = false, m0 = null;
-    let lastBegin = null, stillMade = -1, lastPick = null; // (stillMade: how many people made in this still frame, still(); -1 in play)
+    let lastBegin = null, stillMade = -1; // (stillMade: how many people made in this still frame, still(); -1 in play)
+    const lastPick = { nNear: 0, culling: false, zoom: 1, want: 0, unloaded: 0, capped: 0 }, pickI = [], pickD = new Float64Array(P.length), pickKeep = new Set(), byPick = (a, b) => pickD[a] - pickD[b];
+    let umbAny = false, umbUp = 0, easeK = 1;
     function begin(dt, cx, cy, t, nActive, count = 0) {
       lastBegin = [cx, cy, nActive];
       dtNow = dt; tNow = t; frameNo++; ended = false;
@@ -2465,6 +2476,8 @@ transformed = crowdPose(transformed, false);`);
       umbN.true = umbN.false = umbN.shaft = 0;
       if (umbSnap) umbSnap--;
       { const g = umbGrid; umbGrid = umbNext; umbNext = g; for (const c of g.values()) c.length = 0; } // (who stood where, for this frame's leans)
+      umbAny = umbUp > 0; umbUp = 0; // (is anyone's umbrella up, by the last frame's count: place() leans nobody under a dry sky)
+      easeK = 1 - Math.exp(-dt / 0.08); // (drawn()'s ease, the same for everyone this frame)
       // the camera's frustum as it was last drawn, for this frame's culling; not across a cut (the camera somewhere else)
       culling = false;
       if (camera) {
@@ -2480,7 +2493,10 @@ transformed = crowdPose(transformed, false);`);
       // the frame as someone 25 m off is in the chase view: the distance is counted as the lens sees it, and a few more
       // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
       const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = count || Math.round(near * Math.min(1.5, zoom));
-      const want = [], ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
+      // (the pick is kept in lists made once: a pair for each of a few hundred people, a sort of them and a set, made
+      // again sixty times a second, were the frame's garbage, issue 130)
+      const want = pickI, ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
+      want.length = 0;
       lodX = ex; lodY = ey; lodZoom = zoom;
       for (let i = 0; i < nActive; i++) {
         const p = P[i]; if (p.line < 0) continue;
@@ -2489,12 +2505,13 @@ transformed = crowdPose(transformed, false);`);
         const d = Math.hypot(p.x - ex, p.y - ey) / zoom * (p.moving || p.state === 'sit' ? 1 : 0.75);
         if (d >= nearR) continue;
         const seen = !culling || frustum.intersectsSphere(ball.set(at.set(p.x, p.z + 1, -p.y), 1.5));
-        want.push([seen ? d : d + nearR, i]);
+        pickD[i] = seen ? d : d + nearR; want.push(i);
       }
       ball.radius = 30;
-      want.sort((a, b) => a[0] - b[0]);
-      const keep = new Set(want.slice(0, nNear).map(w => w[1]));
-      lastPick = { nNear, culling, zoom, want: want.length, unloaded: 0, capped: 0, top: want.slice(0, nNear + 4).map(w => [w[1], +w[0].toFixed(2)]) }; // (for the checks: nearInfo)
+      want.sort(byPick);
+      const keep = pickKeep; keep.clear();
+      for (let k = 0; k < nNear && k < want.length; k++) keep.add(want[k]);
+      lastPick.nNear = nNear; lastPick.culling = culling; lastPick.zoom = zoom; lastPick.want = want.length; lastPick.unloaded = lastPick.capped = 0; // (for the checks: nearInfo, which lists the nearest when asked)
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
       for (const i of keep) {
         // (a stand-in gives way to the walker's own character once that has come, not only when they next come near)
@@ -2524,14 +2541,19 @@ transformed = crowdPose(transformed, false);`);
     // in a dense column went on, stopped a frame, went on. Put somewhere else (2 m and more at once): drawn there
     function drawn(p) {
       if (p.rx == null || Math.abs(p.x - p.rx) + Math.abs(p.y - p.ry) > 2 || Math.abs(p.z - p.rz) > 1) { p.rx = p.x; p.ry = p.y; p.rz = p.z; return; }
-      const k = 1 - Math.exp(-dtNow / 0.08);
+      const k = easeK;
       p.rx += (p.x - p.rx) * k; p.ry += (p.y - p.ry) * k; p.rz += (p.z - p.rz) * k;
     }
     function place(i, p, moving) {
       const r = active.get(i);
       drawn(p);
       const ut = umbStep(p);
-      lean(p);
+      // (the lean is the umbrellas': with none up anywhere nobody is put in its grid and no hold is turned, which was a
+      // twelfth of the crowd's script on a dry evening, issue 130. p.on: drawn this frame, a person or a far copy; the
+      // crowd steps those not drawn less often, actors.js update)
+      if (p.umbR > 0) umbUp++;
+      if (umbAny || p.umbR > 0) lean(p); else if (p.umbLx || p.umbLy) p.umbLx = p.umbLy = 0;
+      p.inPic = true;
       if (r) {
         const u = ut > 0;
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null, clip: u ? null : p.look.clip || null }); } // (the phone put away while the umbrella's hand holds it up)
@@ -2542,6 +2564,9 @@ transformed = crowdPose(transformed, false);`);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
         if (p.wave) { p.wave = false; r.wave(tNow); }
+        // (how often its arms are kept out of its body, by how tall it stands on the screen: every frame from 300 pixels up,
+        // every second from 150, every third below, where a centimetre is under a pixel; issue 130)
+        if (camera && camera.isPerspectiveCamera) { const tall = 1.7 * p.look.scale * (window.innerHeight || 800) / (2 * Math.tan(camera.fov * Math.PI / 360)) / Math.max(0.5, Math.hypot(p.rx - lodX, p.ry - lodY, p.rz + 1 - camera.position.y)); r.clearEvery = tall >= 300 ? 1 : tall >= 150 ? 2 : 3; }
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
       }
@@ -2549,8 +2574,8 @@ transformed = crowdPose(transformed, false);`);
       const sit = p.mode === 'sit';
       at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
-      if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 2.3, 2.3)))) { unshow(p); return; } // (or behind the street wall: visibility.js)
-      if (farM < Infinity && Math.hypot(p.rx - lodX, p.ry - lodY) / lodZoom > farM) { unshow(p); return; }
+      if (culling && (!frustum.intersectsSphere(ball) || (window.OEVis && !OEVis.seenNext(at.x, -at.z, at.y + 2.3, 2.3)))) { unshow(p); p.inPic = false; return; } // (or behind the street wall: visibility.js)
+      if (farM < Infinity && Math.hypot(p.rx - lodX, p.ry - lodY) / lodZoom > farM) { unshow(p); p.inPic = false; return; }
       if (p.ms && p.ms.length > 1) {
         const d = Math.hypot(p.rx - lodX, p.ry - lodY) / lodZoom, lod = d > COARSE_M + (p.lod ? -4 : 4) ? 1 : 0;
         if (lod !== p.lod) { unshow(p); p.lod = lod; p.mesh = p.ms[lod]; p.slot = p.sl[lod]; }
@@ -2711,7 +2736,7 @@ transformed = crowdPose(transformed, false);`);
       }
       end();
     }
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size }, lastPick) };
+    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) };
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, opts: OPT };
