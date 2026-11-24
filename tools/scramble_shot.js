@@ -5,7 +5,8 @@
 //   xvfb-run -a node tools/scramble_shot.js shibuya tools/views/shibuya-scramble.json out_dir [WxH]
 // views.json: {"times": {"day": "13:00", "dusk": "sunset+15", "night": "21:00", "rain": {"time": "21:00", "weather": "rain"}},
 //              "views": [{"name": "hachiko", "eye": [x, y, dz], "look": [x, y, dz], "fov": 50}, ...]}
-// dz is metres over the ground there; "people": [x, y] (with crowd_r, crowd_n) stages the crowd round a point, as a film shot does. "date": [month, day]; TIER=high|medium|low (default high);
+// dz is metres over the ground there; "people": [x, y] (with crowd_r, crowd_n) stages the crowd round a point, as a film shot does;
+// "figures": [{"character", "at": [x, y], "face": [x, y]}] stands those people there. "date": [month, day]; TIER=high|medium|low (default high);
 // ONLY=name,name and TIMES=day,night pick some; SETTLE=seconds the world runs before each still (6).
 // EVAL=js runs in the page before each still (g: the game), its result printed.
 // QUERY=&a=b is added to the page's address (a switch set beside itself off: &batch=off; the pictures in blocks on a software renderer, &tex=bc7 beside &tex=raw).
@@ -75,6 +76,18 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
         // without one, the wet street alone (mirror.js)
         if (g.weather && g.weather.set) g.weather.set(tv.weather || 'clear', { now: true });
         else if (g.mirror) g.mirror.wet = tv.weather === 'rain' ? 1 : 0;
+        // "figures": [{"character": "R_...", "at": [x, y], "face": [x, y]}] stands those people there (the story's own
+        // figure: the person as the story draws them), once a run; the first view that asks waits for their models
+        let figWait = 0;
+        for (const fg of v.figures || []) {
+          const k = `${fg.character}@${fg.at}`, F = window.__shotFigs || (window.__shotFigs = {});
+          if (F[k]) continue;
+          F[k] = g.storyFigure({ alive: true, character: fg.character, name: `shot ${k}` }, [fg.at[0], fg.at[1]]);
+          if (fg.face && F[k].face) F[k].face(fg.face[0], fg.face[1]);
+          figWait = 1;
+        }
+        // (their own model comes after them, half a minute on a session's machine: until then a stand-in stands there)
+        if (figWait) { const t0 = performance.now(); while (performance.now() - t0 < 120000 && Object.values(window.__shotFigs).some(f => !f.rig || f.rig.character !== f.character)) await new Promise(r => setTimeout(r, 250)); }
         // (a view's "floor": the height of the deck it stands on, where that is not the ground under it)
         const gz = (x, y) => { if (v.floor != null) return v.floor; const f = g.nav.floorAt(x, y, g.nav.terrain(x, y) + 0.5); return f ? f.z : Math.max(0, g.nav.terrain(x, y)); };
         const W = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -110,6 +123,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
           }
         }
         g.advance(settle);
+        for (const f of Object.values(window.__shotFigs || {})) for (let i = 0; i < 20; i++) f.animate(0.05); // (posed: the story's loop, which poses them, does not run on a walk)
         // EVAL=js: run in the page before each still, with g the game (an experiment: a light switched off, a uniform set)
         if (evalJs) window.__evalOut = JSON.stringify(new Function('g', 'THREE', evalJs)(g, THREE));
         // a hero level near the camera (game/hero.js) loaded and shown before the still: frames until none is loading

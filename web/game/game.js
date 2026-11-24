@@ -1082,7 +1082,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   try {
     lib = await OEPeople.load('assets/people/', { warmLater: true }); // (its warm-up given once the loader has compiled: lib.setWarm, below)
     if ((G.crowd || {}).style) OEPeople.setStyle(G.crowd.style);
-    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
+    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit, Wd.U && Wd.U.uFaceCap); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
   } catch (e) { console.warn('Realistic people unavailable, using simple figures:', e); lib = null; }
   // the box-built figures are the last resort, for a device that could load none of the people's
   // files: one character that fails to load (after its retries, gltf.js) leaves the rest of the
