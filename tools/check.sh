@@ -278,7 +278,7 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
     # fast tier, playing the parts, no longer plays before landing)
     if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget; echo budgetm ;; walk) echo walk1; echo walk3; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
-  done
+  done | awk '!seen[$0]++'   # (each target once: budgetm came both from a change to story_play.js and from the budget's split, two runners played it, and the passes' job read the two files the download joined as one, 19:15 on 24 November)
   exit 0
 fi
 
