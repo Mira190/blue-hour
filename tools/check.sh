@@ -231,7 +231,7 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2; [ "$TIER" = full ] || add budget1 budget2 budget3 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/crowd_cost.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|tools/el_stall_check.js|web/assets/story/late/cue-phone.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|tools/el_stall_check.js|tools/score_files.js|web/assets/story/late/cue-phone.mp3|web/assets/story/late/scores.json|web/assets/story/late/score-*.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
       web/game/game.js) static=1; page; add ride ;;
@@ -751,6 +751,7 @@ rm -rf "$OUT/keep"
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st audio score_files - '^FAIL' node tools/score_files.js --check
     st credits credits - '^FAIL' python3 tools/credits_check.py "$MAP"
     st reach reach - '^FAIL|Error' python3 tools/reach_unit.py
     st seams seams - '^FAIL|Error' python3 tools/seams.py

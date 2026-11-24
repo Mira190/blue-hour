@@ -63,8 +63,26 @@ function stats(chs) {
     console.log(`${name}'s score${under ? ' (rendered under the cue)' : ' (alone)'} at tuneWav's ${GAIN}: peak ${db(s.peak)} dBFS, loudest 400 ms ${db(s.loud)} dBFS RMS, ${clipped} samples clipped, ${(chs[0].length / RATE).toFixed(1)} s; with the cue under it: peak ${db(sum)} dBFS${plays ? '' : '   (not how main plays it)'}`);
     if (!under && (s.peak > Math.pow(10, HEADROOM / 20) || clipped)) fails.push(`${name}'s score alone peaks at ${db(s.peak)} dBFS (${clipped} clipped), over ${HEADROOM}`);
   }
+  // the opening scores a phone plays, as shipped (tools/score_files.js): each file decoded as the element would, its peak,
+  // and, half a second at a time, how much of it is broadband: the energy of its sample-to-sample difference against its
+  // own (the scores and the cue read under 0.1, white noise 1.41; over 0.25 fails, about noise 15 dB under the music). The owner's iPhone heard a noise like the city's
+  // old bed in the opening (issue 166): no file a phone plays may carry one
+  const man = JSON.parse(fs.readFileSync(path.join(ROOT, 'web/assets/story/late/scores.json'), 'utf8'));
+  for (const [k, e] of Object.entries(man).concat([['cue', { file: 'assets/story/late/cue-phone.mp3', for: 'the loading cue' }]])) {
+    const r = await p.evaluate(async b64 => {
+      const u = Uint8Array.from(atob(b64), c => c.charCodeAt(0)), buf = await new OfflineAudioContext(2, 44100, 44100).decodeAudioData(u.buffer), W = Math.round(buf.sampleRate / 2);
+      let peak = 0, worst = 0, at = 0;
+      for (let c = 0; c < buf.numberOfChannels; c++) { const a = buf.getChannelData(c);
+        for (let i = 0; i < a.length; i++) { const v = Math.abs(a[i]); if (v > peak) peak = v; }
+        for (let i = 1; i + W <= a.length; i += W) { let e0 = 0, e1 = 0; for (let j = i; j < i + W; j++) { e0 += a[j] * a[j]; const d = a[j] - a[j - 1]; e1 += d * d; } if (e0 / W < 1e-5) continue; const q = Math.sqrt(e1 / e0); if (q > worst) { worst = q; at = i / buf.sampleRate; } } }
+      return { peak, worst, at, s: buf.duration };
+    }, fs.readFileSync(path.join(ROOT, 'web', e.file)).toString('base64'));
+    console.log(`${e.file} (${e.for}): peak ${db(r.peak)} dBFS, broadband at most ${r.worst.toFixed(3)} (at ${r.at.toFixed(1)} s), ${r.s.toFixed(1)} s`);
+    if (r.peak > Math.pow(10, HEADROOM / 20)) fails.push(`${e.file} peaks at ${db(r.peak)} dBFS, over ${HEADROOM}`);
+    if (r.worst > 0.25) fails.push(`${e.file} carries broadband noise at ${r.at.toFixed(1)} s (${r.worst.toFixed(2)}): a phone's music is to have none`);
+  }
   await b.close();
   for (const f of fails) console.log('FAIL', f);
-  console.log(fails.length ? `FAIL the tunes' levels (${fails.length})` : 'PASS every tune a phone plays alone peaks under ' + HEADROOM + ' dBFS, none clipped');
+  console.log(fails.length ? `FAIL the tunes' levels (${fails.length})` : 'PASS every tune a phone plays alone peaks under ' + HEADROOM + ' dBFS, none clipped, and the files it plays carry no broadband noise');
   process.exit(fails.length ? 1 : 0);
 })().catch(e => { console.log(`FAIL ${String(e && e.stack || e).split('\n')[0].slice(0, 200)}`); process.exit(1); });

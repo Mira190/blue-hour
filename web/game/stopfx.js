@@ -19,6 +19,10 @@
 'use strict';
 window.OEStopFX = (function () {
   const R = 16, H = 7; // the air it fills: this far round the player, this high
+  // (and seen only near: a point fades from the first distance from the camera to the second. Far off a bead or a mote is a
+  // pixel, and the far side of the held rain crowded into a band of white specks over whoever stood across the crossing:
+  // in frame 7's ending, on an iPhone, the two afterimages could not be seen in it, issue 206)
+  const FAR_DROPS = [5, 11], FAR_MOTES = [8, 16];
   function create({ THREE, world, audio, sound, floor = null }) {
     const LEAN = !!(window.OEQuality && OEQuality.city().lean);
     let g = null, amb = null, age = 0, fall = 0, drift = 0, letGo = -1, leaves = null, birds = null, motes = null, drops = null, ring = null, splash = null;
@@ -27,23 +31,23 @@ window.OEStopFX = (function () {
 
     // points hanging in the air: a soft round dot each; they fall by uFall (wrapped in the column), and stand
     // aside from whoever walks through them
-    function points(n, r, h, size, color, additive) {
+    function points(n, r, h, size, color, additive, far = [1e4, 2e4]) {
       const pos = new Float32Array(n * 3), s = new Float32Array(n);
       for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, d = Math.sqrt(Math.random()) * r; pos[3 * i] = Math.cos(a) * d; pos[3 * i + 1] = Math.random() * h; pos[3 * i + 2] = Math.sin(a) * d; s[i] = rnd(0.55, 1.3); }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aS', new THREE.BufferAttribute(s, 1));
       const mat = new THREE.ShaderMaterial({
         transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-        uniforms: { uP: { value: new THREE.Vector3() }, uFall: { value: 0 }, uH: { value: h }, uSize: { value: size }, uFade: { value: 0 }, uColor: { value: new THREE.Color(color) } },
-        vertexShader: `uniform vec3 uP; uniform float uFall, uH, uSize; attribute float aS; varying float vS;
+        uniforms: { uP: { value: new THREE.Vector3() }, uFall: { value: 0 }, uH: { value: h }, uSize: { value: size }, uFade: { value: 0 }, uColor: { value: new THREE.Color(color) }, uFar: { value: new THREE.Vector2(far[0], far[1]) } },
+        vertexShader: `uniform vec3 uP; uniform float uFall, uH, uSize; uniform vec2 uFar; attribute float aS; varying float vS, vFar;
           void main() { vec3 p = position; p.y = mod(p.y - uFall * aS, uH);
             vec2 d = p.xz - uP.xz; float l = length(d), near = smoothstep(0.8, 0.0, l) * step(p.y, uP.y + 2.1) * step(uP.y - 0.2, p.y);
             p.xz += (l > 1e-4 ? d / l : vec2(1.0, 0.0)) * near * 0.6;
-            vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; vS = aS;
+            vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; vS = aS; vFar = 1.0 - smoothstep(uFar.x, uFar.y, -mv.z);
             gl_PointSize = clamp(uSize * aS * 420.0 / max(0.3, -mv.z), 1.0, 26.0); }`,
-        fragmentShader: `uniform vec3 uColor; uniform float uFade; varying float vS;
-          void main() { vec2 c = gl_PointCoord - 0.5; float r = length(c) * 2.0; if (r > 1.0) discard;
-            float a = (1.0 - r * r) * (0.55 + 0.45 * smoothstep(0.5, 0.0, length(c - vec2(-0.14, -0.16)))); gl_FragColor = vec4(uColor, a * uFade); }`,
+        fragmentShader: `uniform vec3 uColor; uniform float uFade; varying float vS, vFar;
+          void main() { vec2 c = gl_PointCoord - 0.5; float r = length(c) * 2.0; if (r > 1.0 || vFar <= 0.0) discard;
+            float a = (1.0 - r * r) * (0.55 + 0.45 * smoothstep(0.5, 0.0, length(c - vec2(-0.14, -0.16)))); gl_FragColor = vec4(uColor, a * uFade * vFar); }`,
       });
       const o = new THREE.Points(geo, mat); o.frustumCulled = false; o.renderOrder = 18;
       return o;
@@ -142,7 +146,7 @@ window.OEStopFX = (function () {
       if (!kit) return; // (the models have not come yet: tick makes it when they have)
       if (LEAN) { nl = Math.round(nl * 0.65); nb = Math.round(nb * 0.65); }
       drop(amb); amb = new THREE.Group(); amb.position.copy(centre); local.set(0, 0, 0); want = null;
-      motes = points(1400, R, 4.2, 0.06, 0xfff1d6, true); amb.add(motes);
+      motes = points(1400, R, 4.2, 0.06, 0xfff1d6, true, FAR_MOTES); amb.add(motes);
       leaves = cards(Math.max(1, nl)); leaves.visible = nl > 0; amb.add(leaves); layCards(0, false);
       birds = flock(Math.max(1, nb)); birds.visible = nb > 0; amb.add(birds); layBirds(0, false);
       shown(leaves, 1); shown(birds, 1);
@@ -152,7 +156,7 @@ window.OEStopFX = (function () {
     function start(centre, { rain = false } = {}) {
       drop(g); g = new THREE.Group(); g.position.copy(centre); age = 0; fall = 0; letGo = -1; drops = splash = null;
       if (rain) {
-        drops = points(4200, R - 2, H, 0.05, 0xcfe0ff, false); g.add(drops);
+        drops = points(4200, R - 2, H, 0.05, 0xcfe0ff, false, FAR_DROPS); g.add(drops);
         const n = 260, o = points(n, 1, 1, 0.05, 0xdcebff, false), a = o.geometry.attributes.position, th = rnd(0, 6.283), cx = Math.cos(th) * 3.2, cz = Math.sin(th) * 3.2;
         for (let i = 0; i < n; i++) { const u = Math.random(), an = Math.random() * 6.283, r = 0.08 + u * rnd(0.3, 0.75); a.setXYZ(i, cx + Math.cos(an) * r, 0.05 + Math.sin(Math.PI * Math.min(1, u * 1.15)) * rnd(0.5, 1.25), cz + Math.sin(an) * r); }
         o.material.uniforms.uH.value = 1e6; splash = o; g.add(o);
