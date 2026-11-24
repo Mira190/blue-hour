@@ -2685,6 +2685,70 @@ floor is a tier down in thirty seconds and at low in two minutes, and climbs bac
 device, a hitchy one and one settled below its ceiling keep their tier; the ladder in storage, with a faked desktop
 context, goes high → medium → low and no lower, back up, and waits twice as long after a climb that failed.
 
+### Safari 18.6 itself: a frame no step can buy (24 November)
+
+Read in Safari itself on the owner's M3 (the mac's comments on issue 184 and 191, main 8186ca53): on the night walk
+Safari draws 26 to 29 frames a second where Playwright's WebKit draws 32 to 59 and Chromium 60, with the same 15 to 18 ms
+of script a frame. Its frame is 35 to 38 ms whatever the scale and the tier: the 19 ms beyond the script is spent on
+the frame's 4,300 WebGL calls after the script has made them (issue 191 item 2). And the page's `time` event read
+`hz 30, bound ok` at 27 frames a second.
+
+What the governor did with it (modelled in `tools/governor_unit.js` from those numbers, which reproduce the mac's
+reading step for step): it timed the frames right, since it times drawn frames by their animation-frame stamps, not
+the script nor a GPU timer, and it gave everything it had: the resolution to its floor, every extra, then medium →
+low 15 seconds in. None of it bought a frame. The flat rule gave the resolution back; the extras and the tier were
+kept off for good, the tier for the next visit too, and the aim stayed at 16.7 ms for good, since half the display's
+rate was taken only under 1.9 times the frame's budget and Safari is at 2.1. So Safari drew low's picture without the
+wet street's mirror, the contact shadows or a quarter of the crowd, at the same frame rate as medium's whole picture.
+The `bound ok` was the telemetry's: it read the display's rate from the fastest twentieth of the frames, about 30 ms
+in Safari, took the 60 Hz display for a 30 Hz one, and called 27 frames a second on it fine.
+
+Changed (`web/quality.js` governor, `web/telemetry.js`):
+
+- **A tier step is judged.** Ten seconds after a step down, the frame is set against the one it was taken at; a step
+  that did not make it 10% shorter, or fit the display's rate, is taken back at once, and the frame time it failed at
+  is kept with the tier (`bh-tier-<map>`'s `flat`, fourteen days, `quality.js` `tierStep`, `tierFlat`): neither this
+  visit nor the next asks for it again until the frames are half as long again as that. A step that buys frames is
+  kept as before. What a tier changes within a session is pixels; a frame that is slow for something else is as slow
+  on the tier below. A step kept before steps were judged (a record without `v: 2`) is let go, so a Mac's Safari that
+  the old governor left on low starts on medium again, and steps again, judged, if it needs to.
+- **What bought nothing is given back, the extras too.** Where the floor bought less than 15% (`flat`), the
+  resolution came back a step at a time while the frame stayed within 8%; now the extras come back the same way, half
+  at a time, and the floor no longer sheds the ones a try showed cost nothing.
+- **Half the display's rate within reach is the aim.** Up to 2.3 times the frame's budget (15% over half the rate,
+  as a step down is judged), where it was 1.9. A frame vertical sync puts at exactly 33.3 ms (2.0) never qualified, so a
+  desktop at thirty a second at its floor aimed at sixty for good and climbed nothing; now it aims at thirty and
+  climbs its resolution while thirty holds. A try at full rate after half a minute that does not fit goes back to half
+  at once with nothing stepped down, and the next try waits twice as long (to eight minutes): a device whose frames
+  cost the same at any size otherwise went down its whole ladder every minute and a half. When frames come at the
+  full rate again, the steps that failed at half are let go (they were the heavier scene's).
+- **The telemetry reads the display's rate below 60 only from an even beat**: 30 Hz where nine frames in ten are 31 to
+  36 ms apart (Low Power Mode, a display that is 30), else 60 at least. Safari's 26 to 57 ms frames now read `hz 60`,
+  and with no GPU timer and its script a half of its frame, `bound gpu?`: the time outside the script, which in Safari
+  is its WebGL calls.
+
+Modelled, before and after (`tools/governor_unit.js`, a frame of 34 to 38 ms at any scale, extras and tier, no
+display rate read, five minutes):
+
+| | before | after |
+| --- | --- | --- |
+| tier | medium → low at 15 s, kept, and for the next visit | down at 15 s, back at 25 s, remembered; medium |
+| scale/extras after one and five minutes | 1.00/0, 1.00/0 | 1.00/1, 1.00/1 |
+| aiming at | 16.7 ms | 33.3 ms |
+| the `time` event (Safari's frame gaps) | `hz 30, bound ok` | `hz 60, bound gpu?` |
+
+The frame rate is Safari's to give, not the governor's: 27 to 29 a second, the same on any tier. What would buy
+frames there is fewer WebGL calls a frame, not fewer pixels: the buildings' cells in one multi-draw (cells-192, merged
+691f7ed1, #192), the rest of the draws by batching (#191), and the crowd's script (crowd-cpu-130, #130), which is the
+other half of Safari's frame. A tier the visitor chose (`bh-quality`) still never steps: nothing in the product sets one
+(the menu that did went with the world, and `index.html` clears its old key), so a chosen tier is a harness's or the
+owner's measurement (`tools/engine_frames.js` `TIER=`, `tools/safari.js`), which a tier that moved under it would make
+wrong; its scale and extras are governed as any device's, and half the rate is its aim where it is within reach.
+
+`tools/engine_frames.js` can show the same on a session's machine (no GPU): `ASDEV=1` (the software renderer taken for an
+M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
+`THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
+
 ### Not checked here
 
 A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may
@@ -3319,6 +3383,18 @@ frame, the largest thing left on a phone too), `update`'s loop 1.2, `walk` 1.0, 
 
 Not measured: a real device. The M3's 30 ms was read by `tools/fps_probe.js` there; the same run on this branch is
 the measure.
+
+**The arms' clearance, asked less often for people small on the screen** (24 November). `people.js` `armsClear` keeps a
+near person's forearms, hands and what they hold out of their own body: 48 points a person asked against the torso's
+slices, two passes, every frame, a quarter of the crowd's update after the cuts above. Of 1.18 million asks in five
+seconds at the kerb, 9% were inside the body and 26% more than 9 cm out, so an early-out for far points would save a
+quarter at most. A crowd member now has its arms asked every frame from 300 pixels tall on the screen up, every second
+frame from 150, every third below (`rig.clearEvery`, set in the crowd's `place()`); between asks the last turns are kept
+in the body's own frame and laid on through the same springs. The story's people, the player, the walk's and
+`tools/hold_check.js`'s rigs are asked every frame as before. The crowd's update, the same view, branch beside main:
+desktop 14.1 to 13.8 ms a call (`armsClear` 3.7 to 3.0), phone 3.7 to 3.5 (1.1 to 0.8). The near crowd's arms in their
+bodies every frame for twenty seconds (`ARMS=20 node tools/crowd_cost.js`, `tools/hold_depth.js`): on a desktop none
+deeper than 2 cm either way, the deepest 1.0 cm on main and 1.7 cm here, of some 800 readings.
 
 ## What is left of issue 130
 
