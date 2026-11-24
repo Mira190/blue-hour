@@ -190,23 +190,47 @@ window.OEHero = (function () {
       const rt = new THREE.WebGLCubeRenderTarget(res, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
       const cc = new THREE.CubeCamera(0.5, 8000, rt);
       cc.position.set(P.at[0], P.at[2], -P.at[1]);
-      h._probe = { rt, cc, night: -1, t: -99, n: 0, k: null };
+      h._probe = { rt, cc, night: -1, t: -99, n: 0, k: null, sky: false };
       return rt;
     }
     // One face a frame (issue 192): the six faces drawn in one frame were six draws of the scene at once, 1713 draws and
     // 4.6 M triangles in the frame the roof's level came into the lift ride on a phone's tier. A face a frame, from the
     // moment a cube is due, the sixth with the mipmaps; three.js makes the glass's map of it again only once the sixth
-    // is in (needsPMREMUpdate), so the glass changes from one whole cube to the next, as before. The first cube of a level
-    // is five frames in the making, the glass mirroring nothing meanwhile
+    // is in (needsPMREMUpdate), so the glass changes from one whole cube to the next, as before. Before a level's first
+    // cube is whole its glass mirrors the sky: the cube is first filled with the scene's environment alone (six draws of
+    // the sky's box, probeSky), so that no frame shows the glass mirroring an empty or half-taken cube
     function probe(L, night) {
       const p = L.h._probe;
       if (!p) return;
+      if (!p.sky) { p.sky = true; probeSky(p); }
       if (p.k == null) {
         if (t - p.t < 3 || Math.abs(night - p.night) < (tier === 'low' ? 0.25 : 1 / 12)) return;
         p.t = t; p.night = night; p.k = 0;
       }
       probeFace(L, p, p.k);
       if (++p.k === 6) { p.k = null; p.n++; }
+    }
+    let skyScene = null;
+    function probeSky(p) {
+      const env = Wd.world.environment;
+      if (!env) return;
+      if (!skyScene) skyScene = new THREE.Scene();
+      skyScene.background = env;
+      const cc = p.cc, rt = p.rt, prevT = renderer.getRenderTarget(), prevF = renderer.getActiveCubeFace(), prevM = renderer.getActiveMipmapLevel(), xr = renderer.xr.enabled, mips = rt.texture.generateMipmaps;
+      const D = window.__draw, was = D && [D.on, D.dry];
+      if (D) { D.on = true; D.dry = false; }
+      try {
+        if (cc.coordinateSystem !== renderer.coordinateSystem) { cc.coordinateSystem = renderer.coordinateSystem; cc.updateCoordinateSystem(); }
+        cc.updateMatrixWorld();
+        renderer.xr.enabled = false;
+        for (let i = 0; i < 6; i++) { rt.texture.generateMipmaps = i === 5 ? mips : false; renderer.setRenderTarget(rt, i, 0); renderer.render(skyScene, cc.children[i]); }
+        rt.texture.needsPMREMUpdate = true;
+      } finally {
+        rt.texture.generateMipmaps = mips;
+        renderer.setRenderTarget(prevT, prevF, prevM);
+        renderer.xr.enabled = xr;
+        if (D) [D.on, D.dry] = was;
+      }
     }
     function probeFace(L, p, i) {
       const glass = L.mats.filter(m => m.userData.probeGlass), shadow = renderer.shadowMap.autoUpdate;
