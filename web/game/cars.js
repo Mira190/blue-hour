@@ -357,12 +357,12 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     }
     // A far copy (issue 192): the whole model is some fifty meshes, a draw each, and a car with no lighter models of its
     // own (the player's supercar has none in cars.glb) was drawn whole at any distance: 54 draws and 84,000 triangles in
-    // a phone's frame from 80 m, where it is twenty pixels wide. Past FAR_M from the view's camera it is one mesh: the body
+    // a phone's frame from 80 m, where it is twenty pixels wide. Past FAR_M from the view's camera (30 m on a phone, where the car is some sixty points wide) it is one mesh: the body
     // and the wheels as they stand, without the cabin's inside, each part in its own material's colour, its vertices
     // joined on a grid of GRID_M; it rides on the body, so it tilts and moves as the car does, and the lamps' glows stay.
     // ?carfar=off: drawn whole, as before
     // (two copies: joined on 5 cm from FAR_M, and on 15 cm from FAR2_M, where a pixel of a phone's screen is some 7 cm across)
-    const LEAN = !!(window.OEQuality && OEQuality.city && OEQuality.city().lean), FAR_M = LEAN ? 25 : 60, FAR2_M = LEAN ? 60 : 140, GRIDS = [0.05, 0.15];
+    const LEAN = !!(window.OEQuality && OEQuality.city && OEQuality.city().lean), FAR_M = LEAN ? 30 : 60, FAR2_M = LEAN ? 60 : 140, GRIDS = [0.05, 0.15];
     const farOff = /[?&]carfar=off\b/.test(location.search);
     const farMesh = [null, null]; let farMat = null, isFar = 0;
     const detail = [];
@@ -378,6 +378,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         if (!pos || !nrm || !mat || !mat.color) continue;
         m4.multiplyMatrices(toBody, o.matrixWorld); n3.getNormalMatrix(m4);
         cl.copy(mat.color); if (mat.transparent) cl.multiplyScalar(0.35); // (the glass as dark as it reads from outside)
+        if (mat.metalness) cl.multiplyScalar(1 - 0.7 * mat.metalness); // (a metal's colour is its reflection's, not its own: an alloy rim reads dark)
         const base = P.length / 3;
         for (let i = 0; i < pos.count; i++) {
           v.fromBufferAttribute(pos, i).applyMatrix4(m4); P.push(v.x, v.y, v.z);
@@ -430,10 +431,11 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     g.add(judge);
     // (made now, with the car: the warm-up that compiles a car before it is shown reaches hidden meshes too, game.js
     // warmFor, so the far copy's program is ready before the first time it is drawn, not compiled in that frame)
-    if (!farOff) { farMesh[0] = makeFar(GRIDS[0]); farMesh[1] = makeFar(GRIDS[1]); }
+    let farMs = 0;
+    if (!farOff) { const t0 = performance.now(); farMesh[0] = makeFar(GRIDS[0]); farMesh[1] = makeFar(GRIDS[1]); farMs = performance.now() - t0; }
     let spin = 0, blink = 0, pitch = 0, roll = 0, pv = 0, ph = 0;
     const api = {
-      far: () => ({ far: isFar, triangles: farMesh.map(m => (m ? m.geometry.index.count / 3 : 0)) }), // (for the harnesses)
+      far: () => ({ far: isFar, triangles: farMesh.map(m => (m ? m.geometry.index.count / 3 : 0)), ms: Math.round(farMs) }), // (for the harnesses)
       group: g, body, name, info: M, half, hw, top: M.height_m, wheelbase: wb, seats, mats, lamp: null,
       // put it at (x, y, z) heading h, tilted by the ground under it (pitch: nose down, roll: left side up)
       place(x, y, z, h, gp = 0, gr = 0) {
