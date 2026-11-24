@@ -394,7 +394,9 @@ run_budgetm() {
   : >"$OUT/$n-budget.jsonl"; : >"$OUT/$n-hitch.jsonl"
   for k in 1 2 3; do
     case $k in 1) from= upto=4 ;; 2) from=4 upto=6 ;; 3) from=6 upto= ;; esac
-    if CHROME_LOG="$OUT/$n$k-chrome.log" BUDGET="$OUT/$n$k-budget.jsonl" HITCH="$OUT/$n$k-hitch.jsonl" TIER=medium FROM=$from UPTO=$upto STILLS=${STILLS:-0} DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n$k" 1440x900 >"$OUT/$n$k.log" 2>&1; then
+    # (Q=?tex=bc7: its pictures packed as a laptop's GPU holds them, as medium's budgets were set, 85e167d4; read raw, a
+    # software renderer's pixels would stand against budgets made from packed ones)
+    if CHROME_LOG="$OUT/$n$k-chrome.log" BUDGET="$OUT/$n$k-budget.jsonl" HITCH="$OUT/$n$k-hitch.jsonl" TIER=medium Q='?tex=bc7' FROM=$from UPTO=$upto STILLS=${STILLS:-0} DRAW=$draw LIMIT=5400 timeout 6000 $X node tools/story_play.js "$OUT/$n$k" 1440x900 >"$OUT/$n$k.log" 2>&1; then
       cat "$OUT/$n$k-budget.jsonl" >>"$OUT/$n-budget.jsonl"; cat "$OUT/$n$k-hitch.jsonl" >>"$OUT/$n-hitch.jsonl" 2>/dev/null
     else ok=0; printf 'FAIL %-6s part %s: %s   (see %s)\n' "$n" "$k" "$(why "$OUT/$n$k.log")" "$OUT/$n$k.log"; fi
   done
