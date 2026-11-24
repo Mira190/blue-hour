@@ -31,6 +31,7 @@ const [,, city = 'shibuya', STEP = '1', MODE = '', OUT = ''] = process.argv;
       if (L && L.root) { L.root.updateMatrixWorld(true); L.root.traverse(o => { if (o.isMesh && /ground/i.test([].concat(o.material).map(m => m && m.name).join(' '))) meshes.push(o); }); }
       if (!meshes.length) return { id, none: true };
       const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), from = new THREE.Vector3();
+      ray.layers.enableAll(); // (a level's ground is drawn on a layer of its own since the wet street's mirror: a ray on the default layer met none of it, and the Scramble's floor read as empty, issue 201)
       const n = Math.floor((H.r - 2) / step), nx = 2 * n + 1, z = new Array(nx * nx).fill(null), w = new Array(nx * nx).fill(null);
       const d = [];
       for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) {
