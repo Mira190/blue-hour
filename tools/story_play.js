@@ -160,7 +160,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       for (const fn of q.values()) { try { fn(last); } catch (e) { setTimeout(() => { throw e; }); } }
       const counted = B ? B.end() : null; if (counted && D.rendered) D.counted = counted;
       D.js += performance.now() - t0; if (D.rendered) { D.steps++; if (D.on) { D.drawn++; if (!D.all) D.own++; } split(t0, performance.now() - t0); }
-      if (D.rendered && D.hit) { const H = D.hit; H.fr.push([+(performance.now() - t0).toFixed(1), D.all ? 2 : D.on ? 1 : 0, H.links, +(H.up / 1048576).toFixed(2)]); H.links = 0; H.up = 0; } // (HITCH: the frame's own cost, below)
+      if (D.rendered && D.hit) { const H = D.hit; const ms = +(performance.now() - t0).toFixed(1); H.fr.push([ms, D.all ? 2 : D.on ? 1 : 0, H.links, +(H.up / 1048576).toFixed(2)].concat(ms > 100 && H.names.length ? [H.names] : [])); H.links = 0; H.up = 0; H.names = []; } // (HITCH: the frame's own cost, below)
       // (the still's frame drawn, below: the page's frames held at once, so that the still is of it and no frame drawn whole
       // after it is begun while the harness hears of it, a second of llvmpipe's that the screenshot then waited for)
       if (D.twice && D.rendered) { D.one = false; if (D.oneHold) { D.hold = true; D.splitHeld(); } const w = D.oneDone; D.oneDone = null; if (w) w(); }
@@ -244,6 +244,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       };
     }, { once: true });
   }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
+  if (process.env.GLCALLS) await require('./gl_calls').installBeats(p); // (GLCALLS=1: the WebGL calls a frame by beat, of them the lights' and the uploads, issue 191: tools/gl_calls.js)
   if (process.env.STOPCOST) await require('./stop_cost').install(p); // (STOPCOST=1: each beat's frames, the guide's planning and the programs linked in it, issue 206: tools/stop_cost.js)
   // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
@@ -253,15 +254,20 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // HITCH=file (with BUDGET and DRAW=n): each of the game's frames by its own cost, the time its callbacks took on the page,
   // not the wall's, which a software renderer stretches; and what may have made a long one long, the programs linked and
-  // the megabytes sent to the GPU in it. A line a still, of the frames since the one before (tools/beat_hitch.py; issue
+  // the megabytes sent to the GPU in it (and, in a frame over 100 ms, the programs it linked, by name). A line a still, of the frames since the one before (tools/beat_hitch.py; issue
   // 220: hitches recorded per beat on a phone's tier, to be held as the budgets are once there is a week of them)
   const HITCH = BUDGET && DRAW > 1 ? process.env.HITCH || '' : '';
   if (HITCH) {
     fs.writeFileSync(HITCH, '');
     await p.addInitScript(() => {
       const D = window.__draw; if (!D) return;
-      const H = D.hit = { fr: [], links: 0, up: 0 }, P = WebGL2RenderingContext.prototype, link = P.linkProgram;
-      P.linkProgram = function (...a) { H.links++; return link.apply(this, a); };
+      const H = D.hit = { fr: [], links: 0, up: 0, names: [] }, P = WebGL2RenderingContext.prototype, link = P.linkProgram;
+      // (and the programs a frame linked, by three.js's name for each with the defines that make its variant, so that a long frame
+      // that linked says what: tools/beat_hitch.py prints them for the beat's longest frame)
+      const src = new WeakMap(), named = new WeakMap(), ss = P.shaderSource, as = P.attachShader;
+      P.shaderSource = function (sh, t) { src.set(sh, t); return ss.call(this, sh, t); };
+      P.attachShader = function (pr, sh) { const t = src.get(sh) || ''; if (/gl_Position/.test(t)) { const m = /#define SHADER_NAME (.+)/.exec(t), ty = /#define SHADER_TYPE (\w+)/.exec(t), d = [...t.matchAll(/#define (USE_\w+|DOUBLE_SIDED|FLIP_SIDED|DEPTH_PACKING)\b/g)].map(x => x[1].replace(/^USE_/, '').toLowerCase()).filter(x => !['fog', 'shadowmap', 'reversed_depth_buffer'].includes(x)); named.set(pr, `${m ? m[1] : ty ? ty[1] : 'raw'}(${d.join(' ')})`); } return as.call(this, pr, sh); };
+      P.linkProgram = function (...a) { H.links++; if (H.names.length < 12) H.names.push(named.get(a[0]) || '?'); return link.apply(this, a); };
       const size = a => { for (const v of a) { if (v && typeof v === 'object') { if (v.byteLength !== undefined) return v.byteLength; if (v.width) return v.width * v.height * 4; } } return 0; };
       for (const k of ['bufferData', 'bufferSubData', 'texImage2D', 'texSubImage2D', 'texImage3D', 'texSubImage3D', 'compressedTexImage2D', 'compressedTexSubImage2D']) {
         const f = P[k]; if (f) P[k] = function (...a) { H.up += size(a); return f.apply(this, a); };
@@ -1464,6 +1470,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
     if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }
+    if (process.env.GLCALLS) { const gc = require('./gl_calls'); gc.printBeats(await gc.beats(p)); }
     const { hard } = pacing.print(await pacing.report(p));
     if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
   }
