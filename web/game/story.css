@@ -1699,6 +1699,38 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 @media (prefers-reduced-motion: reduce) { #g-story-keys.ask, .game-stage.story.story-walk-ask #gt-joy:not(.on) { animation: none; } }
 /* (by touch the keys run to two lines, and their second lay under Raise the camera while both were up: lifted over it) */
 @media (pointer: coarse), (max-width: 640px) { .game-stage.story:has(#g-story-cam.on:not(.up)) #g-story-keys { bottom: max(232px, calc(env(safe-area-inset-bottom) + 232px)); } }
+
+/* ---- what is said over the picture, and the lift's prompt, over a lit sign (issue 13, the M3's play) ----
+   On a real GPU the signs and screens of the crossing are as bright as a photograph has them, and two lines still had
+   too little under them: a line said while someone talks, put at the top of a phone's screen, ran across a lit shop
+   sign and MAGNET's (its shade was 0.62 at its middle and next to nothing at the ends of its words: an ellipse no wider
+   than the line), and the lift's prompt lay with no shade at all over the player's legs and the dog. Each now has the
+   ground the keys and the goal have (the story's night at 0.84, 0.74 at two thirds out, nothing at the edge): reaching
+   past the last letter, soft-edged, never a box. */
+.game-stage.story:not(.words-solid) .g-toast { padding: 14px 44px;
+  background: radial-gradient(ellipse 54% 62% at 50% 50%, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.74) 66%, rgba(4, 8, 18, 0) 100%); }
+.game-stage.story:not(.words-solid) .g-prompt { padding: 12px 34px; border-radius: 40px;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.74) 66%, rgba(4, 8, 18, 0) 100%); }
+/* (by touch the prompt is a button: its pill is filled with the night, as the menu's is, and the shade round it is not
+   needed) */
+.oe-touch .game-stage.story .g-prompt { padding: 5px; background: none; }
+.oe-touch .game-stage.story #gp-main { background: rgba(4, 8, 18, 0.78); border-color: rgba(244, 239, 230, 0.42); }
+/* the goal's corner shade ends inside its own box (issue 13): drawn as an ellipse 140% of the box wide it was still at
+   half its strength where the box ends, and on pale paving the box's right and bottom edges were drawn on the picture.
+   The box is made wider than its words (they keep their own measure, 34ch) and the shade comes to nothing at its edges,
+   as deep as before over the words themselves. */
+@media (min-width: 641px) {
+  .game-stage.story:not(.words-solid) #g-story-goal { width: min(100%, 580px);
+    background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.76) 44%, rgba(4, 8, 18, 0.5) 68%, rgba(4, 8, 18, 0.16) 88%, rgba(4, 8, 18, 0) 100%); }
+  .game-stage.story.words-2:not(.words-solid) #g-story-goal { width: min(100%, 720px); }
+  .game-stage.story:not(.words-solid) #g-story-goal em { max-width: 388px; } /* (the small capitals keep the measure they had in the 440 px box) */
+  .game-stage.story.words-1:not(.words-solid) #g-story-goal em { max-width: 468px; } .game-stage.story.words-2:not(.words-solid) #g-story-goal em { max-width: 548px; }
+}
+/* a word said over the picture while the camera is taught, on a phone: above the card, however many lines its step
+   takes (--teach-up, story.js: the card's top, measured; the fixed heights before were guesses its longer steps passed) */
+@media (pointer: coarse), (max-width: 640px) {
+  .game-stage.story:has(#g-story-teach.on:not(.done)):is(:has(#g-story-shutter.on), :has(#g-story-cam.on:not(.up))) #g-story-chip { bottom: max(306px, calc(var(--teach-up, 330px) + 22px), calc(env(safe-area-inset-bottom) + 306px)); }
+}
 /* Title screen, in both menus (menus.js #gm-title): under Resume in the case's pause, a quiet way out beside it, with
    what Continue will take up said under it; in the walk's corner it is one of its rows (walk.js gw-acts). On the way
    out the street dims at once, as the page opens again on the title's menu */
