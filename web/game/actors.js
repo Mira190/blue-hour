@@ -3303,8 +3303,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return c.trip ?? -1;
     };
     const parkedN = () => { let k = 0; for (let j = 0; j < api.active; j++) if (C[j].park && C[j].line >= 0) k++; return k; };
-    const THRU = 0.6; // (the share of the cars made bound past you: issue 204, the Scramble's counted traffic)
+    const NEAR_IN = 120, THRU = 0.6; // (the share of the cars made bound past you: issue 204, the Scramble's counted traffic)
     function respawn(c, cx, cy, rMin) {
+      // (half of them as near as NEAR_IN, out of sight still (crowd.seen, below): put back only beyond three fifths of
+      // the radius, the cars came to the Scramble a few at a time, its nearest moving one 60 m from a player at its kerb,
+      // issue 204)
+      if (rMin > NEAR_IN && rnd() < 0.5) rMin = NEAR_IN;
       const cand = net.near(cx, cy, rMin, radius), T = JN.trips && JN.trips();
       JN.forget(c);
       c.line = -1;
