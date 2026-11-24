@@ -72,7 +72,7 @@ def materials():
         "ground_kerb": {"tex": "granite", "tint": (0.7, 0.69, 0.68), "maps": "cn"},
         "ground_paint": {"tex": "paint", "tint": (0.92, 0.92, 0.9)},
         "ground_paver": {"tex": "paver", "tint": (0.7, 0.7, 0.7)},
-        "ground_bed": {"tex": "grass", "tint": (0.8, 0.95, 0.66)},  # a bed's clipped lawn (issue 213: OpenStreetMap's landuse=grass)
+        "ground_bed": {"tex": "grass"},  # (its tone below: the 2023 orthophoto's, issue 213)  # a bed's clipped lawn (issue 213: OpenStreetMap's landuse=grass)
         "ground_sett": {"tex": "plaza"},                 # Hachiko Square's blocks, drawn in their own colour (scramble_tex.plaza)
         "ground_tact_bar": {"tex": "tact_bar", "maps": "cn", "rough": 0.7},
         "ground_tact_dot": {"tex": "tact_dot", "maps": "cn", "rough": 0.7},
@@ -1105,7 +1105,9 @@ def build(K):
     M = materials()
     # the pavements, the square, kerbs and gutters in close tones of one grey family (AGENTS.md, "The bar"): each
     # texture brought to its tone by its own mean, so that a yellowish block ends as a grey
-    for mat, key, srgb in (("ground_paver", "paver", (150, 150, 148)),
+    # (the beds' lawn: the median of their pixels in Tokyo's 2023 orthophoto against the paving round them, in linear
+    # light, 1.04 / 1.06 / 0.83 of the paving's: as bright as it, a little yellow-green; issue 213)
+    for mat, key, srgb in (("ground_paver", "paver", (150, 150, 148)), ("ground_bed", "grass", (153, 154, 136)),
                            ("ground_kerb", "granite", (160, 160, 158)), ("ground_gutter", "conc", (152, 152, 150)),
                            ("wall_white", "tile", (192, 192, 188)), ("wall_cream", "tile", (190, 180, 164)), ("wall_grey", "clad", (158, 160, 162)),
                            ("wall_clad", "clad", (176, 180, 184)), ("wall_char", "clad", (62, 64, 68))):
