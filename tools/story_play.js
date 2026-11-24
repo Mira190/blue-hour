@@ -981,10 +981,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           if (!k0.keys || !/walk/i.test(k0.how)) { errors.push(`the first Stop: not yet walked, and ${!k0.keys ? 'no walking keys on the screen' : `the goal does not say how to walk ("${k0.how}")`}`); console.log(errors[errors.length - 1]); }
           const toasts0 = await p.evaluate(() => document.querySelectorAll('.g-toast').length);
           await p.waitForFunction(() => (window.__game.story.state.seekAsked || 0) >= 1 || window.__game.story.state.beat !== 'seek', null, { timeout: 600000, polling: 250 }).catch(() => {});
-          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', n: T.length }; });
+          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', next: document.getElementById('g-toasts').dataset.next || '', n: T.length }; });
           await snap('1-seek-ask');
+          // ("your turn" said or waiting its turn behind another toast, hud.js said: the sound's own word that a phone's street
+          // went quiet stood there first on main's budget on a9737df, and the ask came after it)
           console.log(`the first Stop, standing still: ${JSON.stringify(k1)} (toasts before: ${toasts0})`);
-          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(k1.toast) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
+          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(`${k1.toast} | ${k1.next}`) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
         }
         continue;
       }
