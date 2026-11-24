@@ -4206,7 +4206,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   // ------------------------------------------------------------ menus, map, passport: menus.js (tools/cut.js)
   let bigView = null, waypoint = null, bigPins = [], picked = null, travelKey = '';
-  const { bigCanvas, mapPop, toggleMap, toggleMenu, togglePass } = OEGameMenus({ get $() { return $; }, get $$() { return $$; }, get drawBig() { return drawBig; }, get menuSync() { return menuSync; }, get on() { return on; }, get picked() { return picked; }, set picked(v) { picked = v; }, get renderPassport() { return renderPassport; }, get story() { return story; }, get storyLog() { return storyLog; }, get tonight() { return tonight; }, set tonight(v) { tonight = v; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get walkUi() { return walkUi; }, set walkUi(v) { walkUi = v; } });
+  const { bigCanvas, mapPop, toggleMap, toggleMenu, togglePass } = OEGameMenus({ get $() { return $; }, get $$() { return $$; }, get drawBig() { return drawBig; }, get menuSync() { return menuSync; }, get on() { return on; }, get picked() { return picked; }, set picked(v) { picked = v; }, get renderPassport() { return renderPassport; }, get parkTitle() { return parkTitle; }, get story() { return story; }, get storyLog() { return storyLog; }, get tonight() { return tonight; }, set tonight(v) { tonight = v; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get walkUi() { return walkUi; }, set walkUi(v) { walkUi = v; } });
 
   // ------------------------------------------------------------ map travel
   // Any time, from the map, as Genshin Impact's and Breath of the Wild's maps let you: to the city's
@@ -4389,6 +4389,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return true;
   };
   const startGame = cont => {
+    if (parked && parkedWay('story')) return; // (the title over a parked case or walk: parkTitle below)
     A.start();
     playing = true;
     const was = [player.x, player.y, player.z];
@@ -4438,6 +4439,71 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     };
     open();
   };
+  // The menus' Title screen in place (issue 215; ?inplace=1 while it is tried): the case or the walk is parked under the
+  // title, not torn down. The game holds both still while the title is up (paused, story.tick and the walk's talk), so
+  // leaving is the title shown over the live street with the mode's own interface put away (story.css "parked"), and
+  // the same mode's way in takes it up where it was, in the middle of a frame or a drive; the street's hour and sky put
+  // back as they were, for the walk's step on the title dresses the street as it is chosen. The other mode's way in
+  // opens the page again straight into that mode (bh-story-auto, bh-walk-auto): one load, never a title in between.
+  // Nothing is made or let go, so going back and forth costs nothing (tools/title_inplace.js counts it).
+  const INPLACE = /[?&]inplace=1\b/.test(location.search);
+  let parked = null; // { mode: 'story' | 'walk', cam, clock, sky, walkLine }
+  function parkTitle() {
+    if (!INPLACE || !playing || parked || (overture && overture.active) || cine.active) return false;
+    const mode = walk ? 'walk' : story && story.on ? 'story' : null;
+    if (!mode) return false;
+    parked = { mode, cam: { mode: cam.mode, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, tilt: cam.tilt }, clock: { y: clock.y, m: clock.m, d: clock.d, min: clock.min, scale: clock.scale }, sky: weather ? weather.state.kind : null };
+    $('#g-menu').hidden = true;
+    stage.classList.add('parked', `parked-${mode}`); stage.classList.remove('story-auto'); // (a page that set out by itself, from the last card or a link, kept the title out of sight: story.css)
+    titleYaw = null; titleT = 0;
+    const cont = $('#gt-cont-go'), wg = $('#gt-walk-go'), at = story && story.at;
+    if (mode === 'story' && cont && at) { // (Continue first, at the frame the case is at: kept or not, it is here)
+      parked.cont = { hidden: cont.hidden, primary: cont.classList.contains('primary'), small: cont.querySelector('small').textContent };
+      cont.hidden = false; cont.classList.add('primary');
+      cont.querySelector('small').textContent = `frame ${at.fi + 1} of ${at.of}${at.stamp ? ` · ${at.stamp}` : ''} · where you left it`;
+      const sg = $('#gt-story-go'); if (sg) { parked.sgPrimary = sg.classList.contains('primary'); sg.classList.remove('primary'); }
+    }
+    if (mode === 'walk' && wg) { // (the walk leads the list, Enter's and a pad's A, over a case kept from before)
+      parked.walkLine = wg.querySelector('small').textContent; wg.querySelector('small').textContent = `${fmtMin(clock.min)} · go on where you were`;
+      parked.wgPrimary = wg.classList.contains('primary'); wg.classList.add('primary');
+      if (cont) { parked.contPrimary = cont.classList.contains('primary'); cont.classList.remove('primary'); }
+      const sg = $('#gt-story-go'); if (sg) { parked.sgPrimary = sg.classList.contains('primary'); sg.classList.remove('primary'); }
+    }
+    $('#g-title').hidden = false;
+    titleScreen('menu');
+    try { performance.mark('oe:title', { detail: { from: mode, inplace: true } }); } catch (e) { /* no User Timing */ }
+    return true;
+  }
+  // the mode's own way back in: the title away, the street's hour and sky as they were, the camera as it was, a cut
+  function unpark() {
+    const P = parked;
+    if (!P) return;
+    parked = null;
+    setClock(P.clock.y, P.clock.m, P.clock.d, P.clock.min); clock.scale = P.clock.scale;
+    if (weather && P.sky && weather.state.kind !== P.sky) weather.set(P.sky, { now: true });
+    Object.assign(cam, P.cam); camSmooth.set(0, 0, 0);
+    const cont = $('#gt-cont-go'), wg = $('#gt-walk-go'), sg = $('#gt-story-go');
+    if (P.cont && cont) { cont.hidden = P.cont.hidden; cont.classList.toggle('primary', P.cont.primary); cont.querySelector('small').textContent = P.cont.small; }
+    if (P.sgPrimary && sg) sg.classList.add('primary');
+    if (P.walkLine != null && wg) { wg.querySelector('small').textContent = P.walkLine; wg.classList.toggle('primary', !!P.wgPrimary); if (cont && P.contPrimary) cont.classList.add('primary'); }
+    $('#g-title').hidden = true;
+    stage.classList.remove('parked', 'parked-story', 'parked-walk');
+    stage.classList.remove('arrive-fade'); void stage.offsetWidth; stage.classList.add('arrive-fade'); // (from the title's view to your shoulder in a cut under a short fade, as reduced motion arrives)
+  }
+  // a way in pressed while a mode is parked: its own mode taken up, the other opened on a page of its own
+  function parkedWay(want, sp) {
+    if (!parked) return false;
+    if (parked.mode === want) { unpark(); return true; }
+    try {
+      if (want === 'walk') sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: (sp && sp.t) || 'night', w: (sp && sp.w) || 'clear' }));
+      else sessionStorage.setItem('bh-story-auto', cityId);
+    } catch (e) { /* storage blocked: the title, as on a fresh page */ }
+    const u = new URL(location.href); u.searchParams.delete('walk'); u.hash = '';
+    if (u.toString() === location.href.replace(/#$/, '')) location.reload(); else location.href = u.toString();
+    return true;
+  }
+  // (the walk's way in on the title takes a parked walk up at once, without its step of the hour and the sky)
+  if (INPLACE) on($('#g-title'), 'click', e => { const b = e.target.closest('#gt-walk-go'); if (b && parked && parked.mode === 'walk') { e.stopImmediatePropagation(); e.preventDefault(); unpark(); } }, { capture: true });
   // Onboarding, once in this browser across every map (onboard.js, #89): the first time, a short tour of the
   // HUD and then the guide's directions; on a later map, with "Skip the intro" (on for a returning player),
   // straight to the guide's own short welcome. "Show the intro again" in the menu runs the tour now.
@@ -4509,6 +4575,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (weather) weather.set(sp.w, { now: true }); // (as it has been for a while: a rainy street already wet)
   };
   const startWalk = sp => {
+    if (parked && parkedWay('walk', sp)) return; // (parkTitle below)
     if (playing) return;
     A.start();
     playing = true; walk = Object.assign({}, sp);

@@ -1,6 +1,6 @@
 // menus.js: a part of the game cut out of game.js (tools/cut.js; docs/SEAMS.md, "The cut of game.js").
 // `g` is the rest of the game, by name. What this part asks of it:
-//   $, $$, drawBig, menuSync, on, picked, renderPassport, story, storyLog, tonight, travelKey, walk, walkTalk,
+//   $, $$, drawBig, menuSync, on, parkTitle, picked, renderPassport, story, storyLog, tonight, travelKey, walk, walkTalk,
 //   walkUi
 // and what it gives back:
 //   bigCanvas, mapPop, toggleMap, toggleMenu, togglePass
@@ -19,7 +19,8 @@ window.OEGameMenus = function (g) {
     // (the title screen: the case is kept as each frame begins, so a frame left part-way is taken up from its beginning;
     // a first frame is not kept at all, and the case begins again at its first card)
     const tn = g.$('#gm-title-note');
-    if (tn) { tn.textContent = !at ? '' : at.fi > 0 ? `Continue, on the title, takes up frame ${at.fi + 1} from its beginning.` : 'The case is kept from its second frame: from here it begins again at its first card.'; tn.hidden = !tn.textContent; }
+    if (tn) { tn.textContent = !at || /[?&]inplace=1\b/.test(location.search) ? '' : // (in place the case waits under the title as it is: nothing to say, game.js parkTitle)
+ at.fi > 0 ? `Continue, on the title, takes up frame ${at.fi + 1} from its beginning.` : 'The case is kept from its second frame: from here it begins again at its first card.'; tn.hidden = !tn.textContent; }
   }
   g.on(g.$('#gm-resume'), 'click', () => { g.$('#g-menu').hidden = true; });
   // back to the title, from the case or the walk: the page opened again on the title's menu, past its press (game.js reads
@@ -29,6 +30,7 @@ window.OEGameMenus = function (g) {
   g.on(g.$('#gm-title'), 'click', e => {
     const b = e.currentTarget;
     if (b.disabled) return;
+    if (g.parkTitle && g.parkTitle()) return; // (?inplace=1: the mode parked under the title, no page load; game.js parkTitle)
     b.disabled = true;
     try { sessionStorage.setItem('bh-title-auto', '1'); } catch (err) { /* storage blocked: the title opens on its press */ }
     const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); u.hash = '';
