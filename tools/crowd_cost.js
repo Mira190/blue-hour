@@ -7,6 +7,7 @@
 //   WARM=seconds the page is left before the sampling (25); DRAW=n (240); OUT=file: the profile kept (.cpuprofile)
 //   LAYOUTS=n: only the count of the walkers' and the cars' hidden layouts, failing over n (the check)
 //   TURN=1: with STILLS, eight stills, the camera turned by a drag between them
+//   ARMS=seconds: the near crowd's arms' depth in their own bodies, every frame for that long (tools/hold_depth.js)
 //   STILLS=dir: five stills a second apart of frames drawn whole, after the sampling (the crowd moving)
 // Prints the frames run, the script a frame, the heaviest files and functions by self time a frame, and what the
 // crowd held (walkers simulated, near people drawn) at the end. The milliseconds are this machine's.
@@ -25,6 +26,7 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
   await skip(p, +process.env.DRAW || 240);
+  if (+process.env.ARMS) await p.addInitScript(require('./hold_depth').script); // (ARMS: the near crowd's arms in their bodies, below)
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(4000);
@@ -50,6 +52,16 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   console.log(await p.evaluate(() => { const g = window.__game, N = g.roadNet, c = g.crowd, o = {}; if (!N || !N.nearD || !c) return 'nearD: not there to compare'; let n = 0, bad = 0;
     for (let i = 0; i < c.active; i++) { const q = c.P[i]; if (q.line < 0 && !q.pz) continue; for (let k = 0; k < 9; k++) { const x = q.x + (k ? Math.cos(k) * k * 1.3 : 0), y = q.y + (k ? Math.sin(k) * k * 1.3 : 0), a = N.nearest(x, y, 8), b = N.nearD(x, y, 8, o); n++; if (!a !== !b || (a && (a.line !== b.line || a.d !== b.d))) bad++; } }
     return `nearD against nearest at ${n} points: ${bad ? bad + ' DIFFER' : 'the same line and distance at every one'}`; }));
+  // ARMS=seconds: how deep the near crowd's forearms, hands and what they hold go into their own bodies (tools/hold_depth.js,
+  // as tools/clip_probe.js reads it in the story), every frame for that long: the readings over its limit, and the deepest.
+  // For the arms' clearance asked less often for people small on the screen (people.js armsClear, rig.clearEvery)
+  if (+process.env.ARMS) {
+    const r = await p.evaluate(secs => new Promise(done => { const R = window.__game.crowdDraw(), H = window.__holdDepth, t0 = performance.now(); let n = 0, over = 0, deep = 0, frames = 0; const all = [];
+      const step = () => { frames++; for (const [, rig] of R.active) { if (!rig.root.visible) continue; const m = H.measure(rig.root); if (!m) continue; const d = Math.max(m.R_forearm || -1, m.R_hand || -1, m.L_forearm || -1, m.L_hand || -1, m.held || -1); n++; all.push(d); if (d > 0.02) over++; if (d > deep) deep = d; }
+        if (performance.now() - t0 < secs * 1000) requestAnimationFrame(step); else { all.sort((a, b) => a - b); done({ n, over, deep, frames, p99: all[Math.floor(all.length * 0.99)] || 0, p999: all[Math.floor(all.length * 0.999)] || 0 }); } };
+      requestAnimationFrame(step); }), +process.env.ARMS);
+    console.log(`ARMS: ${r.n} readings of the near crowd over ${r.frames} frames: ${r.over} deeper than 2 cm, the deepest ${(100 * r.deep).toFixed(1)} cm, 99th ${(100 * r.p99).toFixed(1)} cm, 99.9th ${(100 * r.p999).toFixed(1)} cm`);
+  }
   // LAYOUTS=n: the check (tools/check.sh mem): no more than n hidden layouts among the walkers, nor among the cars. A
   // field first set on one of them outside the literal that makes it (actors.js crowd(), traffic()'s whole()) splits
   // them again, and every read of a field in their steps goes the slow way without anything else showing it.
