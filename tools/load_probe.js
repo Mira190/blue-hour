@@ -107,7 +107,9 @@ async function once(b, run) {
       const [ts, id] = samples[i]; if (ts < a || ts > z) continue;
       const n = nodes.get(id), nm = name(n); if (/^\(idle\)/.test(nm)) continue;
       const d = ts - samples[i - 1][0]; all += d; self.set(nm, (self.get(nm) || 0) + d);
-      // (inclusive: each of the page's own functions on the stack once, the vendor's left out)
+      // (inclusive: each of the page's own functions on the stack once, the vendor's left out; SUBTREE='fn file:line': only the
+      // samples whose stack runs through that function, to see what is inside it)
+      if (process.env.SUBTREE) { let inside = false; for (let q = id; q != null; q = parent.get(q)) if (name(nodes.get(q)) === process.env.SUBTREE) { inside = true; break; } if (!inside) continue; }
       const seen = new Set();
       for (let q = id; q != null; q = parent.get(q)) { const qn = nodes.get(q); if (!qn.callFrame.url || /vendor\//.test(qn.callFrame.url)) continue; const m = name(qn); if (!seen.has(m)) { seen.add(m); incl.set(m, (incl.get(m) || 0) + d); } }
     }
