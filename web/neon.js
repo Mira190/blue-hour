@@ -15,7 +15,10 @@
 // tier has the screens' light on the hero levels' ground worked out once instead (pooled(), below).
 'use strict';
 window.OENeon = (function () {
-  const COUNT = { high: 8, medium: 4, low: 0 };
+  // (the lights the screens get, the nearest by distance and size: update. Each is four uniforms sent to every lit
+  // program each time it is used, 61 times a frame on the night walk: 245 WebGL calls a frame a light, and Safari spends
+  // its frame on its calls, issue 191 and tools/gl_calls.js. Half as many as before: high 8 → 4, medium 4 → 2)
+  const COUNT = { high: 4, medium: 2, low: 0 };
   // The screens are drawn dimmer than they are, so that their pictures read after the tone curve; the
   // light they throw is that of the real panels (some 1,000 nits after dark against a lamp-lit street)
   const SPILL = 13;
