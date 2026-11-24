@@ -323,7 +323,8 @@
     ],
     "OEGameRouteLine": [],
     "OENav": [
-     "create"
+     "create",
+     "soffits"
     ],
     "OERoute": [
      "create",
