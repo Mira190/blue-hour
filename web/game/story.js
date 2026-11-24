@@ -1358,7 +1358,10 @@ ${face(`<text x="115" y="78" text-anchor="middle" transform="rotate(-7 115 61)" 
     const CLOSED = id => `bh-story-${id}-closed`;
     const closedOf = id => { try { const c = JSON.parse(localStorage.getItem(CLOSED(id)) || 'null'); return c && same(c, shape(eps.find(e => e.id === id) || {})) && Array.isArray(c.prints) && Array.isArray(c.snaps) ? c : null; } catch (e) { return null; } };
     const closedNow = () => (st.ep ? closedOf(st.ep.id) : null);
-    function close() { try { localStorage.setItem(CLOSED(st.ep.id), JSON.stringify({ v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') })); } catch (e) { /* storage full: no going back in */ } }
+    // (the case that was going is taken out first: with it kept, the seven photographs were in the store twice, more than
+    // Safari's five million characters on a desktop's prints, the write failed and the last card had no way back in;
+    // and where one copy is still too much the case is kept without its pictures, save())
+    function close() { forget(); save(CLOSED(st.ep.id), { v: shape(st.ep), prints: st.prints, snaps: st.snaps, stamps: st.ep.frames.map(f => f.stamp || '') }); }
     const goBack = C => (C ? `<nav class="back" aria-label="Go back into a frame"><small>Go back into a frame</small><span>${C.stamps.map((t, i) => (C.snaps[i] || i === 0 ? `<button type="button" data-back="${i}"><b>${i + 1}</b>${esc(t)}</button>` : '')).join('')}</span></nav>` : '');
     enterLater = (i) => enter(i, eps[0]);
     function enter(i, ep = st.ep) {
