@@ -1777,6 +1777,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // it, half the overlap, at up to 0.6 m/s, within the footway's width, never through a wall or into someone; walk()
     // keeps the offset (p.lat). The square's crowd steps apart in plazaStep; two waiting at a kerb on their footways stood
     // 0.37 m through each other at the Scramble's north-east corner, main's story on 8186ca5, issue 187)
+    const BODY_APART = 0.45; // (two middles nearer than this are one body in another: tools/clip_probe.js NEAR)
     let umbAny = false, umbSeen = false; // (any umbrella up among the crowd, the last frame: only then is a head looked for under a canopy)
     function canopyAcross(i, q, dt) {
       const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
@@ -1784,7 +1785,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
           const o = P[k];
-          if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+          if (k === i || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+          // (two stood bodies in each other, umbrellas or none: bodyClear only keeps a step from coming closer, and two stood
+          // 0.17 m apart at a kerb by Hachiko stayed so for seconds: half the overlap each, issue 187)
+          if (o.line >= 0 && o.state === 'walk') { const ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey); if (e < BODY_APART && e > 1e-4) { const f = (BODY_APART - e) / 2 / e; sx += ex * f; sy += ey * f; } }
+          if (!(o.umbR > 0)) continue;
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
@@ -2290,7 +2295,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           else if (p.pause <= 0) p.arrived = 2;
         }
         if (p.umbR > 0) umbSeen = true;
-        if (p.state === 'walk' && p.line >= 0 && (p.umbR > 0 || (umbAny && p.crown > 0)) && (p.av ?? p.v ?? 0) < 0.3) canopyAcross(i, p, dt); // (every frame, near or far; a head under another's canopy too, while any umbrella is up)
+        if (p.state === 'walk' && p.line >= 0 && (p.av ?? p.v ?? 0) < 0.3) canopyAcross(i, p, dt); // (every frame, near or far, whoever stands on a footway: out of another's body, canopy, or from under it while any umbrella is up)
         if (p.state === 'walk') { // farther off, a longer step every few frames does
           const d = Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)), k = d < NEAR ? 1 : d < FAR ? 2 : 4;
           // (and one the renderer did not draw last frame, p.inPic: behind the camera, behind the street's wall, past the
