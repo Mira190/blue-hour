@@ -240,7 +240,7 @@ window.OEWalk = (function () {
       // (what the page keeps one of: your car and the way into the story, with their handlers; the stories and tonight,
       // which game.js fills; the sound, the frame rate and the words)
       const acts = menu.querySelector('.gw-acts'), side = menu.querySelector('.gw-side'), opts = menu.querySelector('#gw-opts .gw-fold-in');
-      for (const id of ['#gm-car', '#gm-story']) { const e = q(id); if (e) { e.classList.remove('primary'); acts.appendChild(e); } }
+      for (const id of ['#gm-car', '#gm-story', '#gm-title']) { const e = q(id); if (e) { e.classList.remove('primary'); acts.appendChild(e); } }
       for (const id of ['#gm-tales', '#gm-tonight']) { const e = q(id); if (e) side.appendChild(e); }
       for (const id of ['#gm-sound', '#gm-words', '#gm-fps']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) opts.appendChild(n); }
       menu.addEventListener('click', e => {
