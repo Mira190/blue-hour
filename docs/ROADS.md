@@ -458,6 +458,32 @@ not raised. Views: `tools/views/deck-196.json`.
 Where the grading then reached the ground under the raised parts, it moved 445 nodes, none inside a hero level; at
 617,-1003 the ground east of the lane, under what had been a building, now steps down 3.7 m to the lot beside it.
 
+### A deck drawn as a deck (issue 212)
+
+Raised over the road, the west exit deck was still its building's box: walls and rows of windows on piers, a pale
+underside that glowed grey over the road at dusk, and nothing down to the footways. Now a solid raised over a road
+(`stations.py` `over_roads`, buildings.json `over_roads`) of a building with no foot on the ground and no deeper than
+6 m is a deck (`stations.py` `decks`, buildings.json `decks`), and `web/buildings-geo.js` `deck()` draws it as one, in the
+cells' own batches (no draws added): its underside in the concrete's grey, lit by its downlights after dark; the
+slab's edge, 0.9 m; the walkway; a glass parapet 1.1 m high with its steel rail; and where it is deep enough, a canopy
+on slim posts every 7.2 m. Past the middle distance it is its box, as every building is.
+
+Its stairs and the walkways that join it to them are landmarks (`cities/shibuya/city.py` `deck_stairs`), from what
+OpenStreetMap maps by the decks: each `highway=steps` on a layer, as a straight flight on its mapped line from the
+ground the game draws (`pipeline/levels.py`) to the deck's walkway, its head at the end OpenStreetMap joins to a
+walkway up on a layer, 16 cm risers and 30 cm treads, granite on a cast flight with one sloped soffit, steel stringers
+and handrails; each `bridge=yes` footway the deck's outline does not take in, as a 3 m slab at the walkway's level with
+a glass parapet each side and round piers every 12 m kept off the surveyed carriageway (the deck's arm to its stair at
+370,-1103, and the deck to Shibuya Fukuras).
+
+![The west exit deck before and after: from frame 3's place at dusk, from beneath it, from the terminal's footway at dusk, from the air, and its stair by day and at dusk](images/roads/deck-212.jpg)
+![On a phone at dusk: frame 3's place and the stair](images/roads/deck-212-phone.jpg)
+
+Not done: the bus bays and their shelters under the deck (the map has no bus stop polygons there: a separate job);
+the four parts of buildings raised over back lanes keep their walls (they are rooms over a lane, not decks), not
+checked against photographs; the deck at 211,-1151 (a PLATEAU solid with no OpenStreetMap record) is drawn as a deck by
+the rule and was not checked against a photograph.
+
 ### The checks
 
 - `python tools/deck_check.py shibuya`: no solid stands on a driven surveyed carriageway in or near the planned area;

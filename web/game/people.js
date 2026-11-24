@@ -2566,7 +2566,7 @@ transformed = crowdPose(transformed, false);`);
         if (p.wave) { p.wave = false; r.wave(tNow); }
         // (how often its arms are kept out of its body, by how tall it stands on the screen: every frame from 300 pixels up,
         // every second from 150, every third below, where a centimetre is under a pixel; issue 130)
-        if (camera && camera.isPerspectiveCamera) { const tall = 1.7 * p.look.scale * (window.innerHeight || 800) / (2 * Math.tan(camera.fov * Math.PI / 360)) / Math.max(0.5, Math.hypot(p.rx - lodX, p.ry - lodY, p.rz + 1 - camera.position.y)); r.clearEvery = tall >= 300 ? 1 : tall >= 150 ? 2 : 3; }
+        if (camera && camera.isPerspectiveCamera) { const V = camera.matrixWorldInverse.elements, depth = -(V[2] * p.rx + V[6] * (p.rz + 1) - V[10] * p.ry + V[14]), tall = 1.7 * p.look.scale * (window.innerHeight || 800) * camera.projectionMatrix.elements[5] / 2 / Math.max(0.5, depth); r.clearEvery = tall >= 300 ? 1 : tall >= 150 ? 2 : 3; } // (its depth along the view, not its distance: one at the screen's side stands taller than its distance says)
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
       }

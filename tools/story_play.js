@@ -46,11 +46,14 @@
 // their bodies against walls, posts and cars; every case is printed with its frame, beat, place and depth, and one body in
 // another or a foot off its floor fails the play (CLIP_OUT=file: the cases as JSON). After each talk, and in each Stop, the
 // player is walked straight into everyone within 14 m (a still of each, into-*.png) and must stop at their shoulder.
+// Ceiling (issue 208): every frame on foot in the station's free passage on frame 4's way to SKY's lift, the lens must be
+// under its ceiling (tools/ceiling_watch.js); a frame with it through fails the play.
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
+const ceilWatch = require('./ceiling_watch'); // (the lens under the passage's ceiling on frame 4's way to SKY's lift: issue 208)
 const { measure: umbrellaHeld } = require('./umbrella_held'); // (frame 7's rain: every umbrella held, issue 165)
 const pacing = require('./pacing_watch');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
@@ -106,6 +109,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
+  await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
   // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
   // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
@@ -247,6 +251,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  // BACK=n: the menu's Title screen in the middle of frame n (menus.js #gm-title): a case kept at frame n, seeded once (not
+  // again when the page opens on the title), taken up; Title screen; the title on its menu, Continue there at frame n; and
+  // Continue back in frame n
+  if (+process.env.BACK > 1) await p.addInitScript(n => { try { if (sessionStorage.getItem('bh-back-seeded')) return; sessionStorage.setItem('bh-back-seeded', '1'); localStorage.setItem('bh-story-late', JSON.stringify({ fi: n - 1, left: 8 - n, prints: Array.from({ length: n - 1 }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.BACK);
   if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
@@ -496,8 +504,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (b.shown) {
       // (one tap, and the story given a second and a half to take it: the button turns the camera over, so a second tap
       // sent before the first is taken would put it back. Tapped again only if nothing came of it, three times at most)
-      for (let k = 0; k < 3; k++) { await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
-      const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m);
+      // (and looked at again before each tap: a step that has just moved you, off the light, say, found the button still up
+      // from the frame before, and the story took it down before the tap came, main's storyp on 3aa33f8. Gone, it is a
+      // camera with no button for it, as below; up and tapped three times with nothing coming of it, a fault)
+      let gone = false;
+      for (let k = 0; k < 3 && !gone; k++) { if (!(b = await look()).shown) { gone = true; break; } await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
+      if (!gone) { const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m); }
+      else console.log(`note touch: the camera's button went as it was to be tapped (${b.at}): the camera ${on ? 'raised' : 'lowered'} by the story's own function`);
     } else console.log(`note touch: the camera ${on ? 'raised' : 'lowered'} with no button for it on the screen (${b.at}): by the story's own function`);
     return p.evaluate(on => window.__game.story.raise(on), on); };
   const shoot = () => (TOUCH ? tapEl('#g-story-shutter') : p.evaluate(() => { window.__game.story.shoot(); }));
@@ -536,6 +549,39 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   };
   const seen0 = new Set();
   await begin();
+  if (+process.env.BACK > 1) { // (BACK=n, above: the beat played alone, then the page is closed)
+    const n = +process.env.BACK, still = async k => { try { await p.screenshot({ path: `${out}/back-${k}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still back-${k})`); } };
+    const bad = m => { errors.push(`Title screen: ${m}`); console.log(`FAIL Title screen: ${m}`); };
+    const inCase = () => p.waitForFunction(n => { const g = window.__game, s = g && g.story.state, t = document.getElementById('g-title'); return t && t.hidden && s && s.fi === n - 1 && s.phase !== 'idle' && s.phase !== 'dressed'; }, n, { timeout: 600000, polling: 500 }).then(() => true, () => false);
+    const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `frame ${s.fi + 1}, ${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}`; }).catch(e => String(e).slice(0, 80));
+    if (!(await inCase())) bad(`the case kept at frame ${n} was not taken up (${await where()})`);
+    await p.waitForTimeout(4000);
+    await clickEl('#g-story-menu');
+    await p.waitForTimeout(800);
+    const m = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(), note = document.getElementById('gm-title-note'); return { on: !!e && !document.getElementById('g-menu').hidden && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, note: note && !note.hidden ? note.textContent : '' }; });
+    if (!m.on) bad('the case\'s pause has no Title screen'); else if (!m.first) bad('Title screen is below the menu\'s first screen');
+    if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
+    await still('menu');
+    expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
+    const back = await p.waitForFunction(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
+    if (!back) bad('the title never opened on its menu');
+    else {
+      await p.waitForTimeout(2500);
+      const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
+      if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
+      if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
+      if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      console.log(`  the title again: Continue "${t.cont}", ${t.left.length ? `left over ${t.left.join(', ')}` : 'nothing left over'}`);
+      await still('title');
+      await clickEl('#gt-cont-go');
+      for (let k = 0; k < 6 && await p.evaluate(() => document.getElementById('g-title').dataset.screen === 'who' && !document.getElementById('g-title').hidden); k++) { await clickEl('#gt-who [data-c="W"]'); await p.waitForTimeout(400); await clickEl('#gt-who-go'); await p.waitForTimeout(800); }
+      if (!(await inCase())) bad(`Continue did not take the case up at frame ${n} (${await where()})`); else console.log(`ok   Title screen: out of frame ${n}, the title on its menu, and Continue back in frame ${n}`);
+      await p.waitForTimeout(3000); await still('continued');
+    }
+    await b.close();
+    process.exit(errors.length ? 1 : 0);
+  }
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it, on the side they come from, however far (a fixed east beyond 60 m
   // put them in the air outside SHIBUYA SKY's east glass: its 46F lift stands 61 m from Kanbara)
@@ -1170,7 +1216,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
           if (open) {
             const m = await p.evaluate(() => { const vis = q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
-              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
+              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-title', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
             if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
             else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
           }
@@ -1370,6 +1416,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const { hard } = clipProbe.print(R);
     if (!R || R.err) errors.push(`clip: the probe did not measure (${R ? R.err : 'not in the page'})`);
     if (hard.length) errors.push(`clip: ${hard.length} cases of a body in another or a foot off its floor (${[...new Set(hard.map(c => `${c.a} / ${c.b}`))].slice(0, 8).join('; ')})`);
+  }
+  { // the lens under the station's free passage's ceiling, every frame on foot in it (issue 208)
+    const C = await ceilWatch.report(p);
+    for (const r of ((C && C.bad) || []).slice(0, 8)) console.log(`FAIL ceiling: frame ${r.frame} ${r.beat}, at ${r.at}, the lens ${r.over} m over the passage's floor (its ceiling at ${ceilWatch.H})${r.shot ? ', in a shot' : ''}`);
+    if (C && C.bad.length) errors.push(`ceiling: ${C.bad.length} frames with the lens through the passage's ceiling`);
+    else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
     if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }
