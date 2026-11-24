@@ -1,0 +1,14 @@
+{
+ "source": "Traced in the map's metres (cityctx: x east, y north) from the Tokyo Digital Twin Project's 23-ward orthophoto, FY2023 survey, sheets 09LD2659 and 09LD2669 at 0.20 m a pixel (CC BY 4.0: 「東京都デジタルツイン実現プロジェクト 区部点群データ」（東京都）を加工して作成), with tools/ortho_overlay.py. To within half a metre.",
+ "note": "The bus stand in front of Hachiko, inside Jingu-dori's one-way loop (OpenStreetMap 1033129758 and 1380679907, the stops local_ref 0 and 21). The photo has no raised island there: one asphalt plain, as PLATEAU surveys it, laid out in paint. A U of solid line round where the buses stand, closed by a diagonal line to the south-west, a dotted lane edge along the south-bound lane, and a hatched wedge where the U meets the north-bound lane. The painted legend is left out.",
+ "solid": [
+  [[343.6, -1053.5], [343.8, -1047.0], [344.25, -1040.0], [344.9, -1034.5], [346.25, -1031.0], [348.5, -1028.5], [351.5, -1027.25], [354.5, -1027.0], [357.0, -1027.75], [358.75, -1029.25], [359.6, -1032.0], [359.9, -1035.5], [359.65, -1038.0]],
+  [[344.0, -1050.0], [355.5, -1040.5], [359.75, -1037.75]]
+ ],
+ "dotted": [
+  [[345.5, -1022.0], [343.0, -1028.0], [336.25, -1056.0]]
+ ],
+ "hatched": [
+  [[358.25, -1030.5], [361.25, -1030.5], [361.25, -1036.0], [359.25, -1037.5], [358.25, -1036.0]]
+ ]
+}

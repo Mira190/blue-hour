@@ -9,5 +9,6 @@
   const p = g.player, x0 = p.x, y0 = p.y, out = [['start', b.userData.arena()]];
   const go = async (x, y, name) => { p.x = x; p.y = y; for (let i = 0; i < 40; i++) { const q = g.Wd.mapAt && g.Wd.mapAt(x, y, true); if (q && q.then) await q; await wait(250); } out.push([name, b.userData.arena()]); };
   await go(x0 + 450, y0 - 250, 'away'); await go(x0, y0, 'back'); await go(x0 - 300, y0 + 400, 'away 2'); await go(x0, y0, 'back 2');
-  return out.map(([k, v]) => `${k}: ${v.cells} cells, ${v.used_mb} MB used of ${v.mb} held, grown ${v.grown}, trimmed ${v.trimmed}`);
+  out.push(['indices', b.userData.verify ? b.userData.verify() : 'no check']);
+  return out.map(([k, v]) => k === 'indices' ? `indices after the trips: ${JSON.stringify(v)}` : `${k}: ${v.cells} cells, ${v.used_mb} MB used of ${v.mb} held, grown ${v.grown}, trimmed ${v.trimmed}`);
 })()
