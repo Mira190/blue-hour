@@ -2685,6 +2685,70 @@ floor is a tier down in thirty seconds and at low in two minutes, and climbs bac
 device, a hitchy one and one settled below its ceiling keep their tier; the ladder in storage, with a faked desktop
 context, goes high → medium → low and no lower, back up, and waits twice as long after a climb that failed.
 
+### Safari 18.6 itself: a frame no step can buy (24 November)
+
+Read in Safari itself on the owner's M3 (the mac's comments on issue 184 and 191, main 8186ca53): on the night walk
+Safari draws 26 to 29 frames a second where Playwright's WebKit draws 32 to 59 and Chromium 60, with the same 15 to 18 ms
+of script a frame. Its frame is 35 to 38 ms whatever the scale and the tier: the 19 ms beyond the script is spent on
+the frame's 4,300 WebGL calls after the script has made them (issue 191 item 2). And the page's `time` event read
+`hz 30, bound ok` at 27 frames a second.
+
+What the governor did with it (modelled in `tools/governor_unit.js` from those numbers, which reproduce the mac's
+reading step for step): it timed the frames right, since it times drawn frames by their animation-frame stamps, not
+the script nor a GPU timer, and it gave everything it had: the resolution to its floor, every extra, then medium →
+low 15 seconds in. None of it bought a frame. The flat rule gave the resolution back; the extras and the tier were
+kept off for good, the tier for the next visit too, and the aim stayed at 16.7 ms for good, since half the display's
+rate was taken only under 1.9 times the frame's budget and Safari is at 2.1. So Safari drew low's picture without the
+wet street's mirror, the contact shadows or a quarter of the crowd, at the same frame rate as medium's whole picture.
+The `bound ok` was the telemetry's: it read the display's rate from the fastest twentieth of the frames, about 30 ms
+in Safari, took the 60 Hz display for a 30 Hz one, and called 27 frames a second on it fine.
+
+Changed (`web/quality.js` governor, `web/telemetry.js`):
+
+- **A tier step is judged.** Ten seconds after a step down, the frame is set against the one it was taken at; a step
+  that did not make it 10% shorter, or fit the display's rate, is taken back at once, and the frame time it failed at
+  is kept with the tier (`bh-tier-<map>`'s `flat`, fourteen days, `quality.js` `tierStep`, `tierFlat`): neither this
+  visit nor the next asks for it again until the frames are half as long again as that. A step that buys frames is
+  kept as before. What a tier changes within a session is pixels; a frame that is slow for something else is as slow
+  on the tier below. A step kept before steps were judged (a record without `v: 2`) is let go, so a Mac's Safari that
+  the old governor left on low starts on medium again, and steps again, judged, if it needs to.
+- **What bought nothing is given back, the extras too.** Where the floor bought less than 15% (`flat`), the
+  resolution came back a step at a time while the frame stayed within 8%; now the extras come back the same way, half
+  at a time, and the floor no longer sheds the ones a try showed cost nothing.
+- **Half the display's rate within reach is the aim.** Up to 2.3 times the frame's budget (15% over half the rate,
+  as a step down is judged), where it was 1.9. A frame vertical sync puts at exactly 33.3 ms (2.0) never qualified, so a
+  desktop at thirty a second at its floor aimed at sixty for good and climbed nothing; now it aims at thirty and
+  climbs its resolution while thirty holds. A try at full rate after half a minute that does not fit goes back to half
+  at once with nothing stepped down, and the next try waits twice as long (to eight minutes): a device whose frames
+  cost the same at any size otherwise went down its whole ladder every minute and a half. When frames come at the
+  full rate again, the steps that failed at half are let go (they were the heavier scene's).
+- **The telemetry reads the display's rate below 60 only from an even beat**: 30 Hz where nine frames in ten are 31 to
+  36 ms apart (Low Power Mode, a display that is 30), else 60 at least. Safari's 26 to 57 ms frames now read `hz 60`,
+  and with no GPU timer and its script a half of its frame, `bound gpu?`: the time outside the script, which in Safari
+  is its WebGL calls.
+
+Modelled, before and after (`tools/governor_unit.js`, a frame of 34 to 38 ms at any scale, extras and tier, no
+display rate read, five minutes):
+
+| | before | after |
+| --- | --- | --- |
+| tier | medium → low at 15 s, kept, and for the next visit | down at 15 s, back at 25 s, remembered; medium |
+| scale/extras after one and five minutes | 1.00/0, 1.00/0 | 1.00/1, 1.00/1 |
+| aiming at | 16.7 ms | 33.3 ms |
+| the `time` event (Safari's frame gaps) | `hz 30, bound ok` | `hz 60, bound gpu?` |
+
+The frame rate is Safari's to give, not the governor's: 27 to 29 a second, the same on any tier. What would buy
+frames there is fewer WebGL calls a frame, not fewer pixels: the buildings' cells in one multi-draw (cells-192, merged
+691f7ed1, #192), the rest of the draws by batching (#191), and the crowd's script (crowd-cpu-130, #130), which is the
+other half of Safari's frame. A tier the visitor chose (`bh-quality`) still never steps: nothing in the product sets one
+(the menu that did went with the world, and `index.html` clears its old key), so a chosen tier is a harness's or the
+owner's measurement (`tools/engine_frames.js` `TIER=`, `tools/safari.js`), which a tier that moved under it would make
+wrong; its scale and extras are governed as any device's, and half the rate is its aim where it is within reach.
+
+`tools/engine_frames.js` can show the same on a session's machine (no GPU): `ASDEV=1` (the software renderer taken for an
+M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
+`THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
+
 ### Not checked here
 
 A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may
@@ -2882,6 +2946,31 @@ of the city's vertex buffers (`buffers:` in the page's log).
 `nav.withoutFine` 1.0 s and `nav.create` 0.9 s, `decks.plan` 1.0 s, `night.create` 0.7 s, `surface.copy` 0.5 s. On a
 phone's tier the same order, half the size. Each second here is about half a second on the owner's M3 (6.3 s set-up at
 p75) and more on a phone; they are the next place to cut (issue opened with this).
+
+**The set-up's fixed work, baked (issue 194, item 2).** On the owner's M3 the set-up keeps the main thread busy 5.4 s of its
+6.9 (`tools/load_probe.js`, `GPU=metal`), and of that the decks' plan, the two networks' sweeps and the collision reads under
+them were 1.6 s. They are a function of the map's data alone, and the title draws what they make (the decks' meshes; the crowd
+and the traffic walk and drive the networks), so they could not wait for the first frame. They are computed once instead, by
+the page's own set-up run in a browser (`tools/bake_setup.js`, `?bake=1`), and kept beside the packs as `setup.bin` (the
+values as gzipped JSON: the decks' runs and pieces with their columns cleared, the road and footway lines handed to
+`OEActors.network`, the road lines the first sweep gives one lane, the second's fit per street), one for the whole map and one
+for a phone's district (`d/setup.bin`: a phone computes its networks from the cut map, and the result differs). The set-up
+reads them (`game.js`, `bakeIn`, `BK`) and computes as before when there is none, or one of another `BAKE_V`; `?bake=off`
+computes, to measure against. The benches are still computed (their seats point at their bench, which a file cannot keep).
+
+What keeps it right: the static checks fail on a bake stale against the packs it was made from (`game.bin`, `buildings.bin`,
+`landmarks.bin`) or against `BAKE_V` (bumped when what the set-up means by them changes), and `pipeline/pack.py` bakes again
+after it packs (a run of `pipeline/district.py` alone leaves `d/` without one, and the check says so). The code it runs is not
+hashed (five sessions edit it at once): `tools/check.sh`'s mem target (played wherever the set-up's code changes, as it loads the whole page) loads the page computing and compares it with the
+bake field by field, and a change that changes the result fails there ("rebake with `node tools/bake_setup.js`").
+
+Measured on a session's machine, two runs each, `?bake=off` against the bake: the fixed work 2.7 to 3.0 s → 0.03 to 0.1 s on
+the desktop tier and 1.0 s → 0.012 s on the phone's; "built" 18.4 → 16.3 s on the desktop tier. The phone's "built" did not
+move here (8.1 → 8.2 s): the saved time went into `setSun`'s first draw waiting on the software GPU, busy with the early
+warm-up's compile (1.7 s waited there against 0.6), and the first frame here is held by the compile on both tiers (46 s either
+way on the desktop's). On the M3, where the set-up is the CPU's and the programs are ready 0.5 s after built, the 1.6 s
+should come off "built" and the first frame; the next deploy's telemetry and a run on the M3 will say. The download: 1.1 MB
+for the map, 0.28 MB for a phone's district.
 
 ### The one you play: the head's and the hair's pictures at a phone's size (issue 130, 23 November)
 
@@ -3235,6 +3324,53 @@ interface changing every frame, reading two boxes from the layout lays the page 
 script while a camera is up. Keeping the box for a tenth of a second was tried and undone: the camera then no longer
 came up on the thing when raised (the story's check, frame 1). It wants the box worked out from the lines' own
 numbers, not measured.
+
+## The crowd's script (issue 130, 23 November, evening)
+
+The owner's M3 read 23 frames a second in frame 1, held by 30 ms of script a frame, the crowd's (`actors.js`,
+`people.js`), not by its GPU. `tools/crowd_cost.js` measures it here two ways: the whole frame's script by file
+and function (the page left standing in a frame of the story, one frame in 240 drawn), and, with `HZ=60`, the
+crowd's own update called at a device's pace: on a software renderer a frame takes a third of a second and the game
+moves a twentieth of a second in it, so whatever steps by the time gone by is not seen at a player's rate
+otherwise. All times are a session's machine's, the same view before and after, main's page served beside the
+branch's.
+
+**Where it went.** Not into any one function. A walker's object was given its fields where each was first needed,
+about 120 of them, in whatever order its evening went, and a car's the same way: 1,600 walkers had 159 different
+hidden layouts and 200 cars 106 (V8's `%HaveSameMap`). An engine reads a field quickly only where the objects it
+meets at that line are laid out in one way, or a few; here every read in `walk`, `plazaStep`, `update`, `place` and
+the traffic's step was the slow kind. Each field is now named once, in one order, where the walker (`crowd()`) and
+the car (`traffic()`, `whole()`) are made, undefined as when it was absent. **A field first given to a walker or a
+car anywhere is named there too**, or the layouts split again; `tools/crowd_cost.js` prints both counts (1 and 1).
+
+**What a player cannot see, cut:**
+- A walker the renderer did not draw last frame (`p.inPic`: behind the camera, behind the street's wall, past the
+  far figures' reach) and more than 12 m from the crowd's centre steps ten times a second, five past 60 m, with the
+  time it was owed, no two on one beat. Two thirds of a desktop's walkers are out of the picture at the Scramble's
+  kerb. One drawn steps exactly as before, and so does everyone in a plaza (the signals count who is on the road
+  each step).
+- The umbrellas' lean ran for everyone every frame of a dry evening (a grid, a hold turned, for canopies nobody
+  held): now only while one is up anywhere.
+- The near people's pick made a pair for each of a few hundred people, a sort and a set every frame: kept lists.
+- "Is that the road?" (`game.js` `onRoad`), asked several times a plaza's person a frame, built a list, a Set and
+  an object a candidate each time: the network's `nearD` keeps, for each cell of 4 m, the segments `nearest` would
+  look at, and gives the same line and distance (14,103 points of 14,103).
+
+| the same view, a session's machine | before | after |
+|---|---|---|
+| desktop, frame 1: the crowd's update at 60 a second, a call | 59.1 ms | 16.8 ms |
+| phone, frame 1: the crowd's update at 30 a second, a call | 12.7 ms | 6.3 ms |
+| desktop, frame 1, the page's frame: `actors.js` / `people.js` | 61.0 / 23.8 ms | 23.6 / 11.0 ms |
+| phone, frame 1, the page's frame: `actors.js` / `people.js` / all script | 14.7 / 7.3 / 54.5 ms | 6.0 / 4.1 / 37.6 ms |
+| the traffic's own step, a frame: desktop / phone | 5.0 / 3.3 ms | 2.8 / 1.8 ms |
+
+By the cuts in the order they were made, the desktop's update: the walkers out of the picture, the lean and the
+pick 56 to 40 ms (run to run this machine reads a tenth apart); the layouts 47 to 17. What is left of a desktop's
+17 ms: the plazas' step 1.9 of its own, the arms' clearance 2.8 (`sliceAt`, `torsoDepth`: every near person every
+frame, the largest thing left on a phone too), `update`'s loop 1.2, `walk` 1.0, `place` 0.9.
+
+Not measured: a real device. The M3's 30 ms was read by `tools/fps_probe.js` there; the same run on this branch is
+the measure.
 
 ## What is left of issue 130
 

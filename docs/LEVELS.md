@@ -152,6 +152,25 @@ vertical face at a street's edge is the street's own geometry, a thin wall along
 coping and a rail by the rule above, the ground behind it level to its foot; made where a player can go, each one
 looked at in a still, and nothing added beyond that reach.
 
+**Inside the Scramble's level too** (23 November 2026, the hand-over from issue 158). The Yamanote's bed north of the
+girder bridge (x 425 to 440, y -1000 to -910) lies in the Scramble's circle, where the grading left every node as the
+level was built on it: a paved mound 4 to 5 m high under a bed drawn on columns, the bicycle lot on its slope and its
+fence in the bank. A level whose entry says `"viaduct": true` (`cities/shibuya/city.json` `game.hero`) is open to
+`viaduct()` like the ground outside it, and its nodes there are no longer held (`street_ground.py` `run`). The first
+try, without the level, left a 4 m step at the floor's edge, because the level's walked floor
+(`cities/shibuya/hero_floor.json`) could not be exported again: `tools/hero_ground_probe.js` cast its rays on the
+default layer and a level's ground is drawn on a layer of its own, so the probe read no ground under the Scramble
+(issue 201). The probe's rays now meet every layer; the order is `tools/regrade.sh`, both levels built again
+(`blender/build_hero.py`), the probe's export, `pipeline/hero_floor.py`, `pipeline/pack.py`. The ground under the bed
+went from 20.2 m to 16.1 to 16.5 m, level with the lanes either side, and the Scramble's floor is exported on it.
+Miyamasu's and SKY's lobby's floors are not: exported too, the two patches met at the forecourt's edge with lifts of
+their own (5 cm and 1.2 cm) and the guide stood 6 cm over the paving there (`tools/guide_way.js`, frames 4 and 6), so
+they are left as main has them, without a patch (issue 201). Views: `tools/views/viaduct-158.json`.
+
+Left: under the bed's east half north of y -945 the ground is still 1.7 m up (17.8 m): the bicycle lot's paving at
+the circle's edge is a landmark's, laid on the survey's slope at 17.6 m, and the ground nearest the unknown nodes
+is read from it.
+
 ## What was surveyed, and what was adopted
 
 | Work | How it conditions levels | Taken | Licence |
