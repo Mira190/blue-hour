@@ -788,6 +788,26 @@ no new pass and no new program (the patch goes into the one every person's mater
 `tools/hair_shot.js` is lit at the game's own levels for dusk (from the probe) with the street's light as the game
 gives it; `NOLIGHT=1` leaves that out.
 
+**A white under the street's light** (the owner's report, 24 November 2026: at the Center Gai gate at night, the man in
+a white shirt glowing over the whole crowd). Measured: the shirt's picture (`R_Business_Male_06`, the crowd's cast) is
+0.72 linear at its median, at cotton's own (Rocketbox's whites run 0.72 to 0.85: the rash guards and the pilots' shirts
+at the top), so not the albedo. The light was: the key (up to 1.5 times the street's light the paving under them
+takes), the rim, the sheen and the dusk's sky give a person more than the ground, which a dark coat or a face takes
+well, and a near-white went over the tone curve's shoulder, 230 of 255 at night and 235 at dusk against 190 in the
+noon sun, its folds gone. Two things now hold it, both in the cast alone, so the day is as it was:
+
+- a near-white is taken down for this light as a film's wardrobe takes a white shirt to an off-white: above 0.4 a
+  colour keeps two fifths of its lightness in the cast, its hue as it is (skin, hair and darker cloth are under it);
+- the street's light on a person is held under a ceiling set where the picture is, as a sign's face is (world.js
+  `faceCap`, the same `uFaceCap`): its luminance eased in from 0.35 of a face's ceiling and never past 0.6 of it,
+  about where a white shirt lands in the noon sun. A person lit by the street is never brighter than in the sun. On
+  the largest channel, as a sign's face is held, it took a face down by an eighth too (skin's red runs well over its
+  lightness); on the luminance a face is under the knee.
+
+Seen inside the hero level, where it began: the level's ground takes 0.45 of the city's street light (its own lamps
+are baked into it) and a person all of it, so the people stood brighter than the ground they stood on. The stills are
+`tools/views/white-cloth.json` (`figures` stands chosen characters in a view, `tools/scramble_shot.js`).
+
 **What was surveyed** (November 2026; written here from the papers and talks, no code copied).
 | What | Source | Licence of its code | Taken |
 | --- | --- | --- | --- |

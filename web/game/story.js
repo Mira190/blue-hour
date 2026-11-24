@@ -1013,6 +1013,9 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (F.said) { const u = t - F.sayAt, op = sm(u / 0.9) * (F.said < 2 ? 1 - sm((u - 5.4) / 0.9) : 1), q = movEl.querySelector('p'); q.style.opacity = op.toFixed(3); q.style.transform = `translateY(${(6 * (1 - sm(u / 1.2))).toFixed(2)}px)`; }
       if (F.sat && t > F.sat + M.hold_s) return movEnd(false);
       if (t > 40) return movEnd(true); // (he never got there: beside you all the same)
+      // (nor is it held for him where he has stopped getting nearer: three seconds without a quarter metre gained, and the
+      // film ends with him beside you, as when it is skipped. No beat waits for the guide, issue 207)
+      if (F.went && !F.sat) { const left = Math.hypot(F.side[0] - d.x, F.side[1] - d.y); if (F.best == null || left < F.best - 0.25) { F.best = left; F.bestAt = t; } else if (t - F.bestAt > 3) return movEnd(true); }
       // how far he has come (0 where he was first seen, 1 at your feet), and the lens's place from it: in front of him and
       // low (between him and you, looking back at him), then round to behind him and up, so that you are in the frame ahead
       const D = [d.x, d.y, d.z], prog = Math.max(0, Math.min(1, 1 - Math.hypot(F.side[0] - D[0], F.side[1] - D[1]) / (F.len || 1)));

@@ -46,11 +46,14 @@
 // their bodies against walls, posts and cars; every case is printed with its frame, beat, place and depth, and one body in
 // another or a foot off its floor fails the play (CLIP_OUT=file: the cases as JSON). After each talk, and in each Stop, the
 // player is walked straight into everyone within 14 m (a still of each, into-*.png) and must stop at their shoulder.
+// Ceiling (issue 208): every frame on foot in the station's free passage on frame 4's way to SKY's lift, the lens must be
+// under its ceiling (tools/ceiling_watch.js); a frame with it through fails the play.
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
+const ceilWatch = require('./ceiling_watch'); // (the lens under the passage's ceiling on frame 4's way to SKY's lift: issue 208)
 const { measure: umbrellaHeld } = require('./umbrella_held'); // (frame 7's rain: every umbrella held, issue 165)
 const pacing = require('./pacing_watch');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
@@ -106,7 +109,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
+  await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
+  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 209)
   // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
   // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
   // complete until its turn in the queue is over; three.js's own wait for a link (LINK_STATUS) is not held. Each still
@@ -248,6 +253,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  // BACK=n: the menu's Title screen in the middle of frame n (menus.js #gm-title): a case kept at frame n, seeded once (not
+  // again when the page opens on the title), taken up; Title screen; the title on its menu, Continue there at frame n; and
+  // Continue back in frame n
+  if (+process.env.BACK > 1) await p.addInitScript(n => { try { if (sessionStorage.getItem('bh-back-seeded')) return; sessionStorage.setItem('bh-back-seeded', '1'); localStorage.setItem('bh-story-late', JSON.stringify({ fi: n - 1, left: 8 - n, prints: Array.from({ length: n - 1 }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.BACK);
   if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
@@ -497,8 +506,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (b.shown) {
       // (one tap, and the story given a second and a half to take it: the button turns the camera over, so a second tap
       // sent before the first is taken would put it back. Tapped again only if nothing came of it, three times at most)
-      for (let k = 0; k < 3; k++) { await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
-      const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m);
+      // (and looked at again before each tap: a step that has just moved you, off the light, say, found the button still up
+      // from the frame before, and the story took it down before the tap came, main's storyp on 3aa33f8. Gone, it is a
+      // camera with no button for it, as below; up and tapped three times with nothing coming of it, a fault)
+      let gone = false;
+      for (let k = 0; k < 3 && !gone; k++) { if (!(b = await look()).shown) { gone = true; break; } await tapEl('#g-story-cam'); for (let i = 0; i < 6; i++) { await p.waitForTimeout(250); if ((await look()).same) return; } }
+      if (!gone) { const m = `touch: the camera's button tapped three times at ${b.at}, and the camera is not ${on ? 'up' : 'down'}`; errors.push(m); console.log(m); }
+      else console.log(`note touch: the camera's button went as it was to be tapped (${b.at}): the camera ${on ? 'raised' : 'lowered'} by the story's own function`);
     } else console.log(`note touch: the camera ${on ? 'raised' : 'lowered'} with no button for it on the screen (${b.at}): by the story's own function`);
     return p.evaluate(on => window.__game.story.raise(on), on); };
   const shoot = () => (TOUCH ? tapEl('#g-story-shutter') : p.evaluate(() => { window.__game.story.shoot(); }));
@@ -537,6 +551,39 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   };
   const seen0 = new Set();
   await begin();
+  if (+process.env.BACK > 1) { // (BACK=n, above: the beat played alone, then the page is closed)
+    const n = +process.env.BACK, still = async k => { try { await p.screenshot({ path: `${out}/back-${k}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still back-${k})`); } };
+    const bad = m => { errors.push(`Title screen: ${m}`); console.log(`FAIL Title screen: ${m}`); };
+    const inCase = () => p.waitForFunction(n => { const g = window.__game, s = g && g.story.state, t = document.getElementById('g-title'); return t && t.hidden && s && s.fi === n - 1 && s.phase !== 'idle' && s.phase !== 'dressed'; }, n, { timeout: 600000, polling: 500 }).then(() => true, () => false);
+    const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `frame ${s.fi + 1}, ${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}`; }).catch(e => String(e).slice(0, 80));
+    if (!(await inCase())) bad(`the case kept at frame ${n} was not taken up (${await where()})`);
+    await p.waitForTimeout(4000);
+    await clickEl('#g-story-menu');
+    await p.waitForTimeout(800);
+    const m = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(), note = document.getElementById('gm-title-note'); return { on: !!e && !document.getElementById('g-menu').hidden && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, note: note && !note.hidden ? note.textContent : '' }; });
+    if (!m.on) bad('the case\'s pause has no Title screen'); else if (!m.first) bad('Title screen is below the menu\'s first screen');
+    if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
+    await still('menu');
+    expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
+    const back = await p.waitForFunction(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
+    if (!back) bad('the title never opened on its menu');
+    else {
+      await p.waitForTimeout(2500);
+      const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
+      if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
+      if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
+      if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      console.log(`  the title again: Continue "${t.cont}", ${t.left.length ? `left over ${t.left.join(', ')}` : 'nothing left over'}`);
+      await still('title');
+      await clickEl('#gt-cont-go');
+      for (let k = 0; k < 6 && await p.evaluate(() => document.getElementById('g-title').dataset.screen === 'who' && !document.getElementById('g-title').hidden); k++) { await clickEl('#gt-who [data-c="W"]'); await p.waitForTimeout(400); await clickEl('#gt-who-go'); await p.waitForTimeout(800); }
+      if (!(await inCase())) bad(`Continue did not take the case up at frame ${n} (${await where()})`); else console.log(`ok   Title screen: out of frame ${n}, the title on its menu, and Continue back in frame ${n}`);
+      await p.waitForTimeout(3000); await still('continued');
+    }
+    await b.close();
+    process.exit(errors.length ? 1 : 0);
+  }
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it, on the side they come from, however far (a fixed east beyond 60 m
   // put them in the air outside SHIBUYA SKY's east glass: its 46F lift stands 61 m from Kanbara)
@@ -884,8 +931,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log('frame 1: the camera raised away from her corner:', JSON.stringify(away));
         if (away.phase !== 'go' || !away.finder) { errors.push(`frame 1: raised away from her corner, ${JSON.stringify(away)} (the world still running, the lens's view)`); console.log(errors[errors.length - 1]); }
         await face(J.at);
-        for (let k = 0; k < 200 && await p.evaluate(() => window.__game.story.state.phase === 'go'); k++) await frames(2);
-        const st0 = await p.evaluate(() => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder, cut: document.getElementById('gd').classList.contains('cut') }));
+        // (the world stops once her corner has stood in the frame lines for the job's hold, 0.8 s of the game's own time,
+        // story.js jobTick. Waited for by the game's state, up to two minutes of the wall's, not by 400 frames drawn: on a
+        // phone's tier a drawn frame carries little of the game's time, the hold reached 0.77 s at the 80th of 200 here, and
+        // on main's budget run on 169c9fe the 400 frames ran out with the lens on her corner. The harness's, not the game's:
+        // a player holding the lens there 0.8 s always stops it. Where it does not stop, how far the hold came is said)
+        let held = 0;
+        await p.waitForFunction(() => { const st = window.__game.story.state; window.__jobMax = Math.max(window.__jobMax || 0, st.jobT || 0); return st.phase !== 'go'; }, null, { timeout: 120000, polling: 100 }).catch(() => {});
+        held = await p.evaluate(() => +(window.__jobMax || 0).toFixed(2));
+        const st0 = await p.evaluate(h => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder, cut: document.getElementById('gd').classList.contains('cut'), held: h }), held);
         console.log('frame 1: her corner held in the finder:', JSON.stringify(st0));
         if (st0.phase !== 'stop' || !st0.finder) { errors.push(`frame 1: her corner held in the finder, ${JSON.stringify(st0)} (the world stopped, seen in the lens)`); console.log(errors[errors.length - 1]); }
         await snap('1-stop-in-the-finder');
@@ -929,10 +983,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           if (!k0.keys || !/walk/i.test(k0.how)) { errors.push(`the first Stop: not yet walked, and ${!k0.keys ? 'no walking keys on the screen' : `the goal does not say how to walk ("${k0.how}")`}`); console.log(errors[errors.length - 1]); }
           const toasts0 = await p.evaluate(() => document.querySelectorAll('.g-toast').length);
           await p.waitForFunction(() => (window.__game.story.state.seekAsked || 0) >= 1 || window.__game.story.state.beat !== 'seek', null, { timeout: 600000, polling: 250 }).catch(() => {});
-          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', n: T.length }; });
+          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', next: document.getElementById('g-toasts').dataset.next || '', n: T.length }; });
           await snap('1-seek-ask');
+          // ("your turn" said or waiting its turn behind another toast, hud.js said: the sound's own word that a phone's street
+          // went quiet stood there first on main's budget on a9737df, and the ask came after it)
           console.log(`the first Stop, standing still: ${JSON.stringify(k1)} (toasts before: ${toasts0})`);
-          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(k1.toast) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
+          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(`${k1.toast} | ${k1.next}`) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
         }
         continue;
       }
@@ -1010,11 +1066,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!off.on || off.now !== 0 || off.done !== '0000' || off.cam || off.btn || off.formed !== 0 || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the camera still down and no button for it, the card on its first step, nothing of 1964 formed, no light underfoot)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
         await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
-        const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
+        // (each state looked for until it comes, up to a minute of the wall's: on a phone's tier a drawn frame carries little of
+        // the game's time, and three of frame 1's reads after so many frames failed on CI on 24 November. What may not happen
+        // off the light is still read after its fixed wait)
+        const until = async ok => { const t0 = Date.now(); let c = await card(); while (!ok(c) && Date.now() - t0 < 60000) { await frames(4); c = await card(); } return c; };
+        const inL = await until(c => c.now === 1 && c.here && c.btn); await snap(`${s.fi + 1}-teach-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
         if (inL.now !== 1 || inL.done !== '1000' || !inL.here || !inL.btn) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do and its button up, the ground lit)`); console.log(errors[errors.length - 1]); }
         await raise(true); await frames(24); await p.waitForTimeout(1500);
-        const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
+        const up = await until(c => c.formed >= 1 && c.ready && c.now === 3); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));
         if (up.formed < 1 || up.off || !up.ready || up.done !== '1110' || up.now !== 3) { errors.push(`frame ${s.fi + 1}: raised in the light, ${JSON.stringify(up)} (the thing formed in the lines, ready, the card at its last step)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
@@ -1025,6 +1085,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // It once came up wherever that view had been pitched (on a wall's upper floors), and drifted on by itself
       if (T.subject && !T.both && !seen.has(`raise-${s.fi}`)) {
         seen.add(`raise-${s.fi}`);
+        // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
+        // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
+        // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);
@@ -1164,7 +1228,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
           if (open) {
             const m = await p.evaluate(() => { const vis = q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
-              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
+              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-title', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
             if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
             else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
           }
@@ -1364,6 +1428,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const { hard } = clipProbe.print(R);
     if (!R || R.err) errors.push(`clip: the probe did not measure (${R ? R.err : 'not in the page'})`);
     if (hard.length) errors.push(`clip: ${hard.length} cases of a body in another or a foot off its floor (${[...new Set(hard.map(c => `${c.a} / ${c.b}`))].slice(0, 8).join('; ')})`);
+  }
+  { // the lens under the station's free passage's ceiling, every frame on foot in it (issue 208)
+    const C = await ceilWatch.report(p);
+    for (const r of ((C && C.bad) || []).slice(0, 8)) console.log(`FAIL ceiling: frame ${r.frame} ${r.beat}, at ${r.at}, the lens ${r.over} m over the passage's floor (its ceiling at ${ceilWatch.H})${r.shot ? ', in a shot' : ''}`);
+    if (C && C.bad.length) errors.push(`ceiling: ${C.bad.length} frames with the lens through the passage's ceiling`);
+    else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
+  }
+  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 209: tools/cam_intrude.js)
+    const ci = require('./cam_intrude'), R = await ci.report(p), { errs } = ci.print(R);
+    if (!R || R.err) errors.push(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
+    for (const e of errs) { errors.push(`cam: ${e}`); console.log(errors[errors.length - 1]); }
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
     if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }

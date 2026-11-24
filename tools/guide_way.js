@@ -81,6 +81,27 @@ const LEADS = [
   await p.waitForTimeout(3000);
   await shoot(`${out}/f4-start-as-given.png`);
   let fails = 0;
+  // Frame 4 first with a player who does not follow him: they run their own way to the lift (the way on foot from where
+  // they stand) from the west side of Hachiko Square's north planter, where the owner's iPhone found him walking on the
+  // spot against its rail (issue 207). He never stands at an obstacle with a step asked for and not gone, never waits
+  // while the player is further along the way than he is, and never holds them at his flank (tools/guide_own.js;
+  // tools/guide_follow.js sweeps every side of both planters)
+  // The second from Hachiko itself, where frame 3 leaves a player who plays on: their way runs 10 m south of his past the
+  // station's east side, and on main he stood waiting at (504, -1075) with them 10 to 22 m further on (issue 207)
+  for (const R of [
+    { name: 'f4-own-line', speed: 6, from: [377.8, -1035.5], until: 90, short: 6 }, // (stopped 6 m short of Yuna: her talk begins within 3, and the leads after this one want her silent)
+    { name: 'f4-own-line-hachiko', speed: 6, from: [374.79, -1046.45], until: 90, short: 6 },
+    // (and the two ways the rule goes on one line: a player who starts 8 m on past him, and one who stops for 8 s and drops back)
+    { name: 'f4-own-overtake', speed: 6, from: [374.79, -1046.45], start: 8, until: 90, short: 6 },
+    { name: 'f4-own-drop-back', speed: 2.4, from: [374.79, -1046.45], pause: [10, 18], until: 120, short: 6 },
+  ]) {
+    if (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k))) continue;
+    const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 2.5, STUCK_M: 0.3, TRACE: !!process.env.TRACE }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));
+    const ok = !r.error && !r.faults.length && (r.state === 'sit' || r.left < 3.5) && Math.hypot(r.player[0] - live.target[0], r.player[1] - live.target[1]) < 9; // (and both got there: the player was not held anywhere on the way)
+    if (!ok) fails++;
+    console.log(ok ? 'ok  ' : 'FAIL', R.name, JSON.stringify(r));
+    await shoot(`${out}/${R.name}-end.png`);
+  }
   for (const L of LEADS) {
     const lead = L.live ? { name: L.name, from: live.at, to: live.target, live: true } : L;
     if (L.live) await p.evaluate(({ at, target }) => { const g = window.__game, st = g.story.state, pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = at[2]; st.target = target; const d = st.dog, f = d.free(pl.x + 1.2, pl.y + 1.2, 2) || [pl.x, pl.y]; d.place(f[0], f[1], 0); d.met(); }, live);
