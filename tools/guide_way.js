@@ -85,8 +85,13 @@ const LEADS = [
   // spot against its rail (issue 207). He never stands at an obstacle with a step asked for and not gone, never waits
   // while the player is further along the way than he is, and never holds them at his flank (tools/guide_own.js;
   // tools/guide_follow.js sweeps every side of both planters)
-  if (!process.env.LEADS || process.env.LEADS.split(',').some(k => 'f4-own-line'.startsWith(k))) {
-    const R = { name: 'f4-own-line', speed: 6, from: [377.8, -1035.5], until: 90, short: 6 }; // (stopped 6 m short of Yuna: her talk begins within 3, and the leads after this one want her silent)
+  // The second from Hachiko itself, where frame 3 leaves a player who plays on: their way runs 10 m south of his past the
+  // station's east side, and on main he stood waiting at (504, -1075) with them 10 to 22 m further on (issue 207)
+  for (const R of [
+    { name: 'f4-own-line', speed: 6, from: [377.8, -1035.5], until: 90, short: 6 }, // (stopped 6 m short of Yuna: her talk begins within 3, and the leads after this one want her silent)
+    { name: 'f4-own-line-hachiko', speed: 6, from: [374.79, -1046.45], until: 90, short: 6 },
+  ]) {
+    if (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k))) continue;
     const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 1.5, STUCK_M: 0.3, TRACE: !!process.env.TRACE }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));
     const ok = !r.error && !r.faults.length && r.state === 'sit' && Math.hypot(r.player[0] - live.target[0], r.player[1] - live.target[1]) < 9; // (and both got there: the player was not held anywhere on the way)
     if (!ok) fails++;
