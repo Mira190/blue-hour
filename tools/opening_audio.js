@@ -157,6 +157,7 @@ const [,, size = '390x844'] = process.argv;
     const held = Math.max(...film.map(r => r.main), 0), lead = music.findIndex(n => n < 1), back = lead < 0 ? -1 : music.findIndex((n, i) => i > lead && n >= 1);
     const gap = lead < 0 ? 0 : back < 0 ? music.length - lead : back - lead, room = Math.ceil((1200 + held) / 1000) + 2, after = back < 0 ? [] : music.slice(back, back + 15), quietAfter = after.filter(n => n < 1).length;
     console.log(`the hand-over: ${lead < 0 ? 'no reading without music' : `no music at ${gap} readings from the film's reading ${lead}`} (allowed ${room}: the fade, the main thread held ${Math.round(held)} ms, and two); then ${after.length - quietAfter} of ${after.length} with it`);
+    if (lead > 3 && back < 0) console.log(`known fault, issue 219: the score played out at the film's reading ${lead} and no music came after it (a film longer than its score; not failed)`);
     if (lead >= 0 && lead <= 3 && gap > room) fail(`no music at ${gap} readings in the film's start, more than the hand-over from the cue to the score takes (${room})`);
     else if (quietAfter > 1 || (lead >= 0 && lead < 3 && back < 0)) fail(`no music plays at ${back < 0 ? 'any' : quietAfter} of the readings after the score began`);
     // (and, for whoever reads a failure, how held the whole renderer was before each: a worker's own 50 ms tick)

@@ -693,8 +693,24 @@ were inside them (46 to 161 s) and one took 193 s, with the Scramble's red and t
 undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
 comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
 Scramble, from Bunkamura-dori to Miyamasuzaka. `TRACE=1` prints
-each stand of a drive: where, how long, behind what, at which light. `DUMP=1 node tools/junction_flow.js` prints a
+each stand of a drive: where, how long, behind what, at which light; `CRAWL=1` with it every field of the cars round a
+stand, and every five seconds the head of the queue it stands in, the light that head waits on and the movements in
+both boxes. `tools/drive_repeat.sh n` plays the check's drives n times (`TIMES=` across hours: at one hour the plays
+differ little, ten at 17:57 gave five outcomes). `DUMP=1 node tools/junction_flow.js` prints a
 junction as built: arms, stop lines, ways across, which cross and where, and where footways cross its arms.
+
+**A queue held one junction back is the next one's** (issue 204). Junction 807, without signals, lies too close to the
+Scramble to wait between, and a car at its line crosses both together. It was counted in the Scramble's arm 1 queue
+only while the Scramble's light was red. On its green the head car turned right across the oncoming arm and gave way
+(`cross`), and from then on neither it nor the queue behind it counted: the Scramble read the arm as empty, cut the turn
+at its minimum, and the queue stood a whole cycle more (149 s in 3 of 15 plays of the check's first drive). `actors.js`
+`queuedFor()` now counts a car held at a line without signals for the signalled junction just after, whatever holds it
+but room, and the head car itself. On the Scramble at 17:57 the cross turn's green went from 13.3 s to 25.8 s, its arm 1
+seen queued in 3 greens of 4 (none of 5 before), the cycle 78 to 82 s, the main turn unchanged. The stand is 61 to 78 s
+now, once 150: the turner still waits outside the box, at 807's line, for a gap in a free-flowing oncoming stream,
+and cannot take the end of the green as a driver waiting in the box does (left on issue 204, with a lamp post at
+370.6,-971.9 that `tools/box_posts.js` finds in the carriageway at the Scramble's north exit, where a car of the
+north-south turn stood 8 s).
 
 ## Not done, and why
 
