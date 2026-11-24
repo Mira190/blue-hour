@@ -46,11 +46,14 @@
 // their bodies against walls, posts and cars; every case is printed with its frame, beat, place and depth, and one body in
 // another or a foot off its floor fails the play (CLIP_OUT=file: the cases as JSON). After each talk, and in each Stop, the
 // player is walked straight into everyone within 14 m (a still of each, into-*.png) and must stop at their shoulder.
+// Ceiling (issue 208): every frame on foot in the station's free passage on frame 4's way to SKY's lift, the lens must be
+// under its ceiling (tools/ceiling_watch.js); a frame with it through fails the play.
 const { chromium } = require('playwright');
 const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
+const ceilWatch = require('./ceiling_watch'); // (the lens under the passage's ceiling on frame 4's way to SKY's lift: issue 208)
 const { measure: umbrellaHeld } = require('./umbrella_held'); // (frame 7's rain: every umbrella held, issue 165)
 const pacing = require('./pacing_watch');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
@@ -106,7 +109,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
+  await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
+  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 209)
   // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
   // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
   // complete until its turn in the queue is over; three.js's own wait for a link (LINK_STATUS) is not held. Each still
@@ -977,10 +982,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           if (!k0.keys || !/walk/i.test(k0.how)) { errors.push(`the first Stop: not yet walked, and ${!k0.keys ? 'no walking keys on the screen' : `the goal does not say how to walk ("${k0.how}")`}`); console.log(errors[errors.length - 1]); }
           const toasts0 = await p.evaluate(() => document.querySelectorAll('.g-toast').length);
           await p.waitForFunction(() => (window.__game.story.state.seekAsked || 0) >= 1 || window.__game.story.state.beat !== 'seek', null, { timeout: 600000, polling: 250 }).catch(() => {});
-          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', n: T.length }; });
+          const k1 = await p.evaluate(() => { const st = window.__game.story.state, K = document.getElementById('g-story-keys'), T = [...document.querySelectorAll('.g-toast')].map(e => e.textContent); return { asked: st.seekAsked || 0, beat: st.beat, keys: K.classList.contains('on'), beat2: K.classList.contains('ask'), joy: document.querySelector('.game-stage').classList.contains('story-walk-ask'), toast: T[T.length - 1] || '', next: document.getElementById('g-toasts').dataset.next || '', n: T.length }; });
           await snap('1-seek-ask');
+          // ("your turn" said or waiting its turn behind another toast, hud.js said: the sound's own word that a phone's street
+          // went quiet stood there first on main's budget on a9737df, and the ask came after it)
           console.log(`the first Stop, standing still: ${JSON.stringify(k1)} (toasts before: ${toasts0})`);
-          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(k1.toast) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
+          if (k1.asked < 1 || !k1.keys || !k1.beat2 || !/your turn/i.test(`${k1.toast} | ${k1.next}`) || (w < 500 && !k1.joy)) { errors.push(`the first Stop: standing still, the player was not asked again to walk: ${JSON.stringify(k1)}`); console.log(errors[errors.length - 1]); }
         }
         continue;
       }
@@ -1058,11 +1065,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!off.on || off.now !== 0 || off.done !== '0000' || off.cam || off.btn || off.formed !== 0 || off.here || off.ready) { errors.push(`frame ${s.fi + 1}: raised off the light, ${JSON.stringify(off)} (the camera still down and no button for it, the card on its first step, nothing of 1964 formed, no light underfoot)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
         await goTo(T.stand, 0.6); await face(T.subject); await frames(6); await p.waitForTimeout(600);
-        const inL = await card(); await snap(`${s.fi + 1}-teach-in-the-light`);
+        // (each state looked for until it comes, up to a minute of the wall's: on a phone's tier a drawn frame carries little of
+        // the game's time, and three of frame 1's reads after so many frames failed on CI on 24 November. What may not happen
+        // off the light is still read after its fixed wait)
+        const until = async ok => { const t0 = Date.now(); let c = await card(); while (!ok(c) && Date.now() - t0 < 60000) { await frames(4); c = await card(); } return c; };
+        const inL = await until(c => c.now === 1 && c.here && c.btn); await snap(`${s.fi + 1}-teach-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, in the light:`, JSON.stringify(inL));
         if (inL.now !== 1 || inL.done !== '1000' || !inL.here || !inL.btn) { errors.push(`frame ${s.fi + 1}: in the light, ${JSON.stringify(inL)} (the light ticked, the raise to do and its button up, the ground lit)`); console.log(errors[errors.length - 1]); }
         await raise(true); await frames(24); await p.waitForTimeout(1500);
-        const up = await card(); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
+        const up = await until(c => c.formed >= 1 && c.ready && c.now === 3); await snap(`${s.fi + 1}-teach-raised-in-the-light`);
         console.log(`frame ${s.fi + 1} taught, raised in the light:`, JSON.stringify(up));
         if (up.formed < 1 || up.off || !up.ready || up.done !== '1110' || up.now !== 3) { errors.push(`frame ${s.fi + 1}: raised in the light, ${JSON.stringify(up)} (the thing formed in the lines, ready, the card at its last step)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(4);
@@ -1073,6 +1084,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // It once came up wherever that view had been pitched (on a wall's upper floors), and drifted on by itself
       if (T.subject && !T.both && !seen.has(`raise-${s.fi}`)) {
         seen.add(`raise-${s.fi}`);
+        // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
+        // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
+        // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);
@@ -1412,6 +1427,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const { hard } = clipProbe.print(R);
     if (!R || R.err) errors.push(`clip: the probe did not measure (${R ? R.err : 'not in the page'})`);
     if (hard.length) errors.push(`clip: ${hard.length} cases of a body in another or a foot off its floor (${[...new Set(hard.map(c => `${c.a} / ${c.b}`))].slice(0, 8).join('; ')})`);
+  }
+  { // the lens under the station's free passage's ceiling, every frame on foot in it (issue 208)
+    const C = await ceilWatch.report(p);
+    for (const r of ((C && C.bad) || []).slice(0, 8)) console.log(`FAIL ceiling: frame ${r.frame} ${r.beat}, at ${r.at}, the lens ${r.over} m over the passage's floor (its ceiling at ${ceilWatch.H})${r.shot ? ', in a shot' : ''}`);
+    if (C && C.bad.length) errors.push(`ceiling: ${C.bad.length} frames with the lens through the passage's ceiling`);
+    else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
+  }
+  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 209: tools/cam_intrude.js)
+    const ci = require('./cam_intrude'), R = await ci.report(p), { errs } = ci.print(R);
+    if (!R || R.err) errors.push(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
+    for (const e of errs) { errors.push(`cam: ${e}`); console.log(errors[errors.length - 1]); }
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
     if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }

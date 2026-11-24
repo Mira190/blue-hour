@@ -14,11 +14,14 @@
 //   look   (names: the map's people, the story's with STORY=n, or "you") each one's head, hair and jaw against their own
 //          chest and shoulders through SECS seconds (5) of their clip: the deepest, for how many frames, and a still each
 //          second from two sides, close. The same over the arms (hands and forearms in the trunk).
+//   crowd  the crowd's near people (whole rigs) against everyone within 1.3 m of them: their hands, forearms and what they
+//          hold (an umbrella, a bag) in the others' bodies, every EVERY frames (10) for SECS seconds (30); the deepest pairs
+//          printed, all of them in <out>/<desk|phone>-crowd.json (issue 157, item 7). Measures; fails nothing.
 //   seats  the player at the wheel of their car and in the helicopter (the map without the story): the hands, forearms,
 //          thighs and calves against the vehicle's own model by rays from the hips, the hips over the seat, the head under
 //          the roof (tools/clip_probe.js's seat measure, which no play of the story runs: its flight shows no player), and
 //          stills from outside and from the next seat.
-// STORY=n: the story opened at frame n+1 instead of the map without it. TIER=low PHONE=1 with 390x844: a phone's page.
+// WEATHER=rain: the page asked for that weather (?weather=). STORY=n: the story opened at frame n+1 instead of the map without it. TIER=low PHONE=1 with 390x844: a phone's page.
 // Exits 1 on a seated head more than 3 cm through a roof, a hand more than DEEP (0.03 m) in someone for more than 2 frames, an arm more than 5 cm in someone run past,
 // or a head or its hair more than HAIR (0.06 m) in its own chest for more than a second. How far a run past someone gets is printed for a
 // look beside the same run on main: head on, a body stops a body, so the distance alone fails nothing.
@@ -94,6 +97,28 @@ function pageSide() {
   S.who = name => { const g = window.__game, pl = g.player; if (name === 'you') return { o: pl, rig: pl.rig, name: 'you' };
     const all = (g.npcs || []).map(n => ({ name: n.name || n.id, o: n, rig: n.rig })).concat([...g.storyFigs()].map(f => ({ name: f.name || f.character, o: f, rig: f.rig })));
     return all.find(a => a.name.toLowerCase().includes(name.toLowerCase()) && a.rig && a.rig.root) || null; };
+  // what a person holds (the umbrella, a bag, a phone: meshes on the rig that are not skinned), as points of the world
+  S.held = (root, max = 120) => { const T = window.THREE, v = new T.Vector3(), all = []; root.updateWorldMatrix(true, true);
+    root.traverse(m => { if (!m.isMesh || m.isSkinnedMesh || !m.geometry || !m.geometry.attributes.position) return; for (let q = m; q && q !== root.parent; q = q.parent) if (!q.visible) return;
+      const P = m.geometry.attributes.position, k = Math.max(1, Math.ceil(P.count / max)); for (let i = 0; i < P.count; i += k) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); all.push([v.x, v.y, v.z, 'held ' + (m.name || m.parent && m.parent.name || 'thing')]); } });
+    return all; };
+  // the crowd's own people against everyone near them (issue 157, item 7): every near person of the crowd (a whole rig),
+  // the story's, the map's and the player; for each pair within 1.3 m, the first one's hands, forearms and what it holds
+  // in the other's body (its legs left out)
+  S.crowdPairs = () => { const g = window.__game, R = g.crowdDraw(), out = [], who = [];
+    if (R && R.active) for (const [i, rig] of R.active) if (rig.root.visible) who.push({ name: `crowd ${i} (${rig.character})`, rig, crowd: true });
+    for (const n of g.npcs || []) if (n.rig && n.rig.root && n.rig.root.visible) who.push({ name: n.name || n.id, rig: n.rig });
+    for (const f of g.storyFigs ? g.storyFigs() : []) if (f.rig && f.rig.root && f.rig.root.visible) who.push({ name: f.name || f.character, rig: f.rig });
+    if (g.player && g.player.rig && g.player.rig.root.visible) who.push({ name: 'you', rig: g.player.rig });
+    const sk = new Map(), skOf = q => sk.get(q) || (sk.set(q, { body: null, limbs: null }), sk.get(q));
+    for (const a of who) { if (!a.crowd) continue; const pa = a.rig.root.position;
+      for (const b of who) { if (a === b) continue; const pb = b.rig.root.position; if (Math.hypot(pa.x - pb.x, pa.z - pb.z) > 1.3 || Math.abs(pa.y - pb.y) > 1) continue;
+        const A = skOf(a), B = skOf(b); if (!A.limbs) { const k = window.__skin; A.sk = A.sk || k._skinned(a.rig.root); A.limbs = k._points(A.sk, /(Hand|Forearm)$/).concat(k.held(a.rig.root)); }
+        if (!B.body) { const k = window.__skin; B.sk = B.sk || k._skinned(b.rig.root); B.body = k._tris(B.sk, null, /(Calf|Foot)$/); }
+        const r = window.__skin.deep(A.limbs, B.body); if (r.deep > 0) { const ca = g.crowd && a.crowd ? g.crowd.P[+a.name.split(' ')[1]] : null, cb = g.crowd && b.crowd ? g.crowd.P[+b.name.split(' ')[1]] : null, ph = q => q ? (q.pz ? q.ph || 'plaza' : q.state) + (q.moving ? ' moving' : ' stood') : 'not of the crowd';
+          out.push({ a: a.name, b: b.name, deep: r.deep, part: r.part, at: r.at && r.at.map(x => +x.toFixed(1)), apart: +Math.hypot(pa.x - pb.x, pa.z - pb.z).toFixed(2), pa: ph(ca), pb: ph(cb), clip: a.rig.look && a.rig.look.clip || null, umb: !!(ca && ca.umbR > 0) }); } } }
+    return { pairs: out, near: who.filter(q => q.crowd).length, others: who.filter(q => !q.crowd).map(q => q.name) }; };
+  S._skinned = skinned; S._points = points; S._tris = tris;
   S.cam = (pos, look) => { const g = window.__game, T = window.THREE; const P = S.pose || (S.pose = { pos: new T.Vector3(), look: new T.Vector3() }); P.pos.set(pos[0], pos[2], -pos[1]); P.look.set(look[0], look[2], -look[1]); if (!g.cine.active) g.cine.play(() => S.pose, 1e9, { label: 'film' }); };
 }
 
@@ -114,7 +139,7 @@ function pageSide() {
   await skip(p, STILL && mode === 'into' ? 1 : +process.env.DRAW || 30);
   const story = process.env.STORY != null;
   if (story) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.STORY);
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/${story ? '' : '?walk=1'}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8800}/${story ? (process.env.WEATHER ? '?weather=' + process.env.WEATHER : '') : '?walk=1' + (process.env.WEATHER ? '&weather=' + process.env.WEATHER : '')}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(1500);
   await p.evaluate(() => document.getElementById('gt-play').click());
@@ -260,6 +285,23 @@ function pageSide() {
       try { g.enterHeli(); } catch (e) { return String(e); } await new Promise(r => setTimeout(r, 1500)); return g.player.mode; });
     console.log(`the helicopter: ${heli}`);
     if (heli === 'heli') { await seat('heli'); } else fail(`could not board the helicopter (${heli})`);
+  }
+
+  if (mode === 'crowd') {
+    // every EVERY frames (10) for SECS seconds (30): who of the crowd had a hand, a forearm or what it held in whom, the
+    // deepest of each pair and for how many readings; then the deepest pairs, and a still of the deepest reading (STILL=1)
+    // (UMB=1: read from when someone near has an umbrella up, frame 7's rain, up to ten minutes' wait)
+    if (process.env.UMB) { const t = Date.now(); await p.waitForFunction(() => { const g = window.__game, R = g.crowdDraw(); if (!R || !R.active) return false; for (const i of R.active.keys()) { const q = g.crowd.P[i]; if (q && q.umbR > 0) return true; } return false; }, null, { timeout: 600000, polling: 1000 }).then(() => console.log(`an umbrella up near after ${((Date.now() - t) / 1000).toFixed(0)} s`)).catch(() => console.log('no umbrella up near in ten minutes')); }
+    const SECS = +process.env.SECS || 30, EVERY = +process.env.EVERY || 10, t0 = Date.now(), seen = new Map(); let reads = 0, nearMax = 0;
+    while (Date.now() - t0 < SECS * 1000) {
+      const r = await p.evaluate(() => window.__skin.crowdPairs()); reads++; nearMax = Math.max(nearMax, r.near);
+      for (const c of r.pairs) { const k = `${c.a} -> ${c.b}`, o = seen.get(k) || { ...c, n: 0, over: 0 }; o.n++; if (c.deep > DEEP) o.over++; if (c.deep > o.deep) Object.assign(o, c); seen.set(k, o); }
+      await frames(EVERY);
+    }
+    const all = [...seen.values()].sort((x, y) => y.deep - x.deep);
+    console.log(`the crowd's people against those near them: ${reads} readings over ${SECS} s, up to ${nearMax} near people of the crowd; ${all.length} pairs touching, ${all.filter(c => c.over).length} deeper than ${DEEP} m at some reading`);
+    for (const c of all.slice(0, +process.env.TOP || 20)) console.log(`  ${(100 * c.deep).toFixed(1).padStart(5)} cm  ${c.a}'s ${c.part} in ${c.b}, ${c.apart} m apart (${c.pa}; ${c.pb}${c.clip ? '; clip ' + c.clip : ''}${c.umb ? '; umbrella up' : ''}), at ${c.at}; touching in ${c.n} of ${reads} readings, over ${DEEP} m in ${c.over}`);
+    fs.writeFileSync(`${out}/${tag}-crowd.json`, JSON.stringify({ reads, nearMax, pairs: all }, null, 1));
   }
 
   const R = await probe.report(p);

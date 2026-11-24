@@ -79,13 +79,26 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   await skip(p, +(process.env.DRAW || 0));
   const errors = [];
   const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
-  const fail = m => { m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`); };
+  // (a failure that leaves the walk stuck, a talk still open or a walk's line mid-way (its incident not over), and every
+  // beat after it waited out its own timeout, up to 15 min each, on prompts that read "": walk1 ran 2215 s against 763 s
+  // where Nagi's gate stalled, 24 November. Once stuck, the state is said and the beats after it are given 20 s each:
+  // they fail as before, at once; nothing they check is changed)
+  let stuck = '';
+  const wf0 = p.waitForFunction.bind(p);
+  p.waitForFunction = (f, a, o = {}) => wf0(f, a, stuck ? { ...o, timeout: Math.min(o.timeout || 30000, 20000) } : o);
+  const fail = m => {
+    m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`);
+    if (!stuck) p.evaluate(gate => { const g = window.__game; if (!g || !g.dlg) return ''; const l = g.walkLine && g.walkLine(); return g.dlg.open ? 'a talk left open' : gate && l && l.w !== 'gone' ? `the walk's line never ended (${JSON.stringify(l)})` : ''; }, /she does not go/.test(m))
+      .then(s => { if (s && !stuck) { stuck = s; console.log(`(the walk is stuck after that: ${s.slice(0, 200)}; the beats after it are given 20 s each)`); } }).catch(() => {});
+  };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
   fs.mkdirSync(out, { recursive: true });
   await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 209; off by default, the walk check being near its time cap)
+  if (process.env.LENSGUARD === '0') await p.addInitScript(() => { window.__lensGuardOff = true; }); // (the game's lens guard off, to weigh its cost)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
   const PORT = process.env.PORT || 8800;
@@ -1012,6 +1025,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const { hard } = pacing.print(await pacing.report(p), m => console.log(m.replace(/^FAIL /, 'pace ')));
     if (hard.length) fail(`${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y})`).join('; ')})`);
     else ok('nobody of the crowd paced to and fro');
+  }
+  { // the camera's window in nobody's body, every frame of the walk so far, on foot, by car and in the helicopter (issue 209)
+    const ci = require('./cam_intrude'), R = process.env.CAM_IN !== '1' ? { off: true } : await ci.report(p), { errs } = R.off ? { errs: [] } : ci.print(R);
+    if (!R.off && (!R || R.err)) fail(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
+    for (const e of errs) fail(`cam: ${e}`);
   }
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {

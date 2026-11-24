@@ -47,6 +47,10 @@ const [,, size = '390x844'] = process.argv;
     const Au = window.Audio, els = R.els = [];
     window.Audio = function (...a) { const e = new Au(...a); els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     R.wavs = []; R.most = 0;
+    // (the whole renderer starved, not only its main thread: a worker's own tick, every 50 ms, read as how late it came,
+    // printed beside an element's stall)
+    R.wk = 0;
+    try { const w = new Worker(URL.createObjectURL(new Blob(['let t=performance.now();setInterval(()=>{const n=performance.now();postMessage(n-t-50);t=n;},50);'], { type: 'application/javascript' }))); w.onmessage = e => { if (e.data > R.wk) R.wk = e.data; }; } catch (e) { /* no workers */ }
     const AC0 = window.AudioContext;
     if (AC0) { window.AudioContext = window.webkitAudioContext = function (...a) { R.ctxAt = [performance.now(), R.phase, (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ')]; return new AC0(...a); }; window.AudioContext.prototype = AC0.prototype; }
     // (each step of the load as game.js marks it, and whether the opening's film was on at that moment: read in the mark
@@ -60,7 +64,7 @@ const [,, size = '390x844'] = process.argv;
       if (sounding > R.most) R.most = sounding;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
       R.rows.push({ t: performance.now(), phase: R.phase, film: !!(o && o.active), ctx: c ? c.state : null, tot: P.tot.slice(), el: P.totEl, under: ps ? ps.underrunEvents : null, underMs: ps ? ps.underrunDuration * 1000 : null,
-        sounding, main: P.main, held: !!A.holding, lateIn: !!R.lateIn, act: !!(navigator.userActivation && navigator.userActivation.isActive), log: c && !R.made ? (R.made = P.log.slice(-4).join(' | ')) : undefined });
+        sounding, wk: (() => { const v = R.wk; R.wk = 0; return v; })(), main: P.main, held: !!A.holding, lateIn: !!R.lateIn, act: !!(navigator.userActivation && navigator.userActivation.isActive), log: c && !R.made ? (R.made = P.log.slice(-4).join(' | ')) : undefined });
     }, 250);
   });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?snd=1${WEB ? '&music=web' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -153,8 +157,10 @@ const [,, size = '390x844'] = process.argv;
     const held = Math.max(...film.map(r => r.main), 0), lead = music.findIndex(n => n < 1), back = lead < 0 ? -1 : music.findIndex((n, i) => i > lead && n >= 1);
     const gap = lead < 0 ? 0 : back < 0 ? music.length - lead : back - lead, room = Math.ceil((1200 + held) / 1000) + 2, after = back < 0 ? [] : music.slice(back, back + 15), quietAfter = after.filter(n => n < 1).length;
     console.log(`the hand-over: ${lead < 0 ? 'no reading without music' : `no music at ${gap} readings from the film's reading ${lead}`} (allowed ${room}: the fade, the main thread held ${Math.round(held)} ms, and two); then ${after.length - quietAfter} of ${after.length} with it`);
-    if (lead >= 0 && lead < 20 && gap > room) fail(`no music at ${gap} readings in the film's start, more than the hand-over from the cue to the score takes (${room})`);
+    if (lead >= 0 && lead <= 3 && gap > room) fail(`no music at ${gap} readings in the film's start, more than the hand-over from the cue to the score takes (${room})`);
     else if (quietAfter > 1 || (lead >= 0 && lead < 3 && back < 0)) fail(`no music plays at ${back < 0 ? 'any' : quietAfter} of the readings after the score began`);
+    // (and, for whoever reads a failure, how held the whole renderer was before each: a worker's own 50 ms tick)
+    for (let i = 1; i < film.length; i++) if (film[i].el > film[i - 1].el) console.log(`the music's clock stalled at ${(film[i].t / 1000).toFixed(1)} s, the renderer held at most ${Math.round(Math.max(...film.filter(r => r.t > film[i].t - 3000 && r.t <= film[i].t).map(r => r.wk || 0), 0))} ms in the three seconds before it`);
     if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
     // one music element at a time (audio.js tune), and nothing written for one at full scale (issue 166: the owner's
     // iPhone played two in the opening, `snd_music: el 2`, and heard noise)

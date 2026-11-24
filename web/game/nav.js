@@ -615,7 +615,7 @@ window.OENav = (function () {
           // level over ground that falls 3 m under it, a floor at its high end and no room under it at its low end)
           const under = !fill, check = fill && zhi > rlo + STEP + 0.1;
           for (const T of below) { // into the tiles it touches
-            if (!fill) T.edges = true;
+            if (!fill) { T.edges = true; T.rl = rlo; } // (and the floor under it: a ceiling's height over that, ceilOver)
             if (under) T.under = noFloor ? 3 : 1;
             if (check) T.check = true;
             const AP = APRON * FINE; // (with the apron a tile reads round itself)
@@ -855,6 +855,29 @@ window.OENav = (function () {
     // start, and even sorting their triangles into 2 m cells a fifth of one: the tile's own list is read
     // through instead (it takes the triangles within its 2 m apron too, so one tile holds all that a
     // walker's circle there can meet)
+    // the ceilings the landmarks draw within a walker's band over the floor (issue 208): a passage's, a colonnade's, a
+    // deck's underside 2 to 3.5 m up. Their insides are no wall (a flat top is laid by its edges), so the walker walks
+    // under them, and nothing kept the chase camera under them either: in the station's free passage on frame 4's way to
+    // SKY's lift it rose through the ceiling and looked down through the roof's open top. Read from the triangles drawn
+    // (the tile's own list): each that lies flat (|n.z| over 0.7), is not stood on, and stands 1.8 m or more over the
+    // floor under it, in CEIL_C m cells with its heights in layers, kept only where it covers as a ceiling does (soffits).
+    // A tile's cells are made the first time anything asks about it. ceilOver(x, y, z): the lowest over z, or null
+    const CEIL_C = 0.5, tileCeil = new Map();
+    function ceilTile(k) {
+      let f = tileCeil.get(k);
+      if (f !== undefined) return f;
+      const tc = k % TNX, tr = Math.floor(k / TNX), ex = 1.5, ax = x0 + tc * TILE - ex, ay = y1 - (tr + 1) * TILE - ex;
+      const tris = (tileTris.get(k) || []).filter(T => T.edges && Math.min(T[0][2], T[1][2], T[2][2]) > T.rl + 1.8);
+      f = tris.length ? soffits(tris, ax, ay, Math.ceil((TILE + 2 * ex) / CEIL_C), CEIL_C) : null;
+      tileCeil.set(k, f);
+      return f;
+    }
+    function ceilOver(x, y, z) {
+      const c = Math.floor((x - x0) / TILE), r = Math.floor((y1 - y) / TILE);
+      if (c < 0 || r < 0 || c >= TNX || r >= TNY) return null;
+      const f = ceilTile(r * TNX + c);
+      return f ? f(x, y, z) : null;
+    }
     function trisNear(x, y) {
       const c = Math.floor((x - x0) / TILE), r = Math.floor((y1 - y) / TILE);
       return c < 0 || r < 0 || c >= TNX || r >= TNY ? [] : tileTris.get(r * TNX + c) || [];
@@ -1343,8 +1366,50 @@ window.OENav = (function () {
       }
       return f;
     }
-    const api = { inWell, lift, paveAt, under, terrainBelow, ceilingAt, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    const api = { inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
-  return { create };
+  // a ceiling's cells from triangles [[x, y, z] x 3] (local metres) over the square (ax, ay) to + n * cell: each cell keeps the
+  // heights of the flat triangles over its middle (|n.z| over 0.7: a soffit, or the top of the slab over it) in layers
+  // 0.15 m apart, and a height is kept only where at least 70% of the cells within a metre round it have one within half
+  // a metre of it: a ceiling, not a lone sign's or lamp's underside. Returns (x, y, z) => the lowest kept over z, or null
+  // (nav.js ceilOver for the landmarks, game.js heroSoffit for the hero levels: issue 208)
+  function soffits(tris, ax, ay, n, cell) {
+    const cells = new Map();
+    const add = (c, z) => { let l = cells.get(c); if (!l) cells.set(c, l = []); for (let k = 0; k < l.length; k++) if (Math.abs(l[k] - z) < 0.15) { if (z < l[k]) l[k] = z; return; } l.push(z); };
+    for (const [[px, py, pz], [qx, qy, qz], [rx, ry, rz]] of tris) {
+      const ux = qx - px, uy = qy - py, uz = qz - pz, wx = rx - px, wy = ry - py, wz = rz - pz, nz = ux * wy - uy * wx, nl = Math.hypot(uy * wz - uz * wy, uz * wx - ux * wz, nz);
+      if (!(nl > 1e-9) || Math.abs(nz / nl) < 0.7) continue;
+      const den = (qy - ry) * (px - rx) + (rx - qx) * (py - ry);
+      const i0 = Math.max(0, Math.floor((Math.min(px, qx, rx) - ax) / cell)), i1 = Math.min(n - 1, Math.floor((Math.max(px, qx, rx) - ax) / cell));
+      const j0 = Math.max(0, Math.floor((Math.min(py, qy, ry) - ay) / cell)), j1 = Math.min(n - 1, Math.floor((Math.max(py, qy, ry) - ay) / cell));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const x = ax + (i + 0.5) * cell, y = ay + (j + 0.5) * cell, l1 = ((qy - ry) * (x - rx) + (rx - qx) * (y - ry)) / den, l2 = ((ry - py) * (x - rx) + (px - rx) * (y - ry)) / den;
+        if (l1 >= -0.02 && l2 >= -0.02 && l1 + l2 <= 1.02) add(j * n + i, l1 * pz + l2 * qz + (1 - l1 - l2) * rz);
+      }
+    }
+    const R = Math.max(1, Math.round(1 / cell)), ring = [];
+    for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) if (di * di + dj * dj <= R * R) ring.push([di, dj]);
+    const kept = new Map();
+    for (const [c, l] of cells) {
+      const i = c % n, j = (c - i) / n, out = [];
+      for (const z of l) {
+        let k = 0;
+        for (const [di, dj] of ring) { const ii = i + di, jj = j + dj, m = ii >= 0 && jj >= 0 && ii < n && jj < n && cells.get(jj * n + ii); if (m && m.some(q => Math.abs(q - z) < 0.5)) k++; }
+        if (k >= 0.7 * ring.length) out.push(z);
+      }
+      if (out.length) kept.set(c, out.sort((a, b) => a - b));
+    }
+    if (!kept.size) return null;
+    const f = (x, y, z) => {
+      const i = Math.floor((x - ax) / cell), j = Math.floor((y - ay) / cell);
+      if (i < 0 || j < 0 || i >= n || j >= n) return null;
+      const l = kept.get(j * n + i);
+      if (l) for (const q of l) if (q > z) return q;
+      return null;
+    };
+    f.cells = kept.size;
+    return f;
+  }
+  return { create, soffits };
 })();
