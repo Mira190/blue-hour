@@ -162,17 +162,24 @@ window.OEBatch = (function () {
     const write = s => {
       const g = s.o.geometry;
       for (const a of lay) { gl.bindBuffer(CW, bufs[a.name]); gl.bufferSubData(CW, s.v0 * a.size * a.bytes, g.attributes[a.name].array); }
-      const src = g.index.array, idx = new Uint32Array(s.ni); for (let k = 0; k < s.ni; k++) idx[k] = src[k] + s.v0; // (an index counts from its cell's first vertex)
+      const src = s.rel || g.index.array, idx = new Uint32Array(s.ni); for (let k = 0; k < s.ni; k++) idx[k] = src[k] + s.v0; // (an index counts from its cell's first vertex)
+      // (and the cell's own indices kept, from its first vertex, in 16 bits where they fit: a trim moves the cells and
+      // writes their indices again from these, never reading the GPU's back, which waits for every draw queued before it)
+      if (!s.rel) { const R = s.nv < 65536 ? new Uint16Array(s.ni) : new Uint32Array(s.ni); R.set(src); s.rel = R; }
       gl.bindBuffer(CW, ibuf); gl.bufferSubData(CW, s.i0 * 4, idx); gl.bindBuffer(CW, null);
     };
     const used = { v: 0, i: 0 };
+    // (what the arena did on the page's thread since a harness last asked: tools/stream_probe.js, issue 220)
+    const stream = { ms: 0, bytes: 0, moved: 0, add: 0, adds: 0, trim: 0, trims: 0, trim_max: 0, grow: 0, all() { return { add_ms: +this.add.toFixed(1), adds: this.adds, trim_ms: +this.trim.toFixed(1), trims: this.trims, trim_max: +this.trim_max.toFixed(1), grow_ms: +this.grow.toFixed(1) }; }, take() { const r = { ms: this.ms, bytes: this.bytes, moved: this.moved }; this.ms = this.bytes = this.moved = 0; return r; } };
+    mesh.userData.stream = stream;
     const layout = g => {
       lay = Object.keys(g.attributes).map(name => { const a = g.attributes[name]; return { name, size: a.itemSize, type: a.array ? typeOf(a.array) : 0, bytes: a.array ? a.array.BYTES_PER_ELEMENT : 0, normalized: !!a.normalized }; });
       if (lay.some(a => !a.type)) { lay = null; return false; }
       V = ranges(0); I = ranges(0); return true;
     };
     // a cell's mesh (its geometry indexed, its arrays still the page's): sent, and drawn from now on. null: not one of these
-    function add(o) {
+    function add(o) { const t0 = performance.now(), r = addIn(o), d = performance.now() - t0; stream.ms += d; stream.add += d; stream.adds++; return r; }
+    function addIn(o) {
       const g = o.geometry, P = g && g.attributes.position;
       if (!P || !P.array || !g.index || !g.index.array) return null;
       if (!lay && !layout(g)) return null;
@@ -182,7 +189,7 @@ window.OEBatch = (function () {
       if (v0 < 0 || i0 < 0) { if (v0 >= 0) V.give(v0, nv); room(nv, ni); v0 = V.take(nv); i0 = I.take(ni); }
       if (!g.boundingSphere) g.computeBoundingSphere();
       const s = { o, v0, nv, i0, ni, ball: g.boundingSphere.clone() };
-      write(s); slots.add(s); used.v += nv; used.i += ni; mesh.userData.batched = slots.size;
+      write(s); stream.bytes += lay.reduce((n, a) => n + s.nv * a.size * a.bytes, s.ni * 4); slots.add(s); used.v += nv; used.i += ni; mesh.userData.batched = slots.size;
       if (slots.size > mesh._multiDrawStarts.length) { mesh._multiDrawStarts = new Int32Array(slots.size * 2); mesh._multiDrawCounts = new Int32Array(slots.size * 2); }
       return s;
     }
@@ -193,17 +200,18 @@ window.OEBatch = (function () {
     // over a budget of 250 (main red, 24 November; tools/arena_probe.js). When more than a megabyte and a twenty-fifth
     // of the whole is idle, the cells are moved up together into buffers of their own size: an attribute at a time
     // (the GPU holds one attribute twice for a moment, never the arena twice), each cell's range copied on the GPU,
-    // and the indices, which count from their cell's first vertex, read back once, moved by as much as their cell
-    // was, and sent again. Called where the cells have just changed (buildings.js put), not in a frame of its own
-    function trim(force = false) {
-      if (!lay || !slots.size || !gl.getBufferSubData) return false;
+    // and the indices written again from each cell's own, kept from its first vertex (issue 220: read back from the GPU
+    // they cost a trim 650 ms on a software renderer and a stall for every draw queued on a real one; now 10 ms). Called
+    // where the cells have just changed (buildings.js put), not in a frame of its own
+    function trim(force = false) { const t0 = performance.now(); let r = false; try { return (r = trimIn(force)); } finally { const d = performance.now() - t0; stream.ms += d; if (r) { stream.trim += d; stream.trims++; stream.trim_max = Math.max(stream.trim_max, d); } } }
+    function trimIn(force = false) {
+      if (!lay || !slots.size) return false;
       const vb = lay.reduce((n, a) => n + a.size * a.bytes, 0), held = V.cap * vb + I.cap * 4, idle = held - used.v * vb - used.i * 4;
       if (!force && idle < Math.max(1 << 20, held / 25)) return false;
       const vc = Math.ceil(used.v * 1.02) + 16, ic = Math.ceil(used.i * 1.02) + 48;
-      const was = new Uint32Array(I.cap); gl.bindBuffer(CR, ibuf); gl.getBufferSubData(CR, 0, was); gl.bindBuffer(CR, null);
       const order = [...slots].sort((a, b) => a.v0 - b.v0), to = new Int32Array(order.length), now = new Uint32Array(ic);
       let v = 0, i = 0;
-      order.forEach((s, k) => { to[k] = v; const d = v - s.v0; for (let j = 0; j < s.ni; j++) now[i + j] = was[s.i0 + j] + d; s.i0 = i; v += s.nv; i += s.ni; });
+      order.forEach((s, k) => { to[k] = v; const R = s.rel; for (let j = 0; j < s.ni; j++) now[i + j] = R[j] + v; s.i0 = i; v += s.nv; i += s.ni; });
       for (const a of lay) {
         const st = a.size * a.bytes, n = make(vc * st);
         gl.bindBuffer(CR, bufs[a.name]); gl.bindBuffer(CW, n);
@@ -213,11 +221,12 @@ window.OEBatch = (function () {
       order.forEach((s, k) => { s.v0 = to[k]; });
       gl.deleteBuffer(ibuf); ibuf = makeIndex(ic * 4); gl.bindBuffer(CW, ibuf); gl.bufferSubData(CW, 0, now); gl.bindBuffer(CW, null);
       V = ranges(vc); V.take(used.v); I = ranges(ic); I.take(used.i);
-      attach(); stats.trimmed = (stats.trimmed || 0) + 1;
+      attach(); stats.trimmed = (stats.trimmed || 0) + 1; stream.moved += held;
       return true;
     }
     // room made once for cells about to come (nv vertices and ni indices in all), not cell by cell
-    function reserve(nv, ni, like) {
+    function reserve(nv, ni, like) { const t0 = performance.now(); try { return reserveIn(nv, ni, like); } finally { const d = performance.now() - t0; stream.ms += d; stream.grow += d; } }
+    function reserveIn(nv, ni, like) {
       if (!lay) { if (!like || !layout(like)) return; }
       const dv = used.v + nv - V.cap, di = used.i + ni - I.cap;
       if (dv > 0 || di > 0) room(Math.max(0, dv), Math.max(0, di));
@@ -247,6 +256,15 @@ window.OEBatch = (function () {
       one.needsUpdate = which.needsUpdate = true;
     };
     if (renderer.domElement && renderer.domElement.addEventListener) renderer.domElement.addEventListener('webglcontextrestored', back);
+    // (for the harnesses only, tools/arena_probe.js: the GPU's indices read back and each cell's range held to its own
+    // indices from its first vertex; a read back waits for the GPU, so the page itself never does this)
+    mesh.userData.verify = () => {
+      if (!lay || !slots.size) return { cells: 0, bad: 0 };
+      const got = new Uint32Array(I.cap); gl.bindBuffer(CR, ibuf); gl.getBufferSubData(CR, 0, got); gl.bindBuffer(CR, null);
+      let bad = 0, worst = null;
+      for (const s of slots) { const R = s.rel; let b = 0; for (let j = 0; j < s.ni; j++) if (got[s.i0 + j] !== R[j] + s.v0) b++; if (b) { bad++; worst = worst || { cell: s.o.userData.cell, wrong: b, of: s.ni }; } }
+      return { cells: slots.size, bad, worst };
+    };
     mesh.userData.arena = () => ({ cells: slots.size, used: [used.v, used.i], cap: V ? [V.cap, I.cap] : [0, 0], mb: lay ? +(lay.reduce((n, q) => n + V.cap * q.size * q.bytes, I.cap * 4) / 1048576).toFixed(2) : 0, used_mb: lay ? +(lay.reduce((n, q) => n + used.v * q.size * q.bytes, used.i * 4) / 1048576).toFixed(2) : 0, grown: stats.grown || 0, trimmed: stats.trimmed || 0 }); // (for the harnesses: what it holds and what of that is in use)
     stats.batches++;
     return { mesh, add, remove, reserve, trim, slots, info: () => ({ cells: slots.size, vertices: V ? V.cap : 0, indices: I ? I.cap : 0, bytes: lay ? lay.reduce((n, a) => n + V.cap * a.size * a.bytes, I.cap * 4) : 0 }),

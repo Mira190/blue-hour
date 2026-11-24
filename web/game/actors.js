@@ -736,7 +736,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
       yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
       off: undefined, pBack: undefined, reg0: undefined,
-      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined });
+      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, turnAt: undefined, turnAt0: undefined, umbUpT: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -1963,7 +1963,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
-      if (q.give) { q.give = false; if (q.ph === 'cross') q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+      // (and one of them out in the road off the walk, strolling or waiting, as a crosser is: asked only for a spot behind
+      // its kerb, one strolling through the Scramble's box toward it stood before a car that waited on it 144 s, each
+      // in the other's way, issue 204)
+      if (q.give) { q.give = false; if (q.ph === 'cross' || (pz.road && pz.road(q.x, q.y))) q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
@@ -2320,7 +2323,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (p.umbR > 0) umbSeen = true;
         if (p.state === 'walk' && p.line >= 0 && (p.av ?? p.v ?? 0) < 0.3) { // (stood on a footway: out of a canopy, from under one, or out of another's body)
-          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.inPic && (frame + i) % 8 === 0; // (bodies: whoever is drawn, one frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
+          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.whole && (frame + i) % 8 === 0; // (bodies: a whole rig, a near person drawn as one (people.js place: p.whole), where a few cm in another reads as wrong; not a far copy. One frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
           if (umbNear || bodyTurn) canopyAcross(i, p, umbNear ? dt : dt * 8, bodyTurn);
         }
         if (p.state === 'walk') { // farther off, a longer step every few frames does
@@ -2453,6 +2456,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (uT - (q.turnedT ?? -1e9) < AGAIN) { q.v = 0; q.pause = Math.max(q.pause, 10 + rnd() * 15); q.arrived = 1; api.thought = (api.thought || 0) + 1; return; }
         q.turnedT0 = q.turnedT; q.turnedT = uT;
       }
+      if (why === 'restore') q.turnAt = q.turnAt0; else { q.turnAt0 = q.turnAt; q.turnAt = uT; } // (when it last turned, whatever turned it: a mate turns with its leader no more than once in AGAIN; a turn put back puts this back)
       q.dir = -q.dir; q.hx = -q.hx; q.hy = -q.hy; if (api.why) q.turnWhy = why; // (why: for the harnesses, what turned it)
       if (q.lat != null) q.lat = -q.lat;
       q.dodge = -q.dodge;
@@ -2484,7 +2488,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (p.v < 0.3 && p.pause <= 0) { turn(p, 'a car waited on them'); p.wait = p.still = 0; }
       }
       const G = p.lead >= 0 ? P[p.lead] : null; // (one of a group: its leader, whose place by it it keeps)
-      if (G && G.line === p.line && G.dir !== p.dir && Math.hypot(G.x - p.x, G.y - p.y) < 6) turn(p, 'the leader turned'); // (the leader turned back: so does it)
+      // (the leader turned back: so does it; but not twice in AGAIN seconds. A mate turned with its leader whenever the leader
+      // faced back within 6 m, a reason exempt from the limit on turning again, and on a 14.5 m footway, line 781 at 75,-696,
+      // the leader turned at each end and its two mates paced with it, issue 222. One that turned less than AGAIN ago leaves
+      // the group instead, and goes on its own way)
+      if (G && G.line === p.line && G.dir !== p.dir && Math.hypot(G.x - p.x, G.y - p.y) < 6) { if (uT - (p.turnAt ?? -1e9) < AGAIN) partGroup(p); else turn(p, 'the leader turned'); }
       // (stopped along the way: turned to the window, or with its back to the rail, over a second or so; the stop over, on)
       if (p.stop && p.stop.on && p.pause <= 0) { p.stop = null; p.stopFace = null; }
       if (p.stop && !p.stop.on && ((p.stop.try += dt) > 5 || p.detourT > 0)) { p.stop = null; p.stopFace = null; }

@@ -129,10 +129,10 @@ if (has('onTier')) {
   // a Mac's Safari: 13 to 26 frames a second at its floor with the extras shed, on the high tier
   { const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
     const T = tiered(g, (s, e) => 18 + 70 * s * s + 14 * e);
-    play(g, 30, T.cost, 11); const at30 = T.tier;
-    play(g, 90, T.cost, 12);
+    play(g, 45, T.cost, 11); const at30 = T.tier;
+    play(g, 75, T.cost, 12);
     // (on until its frames hold at least half the display's rate: medium holds thirty here, and climbs its resolution there)
-    check(at30 >= 1 && T.tier >= 1 && g.frameMs <= 1.15 * g.targetMs && T.asks.every(a => a.d < 0), `a device under 20 frames a second at its floor steps a tier down within thirty seconds (${at30} down at 30 s) and on until its frames hold half the display's rate (${T.tier} down at two minutes, ${g.frameMs.toFixed(1)} ms a frame for ${g.targetMs.toFixed(1)}, at ${g.scale.toFixed(2)}/${g.extras})`);
+    check(at30 >= 1 && T.tier >= 1 && g.frameMs <= 1.15 * g.targetMs && T.asks.every(a => a.d < 0), `a device under 20 frames a second at its floor steps a tier down within forty-five seconds, none in a visit's first half minute (${at30} down at 45 s) and on until its frames hold half the display's rate (${T.tier} down at two minutes, ${g.frameMs.toFixed(1)} ms a frame for ${g.targetMs.toFixed(1)}, at ${g.scale.toFixed(2)}/${g.extras})`);
     // the scene lightens (the device was busy, or the player went where there is less to draw): back up after a minute held
     const T2 = { n: T.asks.length, tier: T.tier };
     play(g, 200, (s, e) => (4 + 6 * s * s + 2 * e) * [1, 0.7, 0.5][T.tier], 13);
@@ -173,11 +173,11 @@ if (has('onTier')) {
     check(T.asks.length === 0, `a device settled below its ceiling keeps its tier (${T.asks.length} steps in ten minutes, at ${g.scale.toFixed(2)}/${g.extras})`); }
 }
 // 9. the tier a desktop draws at (quality.js auto, tierStep, issue 184), on a WebGL 2 context faked as a desktop GPU's
-function desktop(ua) { return desktopWith(ua, new Map()); }
-function desktopWith(ua, store) {
+function desktop(ua, gpu) { return desktopWith(ua, new Map(), gpu); }
+function desktopWith(ua, store, gpu = 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)') {
   const window = { devicePixelRatio: 2 };
   const gl = { MAX_TEXTURE_SIZE: 1, MAX_SAMPLES: 2, RENDERER: 3, FRAMEBUFFER: 4, FRAMEBUFFER_COMPLETE: 5, TEXTURE_2D: 6, RGBA16F: 7, RGBA: 8, HALF_FLOAT: 9, COLOR_ATTACHMENT0: 10, RENDERBUFFER: 11,
-    getParameter: k => ({ 1: 16384, 2: 8, 3: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)' })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
+    getParameter: k => ({ 1: 16384, 2: 8, 3: gpu })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
     createFramebuffer() {}, bindFramebuffer() {}, deleteFramebuffer() {}, createTexture() {}, bindTexture() {}, texImage2D() {}, framebufferTexture2D() {}, deleteTexture() {},
     createRenderbuffer() {}, bindRenderbuffer() {}, renderbufferStorageMultisample() {}, framebufferRenderbuffer() {}, deleteRenderbuffer() {}, checkFramebufferStatus: () => 5 };
   const ctx = { window, navigator: { webdriver: false, userAgent: ua, maxTouchPoints: 0, hardwareConcurrency: 8, deviceMemory: 8 }, location: { search: '', hash: '' },
@@ -212,6 +212,13 @@ if (desktop('x').tierStep) {
   { const store = new Map([['bh-tier-shibuya', JSON.stringify({ down: 1, wait: 60000, upAt: 0, t: Date.now() })]]);
     const old = desktopWith('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', store);
     if (old.tierFlat) check(old.tier().name === 'medium' && old.stepped().down === 0, `a step kept before steps were judged is let go (Safari starts on ${old.tier().name})`); }
+  // the device floor's laptop (issue 220): Chrome on Windows with Intel's UHD 620, 8 GB and four cores, starts on medium
+  { const W = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36';
+    const uhd = desktop(W, 'ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00003EA0) Direct3D11 vs_5_0 ps_5_0, D3D11)'), apu = desktop(W, 'ANGLE (AMD, AMD Radeon(TM) Graphics (0x00001638) Direct3D11 vs_5_0 ps_5_0, D3D11)');
+    const rtx = desktop(W, 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002503) Direct3D11 vs_5_0 ps_5_0, D3D11)'), rx = desktop(W, 'ANGLE (AMD, AMD Radeon RX 6600 (0x000073FF) Direct3D11 vs_5_0 ps_5_0, D3D11)');
+    const arc = desktop(W, 'ANGLE (Intel, Intel(R) Arc(TM) A770 Graphics (0x000056A0) Direct3D11 vs_5_0 ps_5_0, D3D11)');
+    const seen = [uhd, apu, rtx, rx, arc].map(q => q.tier().name).join(' ');
+    check(seen === 'medium medium high high high', `a laptop's integrated GPU starts on medium, a discrete one on high (Intel UHD, AMD APU, RTX 3060, RX 6600, Intel Arc: ${seen})`); }
   const safari = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
   check(safari.tier().name === 'medium' && safari.city().samples === 0 && safari.tier().settings.samples === 0, `a Mac's Safari starts on medium without multisampling (${safari.tier().name}, ${safari.city().samples} samples)`);
 }
@@ -226,4 +233,15 @@ if (desktop('x').tierStep) {
     const lpm = rateOf(atOf(many(() => 33.3 + (r() - 0.5) * 1.2))), sixty = rateOf(atOf(many(() => 16.7 + (r() - 0.5)))), slow60 = rateOf(atOf(many(() => (r() < 0.5 ? 16.7 : 33.3))));
     check(safari === 60 && lpm === 30 && sixty === 60 && slow60 === 60, `the display's rate from the frames: Safari's uneven 26 to 57 ms ${safari} Hz, an even 30 (Low Power Mode) ${lpm}, sixty ${sixty}, half the frames late ${slow60}`);
   } }
+// 11. a visit's first seconds (issue 184, Safari 18.6 on an M3, its second visit): frames a quarter longer while the
+// city comes in were taken for the scene's cost. A tier step 15 s in was judged against them and kept, and the
+// floor's frame measured then was the base that the resolution and the extras then climbed over (38 to 45 ms a
+// frame). Now no tier step in the first half minute, no flat or half rate in the first 15 s, a try up within 5%
+{ const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.resume(0.45, 0);
+  let tier = 0, t = 1e6; const asks = [], r = rng(5);
+  g.tierRoom = 1; g.tierDown = 0; g.upWait = 60000; g.onTier(d => { tier = Math.max(0, Math.min(1, tier - d)); g.tierDown = tier; g.tierRoom = 1 - tier; asks.push(d); });
+  const cost = (s, e, sec) => (sec < 15 ? 1.25 : 1) * (31 + 14 * s * s + 4 * e) * (tier ? 0.97 : 1) * (0.94 + 0.12 * r());
+  for (let s = 0; s < 300; s++) for (const end = t + 1000; t < end;) { t += cost(g.scale, g.extras, (t - 1e6) / 1000); g.raf(t); g.tick(t); }
+  const floor = 31 + 14 * 0.45 * 0.45;
+  check(tier === 0 && g.frameMs < 1.12 * floor, `a second visit's first seconds are not the scene's cost: no tier step kept (${asks.join(' ') || 'none'}), and its frame ${g.frameMs.toFixed(1)} ms after five minutes against ${floor.toFixed(1)} at its floor (at ${g.scale.toFixed(2)}/${g.extras})`); }
 process.exit(fails ? 1 : 0);

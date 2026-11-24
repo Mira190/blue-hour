@@ -197,6 +197,7 @@ footways and islands, and each piece's band at the width it now carries (magenta
 |---|---|---|---|
 | Project PLATEAU (MLIT Japan), Shibuya-ku road model 2025, `13113_tran_lod2`, as vector tiles from the catalogue at `api.plateauview.mlit.go.jp/datacatalog/plateau-datasets` (`pipeline/road_survey.py` → `cities/shibuya/road_surface.json`) | every public road cut into carriageway (車道部), junction (車道交差部), footway (歩道部) and island (島), from the 1:2,500 public survey (数値地形図, 公共測量成果): 29.3 ha of carriageway, 8.6 ha of junctions, 10.2 ha of footway over the phone's district | CC BY 4.0 | each piece's width |
 | OpenStreetMap, the API's map call over the planned area and the traffic's ring, fetched 23 November 2026 (`pipeline/bus_lines.py --fetch` → `cities/shibuya/bus_lines.json`) | 85 `route=bus` relations, each one's ways in the order it runs them (the public transport schema, version 2), with its number, operator and destination | ODbL | the bus lines |
+| Tokyo Metropolitan Government, Digital Twin project, 2023 ortho photographs at 0.20 m (sheets 09LD2659, 2669, 2750, 2760; `pipeline/fetch_tokyo_ortho.py`, laid under the ground by `tools/ortho_overlay.py`) | what is painted on the survey's carriageway, and whether an island is raised: the bus stand in front of Hachiko has none, it is one plain laid out in paint (`cities/shibuya/terminal_paint.json`, traced to within half a metre) | CC BY 4.0 (credited on the Credits screen) | the markings a hero level paints that neither PLATEAU's LOD2 nor OpenStreetMap carries |
 
 How others do it, and what was adopted:
 
@@ -711,6 +712,14 @@ now, once 150: the turner still waits outside the box, at 807's line, for a gap 
 and cannot take the end of the green as a driver waiting in the box does (left on issue 204, with a lamp post at
 370.6,-971.9 that `tools/box_posts.js` finds in the carriageway at the Scramble's north exit, where a car of the
 north-south turn stood 8 s).
+
+**One of the Scramble's crowd in the road off the walk gives way as a crosser does** (issue 204). Asked to step aside
+by a car that has waited on it, one of the crowd strolling or waiting in the road was only given another spot behind
+its kerb: it edged on before the car's nose and the car waited on it 97 to 144 s (the roads check's drive back across
+the Scramble over its time in 2 or 3 of 8 plays). It now takes the crosser's sidestep (`sideT`) to the car's side, and
+one stranded deeper in the box than 4 m from pavement goes to the nearest kerb its crossings land at
+(`tools/box_stranded.js`). The drive back: 8 of 9 plays within time after, the one over (by 11 s) a different route
+behind a queue waiting on `cross`.
 
 ## Not done, and why
 

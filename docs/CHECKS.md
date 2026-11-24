@@ -792,8 +792,16 @@ checks hold them against what is drawn, not the walking grid:
   surfaces only) and against the passage as built (a phone lets go of the drawn arrays); then the class: every spot within
   the story's circles where a walker stands under something drawn within 5 m, stood at with the view turned round
   (`SCAN=0` leaves it out). On main before the fix: 146 frames in the passage on a desktop, 46 on a phone; after: none.
-  The spots under the city's building canopies south-west of the Scramble have a few frames of the lens pulled into a
-  wall as the view swings, on main as after (the walls', not the ceiling's: a follow-up).
+  And the lens behind a wall (issue 217), read with the game's own solids as the camera reads them: the line from your
+  eyes' height to the lens stopped more than 10 cm short of it, and not by a post the camera looks past on purpose
+  (`game.js` `thin`); 10 cm because the lens is placed for where you stood when the camera ran, and a wall that near behind
+  it lies inside its 0.3 m near plane, out of the picture. On main 73e9b226: 182 frames over the passage and the scanned
+  spots, and at (340, -1081) under the building canopies south-west of the Scramble, 7 frames of a turn with the lens
+  2.6 m behind a building cell's wall. The pull-in eased in (about 2 a second) and only a hero level's wall brought the lens
+  in front within the frame; and the swing's eased offset cut the walls' corners on its way round. Now a solid wall
+  (buildings, decks, a level's walls, ceilings; not leaves or a post looked past) between your head and the lens brings
+  it in front in that frame, both where the pull-in would leave it and where the swing does (`game.js` `solidCut`): none.
+  `SPOT=x,y;x,y` stands at given points, `AT=x,y,r` scans one circle.
 - `tools/ride_rails.js`: a ride ordered from twelve kerbs round the Scramble, Hachiko, the station's east side and
   Miyamasu, stepped in and held against the drawn rails on its way and at its door. Before the fix, rides stopped with
   Hachiko's guard rail between the door and the pavement (frame 6's own set-down among them), and one was set off
@@ -913,6 +921,10 @@ walkers 0.41 m apart, a group abreast as it seems: open. Also open: a crossing w
 head, 5 cm deep in one or three readings of some 350 (the crowd keeps two canopies apart, not a canopy from the player);
 a step rule against it held walkers beside the player and a lean of the canopy away from the head did not measure
 better, so neither landed.
+Then, as people pass under umbrellas, the walker's umbrella is held higher while its canopy's rim comes within a head's
+width of the player's head (`UMB_RAISE`, 0.2 m: a second hold pose found once beside the first by `makeHold`, `umbLay`
+blending towards it, up over 0.3 s and down over 0.5): over 240 s of the walk's rain on a phone the deepest canopy in the
+player read 0.8 cm, against 4.7 and 5.3 cm before. `RAISED=n` takes stills of those moments.
 
 ## Nobody paces (issue 168)
 

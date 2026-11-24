@@ -111,7 +111,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
-  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 209)
+  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 226)
   // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
   // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
   // complete until its turn in the queue is over; three.js's own wait for a link (LINK_STATUS) is not held. Each still
@@ -160,7 +160,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       for (const fn of q.values()) { try { fn(last); } catch (e) { setTimeout(() => { throw e; }); } }
       const counted = B ? B.end() : null; if (counted && D.rendered) D.counted = counted;
       D.js += performance.now() - t0; if (D.rendered) { D.steps++; if (D.on) { D.drawn++; if (!D.all) D.own++; } split(t0, performance.now() - t0); }
-      if (D.rendered && D.hit) { const H = D.hit; const ms = +(performance.now() - t0).toFixed(1); H.fr.push([ms, D.all ? 2 : D.on ? 1 : 0, H.links, +(H.up / 1048576).toFixed(2)].concat(ms > 100 && H.names.length ? [H.names] : [])); H.links = 0; H.up = 0; H.names = []; } // (HITCH: the frame's own cost, below)
+      if (D.rendered && D.hit && D.hit.plate) { const L = document.getElementById('g-loader'); if (!L || L.hidden) D.hit.plate = false; } // (the loader's frames under its plate are not the player's: from the first after it)
+      if (D.rendered && D.hit && D.hit.plate) { D.hit.links = 0; D.hit.up = 0; D.hit.names = []; } else if (D.rendered && D.hit) { const H = D.hit; const ms = +(performance.now() - t0).toFixed(1); H.fr.push([ms, D.all ? 2 : D.on ? 1 : 0, H.links, +(H.up / 1048576).toFixed(2)].concat(ms > 100 && H.names.length ? [H.names] : [])); H.links = 0; H.up = 0; H.names = []; } // (HITCH: the frame's own cost, below)
       // (the still's frame drawn, below: the page's frames held at once, so that the still is of it and no frame drawn whole
       // after it is begun while the harness hears of it, a second of llvmpipe's that the screenshot then waited for)
       if (D.twice && D.rendered) { D.one = false; if (D.oneHold) { D.hold = true; D.splitHeld(); } const w = D.oneDone; D.oneDone = null; if (w) w(); }
@@ -255,13 +256,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // HITCH=file (with BUDGET and DRAW=n): each of the game's frames by its own cost, the time its callbacks took on the page,
   // not the wall's, which a software renderer stretches; and what may have made a long one long, the programs linked and
   // the megabytes sent to the GPU in it (and, in a frame over 100 ms, the programs it linked, by name). A line a still, of the frames since the one before (tools/beat_hitch.py; issue
-  // 220: hitches recorded per beat on a phone's tier, to be held as the budgets are once there is a week of them)
+  // 220: hitches recorded per beat on a phone's tier, to be held as the budgets are once there is a week of them). Counted
+  // from the first frame after the loader's plate: its warm-up under the plate (74 programs, 113 MB) is the loader's, which
+  // the plate hides as it animates on the compositor; booked to the title, it read as a second-long first frame
   const HITCH = BUDGET && DRAW > 1 ? process.env.HITCH || '' : '';
   if (HITCH) {
     fs.writeFileSync(HITCH, '');
     await p.addInitScript(() => {
       const D = window.__draw; if (!D) return;
-      const H = D.hit = { fr: [], links: 0, up: 0, names: [] }, P = WebGL2RenderingContext.prototype, link = P.linkProgram;
+      const H = D.hit = { fr: [], links: 0, up: 0, names: [], plate: true }, P = WebGL2RenderingContext.prototype, link = P.linkProgram;
       // (and the programs a frame linked, by three.js's name for each with the defines that make its variant, so that a long frame
       // that linked says what: tools/beat_hitch.py prints them for the beat's longest frame)
       const src = new WeakMap(), named = new WeakMap(), ss = P.shaderSource, as = P.attachShader;
@@ -586,10 +589,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await p.waitForTimeout(800);
     const m = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(), note = document.getElementById('gm-title-note'); return { on: !!e && !document.getElementById('g-menu').hidden && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, note: note && !note.hidden ? note.textContent : '' }; });
     if (!m.on) bad('the case\'s pause has no Title screen'); else if (!m.first) bad('Title screen is below the menu\'s first screen');
-    if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    const loads = /[?&]inplace=0\b/.test(process.env.Q || ''); // (by default the case waits under the title as it is, game.js parkTitle; Q=?inplace=0 takes the page load)
+    if (loads && !new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    if (!loads && m.note) bad(`in place, the note says the frame is taken up from its beginning ("${m.note}")`);
     console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
     await still('menu');
-    expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
+    if (loads) expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
     const back = await p.waitForFunction(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
     if (!back) bad('the title never opened on its menu');
     else {
@@ -597,7 +602,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
       if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
       if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
-      if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      if (loads && t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
       console.log(`  the title again: Continue "${t.cont}", ${t.left.length ? `left over ${t.left.join(', ')}` : 'nothing left over'}`);
       await still('title');
       await clickEl('#gt-cont-go');
@@ -1133,7 +1138,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const drift = ang(first.d, last.d), q = last.q, inFrame = q[2] < 1 && Math.abs(q[0]) < 0.7 && Math.abs(q[1]) < 0.7;
         await snap(`${s.fi + 1}-raised`);
         console.log(`frame ${s.fi + 1} raised from 63 degrees off: the thing at ${q[0].toFixed(2)}, ${q[1].toFixed(2)} in the picture, the lens drifting ${drift.toFixed(2)} degrees and turning ${jit.toFixed(2)} at most a frame with no hand on it (${settle.length} frames)`);
-        if (!inFrame) { errors.push(`frame ${s.fi + 1}: raised from 63 degrees off, the camera does not come up on the thing (at ${q[0].toFixed(2)}, ${q[1].toFixed(2)})`); console.log(errors[errors.length - 1]); }
+        // (and what the game had when it did not: the lens comes up onto story.subject only where there is one and it lies
+        // within 100 degrees of the view, game.js fpOn; twice in seven of main's whole budget plays it never turned, at -5.37)
+        const why = inFrame ? '' : await p.evaluate(at => { const g = window.__game, st = g.story, pl = g.player, sj = st.subject, b = Math.atan2(at[0] - pl.x, at[1] - pl.y), d = Math.atan2(Math.sin(g.cam.yaw - b), Math.cos(g.cam.yaw - b));
+          return JSON.stringify({ subject: sj ? sj.map(v => +(+v).toFixed(1)) : sj, cam: !!st.state.cam, phase: st.state.phase, beat: st.state.beat, at: [+pl.x.toFixed(1), +pl.y.toFixed(1)], off: +(d * 180 / Math.PI).toFixed(0), mode: g.cam.mode, photo: !!(g.photo && g.photo.on), cine: !!(g.cine && g.cine.active) }); }, T.subject).catch(e => String(e).slice(0, 80));
+        if (!inFrame) { errors.push(`frame ${s.fi + 1}: raised from 63 degrees off, the camera does not come up on the thing (at ${q[0].toFixed(2)}, ${q[1].toFixed(2)}; ${why})`); console.log(errors[errors.length - 1]); }
         if (drift > 0.3 || jit > 0.15) { errors.push(`frame ${s.fi + 1}: the raised camera moves by itself (${drift.toFixed(2)} degrees, ${jit.toFixed(2)} a frame)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(6);
       }
@@ -1459,7 +1468,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (C && C.bad.length) errors.push(`ceiling: ${C.bad.length} frames with the lens through the passage's ceiling`);
     else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
   }
-  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 209: tools/cam_intrude.js)
+  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 226: tools/cam_intrude.js)
     const ci = require('./cam_intrude'), R = await ci.report(p), { errs } = ci.print(R);
     if (!R || R.err) errors.push(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
     for (const e of errs) { errors.push(`cam: ${e}`); console.log(errors[errors.length - 1]); }
