@@ -66,6 +66,7 @@ function railsInPage() {
     for (const l of RP.values()) { if (!l[3]) continue; const x = l[0], y = l[1], z = l[2] - 0.6; if (!inBox(x + 0.5, y - 0.3, z, 0.4, 2.2, 0.9)) return `a box over the rail point at ${x.toFixed(1)}, ${y.toFixed(1)} did not find it`; if (!across(x - 1, y - 0.05, x + 1, y + 0.05, z).length) return `a line across ${x.toFixed(1)}, ${y.toFixed(1)} did not find it`; return null; }
     return null;
   };
-  window.__rails = { levels, inBox, across, points: () => n, selfTest };
+  // (cells: every point read, [x, y, z, rail] in fours, by 1 m cell: tools/rail_walk.js)
+  window.__rails = { levels, inBox, across, points: () => n, selfTest, cells: () => [...RP.values()] };
 }
 module.exports = { railsInPage };
