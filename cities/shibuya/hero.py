@@ -72,7 +72,7 @@ def materials():
         "ground_kerb": {"tex": "granite", "tint": (0.7, 0.69, 0.68), "maps": "cn"},
         "ground_paint": {"tex": "paint", "tint": (0.92, 0.92, 0.9)},
         "ground_paver": {"tex": "paver", "tint": (0.7, 0.7, 0.7)},
-        "ground_bed": {"tex": "grass", "tint": (0.62, 0.68, 0.58)},  # a bed's clipped lawn (issue 213: OpenStreetMap's landuse=grass)
+        "ground_bed": {"tex": "grass", "tint": (0.8, 0.95, 0.66)},  # a bed's clipped lawn (issue 213: OpenStreetMap's landuse=grass)
         "ground_sett": {"tex": "plaza"},                 # Hachiko Square's blocks, drawn in their own colour (scramble_tex.plaza)
         "ground_tact_bar": {"tex": "tact_bar", "maps": "cn", "rough": 0.7},
         "ground_tact_dot": {"tex": "tact_dot", "maps": "cn", "rough": 0.7},
