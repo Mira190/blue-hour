@@ -6,7 +6,7 @@
 // views.json: {"times": {"day": "13:00", "dusk": "sunset+15", "night": "21:00", "rain": {"time": "21:00", "weather": "rain"}},
 //              "views": [{"name": "hachiko", "eye": [x, y, dz], "look": [x, y, dz], "fov": 50}, ...]}
 // dz is metres over the ground there; "people": [x, y] (with crowd_r, crowd_n) stages the crowd round a point, as a film shot does. "date": [month, day]; TIER=high|medium|low (default high);
-// ONLY=name,name and TIMES=day,night pick some; SETTLE=seconds the world runs before each still (6).
+// ONLY=name,name and TIMES=day,night pick some; SETTLE=seconds the world runs before each still (6); SCREEN_T=seconds the screens' programmes held.
 // EVAL=js runs in the page before each still (g: the game), its result printed.
 // QUERY=&a=b is added to the page's address (a switch set beside itself off: &batch=off; the pictures in blocks on a software renderer, &tex=bc7 beside &tex=raw).
 // PROBE=fx,fy;fx,fy lists what a ray through those points of the frame meets (a still that looks wrong: what is it?).
@@ -42,6 +42,9 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
   await p.waitForFunction('window.__game && window.__game.flyover', null, { timeout: 600000 });
   await startPlay(p); // (the title card up, Play pressed and the game started: tools/start_play.js, #423)
   await p.waitForTimeout(1500);
+  // SCREEN_T=seconds: the screens' programmes held at that point of their clock (world.js SCREEN.t, the wall's time
+  // otherwise), so that two runs, before and after a change, show the same pictures and throw the same light (issue 191)
+  if (process.env.SCREEN_T) await p.evaluate(t => { const c = window.__game.Wd.screens.clock.t; Object.defineProperty(c, 'value', { get: () => t, set() {}, configurable: true }); }, +process.env.SCREEN_T);
   await p.evaluate(() => {
     const g = window.__game;
     for (const id of ['g-title', 'g-menu', 'g-bigmap', 'g-pass']) { const el = document.getElementById(id); if (el) el.hidden = true; }
