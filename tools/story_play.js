@@ -244,6 +244,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       };
     }, { once: true });
   }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
+  if (process.env.GLCALLS) await require('./gl_calls').installBeats(p); // (GLCALLS=1: the WebGL calls a frame by beat, of them the lights' and the uploads, issue 191: tools/gl_calls.js)
   if (process.env.STOPCOST) await require('./stop_cost').install(p); // (STOPCOST=1: each beat's frames, the guide's planning and the programs linked in it, issue 206: tools/stop_cost.js)
   // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
@@ -1465,6 +1466,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
     if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }
+    if (process.env.GLCALLS) { const gc = require('./gl_calls'); gc.printBeats(await gc.beats(p)); }
     const { hard } = pacing.print(await pacing.report(p));
     if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
   }
