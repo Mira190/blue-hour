@@ -74,6 +74,10 @@ const [,, size = '1440x900', secs = '120'] = process.argv;
   const t0 = Date.now();
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?${process.env.Q || 'walk=1'}&telemetry=debug#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await startPlay(p, { asIs: true });
+  // TIME=HH:MM: the place's clock set to that hour and held there (the walk otherwise begins at the place's own hour,
+  // and its crowd and its light with it: a reading at seven in the morning is not one at nine at night)
+  if (process.env.TIME) await p.evaluate(t => { const g = window.__game, [H, M] = t.split(':').map(Number), c = g.clock; g.setClock(c.y, c.m, c.d, H * 60 + M); c.frozen = true; }, process.env.TIME);
+  console.log(`the place's hour: ${await p.evaluate(() => { const c = window.__game.clock; return `${String(Math.floor(c.min / 60)).padStart(2, '0')}:${String(Math.floor(c.min % 60)).padStart(2, '0')}${c.frozen ? ' (held)' : ''}`; })}`);
   console.log(`title up and Play pressed ${((Date.now() - t0) / 1000).toFixed(1)} s after the address`);
   const dev = await p.evaluate(() => {
     const c = document.createElement('canvas').getContext('webgl2'), x = c && c.getExtension('WEBGL_debug_renderer_info'), Q = window.OEQuality;
