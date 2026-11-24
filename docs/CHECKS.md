@@ -204,7 +204,11 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   do not see is a case carried in one page across frames 4 to 5 and 6 to 7, which `tools/check.sh story` (the whole
   play, on a session's machine before landing) still plays. A runner played the whole story in 75 minutes (#51).
   The walk and the guide are split the same way, so that no runner is the long pole: `walk1` the desktop's page and
-  `walk2` the phone's (together 17 minutes on one runner), `guide1` his ways and `guide2` his body (19).
+  `walk2` the phone's (together 17 minutes on one runner), `guide1` his ways and `guide2` his body (19). Since issue 192
+  the desktop's page is two halves, `walk1` from the title's way in to the seat on Hachiko's wall and `walk3` from the
+  walk's line to the end, set out at once (`tools/walk_play.js` `WALK_PART`): the buildings' cells in one draw cost a
+  software renderer a third more on the beats that cross the city (1016 s to 1373 s here, 24 November), and the whole
+  page took run 340's runner past its cap of 2400 s with no beat failed. `walk` still plays each page whole.
 - **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
   push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
   `live` to it, which Vercel's production deploys (`vercel.json` builds `live`; the Vercel project's
