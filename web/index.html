@@ -341,6 +341,10 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 @media (prefers-reduced-motion: reduce) { .loader .ld-stage::before { animation: none; opacity: 0.8; } }
 .loader .ld-err { display: none; gap: 10px; margin-top: 26px; flex-wrap: wrap; justify-content: center; }
 .loader.err .track, .loader.err .ld-mode, .loader.err .ld-stage { display: none; }
+/* (before the boot has the map's list, the plate is the dark alone: its words are the story's, written by the boot or a
+   plate, never a default left in the markup; the words came up for a moment on every load as "On foot") */
+.loader .ld-mode:empty { display: none; }
+.loader:not(.has-roll):not(.has-plate):not(.err) > div { visibility: hidden; }
 .loader.err small { margin-top: 30px; max-width: 42ch; font: 400 13px/1.6 var(--f-body); letter-spacing: 0; text-transform: none; color: var(--ink-2); }
 .loader.err .ld-err { display: flex; }
 .loader.err.no-reload .ld-err { display: none; }
@@ -1135,7 +1139,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
     </div>
     <div class="loader" id="g-loader" role="status"><div>
       <span class="wm" aria-hidden="true">BLUE <b>HOUR</b></span>
-      <span class="ld-mode">On foot</span>
+      <span class="ld-mode"></span>
       <b id="g-load-title">Blue Hour</b>
       <small class="ld-native" id="g-load-native" hidden></small>
       <div class="track"><i id="g-load-bar"></i></div>
