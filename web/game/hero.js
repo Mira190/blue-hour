@@ -190,13 +190,25 @@ window.OEHero = (function () {
       const rt = new THREE.WebGLCubeRenderTarget(res, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
       const cc = new THREE.CubeCamera(0.5, 8000, rt);
       cc.position.set(P.at[0], P.at[2], -P.at[1]);
-      h._probe = { rt, cc, night: -1, t: -99, n: 0 };
+      h._probe = { rt, cc, night: -1, t: -99, n: 0, k: null };
       return rt;
     }
+    // One face a frame (issue 192): the six faces drawn in one frame were six draws of the scene at once, 1713 draws and
+    // 4.6 M triangles in the frame the roof's level came into the lift ride on a phone's tier. A face a frame, from the
+    // moment a cube is due, the sixth with the mipmaps; three.js makes the glass's map of it again only once the sixth
+    // is in (needsPMREMUpdate), so the glass changes from one whole cube to the next, as before. The first cube of a level
+    // is five frames in the making, the glass mirroring nothing meanwhile
     function probe(L, night) {
       const p = L.h._probe;
-      if (!p || t - p.t < 3 || Math.abs(night - p.night) < (tier === 'low' ? 0.25 : 1 / 12)) return;
-      p.t = t; p.night = night; p.n++;
+      if (!p) return;
+      if (p.k == null) {
+        if (t - p.t < 3 || Math.abs(night - p.night) < (tier === 'low' ? 0.25 : 1 / 12)) return;
+        p.t = t; p.night = night; p.k = 0;
+      }
+      probeFace(L, p, p.k);
+      if (++p.k === 6) { p.k = null; p.n++; }
+    }
+    function probeFace(L, p, i) {
       const glass = L.mats.filter(m => m.userData.probeGlass), shadow = renderer.shadowMap.autoUpdate;
       for (const m of glass) { m.userData.probeVis = m.visible; m.visible = false; }
       // Whoever moves is left out of it (people with what they carry, the cars, the guide: people.js uncovered, as the
@@ -211,9 +223,25 @@ window.OEHero = (function () {
       const movers = /[?&]probe=all\b/.test(location.search) ? [] : ((window.OEPeople && OEPeople.uncovered) || []).filter(o => o.visible);
       for (const o of movers) o.visible = false;
       renderer.shadowMap.autoUpdate = false;
-      const prevT = renderer.getRenderTarget();
-      try { p.cc.updateMatrixWorld(); p.cc.update(renderer, Wd.world); } finally {
-        renderer.setRenderTarget(prevT);
+      // (what CubeCamera.update does for each face, for one face: three.js r18x. And a check's frame that is not drawn,
+      // window.__draw, draws the face all the same, as tools/story_play.js has CubeCamera.update draw: a face is kept)
+      const cc = p.cc, rt = p.rt, prevT = renderer.getRenderTarget(), prevF = renderer.getActiveCubeFace(), prevM = renderer.getActiveMipmapLevel(), xr = renderer.xr.enabled, mips = rt.texture.generateMipmaps;
+      const D = window.__draw, was = D && [D.on, D.dry];
+      if (D) { D.on = true; D.dry = false; }
+      try {
+        if (cc.coordinateSystem !== renderer.coordinateSystem) { cc.coordinateSystem = renderer.coordinateSystem; cc.updateCoordinateSystem(); }
+        cc.updateMatrixWorld();
+        renderer.xr.enabled = false;
+        rt.texture.generateMipmaps = i === 5 ? mips : false;
+        renderer.setRenderTarget(rt, i, 0);
+        if (renderer.state.buffers.depth.getReversed && renderer.state.buffers.depth.getReversed() && !renderer.autoClear) renderer.clearDepth();
+        renderer.render(Wd.world, cc.children[i]);
+        if (i === 5) rt.texture.needsPMREMUpdate = true;
+      } finally {
+        rt.texture.generateMipmaps = mips;
+        renderer.setRenderTarget(prevT, prevF, prevM);
+        renderer.xr.enabled = xr;
+        if (D) [D.on, D.dry] = was;
         renderer.shadowMap.autoUpdate = shadow;
         for (const o of movers) o.visible = true;
         for (const m of glass) m.visible = m.userData.probeVis;
