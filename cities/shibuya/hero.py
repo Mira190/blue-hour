@@ -488,6 +488,7 @@ class Level:
         walks = S.crosswalk_list(D)
         centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in walks], axis=0) / 2
         bands = S.road_bands(D)
+        stand = self.stand()
         for cw in walks + self.plan.zebras:
             for p, q in S.walk_bars(cw):
                 self.paint(p, q, S.BAR, step=2.4)
@@ -502,9 +503,12 @@ class Level:
                     cc = c0 + o * dd
                     if not (bands.contains(Point(*cc).buffer(1.0)) and self.disc.contains(Point(*cc).buffer(2.6))):
                         continue
+                    if stand is not None and stand.intersects(Point(*cc).buffer(2.5)):
+                        continue                                      # (none in the bus stand, which the photo has bare)
                     pts = [cc + o * 2.5, cc + left * 0.75, cc - o * 2.5, cc - left * 0.75]
                     for j in range(4):
                         self.paint(pts[j], pts[(j + 1) % 4], 0.2)
+        self.traced_paint()
         # centre lines on the two-way streets, up to the stop lines (none through the junction)
         keep_out = self.junction.buffer(S.STOP_BACK + 1.0).union(self.walks.buffer(S.STOP_BACK + 1.0))
         inner = self.roads.buffer(-2.5)
@@ -529,6 +533,48 @@ class Level:
                     while d + 5.0 <= P.L:
                         self.paint(P.xy(d, 0.0), P.xy(d + 5.0, 0.0), 0.15)
                         d += 10.0
+
+    def traced(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "terminal_paint.json")
+        return json.load(open(path)) if os.path.exists(path) else {}
+
+    def stand(self):
+        """Where the buses stand in front of Hachiko: the U of solid line closed by the diagonal (terminal_paint.json)."""
+        from shapely.geometry import Polygon
+        sol = self.traced().get("solid") or []
+        if len(sol) < 2:
+            return None
+        return Polygon(sol[0] + sol[1][::-1]).buffer(0)
+
+    def traced_paint(self):
+        """The bus stand in front of Hachiko as the 2023 orthophoto has it (cities/shibuya/terminal_paint.json):
+        one asphalt plain laid out in paint, solid lines round where the buses stand, a dotted lane edge, a hatched
+        wedge. Without it the stand read as a dead end of bare asphalt (issue 213)."""
+        from shapely.geometry import LineString, Polygon
+        T = self.traced()
+        for co in T.get("solid", []):
+            for a, b in zip(co[:-1], co[1:]):
+                self.paint(np.asarray(a, float), np.asarray(b, float), 0.15)
+        for co in T.get("dotted", []):                   # the bay edge: dashes 0.5 m long every 1.1 m, 0.2 m wide
+            P = LineString(co)
+            d = 0.0
+            while d + 0.5 <= P.length:
+                p, q = P.interpolate(d), P.interpolate(d + 0.5)
+                self.paint(np.array([p.x, p.y]), np.array([q.x, q.y]), 0.2)
+                d += 1.1
+        for ring in T.get("hatched", []):                # an outline and stripes at 45 degrees, 0.45 m every 1.5 m
+            poly = Polygon(ring)
+            co = np.asarray(poly.exterior.coords)
+            for a, b in zip(co[:-1], co[1:]):
+                self.paint(a, b, 0.15)
+            x0, y0, x1, y1 = poly.bounds
+            span = (x1 - x0) + (y1 - y0)
+            c = x0 - (y1 - y0)
+            while c < x1:
+                line = LineString([(c, y0), (c + span, y0 + span)]).intersection(poly.buffer(-0.1))
+                for seg in self.lines(line):
+                    self.paint(seg[0], seg[-1], 0.45)
+                c += 1.5 * np.sqrt(2)
 
     # -- the pavements
     def pavements(self):
