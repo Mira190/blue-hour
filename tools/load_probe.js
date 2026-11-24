@@ -17,7 +17,7 @@ async function once(b, run) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
   const logs = [];
-  p.on('console', m => { const t = m.text(); if (/^(warm|compile|buffers|gate)/.test(t)) logs.push(t.slice(0, 300)); });
+  p.on('console', m => { const t = m.text(); if (/^(warm|compile|buffers|gate|set-up)/.test(t)) logs.push(t.slice(0, 300)); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 200)}`));
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
   await p.addInitScript(() => {
