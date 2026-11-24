@@ -130,7 +130,11 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
           for (const [fx, fy] of pts) {
             rc.setFromCamera(new THREE.Vector2(fx * 2 - 1, 1 - fy * 2), g.camera);
             const seen = [];
-            for (const h of rc.intersectObject(g.Wd.world, true)) {
+            // (a mesh whose positions were let go once uploaded has nothing to cast against: left out, or the ray throws)
+            const cast = [], shed = []; g.Wd.world.traverse(o => { const a = o.geometry && o.geometry.attributes && o.geometry.attributes.position; if (o.isMesh && a && a.array) cast.push(o); else if (o.isMesh && o.geometry && o.geometry.boundingBox) shed.push(o); });
+            // (those let go are named by their bounds, the box the ray enters: a phone's map cells and levels)
+            for (const o of shed) { let vis = true; for (let q = o; q; q = q.parent) vis = vis && q.visible; if (!vis) continue; const bx = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld), at = rc.ray.intersectBox(bx, new THREE.Vector3()); if (at && at.distanceTo(rc.ray.origin) < 200) { const m = Array.isArray(o.material) ? o.material[0] : o.material; seen.push(`box ${at.distanceTo(rc.ray.origin).toFixed(1)} m  ${o.name || o.parent && o.parent.name || o.type} / ${m && m.name || '?'} #${m && m.color ? m.color.getHexString() : ''} size ${bx.getSize(new THREE.Vector3()).toArray().map(v => v.toFixed(1)).join('x')} at ${fx},${fy}`); } }
+            for (const h of rc.intersectObjects(cast, false)) {
               if (!h.object.visible || seen.length >= 6) continue;
               const m = Array.isArray(h.object.material) ? h.object.material[(h.face && h.face.materialIndex) || 0] : h.object.material;
               let vis = true; for (let o = h.object; o; o = o.parent) vis = vis && o.visible;
