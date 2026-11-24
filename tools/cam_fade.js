@@ -45,6 +45,23 @@ const WALL = { x: 457.71, y: -983.69, z: 15.44, h: 7.85 }; // (the back 0.14 m f
   await pose(Math.PI, 2.5); await p.evaluate(() => { window.__game.cam.snap = true; });
   for (let k = 1; k <= 6; k++) { await frame(); const a = await alpha(); res.back.push(a); await p.screenshot({ path: `${out}/fade-2-back-${k}-${w}x${h}.png` }); }
   res.log = await p.evaluate(() => window.__fadeLog);
+  // (what the fade leaves behind, if anything: every mesh of yours as it was, no ghost drawn, nothing blended)
+  const left = () => p.evaluate(() => { const r = window.__game.player.rig.root, bad = []; r.traverse(o => { if (!o.isMesh) return; const ms = [].concat(o.material); if (o.userData.fadeGhost) { if (o.visible) bad.push(`ghost shown: ${o.parent.name}`); return; } for (const m of ms) { if (m.colorWrite === false) bad.push(`depth only: ${o.name}`); if (m.userData && m.userData.fadeBase != null) bad.push(`a fade's material: ${o.name}`); } }); return bad; });
+  res.left = await left();
+  // and the colour of the frame, before and after a fade, against the same moves with the guard off (no fade): the scene's own
+  // drift over those seconds is in both pairs, what the fade left only in the first
+  const mean = async name => { await p.screenshot({ path: `${out}/${name}-${w}x${h}.png` }); return name; };
+  const cycle = async (off, tag) => {
+    await p.evaluate(off => { window.__lensGuardOff = off; delete window.__fadeS; }, off);
+    await pose(Math.PI, 2.5); await p.evaluate(() => { window.__game.cam.snap = true; }); await frame(); await frame();
+    await mean(`pair-${tag}-a`);
+    await pose(0, 2.5); await p.evaluate(() => { window.__game.cam.snap = true; }); for (let i = 0; i < 4; i++) await frame();
+    await pose(Math.PI, 2.5); await p.evaluate(() => { window.__game.cam.snap = true; }); for (let i = 0; i < 4; i++) await frame();
+    await mean(`pair-${tag}-b`);
+  };
+  await cycle(false, 'fade'); res.leftAfterPair = await left();
+  await cycle(true, 'nofade');
+  await p.evaluate(() => { window.__lensGuardOff = false; });
   // at its own speed: how many frames it takes, and the guard's time a frame meanwhile
   await p.evaluate(() => { delete window.__fadeS; Object.assign(window.__lensGuardT, { ms: 0, n: 0, max: 0 }); });
   res.own = await p.evaluate(([s]) => new Promise(r => {
