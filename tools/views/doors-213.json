@@ -1,0 +1,42 @@
+{
+ "_": "Issue 213 item 5: the subway exits that are doors in a building's wall, each with its sign over the door (scramble.door_sites), seen on foot.",
+ "date": [
+  11,
+  14
+ ],
+ "times": {
+  "day": "13:00",
+  "dusk": "sunset+20",
+  "night": "21:00"
+ },
+ "views": [
+  {
+   "name": "door_A3",
+   "eye": [
+    281.8,
+    -987.2,
+    1.6
+   ],
+   "look": [
+    279.7,
+    -977.9,
+    2.4
+   ],
+   "fov": 55
+  },
+  {
+   "name": "door_A6c",
+   "eye": [
+    376.1,
+    -952.6,
+    1.6
+   ],
+   "look": [
+    366.7,
+    -953.4,
+    2.4
+   ],
+   "fov": 55
+  }
+ ]
+}

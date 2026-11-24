@@ -1,4 +1,4 @@
-// A camera never enters a body (issue 209). The owner's still of frame 3: the chase view stood over the player's head
+// A camera never enters a body (issue 226). The owner's still of frame 3: the chase view stood over the player's head
 // looking straight down, the near plane through the hair and the skull, the eyes seen from behind. What is wrong in
 // such a picture is one thing whoever the body and whichever the camera: the near plane's rectangle, the window the
 // picture is taken through, is inside something drawn, and the far side of it is drawn from within. So that is what is
