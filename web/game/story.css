@@ -1721,6 +1721,8 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
   .game-stage.story:not(.words-solid) #g-story-goal { width: min(100%, 580px);
     background: radial-gradient(ellipse 100% 100% at 0 0, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.76) 44%, rgba(4, 8, 18, 0.5) 68%, rgba(4, 8, 18, 0.16) 88%, rgba(4, 8, 18, 0) 100%); }
   .game-stage.story.words-2:not(.words-solid) #g-story-goal { width: min(100%, 720px); }
+  .game-stage.story:not(.words-solid) #g-story-goal em { max-width: 388px; } /* (the small capitals keep the measure they had in the 440 px box) */
+  .game-stage.story.words-1:not(.words-solid) #g-story-goal em { max-width: 468px; } .game-stage.story.words-2:not(.words-solid) #g-story-goal em { max-width: 548px; }
 }
 /* a word said over the picture while the camera is taught, on a phone: above the card, however many lines its step
    takes (--teach-up, story.js: the card's top, measured; the fixed heights before were guesses its longer steps passed) */
