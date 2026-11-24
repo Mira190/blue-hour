@@ -247,6 +247,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (BUDGET && process.env.BUDGET_GROUPS) await p.addInitScript(n => { window.__beat.top = n; }, +process.env.BUDGET_GROUPS); // (BUDGET_GROUPS=n: with BUDGET_BY, the n heaviest things drawn, not forty)
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
+  // BACK=n: the menu's Title screen in the middle of frame n (menus.js #gm-title): a case kept at frame n, seeded once (not
+  // again when the page opens on the title), taken up; Title screen; the title on its menu, Continue there at frame n; and
+  // Continue back in frame n
+  if (+process.env.BACK > 1) await p.addInitScript(n => { try { if (sessionStorage.getItem('bh-back-seeded')) return; sessionStorage.setItem('bh-back-seeded', '1'); localStorage.setItem('bh-story-late', JSON.stringify({ fi: n - 1, left: 8 - n, prints: Array.from({ length: n - 1 }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.BACK);
   if (process.env.PLAYER) await p.addInitScript(k => { try { localStorage.setItem('bh-player', k); } catch (e) { /* storage blocked */ } }, process.env.PLAYER);
   await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
@@ -536,6 +540,39 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   };
   const seen0 = new Set();
   await begin();
+  if (+process.env.BACK > 1) { // (BACK=n, above: the beat played alone, then the page is closed)
+    const n = +process.env.BACK, still = async k => { try { await p.screenshot({ path: `${out}/back-${k}.png`, timeout: 120000 }); } catch (e) { console.log(`(no still back-${k})`); } };
+    const bad = m => { errors.push(`Title screen: ${m}`); console.log(`FAIL Title screen: ${m}`); };
+    const inCase = () => p.waitForFunction(n => { const g = window.__game, s = g && g.story.state, t = document.getElementById('g-title'); return t && t.hidden && s && s.fi === n - 1 && s.phase !== 'idle' && s.phase !== 'dressed'; }, n, { timeout: 600000, polling: 500 }).then(() => true, () => false);
+    const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `frame ${s.fi + 1}, ${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}`; }).catch(e => String(e).slice(0, 80));
+    if (!(await inCase())) bad(`the case kept at frame ${n} was not taken up (${await where()})`);
+    await p.waitForTimeout(4000);
+    await clickEl('#g-story-menu');
+    await p.waitForTimeout(800);
+    const m = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(), note = document.getElementById('gm-title-note'); return { on: !!e && !document.getElementById('g-menu').hidden && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, note: note && !note.hidden ? note.textContent : '' }; });
+    if (!m.on) bad('the case\'s pause has no Title screen'); else if (!m.first) bad('Title screen is below the menu\'s first screen');
+    if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
+    console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
+    await still('menu');
+    expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
+    const back = await p.waitForFunction(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
+    if (!back) bad('the title never opened on its menu');
+    else {
+      await p.waitForTimeout(2500);
+      const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
+      if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
+      if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
+      if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      console.log(`  the title again: Continue "${t.cont}", ${t.left.length ? `left over ${t.left.join(', ')}` : 'nothing left over'}`);
+      await still('title');
+      await clickEl('#gt-cont-go');
+      for (let k = 0; k < 6 && await p.evaluate(() => document.getElementById('g-title').dataset.screen === 'who' && !document.getElementById('g-title').hidden); k++) { await clickEl('#gt-who [data-c="W"]'); await p.waitForTimeout(400); await clickEl('#gt-who-go'); await p.waitForTimeout(800); }
+      if (!(await inCase())) bad(`Continue did not take the case up at frame ${n} (${await where()})`); else console.log(`ok   Title screen: out of frame ${n}, the title on its menu, and Continue back in frame ${n}`);
+      await p.waitForTimeout(3000); await still('continued');
+    }
+    await b.close();
+    process.exit(errors.length ? 1 : 0);
+  }
   const state = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'); return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), left: s.left, dlg: d && !d.hidden, choices: [...document.querySelectorAll('#gd-choices button')].map(x => x.textContent), goal: document.querySelector('#g-story-goal span').textContent, at: [+g.player.x.toFixed(1), +g.player.y.toFixed(1), +g.player.z.toFixed(1)] }; });
   // put the player a little short of a place, facing it, on the side they come from, however far (a fixed east beyond 60 m
   // put them in the air outside SHIBUYA SKY's east glass: its 46F lift stands 61 m from Kanbara)
@@ -1170,7 +1207,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
           if (open) {
             const m = await p.evaluate(() => { const vis = q => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; };
-              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
+              return { tools: ['#gm-time', '#gm-clock', '#gm-date', '#gm-weather', '#gm-speed', '#gm-who', '#gm-density', '#gm-route', '#gm-overture', '#gm-reset'].filter(vis), want: ['#gm-resume', '#gm-title', '#gm-sound', '#gm-words', '#gm-fps', '#gm-again', '#gm-credits', matchMedia('(pointer: coarse)').matches ? '#g-menu .gt-touch' : '#g-menu .gk-case'].filter(q => !vis(q)), at: document.getElementById('gm-case-at').textContent }; });
             if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
             else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
           }
