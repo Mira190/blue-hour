@@ -95,6 +95,9 @@ window.OENeon = (function () {
   const REACH = 300; // how far a screen's or a card's light reaches (m): fades out over the last two fifths
   const SPEC_NEAR = 60, SPEC_FAR = 120; // how far a screen's mirror image reaches (m): its own street, the crossing
   const LEAN = `
+	#ifndef OE_AREA_OCC
+	#define OE_AREA_OCC 1.0
+	#endif
 	void RE_Direct_RectArea_Physical( const in RectAreaLight rectAreaLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {
 		if ( rectAreaLight.color.r + rectAreaLight.color.g + rectAreaLight.color.b <= 0.0 ) return; // (a screen that is off, and every one of them by day)
 		vec3 oeC = rectAreaLight.position;
@@ -114,7 +117,7 @@ window.OENeon = (function () {
 		if ( oeNear <= 0.0 ) return;
 		oeL *= inversesqrt( oeD2 );
 		float oeW = oeNear * oeA * saturate( - dot( oeL, oeN ) ) / ( PI * oeD2 + oeA );
-		reflectedLight.directDiffuse += rectAreaLight.color * material.diffuseContribution * ( oeW * saturate( dot( geometryNormal, oeL ) ) );
+		reflectedLight.directDiffuse += rectAreaLight.color * material.diffuseContribution * ( oeW * saturate( dot( geometryNormal, oeL ) ) ) * OE_AREA_OCC; // (OE_AREA_OCC: what of the screen a surface sees past what is round it: a tree's crown, trees.js)
 		// The highlight is a reflection of the light, so it is given only where its mirror image can really be seen
 		// (docs/LOOK.md, "A reflection has a cause"): a light that casts no shadow says nothing of what stands between
 		// it and a pane 100 m off, and over the helicopter's 200 m the Scramble's screens drew their mean colour as a
