@@ -60,7 +60,7 @@
 const { chromium } = require('playwright');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
-const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
 const { drawnSeat } = require('./drawn_seat'); // (the seated sat on something drawn, not on the walking grid: issue 171)
@@ -951,7 +951,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {
     await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
-    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    expectReload(p, "the last card's Walk Shibuya"); await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     // (the loader's words are written once the page's boot has the map's list: waited for, not read at once)
     const roll = await p.waitForFunction(() => { const e = document.querySelector('#g-loader .roll-title span'); return e && e.textContent; }, null, { timeout: 120000, polling: 100 }).then(h => h.jsonValue()).catch(() => '');
     if (!/walk/i.test(roll)) fail(`come from the last card, the loader does not say it is a walk ("${roll}")`);
