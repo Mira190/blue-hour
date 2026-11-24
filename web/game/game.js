@@ -5949,12 +5949,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   };
   // one body: laid out in camera space; the largest near (of NEARS, from `base` down) whose window clears it, or 0 for none
   const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh) guardSig.v += o.geometry.id * guardSig.k++; };
-  function guardBody(root, base) {
-    const e = root.matrixWorld.elements, P = camera.position;
-    if (Math.abs(e[12] - P.x) > 1.8 || Math.abs(e[14] - P.z) > 1.8 || P.y < e[13] - 0.8 || P.y > e[13] + 2.8) return base;
+  function guardCapsOf(root) { // (a model's, kept: fitted again only when the copy is dressed as someone else)
     guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
     let c = guardCaps.get(root);
     if (!c || c.sig !== sig) { try { c = { sig, caps: guardFit(root) }; } catch (err) { c = { sig, caps: null }; } guardCaps.set(root, c); }
+    return c;
+  }
+  // (a fit takes about 11 ms for the one you play on a session's machine: the one you play and the guide are fitted while the
+  // page is idle, ahead of the first camera to come near them, not in that camera's frame)
+  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) guardCapsOf(r); };
+  function guardBody(root, base) {
+    const e = root.matrixWorld.elements, P = camera.position;
+    if (Math.abs(e[12] - P.x) > 1.8 || Math.abs(e[14] - P.z) > 1.8 || P.y < e[13] - 0.8 || P.y > e[13] + 2.8) return base;
+    const c = guardCapsOf(root);
     if (!c.caps) return base;
     root.updateWorldMatrix(true, true);
     let m = 0;
@@ -5969,7 +5976,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return 0;
   }
   // (a frame's state, kept here so that a frame of it makes nothing new: guardOne is called for each body near the lens)
-  const guardS = { base: 0.3, near: 0.3 };
+  const guardS = { base: 0.3, near: 0.3, warmAt: -1e9 };
   const layerOn = q => q.layers.enable(0), layerOff = q => q.layers.disable(0);
   function guardOne(root, who, i) {
     if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) return;
@@ -5989,6 +5996,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     guardA.set(-1, -1, 0.5).applyMatrix4(camera.projectionMatrixInverse); guardB.set(1, 1, 0.5).applyMatrix4(camera.projectionMatrixInverse);
     guardRay[0] = guardA.x / -guardA.z; guardRay[1] = guardB.x / -guardB.z; guardRay[2] = guardA.y / -guardA.z; guardRay[3] = guardB.y / -guardB.z;
     guardS.base = guardS.near = camera.near;
+    if (clockT - guardS.warmAt > 5) { guardS.warmAt = clockT; (window.requestIdleCallback || (f => setTimeout(f, 300)))(guardWarm); }
     guardOne(player.rig && player.rig.root, 'you');
     for (let k = 0; k < storyFigs.length; k++) { const f = storyFigs[k]; if (f.rig) guardOne(f.rig.root, f.name || f.id); }
     for (let k = 0; k < npcs.length; k++) { const q = npcs[k]; if (q.rig) guardOne(q.rig.root, q.id); }
