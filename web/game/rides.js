@@ -142,6 +142,69 @@ window.OEGameRides = function (g) {
     for (let kk = k; kk > min; kk -= 0.2) if (fits(kk)) return kk;
     return min;
   }
+  // A car stops for you at a kerb with no rail between it and you (issue 208). By Hachiko the story's car and every ride
+  // ordered there pulled in beside the square's guard rail, and you were put in through it and out through it again;
+  // as a driver does, it stops at an opening. The rail is the one the hero level draws (game.js heroSoffit: h.rail):
+  // the kerb side of where it will stand, from its flank 2.2 m out over the pavement along its length, is looked at, and
+  // where a rail is there the stop is brought back along its way to the first opening with its kerb side still on the
+  // carriageway (as far as 25 m, never behind where it is now); none found, it stops where it was to.
+  const railAt = (x, y) => { for (const h of g.G.hero || []) if (h.rail && h.rail(x, y)) return true; return false; };
+  const rq0 = {}, rq1 = {};
+  function railBeside(o, end) {
+    const st = o.drv.st, e0 = st.end, sh = st.shift;
+    st.end = end; st.shift = 0; o.drv.poseAt(end, rq0); o.drv.path.at(end, rq1); st.end = e0; st.shift = sh; // (as it will stand, pulled in)
+    const fx = rq0.hx, fy = rq0.hy, off = (rq0.x - rq1.x) * -fy + (rq0.y - rq1.y) * fx; // (how far it stands off its way's line, to the kerb's side)
+    const side = Math.abs(off) > 0.3 ? Math.sign(off) : g.keepSign, nx = -fy * side, ny = fx * side;
+    // (and where it stands brought back, its kerb side on the carriageway drawn there still: its pull-in is the kerb's at its
+    // first stop, and a narrower street behind would have it over the kerb, #54)
+    // (nor on a crossing, nor within 2 m of one: the opening in Hachiko's rail beside the Scramble is its crosswalk, and the
+    // car brought back to it stood on the zebra with the walk's crowd round it)
+    if (end !== e0 && g.SCR_AT.length) { const pl = g.placeOf({ x: rq0.x, y: rq0.y, z: rq0.z, h: Math.atan2(fx, fy) }); if (!pl || [-1, 0, 1].some(k => g.inScramble(pl.line, pl.s + k * (o.C.half + 2)))) return true; }
+    if (end !== e0 && g.nav.carriageway) for (const u of [-o.C.half, o.C.half]) if (g.nav.carriageway(rq0.x + fx * u + nx * o.C.hw, rq0.y + fy * u + ny * o.C.hw) === false) return true;
+    for (let u = -o.C.half + 0.4; u <= o.C.half - 0.4 + 1e-6; u += (o.C.half - 0.4) / 2) for (let w = o.C.hw + 0.1; w <= o.C.hw + 2.2; w += 0.25)
+      if (railAt(rq0.x + fx * u + nx * w, rq0.y + fy * u + ny * w)) return true;
+    return false;
+  }
+  // the same for a place on a road before a car is sent to it (a pick-up): the kerb side from its lane out to 2 m past the
+  // kerb the level draws, and the place moved along its street to the nearest opening in the rail beyond it (40 m either way: Hachiko's runs 30 m,
+  // never into a scramble's box); the place as it was where there is no rail or no opening
+  const pq = {};
+  function railAtKerb(line, s, dir) {
+    g.roadNet.at(line, s, pq);
+    const fx = pq.hx * dir, fy = pq.hy * dir, nx = -fy * g.keepSign, ny = fx * g.keepSign;
+    let kc = null;
+    for (let w = 1; w <= 15 && kc == null; w += 0.25) if (g.nav.carriageway(pq.x + nx * w, pq.y + ny * w) === false) kc = w;
+    // (from its lane out: by Hachiko the carriageway drawn runs on past the rail)
+    for (let u = -2; u <= 2; u += 1) for (let w = 1; w <= (kc ?? 6) + 2; w += 0.25) if (railAt(pq.x + fx * u + nx * w, pq.y + fy * u + ny * w)) return true;
+    return false;
+  }
+  // a car set off standing at that kerb (planOn: from 'kerb', pulled in) would stand in its rail
+  const railStart = pl => !pl.v && !!g.nav.carriageway && (g.G.hero || []).some(h => h.rail) && railAtKerb(pl.line, pl.s, pl.dir);
+  function openPlace(pl) {
+    if (!pl || !g.nav.carriageway || !(g.G.hero || []).some(h => h.rail) || !railAtKerb(pl.line, pl.s, pl.dir)) return pl;
+    const len = g.roadNet.L[pl.line].len;
+    for (let d = 1.5; d <= 40; d += 1.5) for (const sg of [-1, 1]) {
+      const s = pl.s + sg * d * pl.dir;
+      if (s < 3 || s > len - 3 || (g.SCR_AT.length && [-4.5, 0, 4.5].some(k => g.inScramble(pl.line, s + k))) || railAtKerb(pl.line, s, pl.dir)) continue; // (a car's length clear of a crossing)
+      g.roadNet.at(pl.line, s, pq);
+      return Object.assign({}, pl, { s, x: pq.x, y: pq.y, z: pq.z, moved: d });
+    }
+    return pl;
+  }
+  // where to set you down near at [x, y]: at the kerb nearest it, moved to an opening in its rail (openPlace), as a point
+  // 3 m out on its kerb side for the route to find (game.js driveTo keeps the point on the kerb's side); else at itself
+  function openAt(at, z) {
+    const pl = g.pickupNear(at[0], at[1], z, 60), q = openPlace(pl);
+    if (!q || q === pl) return at;
+    g.roadNet.at(q.line, q.s, pq);
+    const fx = pq.hx * q.dir, fy = pq.hy * q.dir;
+    return [pq.x - fy * g.keepSign * 3, pq.y + fx * g.keepSign * 3];
+  }
+  function openKerb(o) {
+    const st = o.drv.st, e0 = st.end;
+    if (!(g.G.hero || []).some(h => h.rail) || !railBeside(o, e0)) return;
+    for (let d = 1.5; d <= 25 && e0 - d > st.s + 12; d += 1.5) if (!railBeside(o, e0 - d)) { st.end = e0 - d; o.kerbBack = d; return; }
+  }
   // the first person along a driver's way (cars.js chauffeur people: ps, np points step apart from its bumper): how far
   // along it, or Infinity. The crowd, the NPCs and you on foot, as the traffic brakes for them (actors.js 'person'); a
   // ride drove through the people on the pavement's edge and stepping out under the JR viaduct, seeing only the
@@ -186,6 +249,7 @@ window.OEGameRides = function (g) {
     const opts = Object.assign(rideGuard(C, true), plan.opts);
     o.drv = OECars.chauffeur(C, plan.rt, opts);
     o.drv.opts = opts; // (for a new route round a jam)
+    openKerb(o); // (at an opening in the kerb's rail: issue 208)
     o.T0 = plan.T; o.sig = plan.sig; o.scr = plan.scr || []; o.scrJ = plan.scrJ || []; o.qArms = plan.qArms; // (the lights it is to stop at near you, s along its route)
     let look = driverLook();
     o.driver = g.makeRig(look, {});
@@ -231,10 +295,10 @@ window.OEGameRides = function (g) {
     // pick-up (a few seconds' allowance for each metre further from yours)
     // (a scramble's walk on the way counts in the time the app gives, but no move of the pick-up gets round it: every way there crosses it)
     if (!best || best.plan.T - SCR_WAIT * (best.plan.scr || []).length > RIDE_T[1] + 5) {
-      const alts = g.roadNet.L[pickup.line].ow ? [] : [Object.assign({}, pickup, { dir: -pickup.dir })];
+      const alts = g.roadNet.L[pickup.line].ow ? [] : [openPlace(Object.assign({}, pickup, { dir: -pickup.dir }))]; // (each at an opening in its kerb's rail: issue 208)
       if (move) for (const [dx, dy] of [[25, 0], [-25, 0], [0, 25], [0, -25]]) {
         const q = g.roads.place(pickup.x + dx, pickup.y + dy, 30, g.keepSign, pickup.z);
-        if (q && q.line !== pickup.line && !alts.some(a => a.line === q.line) && !(g.SCR_AT.length && g.inScramble(q.line, q.s))) alts.push(q);
+        if (q && q.line !== pickup.line && !alts.some(a => a.line === q.line) && !(g.SCR_AT.length && g.inScramble(q.line, q.s))) alts.push(openPlace(q));
       }
       for (const q of alts) {
         const b = bestFrom(q), walk = Math.hypot(q.x - pickup.x, q.y - pickup.y) / 3;
@@ -256,6 +320,7 @@ window.OEGameRides = function (g) {
     const pick = list => {
       for (const pl of list) {
         if (!any && busy(pl)) continue;
+        if (railStart(pl)) continue; // (not set off from a kerb with a rail beside it: it stood in the rail and drove out through it, issue 208)
         const plan = planRide(pl, pickup);
         if (!plan) continue;
         const dx = pl.x - g.player.x, dy = pl.y - g.player.y, d = Math.hypot(dx, dy);
@@ -303,7 +368,7 @@ window.OEGameRides = function (g) {
     if (!g.vlib.carsFull) { g.vlib.loadCars(); g.H.toast('The taxis are still on their way into town: try again in a moment.'); return; } // (issue 335)
     if (g.ride && g.ride.phase !== 'leaving') { g.H.toast(g.ride.phase === 'coming' ? `${g.ride.name} is on the way.` : `${g.ride.name} is waiting for you.`); return; }
     if (backIn(g.ride)) { backAgain(); g.H.toast(`<b>${g.ride.name}</b> is still here: <kbd>E</kbd> to get back in.`); return; }
-    const pickup = g.pickupNear(g.player.x, g.player.y, g.player.z, 40);
+    const pickup = openPlace(g.pickupNear(g.player.x, g.player.y, g.player.z, 40)); // (at an opening in the kerb's rail: issue 208)
     if (!pickup) { g.H.toast('Stand at the kerb of a street to hail a taxi.'); return; }
     if (g.player.rig.wave) g.player.rig.wave(g.clockT);
     let best = null;
@@ -338,7 +403,7 @@ window.OEGameRides = function (g) {
     if (g.player.mode !== 'foot') return no('Order once you are on foot.');
     if (g.ride && g.ride.phase !== 'leaving') return no(`${g.ride.name} is already on the way.`);
     if (backIn(g.ride)) { backAgain(dest); g.H.toast(`<b>${g.ride.name}</b> is still here: <kbd>E</kbd> to get back in.`); return true; } // (the car you got out of in the traffic, beside you still)
-    const pickup = g.pickupNear(g.player.x, g.player.y, g.player.z, 120);
+    const pickup = openPlace(g.pickupNear(g.player.x, g.player.y, g.player.z, 120)); // (at an opening in the kerb's rail: issue 208)
     if (!pickup) return no('There is no street near enough to be picked up from.');
     const o = rideFromAround('hire', pickup, dest);
     if (!o) return no('No drivers near you. Try again in a moment.');
@@ -416,7 +481,7 @@ window.OEGameRides = function (g) {
       c => { if (g.ride !== o) return; if (c && c.dest) setOff(c.dest); else { o.phase = 'driving'; leaveRide(); } });
   }
   function setOff(dest) {
-    const o = g.ride, from = placeOnRoute(o.drv.st) || o.drv.st.route.to, rt = from && g.driveTo(from, dest.at[0], dest.at[1]);
+    const o = g.ride, from = placeOnRoute(o.drv.st) || o.drv.st.route.to, to = openAt(dest.at, o.drv.st.z), rt = from && g.driveTo(from, to[0], to[1]);
     // (no road from here gets there: the driver says so and asks again; you stay in the car)
     if (!rt) { o.dest = null; askWhereTo(`I can't get to ${dest.name} by road from here, sorry. Somewhere else?`, dest.id); return; }
     Object.assign(o, { dest, phase: 'driving', meter: 0, talkT: g.clockT + 9, t0: g.clockT });
@@ -424,6 +489,7 @@ window.OEGameRides = function (g) {
     const opts = Object.assign(rideGuard(o.C), { keep: g.keepSign, from: o.inLane ? 'lane' : 'kerb', lights: g.junctions, priority: true, callFrom: 200, now: rideClock, pace: dest.id === 'story' ? STORY_PACE : 1 }); // (got back into in its lane: on from there; you in it, its green called ahead, as for one coming for you; the story's car, briskly: STORY_PACE)
     o.drv = OECars.chauffeur(o.C, rt, opts);
     o.drv.opts = opts; // (for a new way round a jam)
+    openKerb(o); // (and where it sets you down: issue 208)
     o.inLane = o.hold = false;
     g.H.toast(`<b>${o.name}:</b> ${dest.name}, ${(rt.len / 1000).toFixed(1)} km by road. <kbd>F</kbd> to skip the trip.`);
   }

@@ -1731,3 +1731,14 @@ body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 @media (pointer: coarse), (max-width: 640px) {
   .game-stage.story:has(#g-story-teach.on:not(.done)):is(:has(#g-story-shutter.on), :has(#g-story-cam.on:not(.up))) #g-story-chip { bottom: max(306px, calc(var(--teach-up, 330px) + 22px), calc(env(safe-area-inset-bottom) + 306px)); }
 }
+/* Title screen, in both menus (menus.js #gm-title): under Resume in the case's pause, a quiet way out beside it, with
+   what Continue will take up said under it; in the walk's corner it is one of its rows (walk.js gw-acts). On the way
+   out the street dims at once, as the page opens again on the title's menu */
+.game-stage.story:not(.walk) #g-menu #gm-title { justify-content: center; padding: 14px 18px; }
+.game-stage.story:not(.walk) #g-menu #gm-title-note { margin-top: -4px; text-align: center; }
+html.bh-leave .game-stage { opacity: 0; transition: opacity 0.22s ease; }
+html.bh-leave #g-menu { pointer-events: none; }
+/* (the pause over everything the street puts up: the goal line, the roll's strip and the walk's corner stood on the
+   menu's own layer, and later in the page, so on a phone the frame's goal was read through the paused menu. Under the
+   credits, which open from it) */
+#g-menu { z-index: 13; }
