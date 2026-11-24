@@ -115,7 +115,8 @@ function pageSide() {
       for (const b of who) { if (a === b) continue; const pb = b.rig.root.position; if (Math.hypot(pa.x - pb.x, pa.z - pb.z) > 1.3 || Math.abs(pa.y - pb.y) > 1) continue;
         const A = skOf(a), B = skOf(b); if (!A.limbs) { const k = window.__skin; A.sk = A.sk || k._skinned(a.rig.root); A.limbs = k._points(A.sk, /(Hand|Forearm)$/).concat(k.held(a.rig.root)); }
         if (!B.body) { const k = window.__skin; B.sk = B.sk || k._skinned(b.rig.root); B.body = k._tris(B.sk, null, /(Calf|Foot)$/); }
-        const r = window.__skin.deep(A.limbs, B.body); if (r.deep > 0) out.push({ a: a.name, b: b.name, deep: r.deep, part: r.part, at: r.at && r.at.map(x => +x.toFixed(1)) }); } }
+        const r = window.__skin.deep(A.limbs, B.body); if (r.deep > 0) { const ca = g.crowd && a.crowd ? g.crowd.P[+a.name.split(' ')[1]] : null, cb = g.crowd && b.crowd ? g.crowd.P[+b.name.split(' ')[1]] : null, ph = q => q ? (q.pz ? q.ph || 'plaza' : q.state) + (q.moving ? ' moving' : ' stood') : 'not of the crowd';
+          out.push({ a: a.name, b: b.name, deep: r.deep, part: r.part, at: r.at && r.at.map(x => +x.toFixed(1)), apart: +Math.hypot(pa.x - pb.x, pa.z - pb.z).toFixed(2), pa: ph(ca), pb: ph(cb), clip: a.rig.look && a.rig.look.clip || null, umb: !!(ca && ca.umbR > 0) }); } } }
     return { pairs: out, near: who.filter(q => q.crowd).length, others: who.filter(q => !q.crowd).map(q => q.name) }; };
   S._skinned = skinned; S._points = points; S._tris = tris;
   S.cam = (pos, look) => { const g = window.__game, T = window.THREE; const P = S.pose || (S.pose = { pos: new T.Vector3(), look: new T.Vector3() }); P.pos.set(pos[0], pos[2], -pos[1]); P.look.set(look[0], look[2], -look[1]); if (!g.cine.active) g.cine.play(() => S.pose, 1e9, { label: 'film' }); };
@@ -297,7 +298,7 @@ function pageSide() {
     }
     const all = [...seen.values()].sort((x, y) => y.deep - x.deep);
     console.log(`the crowd's people against those near them: ${reads} readings over ${SECS} s, up to ${nearMax} near people of the crowd; ${all.length} pairs touching, ${all.filter(c => c.over).length} deeper than ${DEEP} m at some reading`);
-    for (const c of all.slice(0, +process.env.TOP || 20)) console.log(`  ${(100 * c.deep).toFixed(1).padStart(5)} cm  ${c.a}'s ${c.part} in ${c.b}, at ${c.at}; touching in ${c.n} of ${reads} readings, over ${DEEP} m in ${c.over}`);
+    for (const c of all.slice(0, +process.env.TOP || 20)) console.log(`  ${(100 * c.deep).toFixed(1).padStart(5)} cm  ${c.a}'s ${c.part} in ${c.b}, ${c.apart} m apart (${c.pa}; ${c.pb}${c.clip ? '; clip ' + c.clip : ''}${c.umb ? '; umbrella up' : ''}), at ${c.at}; touching in ${c.n} of ${reads} readings, over ${DEEP} m in ${c.over}`);
     fs.writeFileSync(`${out}/${tag}-crowd.json`, JSON.stringify({ reads, nearMax, pairs: all }, null, 1));
   }
 
