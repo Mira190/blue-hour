@@ -304,7 +304,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       }
     }
     // the cabin, mirrored for left-hand drive, and the wheel turning on its column
-    let steering = null, q0 = null;
+    let steering = null, q0 = null, cabinRoot = null;
     const cab = M.cabin && lib.cars.scene.getObjectByName(M.cabin);
     if (cab) {
       const c = cab.clone(true);
@@ -315,7 +315,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         if (o.name === `${name}_Steering`) steering = o;
       });
       if (steering) q0 = steering.quaternion.clone();
-      body.add(c);
+      body.add(c); cabinRoot = c;
     }
     const seats = {};
     for (const [k, p] of Object.entries(M.seats || {})) seats[k] = new THREE.Vector3(p[0] * mirror, p[1], p[2]);
@@ -355,8 +355,85 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       }
       return roofs[key];
     }
+    // A far copy (issue 192): the whole model is some fifty meshes, a draw each, and a car with no lighter models of its
+    // own (the player's supercar has none in cars.glb) was drawn whole at any distance: 54 draws and 84,000 triangles in
+    // a phone's frame from 80 m, where it is twenty pixels wide. Past FAR_M from the view's camera it is one mesh: the body
+    // and the wheels as they stand, without the cabin's inside, each part in its own material's colour, its vertices
+    // joined on a grid of GRID_M; it rides on the body, so it tilts and moves as the car does, and the lamps' glows stay.
+    // ?carfar=off: drawn whole, as before
+    // (two copies: joined on 5 cm from FAR_M, and on 15 cm from FAR2_M, where a pixel of a phone's screen is some 7 cm across)
+    const LEAN = !!(window.OEQuality && OEQuality.city && OEQuality.city().lean), FAR_M = LEAN ? 25 : 60, FAR2_M = LEAN ? 60 : 140, GRIDS = [0.05, 0.15];
+    const farOff = /[?&]carfar=off\b/.test(location.search);
+    const farMesh = [null, null]; let farMat = null, isFar = 0;
+    const detail = [];
+    g.traverse(o => { if (o.isMesh) detail.push(o); });
+    function makeFar(GRID_M) {
+      g.updateMatrixWorld(true);
+      const toBody = new THREE.Matrix4().copy(body.matrixWorld).invert(), m4 = new THREE.Matrix4(), n3 = new THREE.Matrix3(), v = new THREE.Vector3(), cl = new THREE.Color();
+      const P = [], N = [], C = [], X = [];
+      for (const o of detail) {
+        let inCab = false; for (let q = o; q; q = q.parent) if (q === cabinRoot) inCab = true;
+        if (inCab) continue;
+        const geo = o.geometry, pos = geo.attributes.position, nrm = geo.attributes.normal, mat = o.material;
+        if (!pos || !nrm || !mat || !mat.color) continue;
+        m4.multiplyMatrices(toBody, o.matrixWorld); n3.getNormalMatrix(m4);
+        cl.copy(mat.color); if (mat.transparent) cl.multiplyScalar(0.35); // (the glass as dark as it reads from outside)
+        const base = P.length / 3;
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(m4); P.push(v.x, v.y, v.z);
+          v.fromBufferAttribute(nrm, i).applyMatrix3(n3).normalize(); N.push(v.x, v.y, v.z);
+          C.push(cl.r, cl.g, cl.b);
+        }
+        const idx = geo.index;
+        if (idx) for (let i = 0; i < idx.count; i++) X.push(base + idx.getX(i)); else for (let i = 0; i < pos.count; i++) X.push(base + i);
+      }
+      // the vertices joined on the grid: one vertex a cell, at the cell's mean, its normal and colour the cell's mean;
+      // a triangle whose corners fell in fewer than three cells is gone
+      const cell = new Map(), of = new Int32Array(P.length / 3), sum = [];
+      for (let i = 0; i < of.length; i++) {
+        const k = `${Math.round(P[3 * i] / GRID_M)},${Math.round(P[3 * i + 1] / GRID_M)},${Math.round(P[3 * i + 2] / GRID_M)}`;
+        let j = cell.get(k); if (j === undefined) { j = sum.length; cell.set(k, j); sum.push([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); }
+        const q = sum[j]; for (let c = 0; c < 3; c++) { q[c] += P[3 * i + c]; q[3 + c] += N[3 * i + c]; q[6 + c] += C[3 * i + c]; } q[9]++;
+        of[i] = j;
+      }
+      const pos = new Float32Array(sum.length * 3), nor = new Float32Array(sum.length * 3), col = new Float32Array(sum.length * 3);
+      sum.forEach((q, j) => { const l = Math.hypot(q[3], q[4], q[5]) || 1; for (let c = 0; c < 3; c++) { pos[3 * j + c] = q[c] / q[9]; nor[3 * j + c] = q[3 + c] / l; col[3 * j + c] = q[6 + c] / q[9]; } });
+      const tri = [];
+      for (let t = 0; t + 2 < X.length; t += 3) { const a = of[X[t]], b = of[X[t + 1]], c = of[X[t + 2]]; if (a !== b && b !== c && a !== c) tri.push(a, b, c); }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setIndex(tri); geo.computeBoundingSphere();
+      own.push(geo);
+      const mat = farMat || (farMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.15 }));
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = mesh.receiveShadow = true; mesh.visible = false; mesh.name = `${name}_far`;
+      body.add(mesh);
+      return mesh;
+    }
+    // (decided where the view's camera draws it: a cube's camera, whose field of view is -90, or a shadow's, decides nothing)
+    const fv = new THREE.Vector3(), cp = new THREE.Vector3();
+    const judge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+    judge.frustumCulled = false; judge.castShadow = judge.receiveShadow = false; judge.name = `${name}_lod`;
+    judge.onBeforeRender = (r, sc, cam) => {
+      if (farOff || !cam || !cam.isPerspectiveCamera || !(cam.fov > 0)) return;
+      g.getWorldPosition(fv); cp.setFromMatrixPosition(cam.matrixWorld);
+      // (through a long lens, the story's finder at 22 to 40 degrees, the car is as large as if it were nearer: counted so)
+      const d = fv.distanceTo(cp) / Math.max(1, Math.min(3, 55 / cam.fov)), lv = l => (l === 1 ? FAR_M : FAR2_M), up = isFar < 2 && d > lv(isFar + 1) + 3, down = isFar > 0 && d < lv(isFar) - 3;
+      if (!up && !down) return;
+      const want = up ? (d > FAR2_M + 3 ? 2 : 1) : (d > FAR_M - 3 ? 1 : 0);
+      if (want === isFar) return;
+      if (want && !farMesh[want - 1]) farMesh[want - 1] = makeFar(GRIDS[want - 1]);
+      isFar = want;
+      for (const o of detail) o.visible = !want;
+      farMesh.forEach((m, k) => { if (m) m.visible = want === k + 1; });
+    };
+    g.add(judge);
+    // (made now, with the car: the warm-up that compiles a car before it is shown reaches hidden meshes too, game.js
+    // warmFor, so the far copy's program is ready before the first time it is drawn, not compiled in that frame)
+    if (!farOff) { farMesh[0] = makeFar(GRIDS[0]); farMesh[1] = makeFar(GRIDS[1]); }
     let spin = 0, blink = 0, pitch = 0, roll = 0, pv = 0, ph = 0;
     const api = {
+      far: () => ({ far: isFar, triangles: farMesh.map(m => (m ? m.geometry.index.count / 3 : 0)) }), // (for the harnesses)
       group: g, body, name, info: M, half, hw, top: M.height_m, wheelbase: wb, seats, mats, lamp: null,
       // put it at (x, y, z) heading h, tilted by the ground under it (pitch: nose down, roll: left side up)
       place(x, y, z, h, gp = 0, gr = 0) {
@@ -458,6 +535,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         world.remove(g);
         for (const q of own) q.dispose();
         for (const m of new Set(Object.values(mats).concat(glows.map(q => q.material)))) m.dispose();
+        if (farMat) farMat.dispose(); judge.geometry.dispose(); judge.material.dispose();
       },
     };
     return api;
