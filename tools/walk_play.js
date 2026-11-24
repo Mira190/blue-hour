@@ -60,7 +60,7 @@
 const { chromium } = require('playwright');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
-const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
 const { drawnSeat } = require('./drawn_seat'); // (the seated sat on something drawn, not on the walking grid: issue 171)
@@ -78,7 +78,8 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // and at night in the rain every frame drawn whole was all of its time on a software renderer (issue 131)
   await skip(p, +(process.env.DRAW || 0));
   const errors = [];
-  const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
+  const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
+  const fail = m => { m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
@@ -951,7 +952,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {
     await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
-    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    expectReload(p, "the last card's Walk Shibuya"); await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     // (the loader's words are written once the page's boot has the map's list: waited for, not read at once)
     const roll = await p.waitForFunction(() => { const e = document.querySelector('#g-loader .roll-title span'); return e && e.textContent; }, null, { timeout: 120000, polling: 100 }).then(h => h.jsonValue()).catch(() => '');
     if (!/walk/i.test(roll)) fail(`come from the last card, the loader does not say it is a walk ("${roll}")`);
