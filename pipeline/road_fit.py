@@ -11,7 +11,9 @@ a road was a band centred on its line this could not be seen; on the surveyed gr
 Each vertex of a piece on the ground, inside the planned area and 60 m round it, is moved square to its line, by no
 more than SHIFT_M (the survey's and the map's accuracy together), until the lanes driven there have their room on
 both sides: a car's half width, the gutter and a hand past the outer lane's middle. A node is moved once, for every
-piece that ends on it. A piece with no room for its lanes at all (a street narrower than they need) is left as it is.
+piece that ends on it. No vertex is moved nearer a building's wall than WALL_M: where the survey's kerb and the map's
+footprint part, the line stays where a car fits along it (a back lane moved 0.24 m nearer a wall was closed by the
+road plan's own measure). A piece with no room for its lanes at all (a street narrower than they need) is left as it is.
 A second run moves nothing.
 
     python pipeline/road_fit.py --city shibuya            # after road_width.py; then bus_lines.py, road_ground.py, pack.py (tools/road_plan.sh)
@@ -43,8 +45,22 @@ def need(o):
     return lane + CAR_M, lane + CAR_M
 
 
-def moves(game, S):
-    """{(piece, vertex): (dx, dy)} for the vertices to move."""
+WALL_M = 1.6    # a line this near a building's wall is not moved nearer it: the survey's kerb and the map's footprint part there
+
+
+def walls(city):
+    """What stands on the ground, to keep a line off: the built model's solids as one tree."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "blender"))
+    import archkit as ak
+    import shapely
+    sol = [Polygon(q["ring"]).buffer(0) for q in ak.load_solids(city) if len(q["ring"]) >= 3 and q.get("base", 0) - q.get("ground", 0) < 2.5]
+    tree = shapely.STRtree(sol)
+    return lambda pt: min((sol[i].distance(pt) for i in tree.query(pt.buffer(WALL_M + 2.0))), default=99.0)
+
+
+def moves(game, S, wall=None):
+    """{(piece, vertex): (dx, dy)} for the vertices to move. wall(point): how far a building stands from it."""
     b = game.get("bounds", {}).get("ground", {}).get("poly")
     if not b:
         return {}
@@ -86,6 +102,10 @@ def moves(game, S):
             if abs(s) < TOL_M:
                 continue
             v = n * s
+            if wall is not None:
+                d0, d1 = wall(pt), wall(Point(*(q + v)))
+                if d1 < WALL_M and d1 < d0:
+                    continue                       # (nearer a wall than it was: the game then finds no car fits along it)
             if k in (0, len(p) - 1):
                 at_node.setdefault((o["p"][3 * k], o["p"][3 * k + 1]), []).append((i, k, v))
             else:
@@ -121,11 +141,12 @@ def main():
     from cityctx import City
     geo = road_survey.load(os.path.join(ROOT, "cities", a.city, "road_surface.json"))
     ground = road_width.ground_of(City(a.city), game)
+    wall = walls(a.city)
     total, worst = 0, 0.0
     # (a vertex moved changes its neighbours' direction a little, and a piece's width, which is measured from its line and
     # gives its lanes their places: the widths are measured again after each pass, and a few passes settle both)
     for _ in range(1 if a.check else 8):
-        w = moves(game, road_ground.of_game(a.city, game, ground))
+        w = moves(game, road_ground.of_game(a.city, game, ground), wall)
         w = {k: v for k, v in w.items() if np.hypot(*v) >= (0.25 if a.check else TOL_M)}
         if a.check:
             for (i, k), v in list(w.items())[:12]:
