@@ -1801,7 +1801,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       const nx = -q.hy, ny = q.hx; // (across the footway, as p.lat runs)
       let d = sx * nx + sy * ny;
-      if (Math.abs(d) < 1e-3) return;
+      if (!(Math.abs(d) >= 1e-3)) return; // (and nothing where the walker has no heading yet: a NaN taken into its place lost it from the street, issue 187)
       d = Math.sign(d) * Math.min(Math.abs(d), 0.6 * dt);
       const l = net.L[q.line], hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2), lat = (q.lat || 0) + d;
       if (Math.abs(lat) > hw && Math.abs(lat) > Math.abs(q.lat || 0)) return;
