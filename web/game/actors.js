@@ -1963,7 +1963,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
-      if (q.give) { q.give = false; if (q.ph === 'cross') q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+      // (and one of them out in the road off the walk, strolling or waiting, as a crosser is: asked only for a spot behind
+      // its kerb, one strolling through the Scramble's box toward it stood before a car that waited on it 144 s, each
+      // in the other's way, issue 204)
+      if (q.give) { q.give = false; if (q.ph === 'cross' || (pz.road && pz.road(q.x, q.y))) q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
@@ -2320,7 +2323,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (p.umbR > 0) umbSeen = true;
         if (p.state === 'walk' && p.line >= 0 && (p.av ?? p.v ?? 0) < 0.3) { // (stood on a footway: out of a canopy, from under one, or out of another's body)
-          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.inPic && (frame + i) % 8 === 0; // (bodies: whoever is drawn, one frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
+          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.whole && (frame + i) % 8 === 0; // (bodies: a whole rig, a near person drawn as one (people.js place: p.whole), where a few cm in another reads as wrong; not a far copy. One frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
           if (umbNear || bodyTurn) canopyAcross(i, p, umbNear ? dt : dt * 8, bodyTurn);
         }
         if (p.state === 'walk') { // farther off, a longer step every few frames does
