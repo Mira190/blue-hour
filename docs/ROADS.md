@@ -712,6 +712,14 @@ and cannot take the end of the green as a driver waiting in the box does (left o
 370.6,-971.9 that `tools/box_posts.js` finds in the carriageway at the Scramble's north exit, where a car of the
 north-south turn stood 8 s).
 
+**One of the Scramble's crowd in the road off the walk gives way as a crosser does** (issue 204). Asked to step aside
+by a car that has waited on it, one of the crowd strolling or waiting in the road was only given another spot behind
+its kerb: it edged on before the car's nose and the car waited on it 97 to 144 s (the roads check's drive back across
+the Scramble over its time in 2 or 3 of 8 plays). It now takes the crosser's sidestep (`sideT`) to the car's side, and
+one stranded deeper in the box than 4 m from pavement goes to the nearest kerb its crossings land at
+(`tools/box_stranded.js`). The drive back: 8 of 9 plays within time after, the one over (by 11 s) a different route
+behind a queue waiting on `cross`.
+
 ## Not done, and why
 
 - **The mounds beside the streets at the embankment** are the survey's ground, left as it is by `street_ground.py`
