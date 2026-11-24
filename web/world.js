@@ -2347,23 +2347,36 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     }
     // street furniture (landmarks.json "props"): each kind's parts drawn once, instanced at every
     // place it stands ([x, y, z, heading, scale across]), one draw call per part
+    // A part the same in several kinds (issue 192: the bicycles are eight kinds, by colour, of four parts; their tyres,
+    // saddles and bars are the same shape in the same material in every kind, and their frames four materials, each in
+    // two kinds) is one instanced mesh for all its places, not one a kind: 32 draws of 17,000 triangles became 8. Parts
+    // are joined only where their geometry and every input of their material are the same, so each place is drawn as it
+    // was, its shadow too
     const im4 = new THREE.Matrix4(), imQ = new THREE.Quaternion(), imP = new THREE.Vector3(), imS = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-    for (const pr of LM.props || []) {
-      const c = new THREE.Vector3();
-      for (const a of pr.at) c.add(W(a[0], a[1], a[2]));
-      c.divideScalar(pr.at.length);
+    const sumOf = a => { let h = a.length; for (let i = 0; i < a.length; i++) h = (h * 31 + Math.round(a[i] * 1000)) | 0; return h; };
+    const partSets = new Map();
+    for (const pr of LM.props || []) for (const part of pr.parts) {
+      const k = [part.name, part.material, !!part.floodlit, part.sky, part.bounce, part.direct, sumOf(part.position), part.index ? sumOf(part.index) : 0, part.uv ? sumOf(part.uv) : 0].join('|');
+      let q = partSets.get(k); if (!q) partSets.set(k, q = { part, kinds: [], at: [], far: 0 });
+      q.kinds.push(pr.name); q.far = Math.max(q.far, pr.far || 600);
+      for (const a of pr.at) q.at.push(a);
+    }
+    for (const q of partSets.values()) {
+      const part = q.part, at = q.at, c = new THREE.Vector3();
+      for (const a of at) c.add(W(a[0], a[1], a[2]));
+      c.divideScalar(at.length);
       let r = 0;
-      for (const a of pr.at) r = Math.max(r, c.distanceTo(W(a[0], a[1], a[2])));
-      for (const part of pr.parts) {
-        const im = new THREE.InstancedMesh(lmGeometry(part), lmMaterial(part), pr.at.length); // (sheltered, as a mesh is: a hall's seats in the dark)
-        pr.at.forEach((a, i) => {
+      for (const a of at) r = Math.max(r, c.distanceTo(W(a[0], a[1], a[2])));
+      {
+        const im = new THREE.InstancedMesh(lmGeometry(part), lmMaterial(part), at.length); // (sheltered, as a mesh is: a hall's seats in the dark)
+        at.forEach((a, i) => {
           imP.set(a[0], a[2], -a[1]); imQ.setFromAxisAngle(UP, a[3]); imS.set(a[4] || 1, 1, a[4] || 1);
           im.setMatrixAt(i, im4.compose(imP, imQ, imS));
         });
         im.computeBoundingSphere();
         im.castShadow = im.receiveShadow = true;
-        im.name = `${pr.name}_${part.name}`;
-        farAt(im, c, r + 10, pr.far || 600);
+        im.name = `${q.kinds[0]}_${part.name}`;
+        farAt(im, c, r + 10, q.far);
         OEBuildings.cellInstances(im);
         im.userData.noRefl = true; // (street furniture: out of the sea's reflection, water.js)
         world.add(still(im));

@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # each target's harness: the scripts tools/check.sh runs for it (their requires follow), and what else it reads itself
 HARNESS = {
     'story': ['tools/story_play.js'], 'story1': ['tools/story_play.js'], 'story2': ['tools/story_play.js'],
-    'story3': ['tools/story_play.js'], 'budget': ['tools/story_play.js'], 'budget1': ['tools/story_play.js'], 'budgetm': ['tools/story_play.js'],
+    'story3': ['tools/story_play.js'], 'budget': ['tools/story_play.js'], 'budget1': ['tools/story_play.js'], 'budgetm': ['tools/story_play.js'], 'budgetm1': ['tools/story_play.js'], 'budgetm2': ['tools/story_play.js'], 'budgetm3': ['tools/story_play.js'],
     'budget2': ['tools/story_play.js'], 'budget3': ['tools/story_play.js'],
     'storyp': ['tools/story_play.js'], 'storyl': ['tools/story_play.js'],
     'guide': ['tools/guide_way.js', 'tools/guide_body.js'], 'guide1': ['tools/guide_way.js'], 'guide3': ['tools/guide_way.js'], 'guide4': ['tools/guide_way.js'], 'guide5': ['tools/guide_way.js'],
@@ -55,7 +55,7 @@ HARNESS = {
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'hold': ['tools/hold_check.js', 'tools/hold_depth.js'], 'game': ['tools/game_check.js'],
     'launch': ['tools/launch_check.js'],
 }
-EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget', 'budget1', 'budget2', 'budget3', 'budgetm', 'storyp', 'storyl')}  # (story_play.js reads it)
+EXTRA = {k: ['cities/shibuya/city.json'] for k in ('story', 'story1', 'story2', 'story3', 'budget', 'budget1', 'budget2', 'budget3', 'budgetm', 'budgetm1', 'budgetm2', 'budgetm3', 'storyp', 'storyl')}  # (story_play.js reads it)
 EXTRA['launch'] = ['vercel.json', 'web/index.html', 'web/fonts.css', 'web/game/story.css', 'web/game/story.js', 'web/data/shibuya/game.json']  # (read, and stamped, by the tool itself)
 # the settings a run takes from the environment that change what it plays or measures (CHECK_FN: a hash of the
 # functions tools/check.sh runs the target with)

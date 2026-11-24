@@ -1,0 +1,23 @@
+{
+ "note": "The parked bicycles north of the Scramble, close (issue 192: their parts joined across kinds)",
+ "times": {
+  "day": "13:00",
+  "night": "21:00"
+ },
+ "views": [
+  {
+   "name": "bikes",
+   "eye": [
+    424.5,
+    -913.5,
+    1.5
+   ],
+   "look": [
+    432.5,
+    -904.5,
+    0.6
+   ],
+   "fov": 45
+  }
+ ]
+}
