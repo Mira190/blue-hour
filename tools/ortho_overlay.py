@@ -1,22 +1,23 @@
 """Tokyo's 0.20 m orthophoto under the map's ground, to set the survey's kerbs and islands beside the photograph.
 
-    python tools/ortho_overlay.py shibuya <sheets dir> x0 y0 x1 y1 out.jpg [--plain]
+    python pipeline/fetch_tokyo_ortho.py --city shibuya     # once: the sheets, data/raw/<id>/tokyo_ortho/<sheet>.zip
+    python tools/ortho_overlay.py shibuya x0 y0 x1 y1 out.jpg [--plain] [--sheets <dir>]
 
-The sheets are the Tokyo Digital Twin Project's 23-ward orthophoto (FY2023 survey, published October 2024; CC BY 4.0,
-「東京都デジタルツイン実現プロジェクト 区部点群データ」（東京都）を加工して作成): GeoTIFF sheets of 400 x 300 m at
-0.20 m a pixel in JGD2011 plane zone IX (EPSG:6677), each with its .tfw world file. The sheet index is a vector tile
-set (https://gic-tokyo.s3.ap-northeast-1.amazonaws.com/2024/dig/Vectortile/23ku/ortho/{z}/{x}/{y}.pbf, MESH_NO and URL
-on each sheet); a sheet is https://gic-tokyo.s3.ap-northeast-1.amazonaws.com/2024/dig/ortho/{MESH}.zip. The west
-exit is 09LD2659, 09LD2669, 09LD2750 and 09LD2760. They are not kept in the repository (6 MB a sheet).
+The sheets are the Tokyo Metropolitan Government Digital Twin project's 2023 ortho photographs (CC BY 4.0, credited on
+the Credits screen, web/credits.json): GeoTIFF sheets of 400 x 300 m at 0.20 m a pixel in JGD2011 plane zone IX
+(EPSG:6677), each zipped with its .tfw world file. The west exit is 09LD2659, 09LD2669, 09LD2750 and 09LD2760. They
+are not kept in the repository.
 
 The box x0 y0 x1 y1 is in the map's metres (cityctx: x east, y north). The photo is resampled into it at 0.2 m a
 pixel; over it, unless --plain, the page's ground (game.json road_ground): carriageway edges in red, islands in green,
 footway edges in amber, zebras in white, and a grid every 10 m with its numbers.
 """
 import glob
+import io
 import json
 import os
 import sys
+import zipfile
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -26,13 +27,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "pipeline"))
 from cityctx import City  # noqa: E402
 
 Image.MAX_IMAGE_PIXELS = None
-city, sheets = sys.argv[1], sys.argv[2]
-x0, y0, x1, y1 = (float(v) for v in sys.argv[3:7])
-out = sys.argv[7]
-plain = "--plain" in sys.argv
+argv = sys.argv[1:]
+plain = "--plain" in argv
+argv = [v for v in argv if v != "--plain"]
+sheets = None
+if "--sheets" in argv:
+    i = argv.index("--sheets")
+    sheets = argv[i + 1]
+    del argv[i:i + 2]
+city = argv[0]
+x0, y0, x1, y1 = (float(v) for v in argv[1:5])
+out = argv[5]
 PX = 0.2
 
 C = City(city)
+sheets = sheets or os.path.join(C.raw, "tokyo_ortho")
 to_plane = Transformer.from_crs(C.proj, "EPSG:6677", always_xy=True)
 W, H = int(round((x1 - x0) / PX)), int(round((y1 - y0) / PX))
 gx, gy = np.meshgrid(x0 + (np.arange(W) + 0.5) * PX, y1 - (np.arange(H) + 0.5) * PX)
@@ -40,9 +49,22 @@ gx, gy = np.meshgrid(x0 + (np.arange(W) + 0.5) * PX, y1 - (np.arange(H) + 0.5) *
 E, N = to_plane.transform(gx.ravel(), gy.ravel())
 E, N = np.asarray(E).reshape(H, W), np.asarray(N).reshape(H, W)
 img = np.zeros((H, W, 3), np.uint8)
-for tif in sorted(glob.glob(os.path.join(sheets, "*.tif"))):
-    a, d, b, e, c, f = (float(v) for v in open(tif[:-4] + ".tfw").read().split())
-    im = np.asarray(Image.open(tif).convert("RGB"))
+def sheet_files():
+    """(world file text, image) of each sheet: a .tif beside its .tfw, or the zip pipeline/fetch_tokyo_ortho.py keeps."""
+    for tif in sorted(glob.glob(os.path.join(sheets, "*.tif"))):
+        yield open(tif[:-4] + ".tfw").read(), Image.open(tif)
+    for zp in sorted(glob.glob(os.path.join(sheets, "*.zip"))):
+        with zipfile.ZipFile(zp) as z:
+            names = z.namelist()
+            t = next((n for n in names if n.lower().endswith(".tif")), None)
+            w = next((n for n in names if n.lower().endswith(".tfw")), None)
+            if t and w:
+                yield z.read(w).decode(), Image.open(io.BytesIO(z.read(t)))
+
+
+for tfw, image in sheet_files():
+    a, d, b, e, c, f = (float(v) for v in tfw.split())
+    im = np.asarray(image.convert("RGB"))
     col = np.floor((E - c) / a).astype(int)
     row = np.floor((N - f) / e).astype(int)
     ok = (col >= 0) & (col < im.shape[1]) & (row >= 0) & (row < im.shape[0])
