@@ -1,7 +1,7 @@
 // Sound, synthesised with Web Audio (no audio files): footsteps,
 // the helicopter rotor, the ferry engine and horn, a car's engine through its gears,
 // its tyres in a slide and its horn, dialogue voice beeps with a pitch per character,
-// little penguins braying in the dark and silver gulls; at a busy crossing the crowd's murmur, the
+// little penguins braying in the dark and silver gulls; at a busy crossing the
 // screens' music, the walk signal's bird calls and the station's announcements; on a railway
 // (trains.js) the trains' rumble, rail joints and motors, the platform's chimes and its departure
 // melody. Browsers allow sound only after a click, so start() is called from the Play button.
@@ -31,7 +31,7 @@ window.OEAudio = (function () {
   // sound before a click"). A block missed is a click whatever the sound's own cost: the audio thread is starved by what
   // else the phone is doing (a busy page, heat, a low-power mode), which a page cannot raise. What it can do is ask less
   // of the thread while it is starved. Level 0 is everything; 1 lets go of the room's reverb and halves the street's
-  // voices; 2 lets go of the crowd's murmur, the screens' song, the cicadas and the animals; 3 keeps four voices of the
+  // voices; 2 lets go of the screens' song, the cicadas and the animals; 3 keeps four voices of the
   // street. The story's own sound (its bus), the score and the dialogue's beeps are never given up. A touch screen only
   // (?shed=0..3 sets a level on any device, for the tools).
   const SHED_SET = /[?&]shed=([0-3])\b/.exec(location.search);
@@ -96,7 +96,7 @@ window.OEAudio = (function () {
     // the world's five buses, by what a sound is and so by what a place does to it (mix(), below): each a level and a
     // low-pass into the world's bus
     for (const k of BUSES) { const g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000; lp.Q.value = 0.707; g.connect(lp); lp.connect(master); B[k] = g; busOut[k] = lp; }
-    mixNow = null; mixLin = null; cityCh = null; liftCh = null; roadCh = null; tickAt = 0;
+    mixNow = null; mixLin = null; liftCh = null; roadCh = null; tickAt = 0;
     room = null; sbus = null; mbus = null; verbs.length = 0; placeNow = null; irs = {}; tape = null; deck = null; ready = Promise.resolve();
     for (const k of Object.keys(ch)) delete ch[k];
     place('open');
@@ -150,11 +150,14 @@ window.OEAudio = (function () {
       eo.connect(el); el.connect(eg); eg.connect(B.self); eo.start();
       return { vol: eg, osc: eo };
     },
-    // wind at height and speed
+    // wind at height and speed: a low, moving body of air, its highs rolled off steeply (two low-passes), the gust
+    // opening it a little. It was noise through a wide band round 900 Hz, most of its power from 1 to 8 kHz: a hiss the
+    // owner heard as grating on SHIBUYA SKY's roof (24 November 2026). Wind out of doors is low (docs/SOUND.md "Soft
+    // air"): the whistle of an edge is a thing of its own, not the wind's body
     wind() {
-      const wn = noiseSource(), wl = ctx.createBiquadFilter(), wg = ctx.createGain();
-      wl.type = 'bandpass'; wl.frequency.value = 900; wl.Q.value = 0.4; wg.gain.value = 0;
-      wn.connect(wl); wl.connect(wg); wg.connect(B.weather);
+      const wn = noiseSource(), wl = ctx.createBiquadFilter(), w2 = ctx.createBiquadFilter(), wg = ctx.createGain();
+      wl.type = 'lowpass'; wl.frequency.value = 400; wl.Q.value = 0.9; w2.type = 'lowpass'; w2.frequency.value = 1100; w2.Q.value = 0.5; wg.gain.value = 0;
+      wn.connect(wl); wl.connect(w2); w2.connect(wg); wg.connect(B.weather);
       return { vol: wg, f: wl };
     },
     // a car's engine: two saws a fifth apart through a low-pass that opens with the throttle
@@ -171,20 +174,23 @@ window.OEAudio = (function () {
       sn.connect(sb); sb.connect(sg); sg.connect(B.self);
       return { vol: sg };
     },
-    // rain: a hiss of fine drops (high-passed noise), the patter on leaves and paving (a band of
-    // noise that flutters), and under a roof its drumming (a low band, louder there)
+    // rain: the wash of a street's drops (noise between 200 Hz and 1.1 kHz, rolled off steeply over it: it was high-passed at 3.2 kHz and left open
+    // to the top, a hiss the owner heard as grating, 24 November 2026), the patter on leaves and paving (a band of noise
+    // that flutters), and under a roof its drumming (a low band, louder there)
     rain() {
-      const hn = noiseSource(), hh = ctx.createBiquadFilter(), hg = ctx.createGain();
-      hh.type = 'highpass'; hh.frequency.value = 3200; hg.gain.value = 0;
-      hn.connect(hh); hh.connect(hg); hg.connect(B.weather);
+      const hn = noiseSource(), hh = ctx.createBiquadFilter(), hl = ctx.createBiquadFilter(), hg = ctx.createGain();
+      hh.type = 'highpass'; hh.frequency.value = 200; hl.type = 'lowpass'; hl.frequency.value = 1300; hl.Q.value = 0.5; hg.gain.value = 0;
+      // (and one more low-pass over the wash and the patter together: twelve decibels an octave left too much over 3 kHz)
+      const top = ctx.createBiquadFilter(); top.type = 'lowpass'; top.frequency.value = 900; top.Q.value = 0.6; top.connect(B.weather);
+      hn.connect(hh); hh.connect(hl); hl.connect(hg); hg.connect(top);
       const pn = noiseSource(), pb = ctx.createBiquadFilter(), pg = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain(), pv = ctx.createGain();
-      pb.type = 'bandpass'; pb.frequency.value = 1400; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
-      pl.type = 'triangle'; pl.frequency.value = 7.3; plg.gain.value = 0.35; pl.connect(plg); plg.connect(pg.gain); pl.start();
-      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(B.weather);
+      pb.type = 'bandpass'; pb.frequency.value = 600; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
+      pl.type = 'sine'; pl.frequency.value = 5.1; plg.gain.value = 0.2; pl.connect(plg); plg.connect(pg.gain); pl.start();
+      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(top);
       const rn2 = noiseSource(), rb = ctx.createBiquadFilter(), rgain = ctx.createGain();
       rb.type = 'bandpass'; rb.frequency.value = 420; rb.Q.value = 0.9; rgain.gain.value = 0;
-      rn2.connect(rb); rb.connect(rgain); rgain.connect(B.weather);
-      return { hiss: hg, patter: pv, roof: rgain, hp: hh };
+      rn2.connect(rb); rb.connect(rgain); rgain.connect(top); // (the drumming too: a band-pass's skirts left a hiss over 2 kHz)
+      return { hiss: hg, patter: pv, roof: rgain, hp: hl };
     },
   };
   // the bed, made now if it is to be heard (on: the level asked for is over silence); null while it is not there and
@@ -214,7 +220,7 @@ window.OEAudio = (function () {
   }
   function engine(level) { const c = ctx && bed('engine', level > 0.001); if (c) { ramp(c.vol.gain, level * 0.09); ramp(c.osc.frequency, 42 + level * 18, 0.6); } }
   // level 0..1: the air's rush (a helicopter's speed, or the weather's wind and its gusts, whichever is louder)
-  function wind(level, gust = 0) { const c = ctx && bed('wind', level > 0.001); if (!c) return; ramp(c.vol.gain, Math.min(0.14, level * 0.12), 0.4); ramp(c.f.frequency, 500 + 700 * level + 500 * gust, 0.5); }
+  function wind(level, gust = 0) { const c = ctx && bed('wind', level > 0.001); if (!c) return; ramp(c.vol.gain, Math.min(0.2, level * 0.17), 0.4); ramp(c.f.frequency, 260 + 300 * level + 280 * gust, 0.7); }
   // rpm 0..1 (idle to the red line), throttle 0..1, level 0..1 (0 off; lower from the back seat)
   function car(rpm, throttle = 0, level = 1) {
     const c = ctx && bed('car', level > 0.001);
@@ -223,6 +229,40 @@ window.OEAudio = (function () {
     ramp(c.vol.gain, level * (0.035 + 0.05 * throttle), 0.08);
     ramp(c.a.frequency, f, 0.06); ramp(c.b.frequency, f * 1.5, 0.06);
     ramp(c.lp.frequency, 220 + 900 * throttle * rpm + 200 * rpm, 0.08);
+  }
+  // The traffic going by you: the nearest moving cars and buses (game.js trafficSound, at most three), each the voice
+  // your own car has (an engine of two saws a fifth apart through a low-pass, and the tyres on the road, a band of
+  // noise) on a slot of its own, panned to where it is, into the near bus through a low-pass for its distance. A bus is
+  // lower and rougher. The owner asked for "a car going by" to stay, and it had never been there: the traffic was silent
+  // but for a honk (docs/SOUND.md "No bed without a source"). L: [{ g, v, pan, fc, bus }] by slot (g 0: silent). Made
+  // the first time a car is heard; given up at level 2 with the street's other beds
+  const trafficCh = [];
+  function traffic(L) {
+    if (!ctx) return;
+    for (let i = 0; i < 3; i++) {
+      const o = (shed >= 2 || muted) ? null : L && L[i];
+      let c = trafficCh[i];
+      if (!c) {
+        if (!(o && o.g > 0.002)) continue;
+        const a = ctx.createOscillator(), b = ctx.createOscillator(), elp = ctx.createBiquadFilter(), eg = ctx.createGain();
+        a.type = b.type = 'sawtooth'; a.frequency.value = 45; b.frequency.value = 67; elp.type = 'lowpass'; elp.frequency.value = 200; elp.Q.value = 0.6; eg.gain.value = 0;
+        const n = noiseSource(), tb = ctx.createBiquadFilter(), tg = ctx.createGain();
+        tb.type = 'lowpass'; tb.frequency.value = 450; tb.Q.value = 0.5; tg.gain.value = 0;
+        const lp = ctx.createBiquadFilter(), pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+        lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.6;
+        a.connect(elp); b.connect(elp); elp.connect(eg); eg.connect(lp); n.connect(tb); tb.connect(tg); tg.connect(lp);
+        if (pn) { lp.connect(pn); pn.connect(B.near); } else lp.connect(B.near);
+        a.start(); b.start();
+        c = trafficCh[i] = { a, b, elp, eg, tb, tg, lp, pn };
+      }
+      const g = o ? o.g : 0, v = o ? Math.min(20, o.v) : 0, bus = !!(o && o.bus), k = Math.min(1, v / 12);
+      const f = (bus ? 24 : 32) + v * (bus ? 1.4 : 2.1);
+      ramp(c.eg.gain, g * (bus ? 0.06 : 0.035) * (0.5 + 0.5 * k), 0.12);
+      ramp(c.tg.gain, g * (bus ? 0.09 : 0.07) * k, 0.12);
+      ramp(c.a.frequency, f, 0.2); ramp(c.b.frequency, f * 1.5, 0.2);
+      ramp(c.elp.frequency, (bus ? 240 : 170) + 8 * v, 0.2); ramp(c.tb.frequency, 300 + 15 * v, 0.2);
+      if (o) { ramp(c.lp.frequency, Math.max(300, Math.min(1200, o.fc || 1200)), 0.15); if (c.pn) ramp(c.pn.pan, Math.max(-1, Math.min(1, o.pan || 0)) * 0.85, 0.08); }
+    }
   }
   function skid(level) { const c = ctx && bed('skid', level > 0.001); if (c) ramp(c.vol.gain, Math.min(0.06, level * 0.06), 0.06); }
   // level 0..1 (drizzle to a downpour); roof: under one, which drums; inside: a car or a cabin, muffled
@@ -261,10 +301,11 @@ window.OEAudio = (function () {
     const c = ctx && bed('rain', level > 0.001);
     if (!c) return;
     const k = inside ? 0.35 : 1;
-    ramp(c.hiss.gain, level * 0.05 * k * (roof ? 0.6 : 1), 0.8);
-    ramp(c.patter.gain, level * 0.07 * k * (roof ? 0.5 : 1), 0.8);
+    // (8 dB under what it was: the rain stood 25 dB over the rest of the kerb, the loudest thing in the street)
+    ramp(c.hiss.gain, level * 0.02 * k * (roof ? 0.6 : 1), 0.8);
+    ramp(c.patter.gain, level * 0.028 * k * (roof ? 0.5 : 1), 0.8);
     ramp(c.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0.035 * umb) * Math.min(1, level * 1.4), 0.6);
-    ramp(c.hp.frequency, inside ? 1800 : 3200, 0.5);
+    ramp(c.hp.frequency, inside ? 800 : 1300, 0.5); // (the wash's top: lower through a roof or a window)
     // under a roof, now and then a drop off its edge
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
@@ -379,23 +420,24 @@ window.OEAudio = (function () {
   // tower, 1977: the high floors hear a wide area, not the street below). Games mix this way: every sound belongs to a
   // bus, and the listener's place sets each bus's level and low-pass (Wwise's states and its bus volumes and filters,
   // FMOD's snapshots, Unreal's sound mixes and its interior volumes). The world has five:
-  //   near     the street's close life: the crowd, the screens, the walk signals' calls, horns, the announcements
+  //   near     the street's close life: the screens, the walk signals' calls, horns, the announcements
   //   rail     the trains: their rumble, their wheels, the deck under them, the platforms' chimes
   //   weather  the rain, the wind, thunder, the cicadas
   //   self     you and what you are in: your steps, the car's engine and tyres, its indicator, the lift's hum, the rotor
-  //   city     the city as one sound, far and wide: its hum, and its far events (a siren, a train's horn)
+  //   city     the city's far events (a siren, a train's horn); its low-pass opened when its bed went (each event
+  //            carries the air's own loss: far())
   // mix(place, up) sets them (game.js, every frame; it acts on a change): place one of MIX's, up the ears' height over
   // the ground (m), which takes the open street's mix to the roof's between 25 and 150 m. Each row: [dB, low-pass Hz].
   const BUSES = ['near', 'rail', 'weather', 'self', 'city'], B = {}, busOut = {};
   const MIX = {
-    kerb: { near: [0, 20000], rail: [0, 20000], weather: [0, 20000], self: [0, 20000], city: [-10, 260] },
-    deck: { near: [-3, 9000], rail: [3, 300], weather: [-4, 6000], self: [0, 20000], city: [-6, 320] },
+    kerb: { near: [0, 20000], rail: [0, 20000], weather: [0, 20000], self: [0, 20000], city: [-10, 3000] },
+    deck: { near: [-3, 9000], rail: [3, 300], weather: [-4, 6000], self: [0, 20000], city: [-6, 1500] },
     lift: { near: [-40, 300], rail: [-36, 160], weather: [-60, 300], self: [0, 20000], city: [-45, 140] },
-    roof: { near: [-60, 1500], rail: [-60, 400], weather: [0, 20000], self: [0, 20000], city: [-2, 700] },
+    roof: { near: [-60, 1500], rail: [-60, 400], weather: [0, 20000], self: [0, 20000], city: [-2, 2500] },
     heli: { near: [-60, 800], rail: [-60, 300], weather: [-8, 1800], self: [8, 20000], city: [-40, 300] },
-    car: { near: [-12, 900], rail: [-14, 350], weather: [-6, 2500], self: [-5, 20000], city: [-14, 220] },
+    car: { near: [-12, 900], rail: [-14, 350], weather: [-6, 2500], self: [-5, 20000], city: [-14, 700] },
   };
-  let mixNow = null, mixLin = null, cityCh = null, liftCh = null, roadCh = null, tickAt = 0;
+  let mixNow = null, mixLin = null, liftCh = null, roadCh = null, tickAt = 0;
   function mix(place, up = 0) {
     if (!ctx || !MIX[place]) return;
     const open = place === 'kerb' || place === 'roof', x = Math.max(0, Math.min(1, (up - 25) / 125)), h = open ? x * x * (3 - 2 * x) : 0;
@@ -409,31 +451,14 @@ window.OEAudio = (function () {
       lin[k] = db <= -59 ? 0 : Math.pow(10, db / 20);
       ramp(B[k].gain, lin[k], 0.2); ramp(busOut[k].frequency, fc, 0.2);
     }
-    mixLin = lin; city(lin.city);
+    mixLin = lin;
   }
   // what the place leaves of a bus (0..1), for a sound that is not in the graph: the platforms' spoken announcements (trains.js)
   const heard = name => (mixLin && mixLin[name] != null ? mixLin[name] : 1);
-  // The city as one sound: every engine, tyre, fan and voice for a kilometre round, summed and low (the air and the
-  // roofs' edges between take the rest: under 500 Hz is what a high floor hears), wide (two beds of noise that share
-  // nothing, one a side) and never quite steady (each side swells a little, slowly, on its own). At the kerb it is the
-  // hum under the street, at the roof the whole of the city. Made the first time it is to be heard
-  function city(level) {
-    if (!ctx) return;
-    if (shed >= 2) level = 0;
-    if (!cityCh) {
-      if (!(level > 0.003) || muted) return;
-      const outG = ctx.createGain(); outG.gain.value = 0.2; outG.connect(B.city);
-      for (const side of [-1, 1]) {
-        const n = ctx.createBufferSource(), lo = ctx.createBiquadFilter(), mid = ctx.createBiquadFilter(), mg = ctx.createGain(), g = ctx.createGain(), sw = ctx.createOscillator(), sg = ctx.createGain();
-        n.buffer = noise; n.loop = true; n.start(0, side < 0 ? 0.37 : 1.21);
-        lo.type = 'lowpass'; lo.frequency.value = 170; lo.Q.value = 0.5; mid.type = 'bandpass'; mid.frequency.value = 340; mid.Q.value = 0.6; mg.gain.value = 0.3;
-        sw.frequency.value = side < 0 ? 0.071 : 0.113; sg.gain.value = 0.22; g.gain.value = 0.8; sw.connect(sg); sg.connect(g.gain); sw.start();
-        n.connect(lo); n.connect(mid); mid.connect(mg); lo.connect(g); mg.connect(g);
-        if (ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = side * 0.75; g.connect(pn); pn.connect(outG); } else g.connect(outG);
-      }
-      cityCh = { out: outG };
-    }
-  }
+  // (The city had a bed of its own here until 24 November 2026: two beds of low noise, one a side, under 260 Hz at the
+  // kerb, the whole of the city on the roof. It had no source the ear could pin it to: on a phone's speaker it was all
+  // but absent, on headphones a rumble. The owner had it taken out with the crowd's murmur: docs/SOUND.md "No bed
+  // without a source". The city's bus now carries its far events alone, each a thing the ear can name)
   // A far event of the city, d metres off: a siren (Japan's ambulance, two notes: 960 and 770 Hz) or a train's horn. It
   // is heard late by the distance (343 m a second: two seconds from 700 m), small by it, and with the air's share of
   // its highs gone (ISO 9613-1 at 20 C and 70 %: 5 dB a kilometre at 1 kHz, 23 at 4 kHz), into the city's bus: the
@@ -505,21 +530,9 @@ window.OEAudio = (function () {
   // for the tools (tools/sound_places.js): where a bus, the world or the tape can be listened to
   function tap(name) { return !ctx ? null : busOut[name] || (name === 'world' ? master : name === 'tape' ? (deck ? deck.output : tape || master) : null); }
   // ---------------------------------------------------------------- a busy crossing (game.look.sound)
-  // the crowd's murmur: noise through two voice bands, a little of it pulsing at a syllable's rate,
-  // as a thousand people talking at once sound; level 0..1 with how many are round you
-  let crowdBed = null, screenBed = null, beatAt = 0, chord = 0;
-  function murmur(level) {
-    if (!ctx) return;
-    if (shed >= 2) level = 0;
-    if (!crowdBed && level > 0) {
-      const n = noiseSource(), a = ctx.createBiquadFilter(), b = ctx.createBiquadFilter(), g = ctx.createGain(), am = ctx.createOscillator(), ag = ctx.createGain(), out = ctx.createGain();
-      a.type = 'bandpass'; a.frequency.value = 420; a.Q.value = 0.9; b.type = 'bandpass'; b.frequency.value = 1150; b.Q.value = 1.4;
-      am.frequency.value = 4.3; ag.gain.value = 0.25; g.gain.value = 0.75; am.connect(ag); ag.connect(g.gain); am.start();
-      n.connect(a); n.connect(b); a.connect(g); b.connect(g); g.connect(out); out.gain.value = 0; out.connect(B.near);
-      crowdBed = { out, am };
-    }
-    if (crowdBed) { ramp(crowdBed.out.gain, Math.min(1, level) * 0.11, 0.6); ramp(crowdBed.am.frequency, 3.6 + Math.random() * 1.6, 0.8); }
-  }
+  // (The crowd's murmur, noise through two voice bands, was taken out with the city's bed on 24 November 2026: a sound
+  // with no source the ear can pin it to reads as hiss. docs/SOUND.md "No bed without a source")
+  let screenBed = null, beatAt = 0, chord = 0;
   // the screens' sound: a pop song heard across the street, its kick and its chords through the
   // traffic's noise (muffled: little above 1 kHz carries); level 0..1 with distance
   function screens(level, fc = 20000) {
@@ -1529,7 +1542,7 @@ window.OEAudio = (function () {
         ...P.log.slice(-4)].join('\n');
     }, 250);
   }
-  function stop() { want = false; probeStop(); if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; crowdBed = screenBed = null; trainCh.length = 0; } }
+  function stop() { want = false; probeStop(); if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; screenBed = null; trafficCh.length = 0; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -1732,5 +1745,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, city, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, murmur, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo, get probe() { return P; }, tune, tuneWav, quiet, hold, onGaveUp, get guard() { return GUARD; }, get gaveUp() { return gaveUp; }, get streetOff() { return streetOff; }, get holding() { return holdOn; }, get tunes() { return TUNE; }, get needsTouch() { return TUNE ? !unlocked && !muted : null; } };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, traffic, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo, get probe() { return P; }, tune, tuneWav, quiet, hold, onGaveUp, get guard() { return GUARD; }, get gaveUp() { return gaveUp; }, get streetOff() { return streetOff; }, get holding() { return holdOn; }, get tunes() { return TUNE; }, get needsTouch() { return TUNE ? !unlocked && !muted : null; } };
 })();

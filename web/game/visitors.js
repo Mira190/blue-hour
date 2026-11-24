@@ -102,9 +102,13 @@ window.OEVisitors = (function () {
     }
     // someone seated within r of (x, y) (kept on this device): the place beside them is offered by a person, and needs no
     // mark (game.js seatMarks, walktalk.js places)
-    const seated = (x, y, r) => groups.some(G => G.people.some(v => v.p.sit != null && Math.hypot(v.x - x, v.y - y) < r));
+    // (shown: a body drawn there, not one the data seats there whose body is still coming. It waits on its load and its warm-up,
+    // behind the city's own, and the seat's mark was taken away for it: until it came the wall was empty and nothing offered
+    // the seat, walk1's flake. sittingN: how many of the seated are drawn, for the marks to be made again as one comes or goes)
+    const seated = (x, y, r) => groups.some(G => G.people.some(v => v.shown && v.p.sit != null && Math.hypot(v.x - x, v.y - y) < r));
+    const sittingN = () => { let n = 0; for (const G of groups) for (const v of G.people) if (v.shown && v.p.sit != null) n++; return n; };
     const shown = () => groups.flatMap(G => G.people.filter(v => v.shown).map(v => ({ group: G.g.id, x: v.x, y: v.y, z: v.z, h: v.h, sit: v.p.sit != null, clip: v.rig.clipName ? v.rig.clipName() : null, character: v.rig.character })));
-    return { update, near, seated, shown, groups, cast };
+    return { update, near, seated, sittingN, shown, groups, cast };
   }
   return { create };
 })();

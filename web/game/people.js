@@ -2593,6 +2593,7 @@ transformed = crowdPose(transformed, false);`);
         if (u && r.umbOpen) r.umbOpen(ut);
         if (u && r.umbLean) { const c = Math.cos(Math.PI - p.h), s = Math.sin(Math.PI - p.h); r.umbLean(p.umbLx * c + p.umbLy * s, p.umbLx * s - p.umbLy * c); } // (the lean, from the world's plan into the body's own space)
         unshow(p);
+        p.whole = true; // (drawn as a whole person: actors.js keeps two of them NEAR_BODY apart)
         r.root.visible = true; // (as hide(i, true) left it, a frame ago)
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
@@ -2603,7 +2604,7 @@ transformed = crowdPose(transformed, false);`);
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
       }
-      p.wave = false;
+      p.wave = false; p.whole = false;
       const sit = p.mode === 'sit';
       at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
@@ -2644,6 +2645,7 @@ transformed = crowdPose(transformed, false);`);
     // for as long as they are near: giving their rig back and dressing another every frame is work for nothing)
     function hide(i, soft = false) {
       const p = P[i], m = p.mesh, was = m && p.slot < m.count;
+      p.whole = false;
       unshow(p);
       if (was && ended) { resend(m); m.userData.swapped = false; }
       if (p.umbF === frameNo && p.umbI >= 0) { // (its far umbrella, laid this frame: to nothing)
@@ -2701,7 +2703,7 @@ transformed = crowdPose(transformed, false);`);
       for (let i = 0; i < P.length; i++) {
         const p = P[i];
         if (p.line < 0 && !p.pz) continue;
-        if (p.rx == null || !shows(i) || p.mode === 'sit') continue;
+        if (p.rx == null || !Number.isFinite(p.rx) || !shows(i) || p.mode === 'sit') continue; // (a slot past the crowd's active count keeps its old instance and no place: not drawn as anyone)
         const d = camera ? Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) : 0;
         if (d > within) continue;
         const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), line: p.line, pz: !!p.pz, lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
