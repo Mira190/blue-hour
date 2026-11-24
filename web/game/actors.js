@@ -3303,6 +3303,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return c.trip ?? -1;
     };
     const parkedN = () => { let k = 0; for (let j = 0; j < api.active; j++) if (C[j].park && C[j].line >= 0) k++; return k; };
+    // (never nearer you than MADE_NEAR, however small the ring: tools/road_traffic_watch.js, nothing made within 120 m)
+    const MADE_NEAR = 125;
     function respawn(c, cx, cy, rMin) {
       const cand = net.near(cx, cy, rMin, radius), T = JN.trips && JN.trips();
       JN.forget(c);
@@ -3316,7 +3318,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           const line = cand[Math.floor(rnd() * cand.length)], L1 = net.L[line];
           if (!kerbLo(line)) continue;
           const s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (rnd() < 0.5 ? 1 : -1);
-          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8 || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
+          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8) || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
         }
       }
       for (let k = 0; k < 4 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
@@ -3343,7 +3345,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (JN.inScramble && JN.inScramble(tmp.x, tmp.y)) continue;
         // (out of the ring's inside: a long piece with one vertex in the ring has the rest of its length anywhere, and a
         // car put on Meiji-dori 85 m from you appeared in sight, issue 167)
-        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8) continue;
+        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8)) continue;
         // (nor anywhere the camera sees, as a walker is put (the crowd's seen()): by distance alone a car came onto a
         // straight street 280 to 350 m off, in the frame, tools/crowd_vanish.js)
         if (rMin > 0 && crowd && crowd.seen(tmp.x, tmp.y, tmp.z)) continue;
