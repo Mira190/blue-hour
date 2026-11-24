@@ -217,7 +217,11 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   previews and the production site stayed on `fc003e3` from 21 to 23 November (#193). Now:
   - `vercel.json` `git.deploymentEnabled` makes no deployment of any branch but `live` (a branch cut before this
     still carries the old file until it merges main; its push is cancelled by `ignoreCommand`, kept as the backstop,
-    and by the project's own Ignored Build Step, the same command, for a branch with no `vercel.json` at all);
+    and by the project's own Ignored Build Step, the same command, for a branch with no `vercel.json` at all). The
+    rule is `"**": false`: Vercel matches branch names with minimatch, whose `*` stops at a slash, so `"*": false`
+    (23 to 24 November) left every `claude/…` and `fix/…` branch on the default, a deployment made and cancelled
+    for each of their pushes (`claude/junctions-175`, `claude/hero-survey-196`) while `main` and `fix-roads-943` made
+    none. A branch on more than one rule is deployed if any of them is true, so `live` still is;
   - `check-passes` carries a `vercel.json` of its own that turns deployments off (`checks.yml`, the passes job);
   - `pages.yml` moves `live` only when what Vercel serves changed since it (`web/`, `vercel.json`, `VERSION`,
     `tools/vercel_build.sh`, `tools/stamp.js`): a pass of docs, tools or checks is published to Pages and tagged,

@@ -337,6 +337,28 @@ is not be on that path where it matters most:
 - Telemetry: `snd_music` (`el 1`: on elements, how many playing; `fixed` where the volume cannot be set), `snd_el`
   (`stalls/worst ms`: an element's own clock 400 ms and more behind the wall's), `snd_quiet` while there is no context.
 
+**One music element at a time** (issue 166, 24 November 2026). The owner's iPhone heard the noise again in the story's
+opening on Vercel (build `0.1+3745ecd`, 23 November 21:19 UTC) with `snd` reading `no context` and `snd_music` reading
+`el 2`: the loading cue and the opening's score on two elements at once. That was by design: a film's score was rendered
+`under` whatever music already played (film-score.js `plan.under`, `game.js` `makeFilm`), and on a phone the loading cue
+was always playing when the story's film was made, so it went on under the score for the whole film, each on its own
+element mixed by the system. Their levels are not the fault (`tools/tune_levels.js`, which renders each opening's score
+as the page does and decodes the cue): the cue peaks at −22.3 dBFS, the story's score as it was rendered under it at
+−13.6, alone at −12.0, the walk's at −11.4, and the cue and a score summed at every phase of the cue at −11.4 at most;
+nothing reaches full scale, nothing is clipped by `tuneWav`. What is left is two players at once on the device that
+broke, and two tunes in two tempos over each other. So now:
+
+- `tune()` plays one tune at a time. A new one lets the one before it go: that one fades out over 1.2 s (at once where
+  the volume is fixed, or if it had not begun), and the new one begins when it has ended, joined where it would have
+  been by then. The opening's score swells from silence over its first two seconds, so the hand-over has no gap to hear.
+- On a phone a film's score is never rendered `under` the loading cue: it has its own bed, and the cue is let go as the
+  film begins (`game.js` `open()`, `cueOut`). A desktop is as it was, both on the context's music bus.
+- The bed a phone gets in place of a street that gave up (`sndBed`) and the cue are forgotten when a film's score lets
+  them go, and the bed comes back after the film.
+- `tools/opening_audio.js` counts every media element the page makes and fails when two sound at once at any reading, or
+  when a tune written for one (`tuneWav`) peaks over −1 dBFS; `tools/tune_levels.js` (in the `audio` target) fails when
+  a tune a phone plays alone does.
+
 **The noise heard again with no context at all** (22 November 2026, build 0.1.215, which had all of the above; read again under "The guard" below: the walk's second play and the story's had a context, made two seconds into a start without a film, and it broke). The owner
 heard a loud noise, not a crackle, in both openings on the iPhone: the walk's at its title, the story's at the shot from
 above, where its title is; once in the street it was gone. The telemetry of those plays: in the walk's film `snd` read

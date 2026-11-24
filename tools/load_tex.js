@@ -24,7 +24,7 @@ const [,, query = ''] = process.argv;
   console.log(`pictures settled at ${((Date.now() - t0) / 1000).toFixed(1)} s (the title at ${title.toFixed(1)})`);
   await p.waitForTimeout(3000);
   const r = await p.evaluate(() => { const m = window.__memReport(0), T = window.OETex ? OETex.stats : {};
-    return { steps: window.__steps, tex: m.tex, buf: m.buf, rb: m.rb, peak: m.peak, nTex: m.nTex,
+    return { steps: window.__steps, tex: m.tex, buf: m.buf, rb: m.rb, peak: m.peak, nTex: m.nTex, lost: m.lost,
       tex_stats: { on: T.on, fmt: T.fmt, normals: T.normals, packed: T.packed, kept: T.kept, mtexels: +(T.texels / 1e6).toFixed(1), mb: +(T.bytes / 1048576).toFixed(1), s: +(T.ms / 1000).toFixed(1), worst: T.worst, keptList: (T.log || []).filter(l => l.kept).map(l => `${l.name} ${l.w}x${l.h} ${l.db}`) } }; });
   if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT });
   console.log(`renderer: ${await p.evaluate(() => { const d = document.createElement('canvas').getContext('webgl2'), x = d && d.getExtension('WEBGL_debug_renderer_info'); return d ? (x ? d.getParameter(x.UNMASKED_RENDERER_WEBGL) : d.getParameter(d.RENDERER)) : 'no WebGL2'; })}`);
@@ -32,6 +32,8 @@ const [,, query = ''] = process.argv;
   for (const s of r.steps) console.log(`${String(s.t).padStart(6)} s  ${MB(s.gpu).padStart(5)} MB  ${s.step}`);
   console.log(`${query || '(default)'}: the title at ${title.toFixed(1)} s; last step at ${r.steps.length ? r.steps[r.steps.length - 1].t : '?'} s; textures ${MB(r.tex)} MB (${r.nTex}), buffers ${MB(r.buf)} MB, renderbuffers ${MB(r.rb)} MB, peak ${MB(r.peak)} MB`);
   console.log(`pictures: ${JSON.stringify(r.tex_stats)}`);
+  // (a context lost on the way, as a shared machine's llvmpipe loses one: what it held is not counted twice, tools/gl_mem.js)
+  if (r.lost) console.log(`the WebGL context was lost ${r.lost} time${r.lost > 1 ? 's' : ''} while loading and given back: counted as held after it`);
   if (errors.length) console.log(`page errors: ${errors.join(' | ')}`);
   // MAX_TEX=MB: fails over that many megabytes of textures at the title, or where blocks were asked for and nothing was
   // packed, or a picture was left as pixels under the encoder's floor (tools/check.sh mem)
