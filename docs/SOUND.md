@@ -33,7 +33,7 @@ score (music.js), the opening's score ─► musicBus ────────�
 story cues, dialogue ticks ─► storyBus ─────────────────────────────────────────────────────────────► out
 ```
 
-- **The street** (crowd, screens, walk calls, footsteps, rain, wind, traffic, trains) is braked by
+- **The street** (screens, walk calls, footsteps, rain, wind, horns, trains) is braked by
   the Stop. **The score** is not: it is not the street's. **The story's own sound** is never braked or
   ducked: it is what is heard in a stopped street.
 - **Off** (the Sound switch) suspends the context after the fade, so a muted phone computes nothing.
@@ -479,7 +479,7 @@ at the lead and the axle after it. The opening's score, joined late where the pi
 **What each part costs the audio thread** (`tools/audio_cost.js`: each part on its own in an OfflineAudioContext at 48 kHz,
 best of three, as a share of a 2.7 ms block on this machine; a phone's core differs, the shares between parts do not): a
 room's hybrid reverb 1.9 %, the hall's 1.4 %, the score's room 1.9 %, the live score with its room 6.8 %, the held choir
-1.4 %, the crowd's beds 0.3 %. Everything at once at a Stop is about 13 %; the opening (a room, the deck, two buffers of
+1.4 %. (The crowd's beds, 0.3 %, were taken out on 24 November 2026.) Everything at once at a Stop is about 13 %; the opening (a room, the deck, two buffers of
 music, a train's rumble) about 3 %. Cost is not what broke the opening.
 
 **What the opening asks of the sound on a phone** (`tools/phone_audio.js`, shot by shot, the loading screen touched): the
@@ -500,7 +500,7 @@ while it is starved. On a touch screen (`audio.js` `shed`; `?shed=0..3` fixes a 
   the dialogue's beeps, the story's bus and the score are never given up;
 - when the output's clock steps three times within twenty seconds (`snd_xrun`, above), the sound gives up a level, and at
   least eight seconds later another: **1** lets go of the room's reverb and halves the street's voices (14), **2** lets go
-  of the crowd's murmur, the screens' song, the cicadas and the animals (8 voices), **3** keeps four voices of the street;
+  of the screens' song, the cicadas and the animals (8 voices), **3** keeps four voices of the street;
 - ninety seconds without a step bring a level back, and the room with it;
 - telemetry says what the phone is (`snd_dev`) and what was given up (`snd_shed`, `snd_shed_s`, `snd_drop`).
 
@@ -523,7 +523,7 @@ and low-pass.
 |---|---|---|
 | A mix per place: buses by kind of sound, their levels and filters set by the listener's state | Wwise's states over bus volume and low-pass, FMOD's snapshots, Unreal's sound mixes and interior volumes (all proprietary; their documented design only) | `audio.js` `mix(place, up)`: five buses in the world's bus, six places |
 | A loudness window: what is far under the loudest thing at the listener is not played | DICE's HDR audio (Frostbite, GDC 2009) | In the cabin and the lift the street's buses are shut, not merely lowered: under a rotor nothing of the city is audible |
-| A city heard from height | W. Meyerson's 39-storey tower (USDA Forest Service, 1977): low floors hear the street below, high floors a wide area; Benocci and others, *Noise Mapping* 2020 (a balloon over Milan: 3 to 9 dB between 20 and 150 m); Insomniac's GDC 2019 talk on Spider-Man's New York (the city falls away and calms as you rise; known here from summaries of it, not the talk) | From 25 to 150 m over the street the `near` and `rail` buses fall to nothing and the `city` bus rises: 229 m up the city is 8 to 10 dB under the kerb's street, one sound, under 700 Hz |
+| A city heard from height | W. Meyerson's 39-storey tower (USDA Forest Service, 1977): low floors hear the street below, high floors a wide area; Benocci and others, *Noise Mapping* 2020 (a balloon over Milan: 3 to 9 dB between 20 and 150 m); Insomniac's GDC 2019 talk on Spider-Man's New York (the city falls away and calms as you rise; known here from summaries of it, not the talk) | From 25 to 150 m over the street the `near` and `rail` buses fall to nothing and the `city` bus rises: 229 m up the city is its far events alone, late and dulled (its bed of low noise, the "one sound" this row once took from Meyerson, was taken out on 24 November 2026) |
 | The air | ISO 9613-1 at 20 C, 70 %: 1.1 dB a kilometre at 250 Hz, 5.0 at 1 kHz, 9.0 at 2 kHz, 23 at 4 kHz, 78 at 8 kHz. Over 229 m that is 1 dB at 1 kHz and 5 at 4 kHz: the air is not what dulls a roof, the geometry is | A far event's level and low-pass (`far`); the roof's dullness is the mix, not an air filter |
 | Sound is late | 343 m a second: 0.67 s from the street to the deck, 2 s from 700 m | `far(kind, d)` begins d / 343 s after it is asked for |
 | A railway bridge | Thompson, *Railway Noise and Vibration* (2009), ch. 11; Liu, Thompson and others, *J. Sound Vib.* 2020: a bridge is about 5 dB (concrete) to 10 dB (steel) louder than plain track, the concrete's sound under 200 Hz, the steel's 200 Hz to 1 kHz | Under the deck the `rail` bus is 3 dB up through a low-pass at 300 Hz, the deck's drum and each axle's boom reach to 70 m, and the wheels' edge is a fifth of what it is beside the viaduct |
@@ -542,26 +542,25 @@ the page.
 
 | Bus | What plays into it |
 |---|---|
-| `near` | the crowd round you, the walk signals' calls, horns, the station's announcements, the crossing's bell, the birds |
+| `near` | the walk signals' calls, horns, the station's announcements, the crossing's bell, the birds (the screens' song with `?noise=1`) |
 | `rail` | the trains (rumble, wheels, the deck under them), the platforms' chimes and melodies |
 | `weather` | rain, wind, thunder, cicadas |
 | `self` | your steps, the car's engine, its tyres on the road (`road`), its indicator (`indicator`), the lift's hum and chime (`lift`, `liftChime`), the rotor with its turbine |
-| `city` | the city as one sound (`city`: two beds of low noise that share nothing, one a side, each swelling slowly on its own) and its far events (`far`: an ambulance's two notes or a train's horn from 350 to 900 m, every minute or two) |
+| `city` | the city's far events (`far`: an ambulance's two notes or a train's horn from 350 to 900 m, every minute or two), each carrying the air's own loss. Its bed of low noise was taken out on 24 November 2026 |
 
 **The places** (`game.js` `weatherTick` says which, each frame; `audio.js` `MIX`: level in dB and low-pass for each bus):
 
 | Place | Frames | What is heard | `near` | `rail` | `weather` | `self` | `city` |
 |---|---|---|---|---|---|---|---|
-| The kerb, the crossing | 1, 2, 3, 6, 7 | The crowd by how many stand round you (a third of the level the owner once found too loud and always there; nothing where nobody is), the walk signals' calls from their own posts, a train on the viaduct at its distance and behind the station, the city's hum under it all, in frame 7 the rain | 0 | 0 | 0 | 0 | −10 dB, 260 Hz |
-| Under the railway's deck | 5, 6 | A train overhead is the deck: its drum and a boom at every axle, no wheels' edge; the street's voices a little down; the viaduct's close reflections (its room) | −3 dB, 9 kHz | +3 dB, 300 Hz | −4 dB, 6 kHz | 0 | −6 dB, 320 Hz |
+| The kerb, the crossing | 1, 2, 3, 6, 7 | The walk signals' calls from their own posts, a train on the viaduct at its distance and behind the station, the station's announcements, a far siren now and then, your steps, in frame 7 the rain | 0 | 0 | 0 | 0 | −10 dB, 3 kHz |
+| Under the railway's deck | 5, 6 | A train overhead is the deck: its drum and a boom at every axle, no wheels' edge; the street's voices a little down; the viaduct's close reflections (its room) | −3 dB, 9 kHz | +3 dB, 300 Hz | −4 dB, 6 kHz | 0 | −6 dB, 1.5 kHz |
 | A lift, a room | 4 | The street gone; the machine's hum, the fan's air, two notes as it arrives; the doors open on the roof's wind | shut | shut | shut | 0 | shut |
-| The roof, 229 m | 4, 5 | Wind first; the city as one low, wide bed; no car, voice or train; a siren or a horn, far, dulled and late; the helicopter's rotor when it is there | shut | shut | 0 | 0 | −2 dB, 700 Hz |
+| The roof, 229 m | 4, 5 | Wind first; no car, voice or train; a siren or a horn, far, dulled and late; the helicopter's rotor when it is there | shut | shut | 0 | 0 | −2 dB, 2.5 kHz |
 | The helicopter's cabin | 5 | Rotor, turbine and gearbox over everything, the air's rush with speed; the city silent | shut | shut | −8 dB, 1.8 kHz | +8 dB | shut |
-| A car's cabin | 6 | Engine, the road under the tyres, the indicator's relay; the street outside low and dull; rain on the roof | −12 dB, 900 Hz | −14 dB, 350 Hz | −6 dB, 2.5 kHz | −5 dB | −14 dB, 220 Hz |
+| A car's cabin | 6 | Engine, the road under the tyres, the indicator's relay; the street outside low and dull; rain on the roof | −12 dB, 900 Hz | −14 dB, 350 Hz | −6 dB, 2.5 kHz | −5 dB | −14 dB, 700 Hz |
 
 A phone's cap on voices holds: the far events and the indicator take a voice from the cap as every one-shot of the
-street does, and the city's bed and its far events are given up at level 2 with the street's other beds ("Giving up
-sound before a click"). Nothing here is off the audio thread: gains, biquads, oscillators, looped noise and a stereo
+street does, and the far events are given up at level 2 with the street's beds ("Giving up sound before a click"). Nothing here is off the audio thread: gains, biquads, oscillators, looped noise and a stereo
 pan (`tools/audio_thread_check.py`).
 
 Between the kerb and the roof the mix follows the ears' height over the ground (25 to 150 m), so a helicopter rising
@@ -591,14 +590,20 @@ still has its wheels in it, and on anything heard past the tape at a Stop. "Sile
 <!-- sound_places:table -->
 | Listening point | near | rail | weather | self | city |
 |---|---|---|---|---|---|
-| `kerb` Hachiko's kerb, about 160 people round you, the train 40 m off behind the station | −51 to −40 | −67 to −30 | silent | silent | −57 to −45 |
-| `kerb-station` the kerb by the station, the train 6 m off on the viaduct | −51 to −40 | −36 to −21 | silent | silent | −57 to −45 |
-| `deck` under the railway's deck, the train 8 m overhead | −54 to −43 | −31 to −20 | silent | silent | −53 to −41 |
-| `kerb-rain` Hachiko's kerb in frame 7's rain | −51 to −40 | −67 to −30 | −39 to −28 | silent | −57 to −45 |
-| `roof` SHIBUYA SKY's deck, 229 m, the train 235 m below | silent | silent | −47 to −36 | silent | −48 to −37 |
+| `kerb` Hachiko's kerb, about 160 people round you, the train 40 m off behind the station | silent, a call up to −36 | −67 to −30 | silent | silent | silent, a far event up to −40 |
+| `kerb-station` the kerb by the station, the train 6 m off on the viaduct | silent, a call up to −36 | −36 to −21 | silent | silent | silent, a far event up to −40 |
+| `deck` under the railway's deck, the train 8 m overhead | silent, a call up to −39 | −31 to −20 | silent | silent | silent, a far event up to −40 |
+| `kerb-rain` Hachiko's kerb in frame 7's rain | silent, a call up to −36 | −67 to −30 | −39 to −28 | silent | silent, a far event up to −40 |
+| `roof` SHIBUYA SKY's deck, 229 m, the train 235 m below | silent | silent | −47 to −36 | silent | silent, a far event up to −36 |
 | `lift` SHIBUYA SKY's lift, riding | silent | silent | silent | −43 to −32 | silent |
 | `heli` the helicopter's cabin, hovering over the pad | silent | silent | silent | −37 to −26 | silent |
-| `car` the car's cabin, standing at the kerb, its engine running | −66 to −55 | −78 to −55 | silent | −43 to −32 | −60 to −49 |
+| `car` the car's cabin, standing at the kerb, its engine running | silent, a call up to −50 | −78 to −55 | silent | −43 to −32 | silent, a far event up to −50 |
+
+The `near` and `city` columns were ranges until 24 November 2026, when the crowd's murmur and the city's bed were taken
+out ("No bed without a source", below): with them gone the `near` bus at a kerb is silent between the walk signals'
+calls, the announcements and a honk, and the `city` bus between its far events, so each cell says silent and allows the
+event that may fall inside the four seconds read. Measured on the branch that took them out, desktop and phone alike:
+the near bus silent at every point (a red signal in each reading), the city bus silent, every other bus as before.
 
 At Hachiko the `rail` bus moves by 25 dB from run to run (−35 to −61 in the runs so far): the check's train is behind
 the station there, and the game's own trains on the open viaduct, and a platform's departure melody 65 m off (−35),
@@ -606,9 +611,48 @@ come and go over it. `self` is silent on foot because the player stands still (s
 the air's rush with speed (`weather`) is not in its row.
 
 **Not checked by anyone yet**: how any of this sounds. The levels are read from the graph on a machine with no
-speaker; nobody has listened on the owner's iPhone speaker or on headphones, where the city's bed (most of it under
-300 Hz) will be all but absent on the speaker and whole on headphones. What to listen for, place by place, is in issue
+speaker; nobody has listened on the owner's iPhone speaker or on headphones. What to listen for, place by place, is in issue
 127's closing note.
+
+## No bed without a source
+
+The owner, 24 November 2026: are the ambient noise and the city noise needed? A car going by or a train should stay. The
+rule the eye keeps in AGENTS.md ("detail that the material explains, never noise") is the ear's too: a sound the ear can
+pin to a source reads as the place, and a sound with none reads as hiss, or as a fault. Two sounds had no source:
+
+- **the city's bed** (`audio.js` `city()`): two beds of low noise, one a side, under 260 Hz at the kerb and the whole of
+  the city on the roof. On a phone's speaker, which plays little under 300 Hz, it was all but absent; on headphones it
+  was a rumble with nothing to see making it;
+- **the crowd's murmur** (`murmur()`): noise through two voice bands with a syllable's pulse, the crowd's level by how
+  many stood round you. The owner had once found it too loud and always there, and it had been cut to a third.
+
+Both are gone, on a desktop and a phone alike. The `city` bus keeps its far events (an ambulance's two notes, a train's
+horn, 350 to 900 m off and late by the distance), and its low-pass at each place is opened to let them through (the
+kerb's 260 Hz had been the bed's, and swallowed a siren whole): the events carry the air's loss themselves (`far`).
+Everything else is as it was. A crowd heard as footsteps, from the walkers near you, was drawn up and dropped before it
+was built: the owner asked for no new system, and the player's own experience first.
+
+**What is left, and what it shows** (`tools/beds_listen.js`: the walk's page at 17:30, the player held at each place,
+the speakers' output recorded for main and for the change, the same 18 dB on both for the ear; levels are RMS of what
+the speakers get, before the 18 dB, on a desktop):
+
+| Place | Before | After | What is heard after |
+|---|---|---|---|
+| Hachiko's kerb, 200 s across a green's end and a red | −49 dBFS | −63 | the walk signals' calls on green, a train on the viaduct and behind the station, the station's announcements |
+| the red alone, 20 s | −49 | −65 | a distant train's rumble, little else |
+| the Stop at that kerb | −46 | −47 | the street up to the Stop, the hush, the cue; the Stop lands as before (past the tape: silent held, on the deck) |
+| SHIBUYA SKY's deck, 229 m | −43 | −45 | the wind, a far siren |
+| the kerb in frame 7's rain | −37 | −37 | the rain, as before |
+
+What the change uncovered, and did not cause: **the traffic at the crossing makes no sound.** The cars, taxis and buses
+the player sees have no engine or tyre voice; a honk, when one dodges the player's car, is the only one. Under the murmur
+that went unheard. At a red signal, when the traffic is what moves, the kerb is now a distant train and little else.
+The remedy, when the owner wants it, is the attributable one: the nearby traffic's own sound, not a bed.
+
+Learned from (the design only; nothing taken): the eye's rule in AGENTS.md; the frontier's practice of building an
+ambience from point emitters placed in the world rather than from a stereo loop (Wwise's and FMOD's spatial emitters,
+the survey at the top of this page); the owner's own ear on 21 November (issue 127: the street to stand beside a AAA
+game's) and on 24 November.
 
 ## Trains
 

@@ -3343,14 +3343,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const party = ((wd === 5 || wd === 6) && h >= 18) || ((wd === 6 || wd === 0) && h < 4);
     return Math.max(0, Math.min(1, v * (party ? CR.weekend_night || 1 : 1) * (wd === 0 || wd === 6 ? CR.weekend || 1 : 1)));
   }
-  // A busy crossing's sound (game.look.sound: {at, r, station: [x, y]}): the crowd's murmur as many
-  // as are round you, the screens' music while they play, and now and then the station's
+  // A busy crossing's sound (game.look.sound: {at, r, station: [x, y]}): the screens' music while they play (?noise=1), and now and then the station's
   // announcement, all rising as you come to it (heard from the camera, so a film hears what it
   // sees). The walk signals' calls, there and at every signalled crossing: walkcalls.js.
   const walkCalls = OEWalkCalls.create({ junctions, audio: A, country: CITY.country, cfg: (G.signals || {}).sound, hour: () => clock.min / 60 });
-  // The city's constant beds as they were (the crowd's murmur at its full level and the screens' music) are off: too
-  // loud, always there. The crowd is heard low, by how many are round you (crossingSound). What comes and goes still sounds: the station's announcements, the walk signals' calls,
-  // footsteps, engines, horns, the weather, the birds and the score. ?noise=1 brings the beds back.
+  // The screens' music is off: too loud, always there; ?noise=1 brings it back. The crowd's murmur and the city's bed are
+  // gone (24 November 2026). What has a source still sounds: the station's announcements, the walk signals' calls,
+  // footsteps, engines, horns, the trains, the weather, the birds and the score.
   const CITY_NOISE = new URLSearchParams(location.search).get('noise') === '1';
   const SND = (G.look || {}).sound;
   let sndJ = null, sndAnn = 20 + Math.random() * 30, sndNear = 0, sndCount = 0, sndFar = 25 + Math.random() * 40, sndPlace = 'kerb', flightSnd = -10, sndCover = false, sndCoverT = 0, liftHop = -1;
@@ -3370,7 +3369,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the station itself, is not between them and you)
   const stnAt = SND && SND.station ? { x: SND.station[0], y: SND.station[1], z: nav.terrain(SND.station[0], SND.station[1]) + 4, skip: 45 } : null;
   function crossingSound(dt) {
-    if (!SND || !A.murmur) return;
+    if (!SND || !A.screens) return;
     const cx = camera.position.x, cy = -camera.position.z, r = SND.r || 150, ear = { x: cx, y: cy, z: camera.position.y };
     const P = A.reach ? A.reach(sndAt, ear, sndMemo, dt) : { d: Math.hypot(cx - SND.at[0], cy - SND.at[1]), g: 1, fc: 20000 }, d = P.d;
     const level = Math.max(0, Math.min(1, (r - d) / (0.6 * r))) * P.g;
@@ -3379,13 +3378,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (let i = 0; i < crowd.active; i++) { const p = crowd.P[i]; if (p.line >= 0 && Math.abs(p.x - cx) < 40 && Math.abs(p.y - cy) < 40) sndCount++; }
     }
     const hr = clock.min / 60;
-    // (the crowd is back as the people round you, a third of the level the owner found too loud and always there, and
-    // nothing where nobody stands: issue 127's kerb. ?noise=1 plays it and the screens' song as they were)
-    // (counted as the street has them, not as this device draws them: a phone's crowd is the share its faces can fill
-    // (faceShare) and the governor's under slow frames (govCrowd), and its kerb was heard 4 to 6 dB under a desktop's, out
-    // of the near bus's range in main's audio check of 23 November. The player's own density, and the hour, still count)
-    const heard = sndCount / Math.max(0.2, govCrowd * faceShare);
-    A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + heard / 80) : level * 0.32 * Math.min(1, heard / 60));
+    // (the crowd's murmur that was here, and the city's bed, are gone: a sound with no source the ear can pin it to reads
+    // as hiss (docs/SOUND.md "No bed without a source"). The count above stays for the tools: sound().near)
     A.screens(CITY_NOISE ? level * (hr >= 9 || hr < 0.1 ? 1 : 0) : 0, P.fc);
     // the city's far events, every minute or two: a siren, now and then a train's horn, from 350 to 900 m off, heard late
     // by that distance (audio.js far). On the roof they are the only single sounds the city has

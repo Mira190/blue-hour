@@ -5,7 +5,7 @@
 //   NODE_PATH=$(npm root -g) [TAPE=worklet|deck] [VERB=hybrid|whole] node tools/sound_render.js [outdir] [cue ...]
 // (VERB: the reverbs as a phone hears them, the default here, or convolved whole as with a mouse: docs/SOUND.md "Every
 // sound on the audio thread")
-// The cues one by one; the Stop over the street (its murmur, the screens' song, the walk calls, footsteps), braked,
+// The cues one by one; the Stop over the street (the screens' song, the walk calls, footsteps), braked,
 // held five seconds and let go; and the same footsteps and a call in each place's room.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -69,7 +69,7 @@ function wav(file, b64) {
 // asks for it), footsteps at a walk, and the scramble's calls
 const STREET = (from, to) => `
   for (let t = ${from}; t < ${to}; t += 0.1) {
-    at(t); A.murmur(0.9); A.screens(0.8);
+    at(t); A.screens(0.8);
     if (Math.round(t * 10) % 5 === 0) A.step();
     if (Math.round(t * 10) % 15 === 0) A.walkCall(['piyo', 'piyopiyo', 'kakko', 'kakakko'][Math.round(t * 10 / 15) % 4], 0.7, Math.sin(t));
   }`;

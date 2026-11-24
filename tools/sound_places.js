@@ -18,7 +18,8 @@ const fs = require('fs'), path = require('path');
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
 const PHONE = process.env.PHONE === '1', SEC = +(process.env.SEC || 4);
-// the table: | place | near | rail | weather | self | city |, each cell "-40 to -30" or "silent" (under -70 dBFS)
+// the table: | place | near | rail | weather | self | city |, each cell "-40 to -30", "silent" (under -70 dBFS) or
+// "silent, a far event up to -40" (under -70 but for an event now and then, up to the figure)
 function table() {
   const md = fs.readFileSync(path.join(__dirname, '..', 'docs', 'SOUND.md'), 'utf8'), at = md.indexOf('<!-- sound_places:table -->');
   if (at < 0) throw new Error('docs/SOUND.md has no sound_places table');
@@ -30,7 +31,8 @@ function table() {
     if (!key) continue;
     rows[key] = c.slice(1, 6).map(cell => {
       const t = cell.replace(/−/g, '-');
-      if (/silent/.test(t)) return [-Infinity, -70];
+      // ("silent, a far event up to -40": a bus that carries only an event now and then, which may fall in the reading)
+      if (/silent/.test(t)) { const up = /up to (-?\d+(?:\.\d+)?)/.exec(t); return [-Infinity, up ? +up[1] : -70]; }
       const m = /(-?\d+(?:\.\d+)?) to (-?\d+(?:\.\d+)?)/.exec(t);
       if (!m) throw new Error(`docs/SOUND.md: cannot read "${cell}" for ${key}`);
       return [+m[1], +m[2]];
