@@ -29,7 +29,7 @@ module.exports = ({ R, live, STUCK_S, STUCK_M, TRACE }) => new Promise(done => {
     const dt = Math.min(0.05, Math.max(0, (now - was) / 1000)); was = now; t += dt; window.__t207 = t; // (the lead's own clock, for timed stills)
     // the player: along their own line at their speed (as a walker steps: nav.slide), never waiting for him
     const pl0 = [pl.x, pl.y];
-    if (pl.mode === 'foot' && Math.hypot(to[0] - pl.x, to[1] - pl.y) > 2.5) {
+    if (pl.mode === 'foot' && Math.hypot(to[0] - pl.x, to[1] - pl.y) > (R.short || 2.5)) { // (R.short: stopped outside the reach that starts the goal's talk, story.js meet_m)
       s += R.speed * dt; const q = along(s), dx = q[0] - pl.x, dy = q[1] - pl.y, d = Math.hypot(dx, dy);
       if (d > 1e-3) { const k = Math.min(1, R.speed * dt * 1.5 / d), m = nav.slide(pl.x, pl.y, pl.z, dx * k, dy * k), wk = nav.walk(m.x, m.y, pl.z + 0.3, true); if (wk.ok) { pl.x = m.x; pl.y = m.y; pl.z = wk.z; } pl.h = Math.atan2(dx, dy); if (g.cam) g.cam.yaw = pl.h; }
       pl.speed = R.speed;
