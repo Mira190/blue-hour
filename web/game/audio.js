@@ -1233,7 +1233,7 @@ window.OEAudio = (function () {
     shedMax = shed; shedSec = [0, 0, 0, 0]; shedDrop = 0;
     if (hOff >= 1) h.snd_off = Math.round(hOff);
     if (muted) h.snd_mute = true;
-    if (GUARD) { if (gHolds || gHeld >= 1) { h.snd_held = Math.round(gHeld); h.snd_holds = gHolds; } if (gaveUp) h.snd_gave = gaveUp; gHeld = 0; gHolds = holdOn ? 1 : 0; }
+    if (GUARD) { if (gHolds || gHeld >= 1) { h.snd_held = Math.round(gHeld); h.snd_holds = gHolds; } if (gaveUp) h.snd_gave = gaveUp; if (P.excused) { h.snd_kept = P.excused; P.excused = 0; } gHeld = 0; gHolds = holdOn ? 1 : 0; }
     probeHealth(h);
     hLate = 0; hStall = 0; hAt = ''; hOff = 0; hXr = [];
     return h;
@@ -1369,13 +1369,31 @@ window.OEAudio = (function () {
       probeNote('street let go');
     }
   }
+  // A break the system made is not the street's (the owner's iPhone, 24 November: the street given up on 262 ms two
+  // seconds before its WebGL context was lost, the GPU process the output lives in going down, and on the next page on
+  // 1016 ms as iOS interrupted the context, states `isrs`; twice, so the page after kept the street off). WebKit's clock
+  // stops before it says why, so the guard waits EXCUSE ms on a break that would give up, and lets it go when within that
+  // time either side the context left `running` (interrupted, suspended by the system) or a WebGL context was lost
+  const EXCUSE = 3000;
+  let gPending = null, gOffAt = -1e9, gLostAt = -1e9;
+  addEventListener('webglcontextlost', () => { gLostAt = performance.now(); }, true);
+  const excused = at => Math.abs(gOffAt - at) < EXCUSE ? 'the context left running' : Math.abs(gLostAt - at) < EXCUSE ? 'a WebGL context lost' : '';
   function guard(m) {
     if (!GUARD || holdOn || gaveUp || !ctx || muted) return;
     const now = performance.now();
     gHit.push([now, m]); gHit = gHit.filter(h => now - h[0] < 30000);
     const big = gHit.filter(h => h[1] >= LAG[1]).length, soon = gHit.filter(h => now - h[0] < 4000).length;
     const why = m >= LAG[2] ? `${Math.round(m)} ms` : big >= 2 ? `${big} of 25 ms` : soon >= 6 ? `${soon} in 4 s` : '';
-    if (why) giveUp(why);
+    if (why && !gPending) gPending = { why, at: now };
+  }
+  function guardSettle() { // (every tenth of a second: a pending give-up decided once EXCUSE has passed)
+    if (!gPending) return;
+    const now = performance.now(), ex = excused(gPending.at);
+    if (ex) { probeNote(`street kept: ${gPending.why} ${spotNow() || 'load'} with ${ex}`); P.excused = (P.excused || 0) + 1; gPending = null; gHit = []; return; }
+    if (now - gPending.at < EXCUSE) return;
+    const why = gPending.why; gPending = null;
+    if (!GUARD || holdOn || gaveUp || !ctx || muted) return;
+    giveUp(why);
   }
   function giveUp(why) {
     gaveUp = `${why} ${spotNow() || 'load'}`; gHit = [];
@@ -1394,6 +1412,7 @@ window.OEAudio = (function () {
   // while the street plays (healthPoll, every tenth of a second): three minutes of it without a break clear the note
   function guardTick() {
     if (!GUARD) return;
+    guardSettle();
     if (holdOn) gHeld += 0.1;
     if (gaveUp || holdOn || gRun < 0 || !ctx || ctx.state !== 'running') return;
     gRun += 0.1;
@@ -1429,7 +1448,7 @@ window.OEAudio = (function () {
   function probePoll() {
     tuneProbe();
     if (!ctx) return;
-    if (ctx.state !== pState) { pState = ctx.state; P.states.push(pState[0]); if (P.states.length > 24) P.states.shift(); probeNote(`context ${pState}`); if (pState === 'running') P.runAt = performance.now(); }
+    if (ctx.state !== pState) { pState = ctx.state; P.states.push(pState[0]); if (P.states.length > 24) P.states.shift(); probeNote(`context ${pState}`); if (pState === 'running') P.runAt = performance.now(); else gOffAt = performance.now(); }
     if (ctx.state !== 'running' || document.hidden || muted) { probeReset(); return; }
     const now = performance.now(), gap = now - ctx.currentTime * 1000;
     // (a context's first second and a half, made or let go again: its clock runs ahead of its output until the output has

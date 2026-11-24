@@ -421,6 +421,12 @@ is a guest of the page's frames, and gives way to them:
   The player is told once ("The street's sound is off ... To try the street again, turn Sound off and on in the menu"),
   and the loading cue's loop comes back on its element in the street's place (`sndBed`), so play is never silent. The Sound
   switch turned off and on asks again.
+  A break the system made is not the street's, and is kept (`EXCUSE`, telemetry `snd_kept`): the guard waits three seconds
+  on a break that would give up and lets it go when, within them either side, the context left `running` (iOS's
+  interruption, a suspension it did not ask for) or a WebGL context was lost (the GPU process the output lives in going
+  down). The owner's iPhone on 24 November gave the street up on 262 ms two seconds before its WebGL context was lost,
+  and on the page after on 1016 ms as iOS interrupted the context (states `isrs`): two give-ups, and the street was off on
+  the next page, on a phone that keeps it at 26 to 40 frames a second (`tools/snd_guard_check.js` holds both cases).
   A context's first second and a half, made or let go again, is not read (`SETTLE`): its clock runs ahead of its output
   until the output has begun and then steps back to it for good, 180 to 240 ms in WebKit on a Mac, and read as a break that
   step gave the street up within a second of every start (four runs of four; `tools/opening_audio.js` with `ENGINE=webkit`
