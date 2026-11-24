@@ -2897,7 +2897,7 @@ computes, to measure against. The benches are still computed (their seats point 
 What keeps it right: the static checks fail on a bake stale against the packs it was made from (`game.bin`, `buildings.bin`,
 `landmarks.bin`) or against `BAKE_V` (bumped when what the set-up means by them changes), and `pipeline/pack.py` bakes again
 after it packs (a run of `pipeline/district.py` alone leaves `d/` without one, and the check says so). The code it runs is not
-hashed (five sessions edit it at once): `tools/check.sh`'s launch target loads the page computing and compares it with the
+hashed (five sessions edit it at once): `tools/check.sh`'s mem target (played wherever the set-up's code changes, as it loads the whole page) loads the page computing and compares it with the
 bake field by field, and a change that changes the result fails there ("rebake with `node tools/bake_setup.js`").
 
 Measured on a session's machine, two runs each, `?bake=off` against the bake: the fixed work 2.7 to 3.0 s → 0.03 to 0.1 s on

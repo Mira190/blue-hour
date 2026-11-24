@@ -673,8 +673,8 @@ frames and its load order, and is where most of these came from. What was found,
 
 `web/data/<map>/setup.bin` and `d/setup.bin` are the set-up's fixed work computed once (docs/PERFORMANCE.md, "The set-up's fixed
 work, baked"). Two checks hold them: the static `bake` (`node tools/bake_setup.js --check`) fails when one is missing or older
-than the packs it was made from or the set-up's `BAKE_V`; and after `launch`, the page computing is compared with each bake field
-by field (`--compare`), failing with "the set-up's output changed" when a change to the code it runs (decks, nav, collision,
+than the packs it was made from or the set-up's `BAKE_V`; and the page computing is compared with each bake field
+by field (`--compare`, at the end of `mem`, which loads the whole page and so is played wherever that code changes), failing with "the set-up's output changed" when a change to the code it runs (decks, nav, collision,
 route, actors, junctions) changes what it computes. Either way the answer is `xvfb-run -a node tools/bake_setup.js` (or
 `python pipeline/pack.py`, which bakes after it packs), and the two `setup.bin` committed with the change. Never merge one by
 hand: bake again on the merged tree.
