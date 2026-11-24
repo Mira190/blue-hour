@@ -2749,6 +2749,38 @@ wrong; its scale and extras are governed as any device's, and half the rate is i
 M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
 `THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
 
+### The device floor and its tiers (issue 220)
+
+The floor the game is held to, by the owner's ask for no stutter on weak machines:
+
+| device | browser | tier it starts on | why |
+| --- | --- | --- | --- |
+| an iPhone 12-class phone | Safari | low, a phone's set (`lean`, its level from `level()`) | touch, a short side under 600 px |
+| a mid Android phone (4 GB) | Chrome | low, a phone's set | the same, and `deviceMemory` 4 |
+| a laptop with Intel's UHD (or an AMD APU), 8 GB, 4 cores | Chrome or Edge | **medium** (it was high) | `quality.js` `probe` `integrated`: the renderer string names a GPU on the processor's die; Intel's Arc cards are excluded |
+
+The laptop can step to low by the governor's judged step (above), after a visit's first 30 s. What each floor tier
+draws on the night walk where it starts, counted by `tools/gl_calls.js` on a session's machine (draws, WebGL calls and
+passes a frame are the device's work whatever renders them; their milliseconds are the mac's to read):
+
+| tier | draws | WebGL calls | passes | programs |
+| --- | --- | --- | --- | --- |
+| high (desktop) | 395 | 6,493 | 18 | 83 |
+| medium (desktop, the laptop's) | 364 | 5,660 | 18 | 85 |
+| low (desktop, the laptop's after a step) | 305 | 3,625 | 11 | 78 |
+| low (a phone's set) | 220 | 3,876 | 9 | 74 |
+
+(The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`). The laptop's medium is recorded beside them ("medium": the story's three parts at 1440 x 900 with `Q='?tex=bc7'`,
+`beat_budget.py set ... --parts medium`), to be held by a CI shard of its own once a few runs have shown its noise.
+Its pictures are packed as the laptop packs them (BC7, BC5 for normal maps: `?tex=bc7`); a software renderer otherwise
+keeps every picture raw, at four times the bytes, and the first recording read 771 to 1,552 MB for what is 435 to 743
+on the device. Its cap: 800 MB a beat. Frame 4's peak, 743 MB with BC7: textures 535, buffers 187, render targets 38.
+The largest textures there are the Sky roof pad's ORM (2048², kept as pixels: 21 MB), the night map (night.js, 2048 x
+1841: 19 MB), the buildings' facade blocks (4096 x 3680: 19 MB), the woods' and the shore's ground pictures (17 and 11
+MB, kept as pixels), two 2048² shadow maps (12 MB each: the sun's and its still copy, world.js shadowCache), the inland
+water (11 MB) and the two scene targets at 1440 x 900 (10 MB each).
+
 ### Not checked here
 
 A real GPU, Safari and its user agent's detection on the owner's Mac, and a Mac in Low Power Mode (where Safari may
@@ -3097,10 +3129,46 @@ and off; nothing counted it. A grown index buffer is first bound as an index buf
 | of which the buildings' cells | 27 to 45 | 1 |
 | GPU memory | 212 MB | 213 MB |
 
+### The cells' streaming on a phone (issue 220)
+
+The walk's moving beats were 35% longer on a session's machine after the cells went into one draw, and the question
+was whether a phone pays it. `tools/stream_probe.js` (with `tools/phone_frame.js`: the emulated iPhone carried 450 m
+east and back, three metres a frame, every frame timed and the arena's own work on the page's thread counted) split it:
+
+| over the walk | adding the cells (272) | giving back idle room (5 trims) | growing |
+|---|---|---|---|
+| before | 66 ms in all, 0.24 ms a cell | 2,024 ms, the longest 652 ms | 1 ms |
+| after | 73 ms | 30 ms, the longest 10 ms | 2 ms |
+
+Sending a cell's vertices is cheap, so spreading the uploads over frames would buy nothing. The trim was the hitch:
+it read the whole index buffer back from the GPU to move the cells' indices, and a read back waits for every draw
+queued before it (on a phone's GPU as on a software one). Each cell now keeps its own indices from its first vertex
+(16 bits where they fit: about 1.4 MB of the page's memory on a phone), and a trim writes them again from those. The
+arena's longest frame of work went from 656 to 16 ms on the software renderer. After four trips the arena holds
+21.2 MB for 20.8 used, and every cell's indices on the GPU, read back by the harness alone, are what they should be
+(`tools/arena_probe.js`). The mac found no difference a player sees from the streaming on a real GPU and in Safari
+(issue 192); this takes out the one stall a phone would have felt.
+
+### The player's car from afar (issue 192)
+
+The player's car is the supercar, the one model in `cars.glb` with no lighter copies, and it was drawn whole at any
+distance: 54 meshes, a draw each, and 84,000 triangles in a phone's frame from 80 m by the Scramble, where it is twenty
+pixels wide. `cars.js` `car()` now makes two far copies with the car, by hand (no helper that differs between the
+three.js versions `cars.js` serves): the body and the wheels as they stand, without the cabin's inside, each part in its
+material's colour as a vertex colour (a metal darkened by its metalness, the glass as dark as it reads from outside),
+the vertices joined on a grid of 5 cm and of 15 cm. One draw each, 25,000 and 4,400 triangles. They ride on the body, so
+they move and tilt with the car, and the lamps' glows stay. Shown past 30 and 60 m on a phone (60 and 140 m on a
+desktop), with 3 m either way so they do not flicker, judged from the view's camera alone and divided by the lens's zoom
+(a long lens counts the car nearer). Made with the car, which is parked while the page loads: 55 to 119 ms on the
+emulated phone. They are compiled with it by the warm-up, which reaches hidden meshes. `?carfar=off`: the car whole.
+
+`tools/car_look.js` stands the player at set distances from the car and takes a still cropped round it, with the copies
+on and off. From 34 m in, at day, dusk and night, the copies read as the car: the same outline, wheels and lamps. The
+one difference is the clear coat's highlight along the roof by day, which a vertex-coloured copy does not have, a few
+pixels at 34 m.
+
 ### What is left
 
-- **The player's car parked by the Scramble** (since the first drive landed): about 77,000 triangles and 40 draws
-  in a phone's frame when it is in view, its full model with a physical material.
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
 - **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
   is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.

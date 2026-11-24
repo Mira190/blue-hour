@@ -1,0 +1,9 @@
+{"_": "Issue 213's fills: the lift beside A6a, Shibuchika's A8, the west bus terminal's signalled zebra, the ground under the raised deck (tools/scramble_shot.js).",
+ "date": [11, 14],
+ "times": {"day": "13:00", "dusk": "sunset+20"},
+ "views": [
+  {"name": "lift_a6a", "eye": [333, -992, 1.6], "look": [325, -982, 1.8], "fov": 60},
+  {"name": "shibuchika_a8", "eye": [384, -1046, 1.6], "look": [397, -1044, 2.6], "fov": 60},
+  {"name": "terminal_zebra", "eye": [352, -1066, 1.6], "look": [341, -1086, 0.6], "fov": 60},
+  {"name": "under_deck_ground", "eye": [352, -1094, 1.6], "look": [375, -1120, 1.0], "fov": 65}
+ ]}

@@ -1,4 +1,4 @@
-// Stills of the camera's tight places (issue 209), the same poses whichever page is served, for a before and an after
+// Stills of the camera's tight places (issue 226), the same poses whichever page is served, for a before and an after
 // side by side: the view held by a hand at a pose where the lens has least room, and what the measure
 // (tools/cam_intrude.js) says of each still's frame. The poses are the forced cases' worst on main and the owner's
 // own: the chase view lifted over a wall at your back and pulled in, over your head looking down.

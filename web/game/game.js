@@ -4255,7 +4255,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
 
   // ------------------------------------------------------------ menus, map, passport: menus.js (tools/cut.js)
   let bigView = null, waypoint = null, bigPins = [], picked = null, travelKey = '';
-  const { bigCanvas, mapPop, toggleMap, toggleMenu, togglePass } = OEGameMenus({ get $() { return $; }, get $$() { return $$; }, get drawBig() { return drawBig; }, get menuSync() { return menuSync; }, get on() { return on; }, get picked() { return picked; }, set picked(v) { picked = v; }, get renderPassport() { return renderPassport; }, get story() { return story; }, get storyLog() { return storyLog; }, get tonight() { return tonight; }, set tonight(v) { tonight = v; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get walkUi() { return walkUi; }, set walkUi(v) { walkUi = v; } });
+  const { bigCanvas, mapPop, toggleMap, toggleMenu, togglePass } = OEGameMenus({ get $() { return $; }, get $$() { return $$; }, get drawBig() { return drawBig; }, get menuSync() { return menuSync; }, get on() { return on; }, get picked() { return picked; }, set picked(v) { picked = v; }, get renderPassport() { return renderPassport; }, get parkTitle() { return parkTitle; }, get story() { return story; }, get storyLog() { return storyLog; }, get tonight() { return tonight; }, set tonight(v) { tonight = v; }, get travelKey() { return travelKey; }, set travelKey(v) { travelKey = v; }, get walk() { return walk; }, set walk(v) { walk = v; }, get walkTalk() { return walkTalk; }, get walkUi() { return walkUi; }, set walkUi(v) { walkUi = v; } });
 
   // ------------------------------------------------------------ map travel
   // Any time, from the map, as Genshin Impact's and Breath of the Wild's maps let you: to the city's
@@ -4438,6 +4438,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return true;
   };
   const startGame = cont => {
+    if (parked && parkedWay('story')) return; // (the title over a parked case or walk: parkTitle below)
     A.start();
     playing = true;
     const was = [player.x, player.y, player.z];
@@ -4487,6 +4488,80 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     };
     open();
   };
+  // The menus' Title screen in place (issue 215; ?inplace=0 opens the page again, as before): the case or the walk is parked under the
+  // title, not torn down. The game holds both still while the title is up (paused, story.tick and the walk's talk), so
+  // leaving is the title shown over the live street with the mode's own interface put away (story.css "parked"), and
+  // the same mode's way in takes it up where it was, in the middle of a frame or a drive; the street's hour and sky put
+  // back as they were, for the walk's step on the title dresses the street as it is chosen. The other mode's way in
+  // opens the page again straight into that mode (bh-story-auto, bh-walk-auto): one load, never a title in between.
+  // Nothing is made or let go, so going back and forth costs nothing (tools/title_inplace.js counts it).
+  const INPLACE = !/[?&]inplace=0\b/.test(location.search); // (?inplace=0: the page load, as before; the fallback below either way)
+  let parked = null; // { mode: 'story' | 'walk', cam, clock, sky, walkLine }
+  // (the page load is the fallback: whenever the street cannot be kept as it is, a lost context, or anything that throws
+  // on the way out, parkTitle says no and the menu opens the page again, menus.js)
+  function parkTitle() {
+    if (!INPLACE || !playing || parked || (overture && overture.active) || cine.active) return false;
+    try { if (renderer.getContext().isContextLost()) return false; } catch (e) { return false; }
+    try { return parkIn(); } catch (e) {
+      try { console.warn('the title in place failed, opening the page again', e); stage.classList.remove('parked', 'parked-story', 'parked-walk'); $('#g-title').hidden = true; parked = null; } catch (e2) { /* the page load clears it */ }
+      return false;
+    }
+  }
+  function parkIn() {
+    const mode = walk ? 'walk' : story && story.on ? 'story' : null;
+    if (!mode) return false;
+    parked = { mode, cam: { mode: cam.mode, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, tilt: cam.tilt }, clock: { y: clock.y, m: clock.m, d: clock.d, min: clock.min, scale: clock.scale }, sky: weather ? weather.state.kind : null };
+    $('#g-menu').hidden = true;
+    stage.classList.add('parked', `parked-${mode}`); stage.classList.remove('story-auto'); // (a page that set out by itself, from the last card or a link, kept the title out of sight: story.css)
+    titleYaw = null; titleT = 0;
+    const cont = $('#gt-cont-go'), wg = $('#gt-walk-go'), at = story && story.at;
+    if (mode === 'story' && cont && at) { // (Continue first, at the frame the case is at: kept or not, it is here)
+      parked.cont = { hidden: cont.hidden, primary: cont.classList.contains('primary'), small: cont.querySelector('small').textContent };
+      cont.hidden = false; cont.classList.add('primary');
+      cont.querySelector('small').textContent = `frame ${at.fi + 1} of ${at.of}${at.stamp ? ` · ${at.stamp}` : ''} · where you left it`;
+      const sg = $('#gt-story-go'); if (sg) { parked.sgPrimary = sg.classList.contains('primary'); sg.classList.remove('primary'); }
+    }
+    if (mode === 'walk' && wg) { // (the walk leads the list, Enter's and a pad's A, over a case kept from before)
+      parked.walkLine = wg.querySelector('small').textContent; wg.querySelector('small').textContent = `${fmtMin(clock.min)} · go on where you were`;
+      parked.wgPrimary = wg.classList.contains('primary'); wg.classList.add('primary');
+      if (cont) { parked.contPrimary = cont.classList.contains('primary'); cont.classList.remove('primary'); }
+      const sg = $('#gt-story-go'); if (sg) { parked.sgPrimary = sg.classList.contains('primary'); sg.classList.remove('primary'); }
+    }
+    $('#g-title').hidden = false;
+    titleScreen('menu');
+    try { performance.mark('oe:title', { detail: { from: mode, inplace: true } }); } catch (e) { /* no User Timing */ }
+    return true;
+  }
+  // the mode's own way back in: the title away, the street's hour and sky as they were, the camera as it was, a cut
+  function unpark() {
+    const P = parked;
+    if (!P) return;
+    parked = null;
+    setClock(P.clock.y, P.clock.m, P.clock.d, P.clock.min); clock.scale = P.clock.scale;
+    if (weather && P.sky && weather.state.kind !== P.sky) weather.set(P.sky, { now: true });
+    Object.assign(cam, P.cam); camSmooth.set(0, 0, 0);
+    const cont = $('#gt-cont-go'), wg = $('#gt-walk-go'), sg = $('#gt-story-go');
+    if (P.cont && cont) { cont.hidden = P.cont.hidden; cont.classList.toggle('primary', P.cont.primary); cont.querySelector('small').textContent = P.cont.small; }
+    if (P.sgPrimary && sg) sg.classList.add('primary');
+    if (P.walkLine != null && wg) { wg.querySelector('small').textContent = P.walkLine; wg.classList.toggle('primary', !!P.wgPrimary); if (cont && P.contPrimary) cont.classList.add('primary'); }
+    $('#g-title').hidden = true;
+    stage.classList.remove('parked', 'parked-story', 'parked-walk');
+    stage.classList.remove('arrive-fade'); void stage.offsetWidth; stage.classList.add('arrive-fade'); // (from the title's view to your shoulder in a cut under a short fade, as reduced motion arrives)
+  }
+  // a way in pressed while a mode is parked: its own mode taken up, the other opened on a page of its own
+  function parkedWay(want, sp) {
+    if (!parked) return false;
+    if (parked.mode === want) { unpark(); return true; }
+    try {
+      if (want === 'walk') sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: (sp && sp.t) || 'night', w: (sp && sp.w) || 'clear' }));
+      else sessionStorage.setItem('bh-story-auto', cityId);
+    } catch (e) { /* storage blocked: the title, as on a fresh page */ }
+    const u = new URL(location.href); u.searchParams.delete('walk'); u.hash = '';
+    if (u.toString() === location.href.replace(/#$/, '')) location.reload(); else location.href = u.toString();
+    return true;
+  }
+  // (the walk's way in on the title takes a parked walk up at once, without its step of the hour and the sky)
+  if (INPLACE) on($('#g-title'), 'click', e => { const b = e.target.closest('#gt-walk-go'); if (b && parked && parked.mode === 'walk') { e.stopImmediatePropagation(); e.preventDefault(); unpark(); } }, { capture: true });
   // Onboarding, once in this browser across every map (onboard.js, #89): the first time, a short tour of the
   // HUD and then the guide's directions; on a later map, with "Skip the intro" (on for a returning player),
   // straight to the guide's own short welcome. "Show the intro again" in the menu runs the tour now.
@@ -4558,6 +4633,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (weather) weather.set(sp.w, { now: true }); // (as it has been for a while: a rainy street already wet)
   };
   const startWalk = sp => {
+    if (parked && parkedWay('walk', sp)) return; // (parkTitle below)
     if (playing) return;
     A.start();
     playing = true; walk = Object.assign({}, sp);
@@ -4987,7 +5063,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) groundLod(player.mode === 'heli' ? heli.st.x : player.x, player.mode === 'heli' ? heli.st.y : player.y);
     if (titleOn && titleYaw != null && !simHold) { titleT += dt; titleYaw = openingHere() ? openingView().yaw + OPENING.sway * Math.sin(titleT * 0.06) : DISTRICT ? titleYaw0 + 0.3 * Math.sin(titleT * 0.05) : titleYaw + dt * 0.05; }
     if (simHold) { /* (held by a harness: the camera too, which the traffic reads, what is in view; advance() moves it) */ } else if (photo.on) photoCamera(dt); else if (closeup && !titleOn) closeupCamera(dt); else updateCamera(dt, titleOn);
-    if (!titleOn) lensGuard(); // (whichever camera it was, its window in nobody: issue 209)
+    if (!titleOn) lensGuard(); // (whichever camera it was, its window in nobody: issue 226)
     if (photo.on && crowdDraw && crowdDraw.still) crowdDraw.still(); // (a photograph's crowd: everyone near enough to be seen drawn whole, the world held: issue 174)
     placeNightFill();
     marks.frame(); // (the camera as it stands for this frame, and who is drawn near it: what every mark over the picture asks, marks.js)
@@ -6051,7 +6127,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (q.lensOut) { crowdDraw.hide(i, true); lensNear.gone++; }
     }
   }
-  // The lens's window (issue 209). A camera takes its picture through a window, not from a point: the near plane's
+  // The lens's window (issue 226). A camera takes its picture through a window, not from a point: the near plane's
   // rectangle, camera.near in front of the lens and as wide as the lens's angle makes it, and whatever that window is
   // inside is drawn from within. The owner's still of frame 3 had the chase view over the head looking down, the window
   // through the hair and the skull, the eyes and the lashes seen from behind. So, every frame and from every camera (the
@@ -6070,7 +6146,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const GUARD_PART = /(Pelvis|Spine2|Spine1|Spine|Neck|Head|Clavicle|UpperArm|Forearm|Hand|Thigh|Calf|Foot)$/;
   function guardFit(root) { // (once a model: its parts' capsules in their bones' own space)
     const meshes = [], parts = new Map(), p = guardA;
-    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex) meshes.push(o); });
+    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && !o.userData.fadeGhost) meshes.push(o); });
     if (!meshes.length) return null;
     const human = meshes.some(o => o.skeleton.bones.some(b => /Bip01/.test(b.name)));
     for (const o of meshes) {
@@ -6116,7 +6192,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return worst;
   };
   // one body: laid out in camera space; the largest near (of NEARS, from `base` down) whose window clears it, or 0 for none
-  const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh) guardSig.v += o.geometry.id * guardSig.k++; };
+  const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh && !o.userData.fadeGhost) guardSig.v += o.geometry.id * guardSig.k++; };
   function guardCapsOf(root) { // (a model's, kept: fitted again only when the copy is dressed as someone else)
     guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
     let c = guardCaps.get(root);
@@ -6125,8 +6201,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // (a fit takes about 11 ms for the one you play on a session's machine: the one you play and the guide are fitted while the
   // page is idle, ahead of the first camera to come near them, not in that camera's frame)
-  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) guardCapsOf(r); };
+  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) { guardCapsOf(r); fadeWarm(r); } };
   function guardBody(root, base) {
+    guardS.deep = -Infinity;
     const e = root.matrixWorld.elements, P = camera.position;
     if (Math.abs(e[12] - P.x) > 1.8 || Math.abs(e[14] - P.z) > 1.8 || P.y < e[13] - 0.8 || P.y > e[13] + 2.8) return base;
     const c = guardCapsOf(root);
@@ -6140,17 +6217,90 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (let j = 0; j < 9; j++) { const t = j / 8; guardPt[m + 1 + j * 3] = guardA.x + (guardB.x - guardA.x) * t; guardPt[m + 2 + j * 3] = guardA.y + (guardB.y - guardA.y) * t; guardPt[m + 3 + j * 3] = guardA.z + (guardB.z - guardA.z) * t; }
       m += 28;
     }
+    guardS.deep = guardDepth(m, NEARS[NEARS.length - 1]); // (how near the smallest window comes: the fade below begins a few cm short of it)
     for (const n of NEARS) if (n <= base + 1e-6 && guardDepth(m, n) <= 0) return n;
     return 0;
   }
+  // The last resort, faded (issue 226, the owner's ask): where no window clears someone the lens cannot leave (you, the
+  // story's people, the map's people, the guide), they go out of the picture over FADE_S, uniformly, and come back the same
+  // way, begun FADE_NEAR short of the smallest window touching them. Not issue 129's fade: that was a dither held for as long
+  // as someone stood near, read as a screen of dots, with the street and a clear umbrella seen through a body. This is never
+  // held (it runs to out or back to whole), has no pattern (one opacity over the whole person), and shows no inner faces or
+  // sorting faults: their depth is drawn first, alone (their own materials with colour writes off: the same programs), and
+  // then their colour blended at that opacity where it is the nearest surface (depthFunc LessEqual over that depth), by a
+  // copy of each of their meshes sharing its geometry, skeleton and morphs (a ghost). The blended materials are the one
+  // program each person's material needs that it had not, warmed with the one you play and the guide (guardWarm). The crowd
+  // stays as issue 129 left it: in the picture whole, or out of it whole
+  const FADE_S = 0.2, FADE_NEAR = 0.04, FADE_BACK = 0.08;
+  const fadeKits = new WeakMap(), fading = new Map();
+  const fadeMat = (mt, depth) => {
+    const c = mt.clone();
+    c.onBeforeCompile = mt.onBeforeCompile; c.customProgramCacheKey = mt.customProgramCacheKey; // (a clone is given neither: the people's light and hair patches)
+    if (depth) c.colorWrite = false;
+    else { c.transparent = true; c.depthWrite = false; c.depthFunc = THREE.LessEqualDepth; c.userData.fadeBase = mt.transparent ? mt.opacity : 1; }
+    return c;
+  };
+  const fadeSet = (mt, a) => { if (Array.isArray(mt)) for (const q of mt) q.opacity = q.userData.fadeBase * a; else mt.opacity = mt.userData.fadeBase * a; };
+  function fadeKitOf(root) {
+    guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
+    let k = fadeKits.get(root);
+    if (k && k.sig === sig) return k;
+    if (k) for (const e of k.e) { e.m.material = e.orig; if (e.g.parent) e.g.parent.remove(e.g); }
+    const list = [];
+    root.traverse(o => { if (o.isMesh && o.material && !o.userData.fadeGhost) list.push(o); });
+    if (!list.length) { fadeKits.set(root, k = { sig, e: [], warm: true }); return k; }
+    k = { sig, a: 1, t: 0, warm: false, e: list.map(m => {
+      const orig = m.material, many = Array.isArray(orig);
+      const depth = many ? orig.map(q => fadeMat(q, true)) : fadeMat(orig, true), colour = many ? orig.map(q => fadeMat(q, false)) : fadeMat(orig, false);
+      const g = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, colour) : new THREE.Mesh(m.geometry, colour);
+      if (m.isSkinnedMesh) { g.bindMode = m.bindMode; g.bind(m.skeleton, m.bindMatrix); }
+      if (m.morphTargetInfluences) { g.morphTargetInfluences = m.morphTargetInfluences; g.morphTargetDictionary = m.morphTargetDictionary; }
+      g.userData.fadeGhost = true; g.visible = false; g.castShadow = false; g.receiveShadow = m.receiveShadow; g.frustumCulled = m.frustumCulled; g.renderOrder = m.renderOrder; g.layers.mask = m.layers.mask;
+      m.add(g);
+      return { m, orig, depth, colour, g };
+    }) };
+    fadeKits.set(root, k);
+    return k;
+  }
+  // (its blended programs compiled now, off the frame: the ghosts shown for the compile's own gathering, which three.js does at once)
+  function fadeWarm(root) {
+    const k = fadeKitOf(root);
+    if (!k || k.warm) return;
+    k.warm = true;
+    for (const e of k.e) e.g.visible = true;
+    try { compileFor0(root); } finally { for (const e of k.e) e.g.visible = false; }
+  }
+  const fadeShow = (k, a) => {
+    for (const e of k.e) {
+      if (a >= 1) { e.m.material = e.orig; e.g.visible = false; continue; }
+      e.m.material = e.depth; e.g.visible = a > 0; fadeSet(e.colour, a);
+    }
+  };
+  // one of them this frame: out (the window too near them) or back; true while they are not whole
+  function fadeStep(root, out) {
+    let k = fading.get(root);
+    if (!k) { if (!out) return false; k = fadeKitOf(root); if (window.__fadeLog && root === player.rig.root) window.__fadeLog.meshes = k.e.length; if (!k.e.length) return false; k.a = 1; k.t = performance.now(); fading.set(root, k); }
+    const now = performance.now(), dt = Math.min(0.1, (now - k.t) / 1000);
+    k.t = now;
+    k.a = Math.max(0, Math.min(1, k.a + (out ? -dt : dt) / (window.__fadeS || FADE_S))); // (__fadeS: slower, for a harness's stills of it)
+    fadeShow(k, k.a);
+    if (window.__fadeLog && root === player.rig.root) window.__fadeLog.a = k.a; // (for a harness: tools/cam_fade.js)
+    if (k.a >= 1 && !out) { fading.delete(root); return false; } // (whole again only coming back: going out, its first step may be nought)
+    if (k.a <= 0) { root.traverse(layerOff); guardHid.add(root); }
+    return true;
+  }
   // (a frame's state, kept here so that a frame of it makes nothing new: guardOne is called for each body near the lens)
-  const guardS = { base: 0.3, near: 0.3, warmAt: -1e9 };
+  const guardS = { base: 0.3, near: 0.3, warmAt: -1e9, deep: -Infinity };
   const layerOn = q => q.layers.enable(0), layerOff = q => q.layers.disable(0);
   function guardOne(root, who, i) {
-    if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) return;
+    if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) { if (root && fading.has(root)) { fadeShow(fading.get(root), 1); fading.delete(root); } return; }
     const n = guardBody(root, guardS.base);
-    if (n > 0) { if (n < guardS.near) guardS.near = n; return; }
-    if (i != null) crowdDraw.hide(i, true); else { root.traverse(layerOff); guardHid.add(root); }
+    if (n > 0 && n < guardS.near) guardS.near = n;
+    if (i == null) { // (one the lens cannot leave: faded, out and back)
+      const k = fading.get(root), out = n === 0 || guardS.deep > -(k && k.a < 1 ? FADE_BACK : FADE_NEAR);
+      if (!fadeStep(root, out) || fading.get(root).a > 0) { if (n === 0 && !fading.has(root)) { root.traverse(layerOff); guardHid.add(root); if (window.__fadeLog && root === player.rig.root) window.__fadeLog.hard = (window.__fadeLog.hard || 0) + 1; } else return; }
+    } else if (n > 0) return;
+    else crowdDraw.hide(i, true);
     const G = window.__lensGuard; // (for a harness: who was taken out, from which camera)
     if (G) { const mode = cine.active ? `shot ${cine.label || ''}` : talkShot ? 'talk' : story && story.film ? 'film' : fpOn ? 'finder' : photo.on ? 'photo' : closeup ? 'closeup' : `${player.mode} ${cam.mode}`, key = `${typeof who === 'function' ? who() : who} | ${mode}`; G[key] = (G[key] || 0) + 1; }
   }
@@ -6180,7 +6330,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const CEIL_GAP = 0.3; // how far under a drawn ceiling the lens keeps (its near plane and a lamp's depth: heroSoffit)
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
   // (the steepest a view on foot may look down from an arm that long: a lift over a wall behind that is then pulled in
-  // short stands the lens over your head looking down at your hair, the owner's still of issue 209 and issue 99's; from
+  // short stands the lens over your head looking down at your hair, the owner's still of issue 226 and issue 99's; from
   // 2.5 m out any pitch, from 0.8 m in 0.5 rad, about the lowest lift's view over a shoulder. Issue 209)
   const pitchRoom = arm => 0.5 + 0.85 * Math.min(1, Math.max(0, (arm - 0.8) / 1.7));
   const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
