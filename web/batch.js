@@ -98,9 +98,9 @@ window.OEBatch = (function () {
       ids = geos.map(g => b.addGeometry(g));
       for (let i = 0; i < cap; i++) b.setVisibleAt(b.addInstance(ids[0]), false);
     } catch (e) { console.warn('batch pool:', material.name, e); if (b) b.dispose(); return null; }
-    // (each car drawn whether in view or not: which cars there are is setVisibleAt's, and culled car by car three sent the
-    // pool's list again every frame, as many textures as pools, 18 on the walk: issue 191)
-    b.frustumCulled = false; b.perObjectFrustumCulled = false; b.sortObjects = !!material.transparent; b.visible = false;
+    // (culled car by car, which sends the pool's list again every frame, as many textures as pools, 18 on the walk: drawn
+    // whole instead, a phone's frames were slow enough at the first Stop that the sound gave up the street; issue 191)
+    b.frustumCulled = false; b.perObjectFrustumCulled = true; b.sortObjects = !!material.transparent; b.visible = false;
     b.userData.batched = cap;
     const at = new Int32Array(cap).fill(0); let n = 0, shown = 0;
     stats.batches++;
