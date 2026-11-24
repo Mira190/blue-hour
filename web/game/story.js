@@ -210,6 +210,10 @@ window.OEStory = (function () {
     // the camera taught, the first time it is in the hand (task.teach): what to do, in order, and what each step does,
     // ticked as it is done (teachTick below)
     const teachEl = el('g-story-teach', '');
+    // how far up the stage the card reaches (--teach-up, story.css): on a phone it is a strip at the foot whose height
+    // is its step's words, and a word said over the picture is set above it rather than at a height guessed for it
+    // (the M3's play, issue 13: "In the frame · the planetarium's board" lay half under the card)
+    if (window.ResizeObserver) new ResizeObserver(() => { const s = ctx.stage.getBoundingClientRect(), r = teachEl.getBoundingClientRect(); if (r.height) ctx.stage.style.setProperty('--teach-up', `${Math.round(s.bottom - r.top)}px`); }).observe(teachEl);
     hintBtn.type = 'button'; hintBtn.addEventListener('click', e => { e.stopPropagation(); hint(); });
     const movEl = el('g-story-mov', `<p></p><button type="button">${ctx.touch ? 'Tap to skip' : 'Space to skip'}</button>`);
     movEl.querySelector('button').addEventListener('click', e => { e.stopPropagation(); movEnd(true); });

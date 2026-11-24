@@ -416,7 +416,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       console.log(`  ${name}: the glass's cube of ${q.id} (${q.res} a side, taken ${q.taken}): ${(q.lit * 100).toFixed(0)}% lit, ${(q.over * 100).toFixed(2)}% at 128 or more, ${(q.bad * 100).toFixed(2)}% no number${ok ? '' : ' (WRONG)'}`);
       if (!ok) { errors.push(`${name}: the cube ${q.id}'s glass mirrors is wrong`); console.log(`error: ${name}: the cube the glass of ${q.id} mirrors is ${q.lit <= 0.5 ? 'not drawn' : 'not light a place gives'} (issue 203)`); }
     }
-    const shot = async () => { await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await drawAll(true); await hold(true); let b = null; try { b = await p.screenshot({ timeout: 120000 }); } catch (e) { /* no picture: nothing compared */ } await hold(false); await drawAll(false); return b; };
+    // (the picture alone, the interface hidden: a line of words fading in between the two shots, on its dark ground, was
+    // counted as the pane's footprint and read as the glass blacking out what is behind it, issue 13)
+    const shot = async () => { await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await drawAll(true); await hold(true); let b = null; const bare = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }).catch(() => null); try { b = await p.screenshot({ timeout: 120000 }); } catch (e) { /* no picture: nothing compared */ } if (bare) await bare.evaluate(e => e.remove()).catch(() => {}); await hold(false); await drawAll(false); return b; };
     const panes = await p.evaluate(`(${hero})().glass(true)`).catch(() => 0);
     if (!panes) return;
     const withIt = await shot();

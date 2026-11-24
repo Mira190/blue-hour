@@ -1630,3 +1630,39 @@ Emil Persson, 2011: the method, no code): each vertex's offset from the middle o
 found as the model loads) is stretched in the vertex shader after the skin has posed it, until the tube is 0.6 px
 either side, and the fragment's alpha is the true width over the drawn one. A phone and a desktop now draw the same
 faint lines (`tools/coat_shot.js FACE=1`, with `AA=1` for a desktop's samples).
+
+## What a real GPU showed at each beat (issue 13, the M3's play of 23 November 2026)
+
+A play of the whole episode on the owner's M3 (Metal, real time) found two things the software renderer's stills had
+let pass. Each was reproduced here (llvmpipe, 1440 x 900 on the high tier and 390 x 844 on the phone's low tier, the
+beats at the hours they are set) before it was changed. Stills: `docs/images/hero/issue-13-words.jpg`.
+
+**The words over a lit sign.** The story's lines carry the story's night under them (`--halo`, the keys' and the goal's
+radial shade, docs in `web/game/story.css`), but two had too little: a line said during a talk, which a phone puts at
+the top of the screen, had a shade 0.62 deep at its middle and almost none at the ends of its words (an ellipse no
+wider than the line), and it ran across a lit shop sign and MAGNET's; and the lift's prompt had no shade at all and lay
+over the player's legs and the dog. Both now have the ground the keys have (0.84 at the middle, 0.74 two thirds out,
+nothing at the edge, reaching past the last letter); by touch the prompt is a button and its pill is filled with the
+night. On a phone a word said while the camera is taught ("In the frame · the planetarium's board") was set at a fixed
+height over the teaching card and lay half under it when the card's step took three lines: the card's top is measured
+(`story.js`, `--teach-up`) and the word set above it. And on a desktop the goal's corner shade, an ellipse 140% of its
+box wide, was still at half strength where the box ends, so that its right and bottom edges were drawn on pale paving
+(`2-find`): the box is wider than its words now and the shade comes to nothing inside it.
+
+**The flat dark volumes.** Named with the still tool's ray probe (`PROBE=fx,fy tools/scramble_shot.js`, which now also
+names a phone's meshes whose arrays were let go, by their bounds):
+
+- behind Shun's talk (`2-said-go-talk-shun`), QFRONT's floor bands and fins (`x_fin`, `x_qf_panel`): flat lilac and navy;
+- at the kerb by Center Gai, the gate's posts (`x_gate`): a navy column with nothing on it;
+- at frame 3's Stop (`3-stop`), Shibuchika exit 8's pavilion beside the police box: its aluminium waist panels and
+  frame (`x_panel`, `x_frame`) a near-black block, the glass above them navy.
+
+One cause: the level's coated metals are drawn as bare metal (metalness 0.45 to 0.7 in `scramble.py`'s materials). A
+metal has no colour of its own in a renderer, only what it mirrors, and the environment the game gives it is the sky
+alone; at dusk and at night that is a dark blue, so every such face is the sky's colour, flat, and no lamp or sign
+lights it (a metal takes no diffuse light). What they are in the street is paint: powder-coated or PVDF-finished
+aluminium (the fins, the bands, the cladding panels, the window frames) and painted steel (the gate, the fences, the
+railway's girders), and a paint is a dielectric with a colour of its own that the lamps and the shops' light fall on.
+Tried in the page on four of them (metalness 0.25, the sky's share 0.5) the bands and fins came back to their grey at
+dusk and at night. The values are changed in `scramble.py` and the level rebuilt as the issue's second part, after
+the #196 session's rebuild of the same level has landed (claim board, #202).
