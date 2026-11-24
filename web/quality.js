@@ -375,7 +375,7 @@ window.OEQuality = (function () {
     // that wait, since a try can hold for seconds before the scene shows what it costs. bad: a step the frames
     // stopped fitting at with no try behind it (the scene got heavier), left alone half a minute, so that the way
     // back is not climbed while the heavy scene lasts and is quick once it has passed.
-    const BAD0 = 30000, BADMAX = 480000, EX0 = 60000, EXMAX = 960000, TIER_WARM = 30000, FLAT_WARM = 15000;
+    const BAD0 = 30000, BADMAX = 480000, EX0 = 60000, EXMAX = 960000, TIER_WARM = 30000, FLAT_WARM = 18000;
     // Resolution that buys nothing is given back (flat). A frame that is slow for its draw calls and its triangles,
     // as a phone's is in a dense city, takes as long at 0.6 as at 0.8: there the governor used to sit at its floor,
     // blurred, for no frame gained. So the frame time at `mid` with no extras left (e0) is kept, and when the floor
@@ -542,7 +542,7 @@ window.OEQuality = (function () {
         const want = Math.max(0.85, Math.min(0.95, Math.sqrt(1 / load))); // (pixels go with the square of the scale)
         const midFloor = Math.max(g.min, Math.min(g.mid, g.max));
         if (flat) { // (see above: the pixels are not what these frames cost)
-          if (flatTry && !(flatTry === 2 && since < 2500)) { const worse = ema > 1.05 * flatBase, ex = flatTry === 2; flatTry = 0; if (worse) { if (ex) { flatEx = g.extras; change(g.scale, g.extras - 0.5); } else { flatTop = g.scale; change(g.scale - STEP, g.extras); } return; } }
+          if (flatTry && !(flatTry === 2 && since < 2500)) { const worse = ema > 1.05 * flatBase, ex = flatTry === 2; flatTry = 0; if (!worse) flatBase = Math.min(flatBase, ema); /* (the floor's frame as low as it has been seen: a base taken on frames still settling let every step look cheap) */ if (worse) { if (ex) { flatEx = g.extras; change(g.scale, g.extras - 0.5); } else { flatTop = g.scale; change(g.scale - STEP, g.extras); } return; } }
           if (flatTry) return;
           // (and the extras: what a frame sheds is given back as the resolution is, where it bought nothing. Safari's
           // frames, the same with every extra as with none, kept none of them for good: the wet street's mirror, the
