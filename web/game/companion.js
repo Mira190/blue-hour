@@ -103,7 +103,7 @@ window.OECompanion = (function () {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 40), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; ring.renderOrder = 20; ring.frustumCulled = false;
     root.add(ring);
-    const s = { x: 0, y: 0, z: 0, h: 0, state: 'away', ready: false, to: null, reach: 3, look: null, done: null, t: 0, speed: 0, fade: 1, greeted: false };
+    const s = { clock: 0, wl: { me: {}, you: {} }, x: 0, y: 0, z: 0, h: 0, state: 'away', ready: false, to: null, reach: 3, look: null, done: null, t: 0, speed: 0, fade: 1, greeted: false };
     let mixer = null, acts = {}, cur = '', head = null, neck = null, mats = [], soles = []; // (soles: the paws' points of skin, onSoles)
     const bones = [];
     // his body as the model has it: the capsule's spine (metres along his heading from where he stands), its radius, and
@@ -199,7 +199,22 @@ window.OECompanion = (function () {
       const off = turn(Math.atan2(vy, vx), 5.5, dt);
       const v = speed * Math.max(0.25, 1 - off / 1.6);
       const step = Math.min(d, v * dt), dx = Math.cos(s.h) * step, dy = Math.sin(s.h) * step;
-      if (slide) { const m = slide(s.x, s.y, s.z, dx, dy); s.x = m.x; s.y = m.y; } else { s.x += dx; s.y += dy; }
+      if (slide) {
+        let m = slide(s.x, s.y, s.z, dx, dy);
+        // (a step refused, or cut to a sliver: a post's or a planter's rail pushed him back where he came from, or the
+        // walker's slide would have taken his length into it. He tries the step turned either way, the side he last went
+        // round first, and takes the first that goes on towards where he is making for: against Hachiko Square's round
+        // planter, its rail 1.75 m out and his length beyond his middle, he walked on the spot, issue 207)
+        if (step > 0.01 && Math.hypot(m.x - s.x, m.y - s.y) < 0.3 * step) {
+          const sd = s.round || 1;
+          for (const a of [0.7 * sd, -0.7 * sd, 1.35 * sd, -1.35 * sd]) {
+            const c = Math.cos(a), sn = Math.sin(a), ex = dx * c - dy * sn, ey = dx * sn + dy * c, q = slide(s.x, s.y, s.z, ex, ey);
+            const gx = q.x - s.x, gy = q.y - s.y;
+            if (Math.hypot(gx, gy) > 0.5 * step && gx * (tx - s.x) + gy * (ty - s.y) > 0) { m = q; s.round = Math.sign(a); break; }
+          }
+        }
+        s.x = m.x; s.y = m.y;
+      } else { s.x += dx; s.y += dy; }
       s.speed = v;
       // a crowd shoulder to shoulder is a wall to this: when it has got nowhere for a second it goes through, as an
       // afterimage may (better seen passing through a coat than left behind a queue)
@@ -367,7 +382,16 @@ window.OECompanion = (function () {
     // A* over the stretch from him to (tx, ty) and the ground round it; walls asked of stand() as each cell is reached.
     // Ten metres round first; where the crowd is wider than that, further round (its edge may be twenty metres off);
     // and where it closes every way, between them with less room (a body's width each), but never through anyone
-    function plan(tx, ty, sticky) { return planIn(tx, ty, sticky, 10, BODY) || planIn(tx, ty, sticky, 24, BODY) || planIn(tx, ty, sticky, 24, 0.36); }
+    // A plan that found no way is not made again for a second, unless he has moved a metre or the place a metre and a
+    // half: tried again every frame it was most of a phone's Stop (3.1 million stand() asks in frame 1's talk, three
+    // grids of up to 60,000 cells a frame, 4 frames a second; issue 206)
+    function plan(tx, ty, sticky) {
+      const F = s.noPlan;
+      if (F && s.clock - F.t < 1 && Math.hypot(F.x - s.x, F.y - s.y) < 1 && Math.hypot(F.tx - tx, F.ty - ty) < 1.5) return null;
+      const r = planIn(tx, ty, sticky, 10, BODY) || planIn(tx, ty, sticky, 24, BODY) || planIn(tx, ty, sticky, 24, 0.36);
+      s.noPlan = r ? null : { t: s.clock, x: s.x, y: s.y, tx, ty };
+      return r;
+    }
     function planIn(tx, ty, sticky, pad, body) {
       const x0 = Math.min(s.x, tx) - pad, y0 = Math.min(s.y, ty) - pad, nx = Math.ceil((Math.max(s.x, tx) + pad - x0) / GRID), ny = Math.ceil((Math.max(s.y, ty) + pad - y0) / GRID);
       if (nx * ny > 160000) return null;
@@ -389,6 +413,16 @@ window.OECompanion = (function () {
       if (extra[b] === Infinity) { // (the place itself among them: the nearest cell free of everyone)
         let best = Infinity;
         for (let r = 1; r < 8 && best === Infinity; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const i = (b % nx) + di, j = Math.floor(b / nx) + dj; if (i < 0 || j < 0 || i >= nx || j >= ny) continue; const k = j * nx + i; if (extra[k] !== Infinity && Math.hypot(di, dj) < best) { best = Math.hypot(di, dj); b = k; } }
+      }
+      // (and a place whose every neighbour is shut, by a post and his reach round it or by the player beside it: the
+      // nearest cell that is open and has an open neighbour, within 2.5 m. Sent to the afterimage in a Stop's talk, the
+      // goal's cell was let in and none round it was, and the search ran to its cap three times a frame, issue 206)
+      const reach = k => { const i = k % nx, j = Math.floor(k / nx); for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < nx && jj < ny && open(jj * nx + ii)) return true; } return false; };
+      if (!reach(b)) {
+        let best = Infinity, bb = -1;
+        for (let r = 1; r <= Math.ceil(2.5 / GRID) && best === Infinity; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const i = (b % nx) + di, j = Math.floor(b / nx) + dj; if (i < 0 || j < 0 || i >= nx || j >= ny) continue; const k = j * nx + i, d = Math.hypot(di, dj); if (d < best && open(k) && reach(k)) { best = d; bb = k; } }
+        if (bb < 0) return null;
+        b = bb;
       }
       const g = new Float32Array(nx * ny).fill(Infinity), from = new Int32Array(nx * ny).fill(-1), heap = [], bi = b % nx, bj = Math.floor(b / nx);
       const H = k => { const di = Math.abs(k % nx - bi), dj = Math.abs(Math.floor(k / nx) - bj); return Math.max(di, dj) + 0.4142 * Math.min(di, dj); };
@@ -418,18 +452,41 @@ window.OECompanion = (function () {
       const pts = []; let p = [s.x, s.y], i = 0;
       while (i < cells.length - 1) { let j = cells.length - 1; while (j > i + 1 && !clear(p, at(cells[j]))) j--; p = at(cells[j]); pts.push(p); i = j; }
       if (!pts.length) return null;
-      if (extra[cell(tx, ty)] !== Infinity) pts[pts.length - 1] = [tx, ty]; // (and to the place itself, not the middle of its cell)
+      if (b === cell(tx, ty) && extra[b] !== Infinity) pts[pts.length - 1] = [tx, ty]; // (and to the place itself, not the middle of its cell)
       return { pts, i: 0, tx, ty, sticky };
     }
     // the player further along the way than he is (they ran past him): each one's distance left along the way, from where
     // they stand on it (and how far off it they are)
+    // (each one's distance left along his way, from where they stand on it, and how far off it they are)
+    const pathLeft = (P, x, y) => { let best = Infinity, out = Infinity, rest = 0; for (let i = P.length - 1; i > 0; i--) { const a = P[i - 1], b = P[i], ux = b[0] - a[0], uy = b[1] - a[1], L = Math.hypot(ux, uy) || 1e-9, k = Math.max(0, Math.min(1, ((x - a[0]) * ux + (y - a[1]) * uy) / (L * L))), d = Math.hypot(a[0] + ux * k - x, a[1] + uy * k - y); if (d < best - 0.01) { best = d; out = rest + L * (1 - k); } rest += L; } return [out, best]; };
     function onAhead() {
       const P = s.path, px = player.x, py = player.y;
       if (!s.to) return false;
       if (!P || P.length < 2) return Math.hypot(s.to[0] - px, s.to[1] - py) < dist(s.to[0], s.to[1]) - 1.5;
-      const left = (x, y) => { let best = Infinity, out = Infinity, rest = 0; for (let i = P.length - 1; i > 0; i--) { const a = P[i - 1], b = P[i], ux = b[0] - a[0], uy = b[1] - a[1], L = Math.hypot(ux, uy) || 1e-9, k = Math.max(0, Math.min(1, ((x - a[0]) * ux + (y - a[1]) * uy) / (L * L))), d = Math.hypot(a[0] + ux * k - x, a[1] + uy * k - y); if (d < best - 0.01) { best = d; out = rest + L * (1 - k); } rest += L; } return [out, best]; };
-      const [lp, off] = left(px, py), [ld] = left(s.x, s.y);
-      return off < 8 && lp < ld - 1.5;
+      const [lp, off] = pathLeft(P, px, py), [ld] = pathLeft(P, s.x, s.y);
+      return (off < 8 && lp < ld - 1.5) || lead() < -1.5;
+    }
+    // How far he is ahead of the player along the way (m; less than nothing when they are further on), each one's way
+    // on foot to where he leads (route) measured from where they stand. The test above measures the player against his
+    // own line, and only within 8 m of it: a player who took the other side of the station's forecourt, 10 m off his
+    // line and 20 m further on, was read as fallen behind, and he stood and waited for them (issue 207: the owner's
+    // rule is that he waits only when he is ahead). Asked again when either has gone 1.5 m or half a second has passed;
+    // with no way, as the crow flies
+    function wayLeft(c, x, y) {
+      if (c.at && Math.hypot(c.at[0] - x, c.at[1] - y) < 1.5 && s.clock - c.when < 0.5 && c.to === s.to) return c.left;
+      const P = route ? route(x, y, c === s.wl.me ? s.z : player.z, s.to[0], s.to[1]) : null;
+      let L = null;
+      if (P && P.length) { L = 0; let ax = x, ay = y; for (const q of P) { L += Math.hypot(q[0] - ax, q[1] - ay); ax = q[0]; ay = q[1]; } L += Math.hypot(s.to[0] - ax, s.to[1] - ay); }
+      Object.assign(c, { at: [x, y], when: s.clock, to: s.to, left: L });
+      return L;
+    }
+    function lead() {
+      if (!s.to) return 0;
+      // (on his way, or near it, both read along it, which costs nothing; the router is asked only for a player off it)
+      const P = s.path;
+      if (P && P.length > 1) { const [lp, off] = pathLeft(P, player.x, player.y), [ld] = pathLeft(P, s.x, s.y); if (off < 4) return lp - ld; const a = wayLeft(s.wl.you, player.x, player.y); if (a != null && ld < Infinity) return a - ld; }
+      const a = wayLeft(s.wl.you, player.x, player.y), b = wayLeft(s.wl.me, s.x, s.y);
+      return a != null && b != null ? a - b : Math.hypot(s.to[0] - player.x, s.to[1] - player.y) - dist(s.to[0], s.to[1]); // (no way for one of them: both as the crow flies)
     }
     function onWay() {
       const P = s.path;
@@ -504,7 +561,7 @@ window.OECompanion = (function () {
     function tick(dt) {
       if (s.state === 'away') return;
       if (coat && eye) coat.visible = Math.hypot(eye.position.x - root.position.x, eye.position.y - root.position.y, eye.position.z - root.position.z) < COAT_M;
-      s.t += dt;
+      s.t += dt; s.clock += dt;
       const px = player.x, py = player.y;
       // (where he is and how far off the player as the tick begins: what it may not end further inside of, keepOff's rule)
       const x0 = s.x, y0 = s.y, h0 = s.h, gap0 = offPlayer();
@@ -545,7 +602,9 @@ window.OECompanion = (function () {
           if (dp > AHEAD) { const w = through(px, py); move(w[0], w[1], dp > 9 ? RUN : speeds.trot * 1.3, dt); if (s.t > 6 && dp > 14) catchUp(); } else { s.state = 'lead'; s.t = 0; }
           lookAt = [px, py, player.z + 1.5];
         }
-        else if (dp > far && !onAhead()) { // the player has fallen behind: it stops and looks back, and in a while goes to them
+        // the player has fallen behind (he is ahead of them along the way, and far): he stops and looks back, and in a while
+        // goes to them. Never when they are level with him or further on, wherever their line is: nothing waits for him
+        else if (dp > far && lead() > 1.5) {
           if (s.state !== 'wait') { s.state = 'wait'; s.t = 0; }
           s.speed = 0; face(px, py, dt); lookAt = [px, py, player.z + 1.5];
           if (dp > Math.max(LOST, far + 4) && s.t > 2.5 || s.t > 9) { s.state = 'fetch'; s.t = 0; }
@@ -553,7 +612,16 @@ window.OECompanion = (function () {
           s.state = 'lead';
           // at the player's pace, the gap in front of them kept: further on, he slows and stands; nearer, he goes faster;
           // and when they are further along than he is, he runs past them
-          const on = onAhead(), want = on ? Math.max(RUN * 1.25, ps * 1.35) : Math.max(0, Math.min(RUN * 1.45, ps + (gap - dp) * 1.6));
+          // (held four seconds running, getting nowhere, with the player further on: found at their heels, as when left far
+          // behind; they are never kept for him, issue 207)
+          // (and held behind a player who has stopped a pace or two ahead, in a doorway or between a lift's belts: he
+          // stands at their heels until they go on, not walking on the spot against their legs, issue 207)
+          if (s.held >= 1 && ps < 0.3 && dp < 2.5 && onAhead()) { s.v = 0; s.speed = 0; s.gain = 0; s.gainT = 0; const w = onWay() || s.to; face(w[0], w[1], dt); }
+          else if (s.held >= 4 && onAhead()) { catchUp(); s.held = 0; }
+          else {
+          // (the gap measured along the way, not across it: a player level with him on the far side of a planter, or a
+          // street's width off his line, is not someone to stand and wait for)
+          const on = onAhead(), ahead = Math.min(dp, Math.max(0, lead())), want = on ? Math.max(RUN * 1.35, ps * 1.4) : Math.max(0, Math.min(RUN * 1.45, ps + (gap - ahead) * 1.6));
           s.v = (s.v || 0) + (want - (s.v || 0)) * Math.min(1, dt * 4);
           if (s.v < (s.speed ? 0.25 : 0.6)) { s.speed = 0; face(px, py, dt); lookAt = [px, py, player.z + 1.5]; } // (waiting for them, looking back)
           else {
@@ -573,6 +641,7 @@ window.OECompanion = (function () {
               }
             }
             move(w[0], w[1], Math.max(speeds.walk * 0.7, s.v), dt); if (dp > gap * 1.3) lookAt = [px, py, player.z + 1.5];
+          }
           }
         }
       } else if (s.state === 'heel') { // at the player's side, a pace behind: off when they are, still when they stop
