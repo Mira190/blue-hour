@@ -155,7 +155,10 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
           // (#208: and nothing of a rail between its kerb-side door and the pavement, where you get out)
           const seat = C.seats[g.rideSeat(r)], l = Math.sign(seat.x || 1) * (C.hw + 0.05), dx = st.x + hx * seat.z - hy * l, dy = st.y + hy * seat.z + hx * l, ox = -hy * Math.sign(l), oy = hx * Math.sign(l);
           const rail = window.__rails.across(dx + ox * 2.2, dy + oy * 2.2, dx - ox * 0.3, dy - oy * 0.3, st.z).slice(0, 2);
-          return { at: [+st.x.toFixed(1), +st.y.toFixed(1)], lat: +(st.lat || 0).toFixed(2), off, rail, how: (document.querySelector('#g-story-goal em') || {}).textContent || '' }; });
+          const lp = {}; r.drv.path.at(st.end, lp); const T = window.THREE, a = new T.Vector3(st.x + hx * 2.6, st.z + 1.2, -(st.y + hy * 2.6)), b = new T.Vector3(st.x + hx * 12, st.z + 1.2, -(st.y + hy * 12));
+          // (#208: its heading and its way's there, and how far ahead a solid stands on the line it faces)
+          const ahead = +(g.nav.clearFraction(a, b) * 9.4 + 2.6).toFixed(1);
+          return { at: [+st.x.toFixed(1), +st.y.toFixed(1)], h: +st.h.toFixed(3), wayH: +Math.atan2(lp.hx, lp.hy).toFixed(3), ahead, lat: +(st.lat || 0).toFixed(2), off, rail, how: (document.querySelector('#g-story-goal em') || {}).textContent || '' }; });
         console.log('stop', JSON.stringify(stop));
         // (and the car at its stop from above behind it and from across the square, the film's camera held there for the still)
         for (const [n, back, side, up] of [['stop-above', -9, 0, 7], ['stop-side', 2, -10, 3]]) {
@@ -166,6 +169,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
           try { await whole(p, () => p.screenshot({ path: `${out}/${n}.png`, timeout: 120000 })); } catch (e) { console.log('(no still)'); }
         }
         await p.evaluate(() => window.__game.cine.stop());
+        { const d = Math.abs(((stop.h - stop.wayH + 3 * Math.PI) % (2 * Math.PI)) - Math.PI); if (d > 0.1) errors.push(`the car sets you down turned ${(d * 180 / Math.PI).toFixed(0)} degrees off its road: a taxi stands parallel to the kerb`); }
         if (stop.rail.length) errors.push(`a rail between the car's door and the pavement where it sets you down: ${JSON.stringify(stop.rail)}`);
         if (stop.off.length) errors.push(`the car at its stop has ${stop.off.length} corners off the carriageway: ${JSON.stringify(stop.off)}`);
         if (/to be there now/.test(stop.how) || !/You are there/.test(stop.how)) errors.push(`arrived, the goal line still says "${stop.how}"`); } // (the car where it sets you down, at Hachiko, once the view has come down onto it: the page's own frames, which move the world's clock the hop runs on and the chase camera it hands over to; a step of the harness moves neither)

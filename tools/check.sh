@@ -231,12 +231,12 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2; [ "$TIER" = full ] || add budget1 budget2 budget3 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/crowd_cost.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|web/assets/story/late/cue-phone.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|tools/el_stall_check.js|web/assets/story/late/cue-phone.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
       web/game/game.js) static=1; page; add ride ;;
       web/game/junctions.js|web/game/trips.js|web/game/rides.js|web/game/pilot.js|web/game/autopilot.js|cities/$MAP/road_plan.json|cities/$MAP/road_measured.json|cities/$MAP/roads_osm.json|pipeline/road_plan.py|cities/$MAP/rail.py|cities/$MAP/road_surface.json|cities/$MAP/bus_lines.json|pipeline/road_width.py|pipeline/road_survey.py|pipeline/bus_lines.py|pipeline/road_routes.py) static=1; [ "${f#web}" != "$f" ] && page; add roads ;;   # (the road plan and what drives by it)
-      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
+      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_own.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
       # asks of it is loaded, looked at and weighed, and the story is not played, whatever its nodes are called
@@ -515,6 +515,9 @@ run_audio() {
   # (a phone's street held while the page is busy and given up on a break, issue 166: docs/SOUND.md "The guard")
   if timeout 120 node tools/snd_guard_check.js >"$OUT/snd_guard.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/snd_guard.log" | cut -c6-)"
   else echo "FAIL audio  the street's guard: $(grep '^FAIL' "$OUT/snd_guard.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/snd_guard.log)"; fi
+  # (a phone's music element: a held main thread is not a stall, a clock that stays behind is: issue 166)
+  if timeout 300 node tools/el_stall_check.js >"$OUT/el_stall.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/el_stall.log" | cut -c6-)"
+  else echo "FAIL audio  the element's probe: $(grep '^FAIL' "$OUT/el_stall.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/el_stall.log)"; fi
   # (what a phone's music elements play, issue 166: each tune's peak and the cue and a score summed, no tune near full scale)
   if timeout 300 node tools/tune_levels.js >"$OUT/tune_levels.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/tune_levels.log" | cut -c6-)"
   else echo "FAIL audio  the tunes' levels: $(grep '^FAIL' "$OUT/tune_levels.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/tune_levels.log)"; fi
