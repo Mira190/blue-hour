@@ -49,9 +49,13 @@ async function load(b, k) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: k.phone, isMobile: k.phone });
   await ctx.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, k.phone ? 'low' : 'high');
   const p = await ctx.newPage();
+  // (and the load's order, issue 194: the guide's routes are built after the first frame, not beside the loader's warm-up; their
+  // log line's time against the first frame's mark)
+  await p.addInitScript(() => { const ci = console.info; console.info = function (...a) { if (typeof a[0] === 'string' && a[0].startsWith('routes:')) window.__routesAt = performance.now(); return ci.apply(this, a); }; });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?bake=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => window.__bake && window.__bake.done, null, { timeout: 1500000, polling: 500 });
-  const out = await p.evaluate(() => ({ v: window.__bake.v, ms: window.__bake.ms, packs: window.__bake.packs }));
+  if (k.order) await p.waitForFunction(() => window.__routesAt, null, { timeout: 300000, polling: 500 }).catch(() => {});
+  const out = await p.evaluate(() => { const f = performance.getEntriesByName('oe:frame', 'mark').pop(); return { v: window.__bake.v, ms: window.__bake.ms, packs: window.__bake.packs, frameAt: f ? f.startTime : null, routesAt: window.__routesAt || null }; });
   await ctx.close();
   return out;
 }
@@ -92,10 +96,14 @@ async function serve() {
   for (const k of KINDS) {
     if (only && k.name !== only) continue;
     if (!fs.existsSync(path.join(ROOT, k.dir, 'game.bin'))) continue;
+    k.order = process.argv.includes('--compare');
     const got = await load(b, k), file = path.join(ROOT, k.dir, 'setup.bin');
     // (the page read the packs this bake is for: a phone its district's, d/, a desktop the map's)
     if (`web/${got.packs}`.replace(/\/$/, '') !== k.dir) { console.log(`FAIL bake    ${k.name}: the page read ${got.packs}, not ${k.dir}`); bad++; continue; }
     if (process.argv.includes('--compare')) {
+      // (the routes after the first frame: on a phone's tier their build was 1 to 2 s of the main thread before it, routeline.js)
+      if (got.routesAt == null || got.frameAt == null || got.routesAt < got.frameAt) { console.log(`FAIL order    ${k.name}: the guide's routes ${got.routesAt == null ? 'never built' : `built at ${Math.round(got.routesAt)} ms, before the first frame at ${Math.round(got.frameAt)}`} (routeline.js builds them after it)`); bad++; }
+      else console.log(`ok   order    ${k.name}: the guide's routes built after the first frame (${((got.routesAt - got.frameAt) / 1000).toFixed(1)} s after it)`);
       if (!fs.existsSync(file)) { console.log(`FAIL bake    ${k.name}: no ${path.relative(ROOT, file)}: rebake with \`node tools/bake_setup.js\``); bad++; continue; }
       const d = diff(read(file).v, got.v);
       console.log(d.length ? `FAIL bake    ${k.name}: the set-up's output changed: rebake with \`node tools/bake_setup.js\`\n  ${d.join('\n  ')}` : `ok   bake     ${k.name}: the bake is what the page computes (it computed it in ${Math.round(got.ms)} ms)`);
