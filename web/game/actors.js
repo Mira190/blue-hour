@@ -1718,6 +1718,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // it, half the overlap, at up to 0.6 m/s, within the footway's width, never through a wall or into someone; walk()
     // keeps the offset (p.lat). The square's crowd steps apart in plazaStep; two waiting at a kerb on their footways stood
     // 0.37 m through each other at the Scramble's north-east corner, main's story on 8186ca5, issue 187)
+    let umbAny = false, umbSeen = false; // (any umbrella up among the crowd, the last frame: only then is a head looked for under a canopy)
     function canopyAcross(i, q, dt) {
       const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
       let sx = 0, sy = 0;
@@ -1725,8 +1726,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
           const o = P[k];
           if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
-          const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
-          if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
+          if (q.umbR > 0) {
+            const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
+            if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
+          } else if (q.crown > o.umbRim - 0.03) { // (no umbrella of its own, its head as high as the rim and under the canopy: out from under it, the whole way)
+            const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = o.umbR + 0.12;
+            if (ec < u && ec > 1e-4) { const f = (u - ec) / ec; sx += ex * f; sy += ey * f; }
+          }
         }
       }
       const nx = -q.hy, ny = q.hx; // (across the footway, as p.lat runs)
@@ -2208,6 +2214,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       K = api.bodies || [];
       lensUpdate(player, dt); KW = LN ? K.concat([LN]) : K;
+      umbAny = umbSeen; umbSeen = false;
       const pvx = player ? Math.sin(player.h) * player.speed : 0, pvy = player ? Math.cos(player.h) * player.speed : 0;
       for (let i = 0; i < n; i++) {
         p = P[i];
@@ -2223,7 +2230,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           else if (inPocket(p.line)) { p.arrived = 1; if (p.pause < 1) p.pause += 4; }
           else if (p.pause <= 0) p.arrived = 2;
         }
-        if (p.state === 'walk' && p.line >= 0 && p.umbR > 0 && (p.av ?? p.v ?? 0) < 0.3) canopyAcross(i, p, dt); // (every frame, near or far)
+        if (p.umbR > 0) umbSeen = true;
+        if (p.state === 'walk' && p.line >= 0 && (p.umbR > 0 || (umbAny && p.crown > 0)) && (p.av ?? p.v ?? 0) < 0.3) canopyAcross(i, p, dt); // (every frame, near or far; a head under another's canopy too, while any umbrella is up)
         if (p.state === 'walk') { // farther off, a longer step every few frames does
           const d = Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)), k = d < NEAR ? 1 : d < FAR ? 2 : 4;
           if ((frame + i) % k === 0) { walk(i, k * dt, player, pvx, pvy); gait(p, k * dt); }
