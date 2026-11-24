@@ -193,14 +193,17 @@ window.OEAudio = (function () {
   // (each voice asks for its targets every frame, the trains' fourteen parameters each among them, and a call puts an event on
   // the parameter's timeline whether or not the target moved: asked again and again for the same silence, the timelines
   // grew through the episode until the calls alone took 7 ms of a phone's frame at frame 6, 0.2 at its start, issue 206.
-  // A target the parameter is already on its way to, at the same pace, is not asked for again. Only ramp() moves these)
+  // A target the parameter is already on its way to, at the same pace, is not asked for again; and a new one first ends
+  // what was pending from now, held where it is (cancelAndHoldAtTime; where a browser lacks it, the value as it stands set
+  // after the rest is cancelled), so that a parameter that follows something moving every frame holds one or two events
+  // on its timeline, not one more each frame. Only ramp() moves these parameters)
   const rampTo = new WeakMap();
   const ramp = (p, v, t = 0.25) => {
     if (!ctx) return;
-    const w = rampTo.get(p);
+    const w = rampTo.get(p), now = ctx.currentTime;
     if (w && w.t === t && Math.abs(w.v - v) <= 1e-4 * Math.max(1, Math.abs(v))) return;
-    if (w) { w.v = v; w.t = t; } else rampTo.set(p, { v, t });
-    p.setTargetAtTime(v, ctx.currentTime, t);
+    if (w) { w.v = v; w.t = t; if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else { const was = p.value; p.cancelScheduledValues(now); p.setValueAtTime(was, now); } } else rampTo.set(p, { v, t });
+    p.setTargetAtTime(v, now, t);
   };
   function rotor(spin, load = 0) {
     const c = ctx && bed('rotor', spin > 0.001);
