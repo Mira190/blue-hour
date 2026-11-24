@@ -6,6 +6,8 @@
 //   - a context exists at any reading from the page's load to the film's end (a phone's opening has no Web Audio to break);
 //   - the music is not playing on a media element through the film (the walk's: through its first twenty seconds, its score
 //     being shorter than a film the throttle has stretched), or its clock stalls (400 ms and more behind the wall's);
+//   - two music elements sound at once at any reading, or a tune written for one (tuneWav) peaks over -1 dBFS (issue 166:
+//     the owner's iPhone played the loading cue and the score together, `snd_music: el 2`, and heard noise);
 //   - after the film and one touch the context is not made and running within ten seconds (the street's sound);
 //   - a page error.
 // MUSIC=web plays it the way it was (the music on the context, ?music=web) and fails on nothing: it prints the same
@@ -40,6 +42,11 @@ const [,, size = '390x844'] = process.argv;
     const R = window.__snd = { rows: [], phase: 'load', steps: [], taps: [] };
     // (when the context is made, by what, and every touch: a context made while the street is to wait says which let it in)
     addEventListener('pointerup', () => R.taps.push([performance.now(), R.phase]), { capture: true });
+    // (every media element the page makes, and what tuneWav is asked to write: two music elements sounding at once, or a
+    // tune that reaches full scale, was the opening's noise on the owner's iPhone, issue 166)
+    const Au = window.Audio, els = R.els = [];
+    window.Audio = function (...a) { const e = new Au(...a); els.push(e); return e; }; window.Audio.prototype = Au.prototype;
+    R.wavs = []; R.most = 0;
     const AC0 = window.AudioContext;
     if (AC0) { window.AudioContext = window.webkitAudioContext = function (...a) { R.ctxAt = [performance.now(), R.phase, (new Error().stack || '').split('\n').slice(2, 6).map(l => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ')]; return new AC0(...a); }; window.AudioContext.prototype = AC0.prototype; }
     // (each step of the load as game.js marks it, and whether the opening's film was on at that moment: read in the mark
@@ -48,9 +55,12 @@ const [,, size = '390x844'] = process.argv;
       performance.mark = function (name, o) { if (name === 'oe:step' && o && o.detail) { const g = window.__game, f = g && g.overture && g.overture(); R.steps.push({ step: o.detail.step, t: performance.now(), film: !!(f && f.active) }); } return mark(name, o); }; }
     setInterval(() => {
       const A = window.OEAudio; if (!A) return;
+      if (A.tuneWav && !A.tuneWav.seen) { const f = A.tuneWav; A.tuneWav = Object.assign((chs, rate, gain = 1) => { let pk = 0; for (const a of chs) for (let i = 0; i < a.length; i++) { const v = Math.abs(a[i]); if (v > pk) pk = v; } R.wavs.push({ peak: pk * gain, s: chs[0].length / rate, phase: R.phase }); return f(chs, rate, gain); }, { seen: true }); }
+      const sounding = els.filter(e => e.src && !e.paused && !e.ended && e.volume > 0 && e.duration > 0.1).length; // (not the moment of silence each was begun on in the touch)
+      if (sounding > R.most) R.most = sounding;
       const g = window.__game, o = g && g.overture && g.overture(), P = A.probe, c = A.ctx, ps = c && c.playbackStats;
       R.rows.push({ t: performance.now(), phase: R.phase, film: !!(o && o.active), ctx: c ? c.state : null, tot: P.tot.slice(), el: P.totEl, under: ps ? ps.underrunEvents : null, underMs: ps ? ps.underrunDuration * 1000 : null,
-        main: P.main, held: !!A.holding, lateIn: !!R.lateIn, act: !!(navigator.userActivation && navigator.userActivation.isActive), log: c && !R.made ? (R.made = P.log.slice(-4).join(' | ')) : undefined });
+        sounding, main: P.main, held: !!A.holding, lateIn: !!R.lateIn, act: !!(navigator.userActivation && navigator.userActivation.isActive), log: c && !R.made ? (R.made = P.log.slice(-4).join(' | ')) : undefined });
     }, 250);
   });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?snd=1${WEB ? '&music=web' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -132,20 +142,33 @@ const [,, size = '390x844'] = process.argv;
   console.log(`in the film: the context's breaks ${f1.tot.map((v, i) => v - f0.tot[i]).join('/')} (first threshold, 25 ms, 100 ms)${f1.under !== null && f0.under !== null ? `, Chromium's underruns ${f1.under - f0.under} (${Math.round(f1.underMs - f0.underMs)} ms)` : ''}, the music's stalls ${f1.el - f0.el}, the main thread held ${Math.round(Math.max(...film.map(r => r.main), 0))} ms at most`);
   if (!WEB) {
     const silent = music.filter(n => n < 1).length;
-    console.log(`in the film: music on an element at ${music.length - silent} of ${music.length} readings`);
+    console.log(`in the film: music on an element at ${music.length - silent} of ${music.length} readings (${music.join('')}); the music's notes: ${(await p.evaluate(() => window.OEAudio.probe.log.filter(l => /music/.test(l)).join(' | ')))}`);
     if (withCtx) fail(`a context exists at ${withCtx} of ${before.length} readings before the film's end: a phone's opening is to have none`);
-    // (the walk's film has its score alone, which is as long as the film on a phone's clock and shorter than it here, where
-    // the throttle stretches the film: it is held to its first twenty seconds; the story's has the loading cue under it throughout)
-    const head = music.slice(0, 20), quietHead = head.filter(n => n < 1).length;
-    if (WALK ? quietHead > 3 : music.length && silent > Math.max(2, music.length * 0.1)) fail(`no music plays at ${WALK ? `${quietHead} of the film's first ${head.length}` : `${silent} of ${music.length}`} readings in the film`);
+    // (a film's score plays alone on a phone, the loading cue let go as it begins (one element at a time, issue 166); it is
+    // as long as the film on a phone's clock and shorter than it here, where the throttle stretches the film.)
+    // The hand-over (audio.js tune): the cue fades out over 1.2 s and the score begins when it has, which a main thread
+    // held at the film's start puts off further; it is joined where the film is, so what is missed is the score's own swell
+    // up from silence. Allowed: a gap no longer than the fade and the film's longest hold of the main thread, and two
+    // readings more (a reading is a second and more); then the score through the next fifteen
+    const held = Math.max(...film.map(r => r.main), 0), lead = music.findIndex(n => n < 1), back = lead < 0 ? -1 : music.findIndex((n, i) => i > lead && n >= 1);
+    const gap = lead < 0 ? 0 : back < 0 ? music.length - lead : back - lead, room = Math.ceil((1200 + held) / 1000) + 2, after = back < 0 ? [] : music.slice(back, back + 15), quietAfter = after.filter(n => n < 1).length;
+    console.log(`the hand-over: ${lead < 0 ? 'no reading without music' : `no music at ${gap} readings from the film's reading ${lead}`} (allowed ${room}: the fade, the main thread held ${Math.round(held)} ms, and two); then ${after.length - quietAfter} of ${after.length} with it`);
+    if (lead >= 0 && lead < 20 && gap > room) fail(`no music at ${gap} readings in the film's start, more than the hand-over from the cue to the score takes (${room})`);
+    else if (quietAfter > 1 || (lead >= 0 && lead < 3 && back < 0)) fail(`no music plays at ${back < 0 ? 'any' : quietAfter} of the readings after the score began`);
     if (f1.el - f0.el > 0) fail(`the music's clock stalled ${f1.el - f0.el} times in the film`);
+    // one music element at a time (audio.js tune), and nothing written for one at full scale (issue 166: the owner's
+    // iPhone played two in the opening, `snd_music: el 2`, and heard noise)
+    { const most = await p.evaluate(() => window.__snd.most), two = R.filter(r => r.sounding > 1), wavs = await p.evaluate(() => window.__snd.wavs);
+      console.log(`music elements sounding at once: at most ${most}${two.length ? `, two or more at ${two.length} readings (first at ${(two[0].t / 1000).toFixed(1)} s, phase ${two[0].phase})` : ''}`);
+      if (most > 1) fail(`${most} music elements sounding at once${two.length ? ` at ${two.length} readings, first in phase ${two[0].phase}` : ''}: a phone's music is one element at a time`);
+      for (const w of wavs) { const d = 20 * Math.log10(w.peak || 1e-9); console.log(`a tune written for an element (${w.s.toFixed(1)} s, in phase ${w.phase}): peak ${d.toFixed(1)} dBFS`); if (d > -1) fail(`a tune written for an element peaks at ${d.toFixed(1)} dBFS: over -1, it clips in the system's mix`); } }
     const late = by('late').filter(r => !r.lateIn), lateRun = late.filter(r => r.ctx === 'running').length; // (until the late parts are in: the street is let go three seconds after, and may be made then)
     if (guard) { console.log(`while the late parts came in: ${late.length} readings, the context running at ${lateRun}, the street held at ${late.filter(r => r.held).length}`); for (const r of late.filter(q => q.ctx === 'running' || q.log)) console.log(`  at ${(r.t / 1000).toFixed(1)} s: context ${r.ctx}, held ${r.held}, activation ${r.act}${r.log ? `, made: ${r.log}` : ''}`); const mk = R.find(q => q.log); if (mk) console.log(`the context made at ${(mk.t / 1000).toFixed(1)} s (${mk.phase}): ${mk.log}`); const X = await p.evaluate(() => ({ at: window.__snd.ctxAt, taps: window.__snd.taps })); console.log(`  made by: ${JSON.stringify(X.at)}; touches: ${X.taps.map(t => `${(t[0] / 1000).toFixed(1)} s ${t[1]}`).join(', ')}`); if (lateRun) fail(`the context ran at ${lateRun} of ${late.length} readings while the phone's late parts came in: the street is to wait for a page with room for it`); }
     if (!made) fail(`ten seconds after the film and a touch, the context is not made and running: the street has no sound (context ${last.ctx}, the street ${last.held ? 'held' : 'not held'}; after the film: ${by('after').map(r => `${(r.ctx || 'none')[0]}${r.held ? 'h' : ''}${r.act ? 'a' : ''}`).join(' ')}; ${tail})`);
     else if (RATE === 1 && last.ctx !== 'running') fail(`three seconds after the street's sound began on a page that was not slowed, it is not playing (context ${last.ctx}; ${tail})`); // (the guard read a context's start as a break, and gave the street up within a second of it)
-    else console.log(`after the film and a touch: context ${last.ctx}${last.ctx === 'running' ? '' : `; ${tail}`}`);
+    else console.log(`after the film and a touch: context ${last.ctx}; ${tail}`);
   }
-  console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on an element without a stall under a main thread throttled ${RATE} times, ${guard ? 'no context running while the late parts came in, ' : ''}the context made at the first touch after it`);
+  console.log(errors.length ? `FAIL the opening's sound (${errors.length})` : WEB ? 'DONE the opening as it was, for the comparison' : `PASS a phone's opening asks nothing of Web Audio: no context until the film is over, its music on one element at a time without a stall under a main thread throttled ${RATE} times, ${guard ? 'no context running while the late parts came in, ' : ''}the context made at the first touch after it`);
   await b.close();
   process.exit(errors.length ? 1 : 0);
 })();

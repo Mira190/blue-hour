@@ -1365,6 +1365,12 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         if (a <= 0 || a > 60) continue;
         P.at(Math.min(P.len, st.s + a), c);
         const w = (o.x - c.x) * -c.hy + (o.y - c.y) * c.hx, lane = lat(st.s + a) * keep, half = o.half || 0.4, room = Math.max(1.5, (o.hw || 0.4) + C.hw + 0.1);
+        // (and it is there, at that place along the way, not far before or beyond it: `a` is measured along the bonnet's
+        // line and the place across it along the way, and just before a sharp turn the two part. Leaving Route 246's
+        // junction for the street north, the autopilot read a car 31 m off at the next junction's line as 2.8 m ahead
+        // in its lane, and each waited on the other 150 s; turning back from the station's front in the Scramble it stood
+        // in the box for a car 56 m off in the oncoming queue, issue 204)
+        if (Math.abs((o.x - c.x) * c.hx + (o.y - c.y) * c.hy) > Math.max(4, a * 0.6) + half) continue;
         // held up for 6 s, a car stopped ahead counts as stopped for good: one caught up with this one
         // turns round every few seconds and so never stays stuck long enough to be marked still
         // (but never one queueing at a junction, o.q: a queue at a red light is waited out in the lane,

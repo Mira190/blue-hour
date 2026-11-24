@@ -55,10 +55,12 @@ function watch({ x, y, secs, R }) {
         if (lt === 'g') { // the vehicle at this arm's line, standing in its green: why
           let head = null;
           for (let i = 0; i < Math.min(C.length, cars.active); i++) { const c = C[i]; if (c.line >= 0 && c.lineArm === a && c.toLine - c.half < 3 && (!head || c.toLine < head.toLine)) head = c; }
+          // (or the one that waits for this arm at the line of the junction before, too close to wait between)
+          if (!head) for (let i = 0; i < Math.min(C.length, cars.active); i++) { const c = C[i]; if (c.line >= 0 && c.ex2 && c.ex2.a === a && c.lineArm && c.lineArm !== a && c.toLine - c.half < 3 && (c.v || 0) < 0.3) { head = c; break; } }
           const me = g.pilot && g.pilot() ? g.pilot().drv.st : null;
           if (me && me.lineAt === a && me.toLine - 2.3 < 3 && me.v < 0.3) A.lost[`you: ${me.junction || '?'}`] = (A.lost[`you: ${me.junction || '?'}`] || 0) + DT;
           else if (head && head.v < 0.3) {
-            let w = `${head.why || '?'}${head.heldBy ? '/' + head.heldBy : ''}`;
+            let w = `${head.lineArm !== a ? 'one junction back: ' : ''}${head.why || '?'}${head.heldBy ? '/' + head.heldBy : ''}`;
             // (held by a movement in the box: the first there that crosses its own, from which arm to which)
             if (head.why === 'cross' && head.lineEx) { const m = JN.mv(head, head.lineEx), by = j.active.find(q => q.c !== head && (JN.conflict(j, a.i, m, q.k, q.m) || q.c.half > 3.5 || head.half > 3.5)); if (by) w += ` by ${by.k}>${by.m & 15}${by.c.half > 3.5 ? ' bus' : ''}${(by.c.v || 0) < 0.3 ? ' standing ' + (by.c.why || '') : ''}`; }
             A.lost[w] = (A.lost[w] || 0) + DT;

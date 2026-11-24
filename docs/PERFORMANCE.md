@@ -2842,7 +2842,19 @@ target and clipping planes it was drawn with, and left out until then, once (a d
 a pass's `overrideMaterial`, is drawn as before: compiling the mesh would never make that one, and the first cut of the
 gate held such a draw for good).
 Only the world scene and the shadow pass go through it (a post pass's quad is never left out: its frame would be black),
-and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent). Without the extension nothing changes. The
+and `uploadBuffers` passes it by (a slice marks every mesh's buffers sent).
+
+*Issue 205: what is on the screen stays on it.* The first cut held every draw of a material while any one of its
+programs was linking, so a new variant of a material long on screen (a warm-up for another target or count of lights, a
+cube's or a photograph's first draw of it) took it off the screen while that variant linked: with a GPU played slow
+(`LINKLAG=400`) the Ginza level's paving, the guide's coat and a speaker's head were gone for seconds. Now a draw is held
+only for a mesh never drawn yet whose material has no program ready; once drawn, a mesh is always drawn, and a variant
+still linking is waited for as three.js does (a hitch, not a hole). The gate looks only at draws into the frame's own
+targets (the canvas and the post stack's; `targets` from `game.js`), so a picture that is kept (a level's reflection cube,
+the rain's cover map, the story's photographs) is drawn whole whenever it is taken, and the shadow pass is no longer gated
+(its map is cached). `window.__gate.n.kept` counts the draws the first cut would have left out of a drawn mesh, and
+`LINKLAG=ms` in `tools/load_probe.js` as in `tools/story_play.js`. Frame 1 played with `LINKLAG=400 STILLS=1 DRAW=30`
+on a desktop: whole in all 29 stills; to the title, the gate held 6 never-drawn draws (4 before) and took none off. Without the extension nothing changes. The
 loader goes on a frame the gate left nothing out of (at most 1.5 s more: on the software renderer here, where a link takes seconds and a frame 1.4 s, a 4 s bound held the loader 4.7 s past the first frame; the phone tier waited 0.5 to 0.8 s), so nothing comes in under the title; the page's
 log says when it waited (`warm: the loader waited ...`). `?gate=0` turns it off, to measure against. Measured with
 `tools/load_probe.js` on the phone tier (390 x 844, two runs each): programs a draw linked in the 8 s after the tap
@@ -2949,12 +2961,45 @@ The same views with the batches on and off (`tools/ab_shots.sh out '&batch=off'`
 dusk, at night and in rain, at 1440 x 900 on the high tier and 390 x 844 on the low) show the same picture, the rain's
 wet paving under the level's canopies included.
 
-### What is left over 250 draws
+### The buildings' cells in one draw (issue 192, second step)
 
-- **The buildings' cells, 27 to 45 draws of one material.** They are streamed round the player, hidden cell by cell by
-  the visibility sweep, and on a phone their arrays are the GPU's alone once sent; a BatchedMesh keeps every vertex in
-  the page's memory to add to its buffer. They want a buffer of their own kind: one GPU arena the cells are written
-  into as they come, a multi-draw over the cells the sweep and the frustum leave (issue in the tracker).
+The cells of the map round the player were a mesh and a draw each: 205 held on a phone by Hachiko (418,000 vertices,
+239,000 triangles), 27 to 45 of them drawn in a frame, all of one material. They are streamed (swapped for another
+level of detail as the player moves), hidden cell by cell by the visibility sweep, and on a phone their arrays are
+let go once sent (19 MB of vertices and 3 MB of indices that the page then does not hold). A BatchedMesh keeps every
+vertex in the page's memory to add to its buffer, so it would not do. `batch.js` `arena`:
+
+- **One buffer an attribute, the GPU's alone** (`THREE.GLBufferAttribute`): a cell's arrays are written into it with
+  `bufferSubData` as the cell comes, its range is given back as it goes (first fit, joined to its neighbours), and a
+  full buffer is grown by a tenth over what is asked through a copy on the GPU (`copyBufferSubData`). Room is made
+  once for a batch of cells. Writes go through `COPY_WRITE_BUFFER`, so no vertex array's state is touched.
+- **Drawn through three.js's own multi-draw path**: the arena's mesh says it is a batch (its matrices one identity:
+  every cell stands where it is), and before each pass it lists the index ranges of the cells to draw. With
+  `WEBGL_multi_draw` that is one call; without it three.js draws the ranges one by one, as many draws as before
+  (measured with the extension hidden, `NOEXT=WEBGL_multi_draw tools/phone_frame.js`: 42 draws of cells, the same picture).
+- **The sweep and the frustum as before**: a cell's mesh is still made, undrawn and out of the scene, and gated by
+  the visibility sweep as it was (`world.js` `onCell`, unchanged): the arena draws a cell while its mesh is on the
+  layer every camera sees, and inside the frustum of the pass being drawn (the view's, the shadow map's, the rain's
+  cover).
+- **A lost context**: on a phone the cells are the GPU's alone and the page loads again, as it did
+  (`tools/glcare_phone.js` passes with the arena in); on a desktop the arena makes its buffers again from the cells'
+  arrays (`tools/gl_restore_probe.js`: restored, no call refused, the buildings back in the frame after).
+
+What it found on the way: WebGL keeps index buffers apart from the rest by their first binding and will not copy one
+kind into the other. The arena's index buffer, grown through a copy into a buffer first bound elsewhere, lost every
+cell it held, and from 80 m up blocks of buildings were not drawn. It showed only in the stills with the batches on
+and off; nothing counted it. A grown index buffer is first bound as an index buffer.
+
+| emulated iPhone, on foot by Hachiko, four ways | before (main, 23 November) | with the cells in one draw |
+|---|---|---|
+| draws | 258 to 288 | 242 to 260 (and 291 where the player's parked car is in view) |
+| of which the buildings' cells | 27 to 45 | 1 |
+| GPU memory | 212 MB | 213 MB |
+
+### What is left
+
+- **The player's car parked by the Scramble** (since the first drive landed): about 77,000 triangles and 40 draws
+  in a phone's frame when it is in view, its full model with a physical material.
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
 - **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
   is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.
@@ -3203,3 +3248,30 @@ numbers, not measured.
 - **WebGPU**: not measured. The game's materials are three.js's WebGL ones patched in GLSL (`onBeforeCompile`), which
   its WebGPU renderer does not take, so a beat cannot be drawn on it without porting them; what can be measured
   first is the renderer's own cost for a beat's geometry under plain materials, on the owner's devices.
+
+## The Stop's script: the guide's planner and the programs linked in it (issue 206, November 2026)
+
+The owner's iPhone played the whole episode at 21 to 32 fps walking and 1 to 5 fps in the Stop's seek (frame 6's `time`
+event: `cpu95` 714 ms, `bound cpu`), with taps that waited 2 to 3.7 s. `tools/stop_cost.js` (`STOPCOST=1` with
+`tools/story_play.js`) prints, beat by beat, the frames' script, the guide's `stand()` asks and the programs linked. On a
+session's machine, phone tier (390x844, `TIER=low`, `DRAW=60`), main at 2f1b4cb9:
+
+- **The guide's planner** (`companion.js` `plan`/`planIn`, an A* on a 0.35 m grid round the held crowd) asks his
+  options' `stand()` once a cell, and `stand()` built every car's and train's box for each cell (`carBoxes`, half of
+  its time). A plan that finds no way is made again the next frame on the same grid: in frame 3's talk 264,624 asks in
+  334 frames, frames up to 318 ms; in frame 1's talk 3.1 million. In `game.js` the boxes are now gathered once a frame
+  for 30 m round (`standBoxes`), and while the world is held each answer is kept for the hold by the place asked to
+  5 cm (`standHeld`; cleared when a post is added, moved or taken away, or the world runs): an ask went from about 6 µs
+  to 0.7 µs, frame 3's talk from 1.7 s of asks to 0.35 s. The plan made again after it failed is the companion's
+  (the #157 session's file): the goal's cell is shut by the afterimage's own post and the player's body, the search
+  runs to its cap three times a frame. Until that lands the talk's frames carry 75 to 108 ms of planning.
+- **Programs linked in the Stop**: each Stop's afterimage is drawn through `people.js` `exposure`, a program of its own
+  for each of their materials, and their face's shapes (face.js, live while they speak) another; with the halation's
+  sprite they were linked in the Stop's first frames and its talk (frames of 0.2 to 2.9 s here). `game.js`
+  `warmGhosts` compiles one rig of each afterimage, still and speaking, and the halation, after the title's level is
+  in (with `stopFx.warm`). The guide's own model (coat, nose, whiskers) still links in the frame he is first drawn
+  (384 ms here in frame 1's film): the companion's.
+
+Not measured: an iPhone. The CSS grade the Stop lays on the canvas (`story.css` `.story-stop #game-gl` filter and the
+veil's multiply) is drawn in every beat of the Stop, the still at 42 fps on the owner's phone as well as the seek, so
+it is not what parts them; what it costs a phone's compositor is not known.

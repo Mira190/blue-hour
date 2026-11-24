@@ -63,7 +63,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
     : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   // (ENGINE=webkit: Playwright's WebKit, which takes none of Chromium's switches; HEADED=1 for its window)
-  const b = process.env.ENGINE === 'webkit' ? await require('playwright').webkit.launch({ headless: !process.env.HEADED }) : await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
+  const b = process.env.ENGINE === 'safari' ? await require('./safari').launch() : process.env.ENGINE === 'webkit' ? await require('playwright').webkit.launch({ headless: !process.env.HEADED }) : await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   // (DPR=3 PHONE=1: the page as an iPhone has it, three device pixels to the point and its user agent, as tools/mem_check.js opens it)
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: +process.env.DPR || 1, hasTouch: w < 500, isMobile: w < 500,
     ...(process.env.PHONE ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1' } : {}) });
@@ -208,6 +208,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       };
     }, { once: true });
   }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
+  if (process.env.STOPCOST) await require('./stop_cost').install(p); // (STOPCOST=1: each beat's frames, the guide's planning and the programs linked in it, issue 206: tools/stop_cost.js)
   // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
   const BUDGET = process.env.BUDGET || '';
@@ -1335,6 +1336,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
+    if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }
     const { hard } = pacing.print(await pacing.report(p));
     if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
   }

@@ -231,7 +231,7 @@ else
       web/data/$MAP/d/*) static=1; add mem walk2; [ "$TIER" = full ] || add budget1 budget2 budget3 ;;   # what a phone loads, and plays its walk in
       pipeline/district.py|tools/mem_check.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
-      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
+      tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|web/assets/story/late/cue-phone.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
       web/game/game.js) static=1; page; add ride ;;
@@ -450,10 +450,12 @@ run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched
   # (the drives with the traffic running, as the clip and the game check are: a second run when one fails, and a failure
   # only where the same start fails both times; else FLAKY, which main lists under check-flaky. Issue 175: the autopilot
   # and a bus in Dogenzaka-shita's junction under the expressway can still stand each waiting on the other)
-  # (timed, issue 175: each drive within its road at 6 m/s and one cycle of each scramble on its way, and the 364 m from
-  # SKY GATE, which took 401 s, within the issue's three minutes; the fourth start drives back across the Scramble, from
-  # Bunkamura-dori to Miyamasuzaka)
-  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100@180;247,-964>505,-996" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
+  # (timed, issue 175: each drive within its road at 6 m/s, one cycle of each scramble on its way and the longest red of
+  # each other signal: 226 s for the 364 m from SKY GATE, which took 401. The issue's three minutes were held as a limit
+  # of their own until issue 204: timed on main after issue 196, six drives of seven were inside them (46 to 161 s) and
+  # one took 193, the Scramble's red and then the walk at 109 both met, which is the signals' time and not a car
+  # standing. The fourth start drives back across the Scramble, from Bunkamura-dori to Miyamasuzaka)
+  drive() { GAME_TIME=${GAME_TIME:-17:57} TIMED=1 TRACE=1 TO=268,-998.6 FROM="372,-1041;480,-722;560,-1100;247,-964>505,-996" timeout 2400 $X node tools/road_drive.js "$MAP" >"$OUT/roads-drive.log" 2>&1; }
   if ! drive; then
     cp "$OUT/roads-drive.log" "$OUT/roads-drive-first.log"
     if drive; then echo "ok   roads  the drives to 109 and back across the Scramble, each within its time   (the second run; the first: $OUT/roads-drive-first.log)"
@@ -504,6 +506,9 @@ run_audio() {
   # (a phone's street held while the page is busy and given up on a break, issue 166: docs/SOUND.md "The guard")
   if timeout 120 node tools/snd_guard_check.js >"$OUT/snd_guard.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/snd_guard.log" | cut -c6-)"
   else echo "FAIL audio  the street's guard: $(grep '^FAIL' "$OUT/snd_guard.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/snd_guard.log)"; fi
+  # (what a phone's music elements play, issue 166: each tune's peak and the cue and a score summed, no tune near full scale)
+  if timeout 300 node tools/tune_levels.js >"$OUT/tune_levels.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/tune_levels.log" | cut -c6-)"
+  else echo "FAIL audio  the tunes' levels: $(grep '^FAIL' "$OUT/tune_levels.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/tune_levels.log)"; fi
   # (a phone's opening as an iPhone plays it, issue 166: no context until the film is over, the music on media elements, the
   # main thread throttled six times; the story's opening and the walk's)
   if DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 60)} timeout 900 $X node tools/opening_audio.js 390x844 >"$OUT/opening_audio.log" 2>&1; then echo "ok   audio  $(grep -o '^PASS.*' "$OUT/opening_audio.log" | cut -c6-)"
