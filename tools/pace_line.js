@@ -3,7 +3,7 @@
 // followed: its turns (its direction along a line flipping) in any 30 s, the ground it walked and where it ended. A walker
 // that turned twice in 30 s and ended within 3 m of where the window began is counted as pacing, as tools/pacing_watch.js
 // counts it in a play of the story.
-//   GAME_TIME=17:30 xvfb-run -a node tools/pace_line.js 781[,782...] [seconds, 300]    (AT=x,y where you stand; PORT=; WEATHER=rain)
+//   GAME_TIME=17:30 xvfb-run -a node tools/pace_line.js 781[,782...] (0: every line) [seconds, 300]    (AT=x,y where you stand; PORT=; WEATHER=rain)
 //   EVERY=1: every walker stepped every frame as if drawn (p.inPic set before each step): the walkers out of the picture
 //   step ten times a second otherwise (actors.js update, OUT_S), and this says whether that is what turns them
 const { chromium } = require('playwright');
@@ -23,7 +23,7 @@ const [,, lines = '781', secs = '300'] = process.argv;
   const at = (process.env.AT || '376.9,-1013.1').split(',').map(Number);
   const out = await p.evaluate(([L, secs, at, every]) => {
     window.requestAnimationFrame = () => 0;
-    const g = window.__game, P = g.crowd.P, me = g.player, dt = 1 / 30, want = new Set(L);
+    const g = window.__game, P = g.crowd.P, me = g.player, dt = 1 / 30, all = L[0] === 0, want = new Set(L); // (lines 0: every line)
     if (g.cine && g.cine.active) g.cine.skip();
     g.crowd.why = true; // (each turn's reason, actors.js turn(): q.turnWhy)
     me.x = at[0]; me.y = at[1]; g.advance(1);
@@ -36,7 +36,7 @@ const [,, lines = '781', secs = '300'] = process.argv;
       for (let i = 0; i < g.crowd.active; i++) {
         const q = P[i];
         let o = T.get(i);
-        if (!want.has(q.line) || q.pz) { if (o) T.delete(i); continue; }
+        if (!(all ? q.line >= 0 : want.has(q.line)) || q.pz) { if (o) T.delete(i); continue; }
         if (!o) { T.set(i, o = { line: q.line, dir: q.dir, turns: [], x: q.x, y: q.y, walked: 0, px: q.x, py: q.y, t0: t, pts: [[t, q.x, q.y]] }); followed++; continue; }
         if (o.line !== q.line) { T.set(i, { line: q.line, dir: q.dir, turns: [], x: q.x, y: q.y, walked: 0, px: q.x, py: q.y, t0: t, pts: [[t, q.x, q.y]] }); continue; }
         const st = Math.hypot(q.x - o.px, q.y - o.py); if (st < 2) o.walked += st; o.px = q.x; o.py = q.y;
