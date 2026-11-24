@@ -60,7 +60,7 @@
 const { chromium } = require('playwright');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
-const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
 const { drawnSeat } = require('./drawn_seat'); // (the seated sat on something drawn, not on the walking grid: issue 171)
@@ -78,7 +78,8 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // and at night in the rain every frame drawn whole was all of its time on a software renderer (issue 131)
   await skip(p, +(process.env.DRAW || 0));
   const errors = [];
-  const fail = m => { errors.push(m); console.log(`FAIL ${m}`); };
+  const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
+  const fail = m => { m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`); };
   const ok = m => console.log(`ok   ${m}`);
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
@@ -116,6 +117,38 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   });
 
   // the title, the first time
+  // the menu's Title screen (menus.js #gm-title), from the walk: the title again on its menu, with nothing of the walk
+  // left on it, and the case begun from there (the play's last step; WALK_ONLY=title plays it alone, out from a fresh page)
+  const titleBack = async () => {
+    await press('#g-walk-acts [data-do="menu"]'); await shown('#g-menu');
+    const t = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(); return { on: !!e && !!e.closest('#gw-menu') && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, tall: innerHeight >= 640 }; }); // (in the first screen of a desktop's or a phone's; a short window scrolls to it)
+    if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first && t.tall) fail('the walk\'s Title screen is below its first screen');
+    await shot('9-menu-title');
+    await p.locator('#gm-title').scrollIntoViewIfNeeded().catch(() => {});
+    expectReload(p, 'the walk\'s Title screen'); await press('#gm-title');
+    if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
+    else {
+      await p.waitForTimeout(2500);
+      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }; return [document.getElementById('game-stage').classList.contains('walk') && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line'].filter(Boolean); });
+      if (left.length) fail(`back at the title, left over: ${left.join(', ')}`); else ok('Title screen: the title on its menu, nothing of the walk left');
+      await shot('9-title-back');
+      await press('#gt-story-go'); await until(() => document.getElementById('g-title').dataset.screen === 'story', null, 20000);
+      await press('#gt-play');
+      if (await until(() => document.getElementById('g-title').dataset.screen === 'who', null, 5000)) { await press('#gt-who [data-c="W"]'); await p.waitForTimeout(500); await press('#gt-who-go'); }
+      // (begun: the title gone and the street not the walk's; the opening's film, where it plays, is the case's first minutes)
+      const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}, walk ${document.getElementById('game-stage').classList.contains('walk')}`; }).catch(e => String(e).slice(0, 80));
+      if (!(await until(() => document.getElementById('g-title').hidden && !document.getElementById('game-stage').classList.contains('walk'), null, 120000))) fail(`from the title, the case did not begin (${await where()})`);
+      else ok(`from the title, the case begins (${await where()})`);
+    }
+  };
+  if (process.env.WALK_ONLY === 'title') {
+    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
+    expectReload(p, 'out on the walk at once'); await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 900000))) fail('the walk never set out');
+    else { await p.waitForTimeout(3000); await titleBack(); }
+    await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk title: all passed'); process.exit(errors.length ? 1 : 0);
+  }
   await title();
   let s = await state();
   const story0 = { eyebrow: s.eyebrow, clock: s.clock };
@@ -580,6 +613,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                       const sat = await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return { me: g.player.mode, her: !!n.sit, wait: g.walkLine().wait }; });
                       if (sat.me !== 'seat' || !sat.her || !sat.wait) fail(`Wait with her: not the two of them sat on the wall (${JSON.stringify(sat)})`);
                       else ok('Wait with her: the two of you on Hachiko\'s wall, the night passing');
+                      // (her sit is laid on in her next pose, and the seat's thigh slope comes to rest a step a frame: measured after
+                      // a second of the game's own clock, not the wall's. Beside another browser no frame had run in the 400 ms act()
+                      // waits, and she was read standing, her hips 0.52 m over the stone, or half sat, 0.026: issue 211)
+                      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20; i++) g.frame(0.05); });
                       for (const r of await p.evaluate(drawnSeat, { rigs: ['nagi'] })) { if (r.ok === null) console.log(`(${r.who}: what is drawn under them cannot be read here: this device let go of its vertices)`); else if (!r.ok) fail(`Wait with her: ${r.who} is not sat on anything drawn (${JSON.stringify(r.under)})`); else ok(`Wait with her: ${r.who} on the drawn stone`); }
                       await shot('4b-wait');
                       if (!(await p.waitForFunction(() => window.__game.walkLine().gate === 'ask', null, { timeout: 900000, polling: 500 }).then(() => true, () => false))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
@@ -597,9 +634,20 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                           await beside(1.8);
                           if ((await line()).gate !== 'shown' || !(await waitPrompt(/Talk to Nagi/))) fail(`her last photograph is not the one she asked for (${JSON.stringify(await line())})`);
                           else {
-                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
-                            await through(); await p.waitForTimeout(1500); await through();
-                            await p.waitForFunction(() => window.__game.walkLine().gate === 'going', null, { timeout: 120000, polling: 250 }).catch(() => {}); // (the walkers go by the page's own frames)
+                            // (her talk opens in a frame after E: up to a second of the game's clock after each press, not 600 ms of the
+                            // wall's. Beside another browser the three presses ran out before it opened, the talk was left unread, and she
+                            // never went: issue 211)
+                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20 && !g.dlg.open; i++) g.frame(0.05); }); }
+                            // (what she says when shown it, a pause of 900 ms of the wall's clock, then her last words, and only then does
+                            // she go: walktalk.js gateTalk. Each talk read as it opens, until she goes, the page's frames and the wall's
+                            // clock both running. Read twice with 1.5 s between, her last words opened after the second read on a slow
+                            // machine and stayed open: she never went, and every talk after it was shut out: issue 211)
+                            for (let t0 = Date.now(); Date.now() - t0 < 120000;) {
+                              await through();
+                              if (await p.evaluate(() => window.__game.walkLine().gate === 'going')) break;
+                              await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 4 && !g.dlg.open; i++) g.frame(0.05); });
+                              await p.waitForTimeout(250);
+                            }
                             await shot('4b-goes');
                             const gone = await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 600000, polling: 500 }).then(() => true, () => false);
                             const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
@@ -696,7 +744,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
             if (chs.length < 2) fail(`Ren asks the way, but there are no answers to choose (${JSON.stringify(chs)})`);
             else {
               await shot('4f-street');
-              if (phone) await press('#gd-choices button'); else await p.keyboard.press('Digit1');
+              // (a phone's answer is tapped once its button has stopped sliding in: a tap at where it was going missed, the talk
+              // stayed open, and every prompt after it read "" on a phone, main's walk2 on 6b0d8ee. Where a tap does not take,
+              // which kind of miss it was is said: a tap outside the box as it then stood is the harness's, and is tapped
+              // again once; one inside it the game did not take, as a player's would not be, and fails)
+              if (phone) {
+                const box = () => p.evaluate(() => { const r = document.querySelector('#gd-choices button').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+                const still = () => p.evaluate(async () => { let a = null; for (let i = 0; i < 20; i++) { const r = document.querySelector('#gd-choices button').getBoundingClientRect(), k = `${r.x.toFixed(0)},${r.y.toFixed(0)}`; if (k === a) return; a = k; await new Promise(o => setTimeout(o, 150)); } });
+                for (let n = 0; n < 2; n++) {
+                  await still();
+                  const r0 = await box(), tx = r0.x + r0.w / 2, ty = r0.y + r0.h / 2;
+                  await p.touchscreen.tap(tx, ty); await p.waitForTimeout(1500);
+                  if (!(await p.evaluate(() => window.__game.dlg.hasChoices))) break;
+                  const r1 = await box(), inside = tx >= r1.x && tx <= r1.x + r1.w && ty >= r1.y && ty <= r1.y + r1.h;
+                  if (inside) { fail(`Ren asks the way: a tap on the answer inside its box (${tx.toFixed(0)}, ${ty.toFixed(0)}) was not taken by the game`); break; }
+                  console.log(`(the answer's box moved from (${r0.x.toFixed(0)}, ${r0.y.toFixed(0)}) to (${r1.x.toFixed(0)}, ${r1.y.toFixed(0)}) under the tap: tapped again)`);
+                  if (n === 1) fail('Ren asks the way: the answer\'s box would not stand still to be tapped');
+                }
+              } else await p.keyboard.press('Digit1');
               await through();
               const done = await p.evaluate(() => window.__game.walkTalk().events.done);
               if (done !== 1) fail(`the right way given to Ren, ${done} favours done`);
@@ -951,7 +1016,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // from the story's last card: the page again, straight out on the walk
   if (!phone && !process.env.NO_END) {
     await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
-    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    expectReload(p, "the last card's Walk Shibuya"); await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     // (the loader's words are written once the page's boot has the map's list: waited for, not read at once)
     const roll = await p.waitForFunction(() => { const e = document.querySelector('#g-loader .roll-title span'); return e && e.textContent; }, null, { timeout: 120000, polling: 100 }).then(h => h.jsonValue()).catch(() => '');
     if (!/walk/i.test(roll)) fail(`come from the last card, the loader does not say it is a walk ("${roll}")`);
@@ -963,6 +1028,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await p.waitForTimeout(1500);
     await shot('8-from-end');
   }
+  if (!process.env.NO_TITLE) await titleBack();
   console.log(errors.length ? `FAIL ${errors.length}` : 'ok   the walk: two ways in, its hour and sky, out on the street with nothing of the story or the old game');
   await b.close();
   process.exit(errors.length ? 1 : 0);

@@ -3320,7 +3320,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
 
   // ------------------------------------------------------------ the route to go (route.js): routeline.js (cut out by tools/cut.js)
-  const { guide, updateRoute, wayOnFoot } = OEGameRouteLine({ get G() { return G; }, get H() { return H; }, get driveTo() { return driveTo; }, get gold() { return gold; }, get groundZ() { return groundZ; }, get heli() { return heli; }, get keepSign() { return keepSign; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get nav() { return nav; }, get npcs() { return npcs; }, get pilot() { return pilot; }, set pilot(v) { pilot = v; }, get player() { return player; }, get ride() { return ride; }, set ride(v) { ride = v; }, get roadNet() { return roadNet; }, get roads() { return roads; }, get rq() { return rq; }, get stepOf() { return stepOf; }, get story() { return story; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get ways() { return ways; }, get wharfById() { return wharfById; } });
+  const { guide, updateRoute, wayOnFoot } = OEGameRouteLine({ get firstFramed() { return firstFramed; }, get G() { return G; }, get H() { return H; }, get driveTo() { return driveTo; }, get gold() { return gold; }, get groundZ() { return groundZ; }, get heli() { return heli; }, get keepSign() { return keepSign; }, get myCar() { return myCar; }, set myCar(v) { myCar = v; }, get nav() { return nav; }, get npcs() { return npcs; }, get pilot() { return pilot; }, set pilot(v) { pilot = v; }, get player() { return player; }, get ride() { return ride; }, set ride(v) { ride = v; }, get roadNet() { return roadNet; }, get roads() { return roads; }, get rq() { return rq; }, get stepOf() { return stepOf; }, get story() { return story; }, get waypoint() { return waypoint; }, set waypoint(v) { waypoint = v; }, get ways() { return ways; }, get wharfById() { return wharfById; } });
 
   // ------------------------------------------------------------ input
   const keys = new Set();
@@ -4641,6 +4641,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
+    // (come back from a menu's Title screen, menus.js: the press was made already, so the title opens on its menu)
+    { let back = false; try { back = sessionStorage.getItem('bh-title-auto') === '1'; sessionStorage.removeItem('bh-title-auto'); } catch (e) { /* storage blocked */ }
+      if (back) titleScreen('menu'); }
     $('#g-title').hidden = false;
     // a load after a lost context the page could not redraw: the player taken up where they were (noteResume), no card
     { const R = takeResume();
