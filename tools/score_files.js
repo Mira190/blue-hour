@@ -5,13 +5,13 @@
 // So a phone renders nothing: each overture's score is rendered here, by the same code from the same plan, checked, and
 // shipped as a file the element plays (web/assets/story/late/score-<key>.mp3), as the loading cue is (tools/load_cue.js).
 // The key is a hash of what the score is made from (the overture's score and its shots' ids and lengths, overture.js
-// scoreKey), so a changed score finds no file and the page renders it as before, and the check below fails until this
+// scoreKey), so a changed score finds no file and a phone plays the film without it (never its own render), and the check below fails until this
 // is run again.
 //   NODE_PATH=$(npm root -g) node tools/score_files.js          (writes the files and scores.json; needs ffmpeg)
 //   node tools/score_files.js --check                           (static: every overture's file there and up to date)
 const fs = require('fs');
 const path = require('path');
-const ROOT = path.join(__dirname, '..'), OUT = path.join(ROOT, 'web/assets/story/late'), RATE = 44100, GAIN = 0.8;
+const ROOT = path.join(__dirname, '..'), OUT = path.join(ROOT, 'web/assets/story/late'), RATE = 24000, GAIN = 0.8; // (the rate a desktop renders at, overture.js prepareScore: the same render, resampled to 44.1 kHz by the encoder)
 // (overture.js scoreKey: FNV-1a of the score's spec and its shots, the same string in node and the page)
 const scoreKey = (score, shots) => { const s = JSON.stringify([score, shots.map(q => [q.id, q.dur])]); let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
 function overtures() { // the overtures a story plays, as game.js makes them: the first episode's over the map's, and the walk's
@@ -69,8 +69,8 @@ if (process.argv.includes('--check')) {
     head.writeUInt32LE(RATE, 24); head.writeUInt32LE(RATE * 4, 28); head.writeUInt16LE(4, 32); head.writeUInt16LE(16, 34); head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
     const wav = path.join(os.tmpdir(), `blue-hour-score-${k}.wav`), file = `score-${k}.mp3`;
     fs.writeFileSync(wav, Buffer.concat([head, pcm]));
-    // (the score has nothing above 12 kHz: a low-pass at 14 kHz keeps the encoder from spending bits on nothing)
-    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-map_metadata', '-1', '-c:a', 'libmp3lame', '-b:a', '128k', '-cutoff', '14000', path.join(OUT, file)]);
+    // (rendered at 24 kHz, it has nothing above 12: a low-pass there keeps the encoder from spending bits on nothing)
+    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-map_metadata', '-1', '-ar', '44100', '-c:a', 'libmp3lame', '-b:a', '128k', '-cutoff', '12000', path.join(OUT, file)]);
     fs.unlinkSync(wav);
     man[k] = { file: `assets/story/late/${file}`, seconds: +(r.n / RATE).toFixed(2), for: name, code: CODE };
     console.log(`${name}: ${file}, ${(r.n / RATE).toFixed(1)} s, peak ${(20 * Math.log10(r.peak)).toFixed(1)} dBFS, ${Math.round(fs.statSync(path.join(OUT, file)).size / 1024)} kB`);

@@ -662,7 +662,7 @@ window.OEOverture = (function () {
     // render of its own: the owner's iPhone heard a strong noise in the opening (24 November, issue 166) with no
     // AudioContext and one element playing the score that WebKit had rendered in the page, and the same render made here
     // is clean. The file is found by a hash of what the score is made from; one not there (a score changed and the files
-    // not made again: tools/score_files.js --check fails) is rendered as before
+    // not made again: tools/score_files.js --check fails) leaves the film without its score on a phone: silence, not the render
     const scoreKey = () => { const q = JSON.stringify([spec.score, spec.shots.map(x => [x.id, x.dur])]); let h = 0x811c9dc5; for (let i = 0; i < q.length; i++) { h ^= q.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
     let scoreFiles = null;
     async function scoreFile() {
@@ -676,7 +676,10 @@ window.OEOverture = (function () {
       if (window.OEAudio && OEAudio.tunes) {
         const f = await scoreFile().catch(() => null);
         if (f) { if (v === variant) { scoreBuf = f; scoreFor = v; } fetch(f.url).catch(() => {}); return scoreBuf; } // (fetched now, behind the title: the element finds it at hand)
-        console.warn(`overture: no score file for ${scoreKey()}, rendered here (tools/score_files.js)`);
+        // (no file: silence, never WebKit's render, which was the noise; tools/score_files.js --check fails before this ships)
+        console.warn(`overture: no score file for ${scoreKey()}: the film plays without its score (tools/score_files.js)`);
+        if (window.OEAudio && OEAudio.noteMusic) OEAudio.noteMusic(`no score file ${scoreKey()}`);
+        return null;
       }
       try {
         await loadScript('film-score.js');
