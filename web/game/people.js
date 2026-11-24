@@ -2703,7 +2703,7 @@ transformed = crowdPose(transformed, false);`);
       for (let i = 0; i < P.length; i++) {
         const p = P[i];
         if (p.line < 0 && !p.pz) continue;
-        if (p.rx == null || !shows(i) || p.mode === 'sit') continue;
+        if (p.rx == null || !Number.isFinite(p.rx) || !shows(i) || p.mode === 'sit') continue; // (a slot past the crowd's active count keeps its old instance and no place: not drawn as anyone)
         const d = camera ? Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) : 0;
         if (d > within) continue;
         const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), line: p.line, pz: !!p.pz, lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
