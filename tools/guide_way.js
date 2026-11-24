@@ -235,6 +235,19 @@ const LEADS = [
     console.log(ok ? 'ok  ' : 'FAIL', lead.name, JSON.stringify(r));
     await shoot(`${out}/${lead.name}-end.png`);
   }
+  // Frame 4 again, with a player who does not follow him: they run their own way to the lift (the way on foot from where
+  // they stand) from the west side of Hachiko Square's north planter, where the owner's iPhone found him walking on the
+  // spot against its rail (issue 207). He never stands at an obstacle with a step asked for and not gone, never waits
+  // while the player is further along the way than he is, and never holds them at his flank (tools/guide_own.js;
+  // tools/guide_follow.js sweeps every side of both planters)
+  if (!process.env.LEADS || process.env.LEADS.split(',').some(k => 'f4-own-line'.startsWith(k))) {
+    const R = { name: 'f4-own-line', speed: 6, from: [377.8, -1035.5], until: 45 };
+    const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 1.5, STUCK_M: 0.3, TRACE: false }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));
+    const ok = !r.error && !r.faults.length;
+    if (!ok) fails++;
+    console.log(ok ? 'ok  ' : 'FAIL', R.name, JSON.stringify(r));
+    await shoot(`${out}/${R.name}-end.png`);
+  }
   console.log(`page errors: ${errors.length}`);
   await b.close();
   process.exit(fails || errors.length ? 1 : 0);
