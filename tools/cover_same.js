@@ -9,7 +9,7 @@
   W.set('rain', { now: true }); await wait(3000);
   const read = () => { const b = new Uint16Array(4 * n * n); r.readRenderTargetPixels(W.occ, 0, 0, n, n, b); return b; };
   const H = THREE.DataUtils.fromHalfFloat, out = [], p = g.player, x0 = p.x, y0 = p.y;
-  for (const [dx, dy] of [[0, 0], [9, 0], [9, 13], [-14, 13], [-14, -17], [22, -17]]) {
+  for (const [dx, dy] of [[0, 0], [9, 0], [9, 13], [-8, 13], [-8, -5], [10, -5]]) {
     p.x = x0 + dx; p.y = y0 + dy; await wait(1500);
     C.draw(C.t, false); const a = read(), st = C.still; // (a square of the still map as it was last drawn, some metres off)
     C.draw(C.t, true); const b = read(); // (the still things drawn afresh round this place, the map's place the same)

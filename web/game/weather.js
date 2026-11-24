@@ -609,17 +609,19 @@ void main() {
     // until the map moves: it is drawn into a map of its own when the map's place changes (and every few seconds, for what
     // the map round the player has built or let go since), and each time the map is due that one is copied and what
     // moves, the cars, the trains, a door, is drawn over it with its depth. ?occ=whole: every time whole, as before.
-    // (issue 192: the still things' map is twice the cover map's side, the same texels over 4 x OCC_R, and the cover map
+    // (issue 192: the still things' map is half as wide again as the cover map, the same texels with STILL_M metres
+    // more on every side: a walker is 14 seconds crossing that, and the map is drawn again every six. The cover map
     // takes its own square out of it. It is drawn again when the cover map's square leaves it, not at every two metres
     // of the camera's way: on foot in rain that was a hundred draws and 280,000 triangles every second and a half)
-    const occStill = occRT ? new THREE.WebGLRenderTarget(2 * T.occ, 2 * T.occ, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
+    const STILL_N = Math.round(T.occ * 1.5 / 2) * 2, STILL_M = (STILL_N - T.occ) / 2 * (2 * OCC_R / T.occ); // (its side in texels; its margin in metres, a whole number of texels)
+    const occStill = occRT ? new THREE.WebGLRenderTarget(STILL_N, STILL_N, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
     const coverStat = { cache: new URLSearchParams(location.search).get('occ') !== 'whole', whole: 0, still: 0, moves: 0, off: '' };
     // (each pass is the whole one with the other's things not shown for it: a thing made since the last sorting is in
     // neither list and is drawn in both, which is right, if twice. The map keeps its place while the camera stays within
     // two metres of where it was set: set afresh at every draw, as it was, a camera that sways a hand's width moved the
     // map a texel and the still things' map was never the same place twice.)
     let stillKey = '', stillAt = -99, sortAt = -99, stillList = [], movesList = [], ctr = null, stillCtr = null;
-    const stillCam = new THREE.OrthographicCamera(-2 * OCC_R, 2 * OCC_R, 2 * OCC_R, -2 * OCC_R, 1, 4000);
+    const stillCam = new THREE.OrthographicCamera(-OCC_R - STILL_M, OCC_R + STILL_M, OCC_R + STILL_M, -OCC_R - STILL_M, 1, 4000);
     stillCam.up.set(0, 0, -1);
     const COVER_TREES_MOVE = /[?&]covertrees=move\b/.test(location.search); // (the trees drawn with what moves, as they were: to tell their part of the map)
     // (a tree's place in the still map is its set's: which trees are drawn whole, which lighter and which as cards goes by
@@ -1362,7 +1364,7 @@ void main() {
         try {
           // (the still map's place: the cover map's when it was last drawn; kept while the cover map's square lies within it
           // and the height its depths are counted from is the same)
-          if (!stillKey || !stillCtr || Math.abs(cx - stillCtr.cx) > OCC_R || Math.abs(cz - stillCtr.cz) > OCC_R || cy !== stillCtr.cy || tSec - stillAt > 6 || tSec < stillAt || (tSec - stillAt > 2 && treesNow() !== treesAt)) {
+          if (!stillKey || !stillCtr || Math.abs(cx - stillCtr.cx) > STILL_M || Math.abs(cz - stillCtr.cz) > STILL_M || cy !== stillCtr.cy || tSec - stillAt > 6 || tSec < stillAt || (tSec - stillAt > 2 && treesNow() !== treesAt)) {
             if (tSec - sortAt > 2 || tSec < sortAt || !stillList.length) { sortCover(); sortAt = tSec; }
             stillCtr = { cx, cz, cy };
             stillCam.position.set(cx, cy + 1500, cz); stillCam.lookAt(cx, cy, cz);
@@ -1377,7 +1379,7 @@ void main() {
           }
           renderer.setRenderTarget(occRT);
           // (its square of the still map: a texel is a texel in both, and both look down with the map's north up)
-          copyStill(Math.round((cx - stillCtr.cx + OCC_R) / texel), Math.round((stillCtr.cz - cz + OCC_R) / texel));
+          copyStill(Math.round((cx - stillCtr.cx + STILL_M) / texel), Math.round((stillCtr.cz - cz + STILL_M) / texel));
           renderer.autoClear = false;
           without(stillList, () => renderer.render(world, occCam));
           coverStat.moves++;
