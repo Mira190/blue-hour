@@ -736,7 +736,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
       yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
       off: undefined, pBack: undefined, reg0: undefined,
-      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, umbUpT: undefined });
+      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, turnAt: undefined, turnAt0: undefined, umbUpT: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -1779,13 +1779,17 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // keeps the offset (p.lat). The square's crowd steps apart in plazaStep; two waiting at a kerb on their footways stood
     // 0.37 m through each other at the Scramble's north-east corner, main's story on 8186ca5, issue 187)
     let umbAny = false, umbSeen = false; // (any umbrella up among the crowd, the last frame: only then is a head looked for under a canopy)
-    function canopyAcross(i, q, dt) {
+    function canopyAcross(i, q, dt, bodies = false) {
       const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
       let sx = 0, sy = 0;
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
           const o = P[k];
-          if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+          if (k === i || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+          // (two stood bodies in each other, umbrellas or none: bodyClear only keeps a step from coming closer, and two stood
+          // 0.17 m apart at a kerb by Hachiko stayed so for seconds: half the overlap each, issue 187)
+          if (bodies && o.line >= 0 && o.state === 'walk' && !mateOf(q, o)) { const ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey); if (e < NEAR_BODY && e > 1e-4) { const f = (NEAR_BODY - e) / 2 / e; sx += ex * f; sy += ey * f; } }
+          if (!(o.umbR > 0)) continue;
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
@@ -1797,12 +1801,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       const nx = -q.hy, ny = q.hx; // (across the footway, as p.lat runs)
       let d = sx * nx + sy * ny;
-      if (Math.abs(d) < 1e-3) return;
+      if (!(Math.abs(d) >= 1e-3)) return; // (and nothing where the walker has no heading yet: a NaN taken into its place lost it from the street, issue 187)
       d = Math.sign(d) * Math.min(Math.abs(d), 0.6 * dt);
       const l = net.L[q.line], hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2), lat = (q.lat || 0) + d;
       if (Math.abs(lat) > hw && Math.abs(lat) > Math.abs(q.lat || 0)) return;
       const x = q.x + nx * d, y = q.y + ny * d;
       if ((clear && !clear(x, y, q.z)) || keepRoom(x, y, 0.5) < Math.min(0.35, keepRoom(q.x, q.y, 0.5)) || !bodyClear(i, q.x, q.y, x, y, 0.42)) return;
+      // (and never off the pavement into a carriageway: a stood walker stepped out of another's body at the Scramble's
+      // western arm stood in the lane, and a car waited on them 150 s, tools/check.sh roads, issue 187)
+      { const R = api.crossings && api.crossings.road; if (R && R(x, y) && !R(q.x, q.y)) return; }
       q.lat = lat; if (q.lim != null) q.lim += d; q.x = x; q.y = y;
     }
     function bodyClear(self, x0, y0, x, y, r) {
@@ -1956,7 +1963,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
-      if (q.give) { q.give = false; if (q.ph === 'cross') q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+      // (and one of them out in the road off the walk, strolling or waiting, as a crosser is: asked only for a spot behind
+      // its kerb, one strolling through the Scramble's box toward it stood before a car that waited on it 144 s, each
+      // in the other's way, issue 204)
+      if (q.give) { q.give = false; if (q.ph === 'cross' || (pz.road && pz.road(q.x, q.y))) q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
@@ -2312,7 +2322,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           else if (p.pause <= 0) p.arrived = 2;
         }
         if (p.umbR > 0) umbSeen = true;
-        if (p.state === 'walk' && p.line >= 0 && (p.umbR > 0 || (umbAny && p.crown > 0)) && (p.av ?? p.v ?? 0) < 0.3) canopyAcross(i, p, dt); // (every frame, near or far; a head under another's canopy too, while any umbrella is up)
+        if (p.state === 'walk' && p.line >= 0 && (p.av ?? p.v ?? 0) < 0.3) { // (stood on a footway: out of a canopy, from under one, or out of another's body)
+          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.whole && (frame + i) % 8 === 0; // (bodies: a whole rig, a near person drawn as one (people.js place: p.whole), where a few cm in another reads as wrong; not a far copy. One frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
+          if (umbNear || bodyTurn) canopyAcross(i, p, umbNear ? dt : dt * 8, bodyTurn);
+        }
         if (p.state === 'walk') { // farther off, a longer step every few frames does
           const d = Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)), k = d < NEAR ? 1 : d < FAR ? 2 : 4;
           // (and one the renderer did not draw last frame, p.inPic: behind the camera, behind the street's wall, past the
@@ -2443,6 +2456,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (uT - (q.turnedT ?? -1e9) < AGAIN) { q.v = 0; q.pause = Math.max(q.pause, 10 + rnd() * 15); q.arrived = 1; api.thought = (api.thought || 0) + 1; return; }
         q.turnedT0 = q.turnedT; q.turnedT = uT;
       }
+      if (why === 'restore') q.turnAt = q.turnAt0; else { q.turnAt0 = q.turnAt; q.turnAt = uT; } // (when it last turned, whatever turned it: a mate turns with its leader no more than once in AGAIN; a turn put back puts this back)
       q.dir = -q.dir; q.hx = -q.hx; q.hy = -q.hy; if (api.why) q.turnWhy = why; // (why: for the harnesses, what turned it)
       if (q.lat != null) q.lat = -q.lat;
       q.dodge = -q.dodge;
@@ -2474,7 +2488,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (p.v < 0.3 && p.pause <= 0) { turn(p, 'a car waited on them'); p.wait = p.still = 0; }
       }
       const G = p.lead >= 0 ? P[p.lead] : null; // (one of a group: its leader, whose place by it it keeps)
-      if (G && G.line === p.line && G.dir !== p.dir && Math.hypot(G.x - p.x, G.y - p.y) < 6) turn(p, 'the leader turned'); // (the leader turned back: so does it)
+      // (the leader turned back: so does it; but not twice in AGAIN seconds. A mate turned with its leader whenever the leader
+      // faced back within 6 m, a reason exempt from the limit on turning again, and on a 14.5 m footway, line 781 at 75,-696,
+      // the leader turned at each end and its two mates paced with it, issue 222. One that turned less than AGAIN ago leaves
+      // the group instead, and goes on its own way)
+      if (G && G.line === p.line && G.dir !== p.dir && Math.hypot(G.x - p.x, G.y - p.y) < 6) { if (uT - (p.turnAt ?? -1e9) < AGAIN) partGroup(p); else turn(p, 'the leader turned'); }
       // (stopped along the way: turned to the window, or with its back to the rail, over a second or so; the stop over, on)
       if (p.stop && p.stop.on && p.pause <= 0) { p.stop = null; p.stopFace = null; }
       if (p.stop && !p.stop.on && ((p.stop.try += dt) > 5 || p.detourT > 0)) { p.stop = null; p.stopFace = null; }
