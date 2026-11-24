@@ -71,7 +71,11 @@ async function run(p, place) {
       // near behind the lens lies inside its near plane's 0.3 m and is not in the picture), and not a post or a column the camera looks past on purpose (its own rule, game.js thin: one of the lines beside it
       // stopped too). Under cover or not
       {
-        const eye = V(pl.x, pl.y, pl.z + 1.55), d = c.clone().sub(eye), L = d.length(); // (from where the camera aims: game.js camTarget)
+        // (from the point the camera aimed from in the frame drawn, game.js camTarget: live.look, less the lift a look up at a
+        // landmark adds to its height. Read from your head after the step instead, a lens placed before it stood up to 0.18 m
+        // further past a corner than the camera saw, and one frame of main's ride on 04b07bd failed on it, #213)
+        const Lv = g.live && g.live.look, tilt = (g.cam && g.cam.tilt) || 0;
+        const eye = Lv ? new T.Vector3(Lv.x, Lv.y - (tilt > 0.001 ? Math.tan(tilt) * Math.hypot(c.x - Lv.x, c.z - Lv.z) : 0), Lv.z) : V(pl.x, pl.y, pl.z + 1.55), d = c.clone().sub(eye), L = d.length();
         if (L > 0.6) {
           const sd = new T.Vector3(d.z, 0, -d.x).normalize(), cut = (a, b) => g.nav.clearFraction(a, b) * L < L - 0.1;
           // (the camera's own rule for a post it looks past, game.js thin: a line 0.45 m to the side at your head and 0.6 m at the lens)

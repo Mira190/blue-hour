@@ -61,7 +61,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
-    : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+    : process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--disable-gpu-watchdog'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-watchdog'];
+  // (no GPU watchdog on a software renderer: a frame of llvmpipe's packing a medium page's pictures as BC7 took 10 to 18 s,
+  // and Chromium's watchdog took the GPU process for hung and ended it, exit 512 (its code 2, hung), budgetm2 on a runner,
+  // 24 November. A laptop's GPU takes the pictures packed; the context loss was the software renderer's, not the page's.
+  // A real GPU, GPU=metal, keeps its watchdog)
   // (ENGINE=webkit: Playwright's WebKit, which takes none of Chromium's switches; HEADED=1 for its window)
   const b = process.env.ENGINE === 'safari' ? await require('./safari').launch() : process.env.ENGINE === 'webkit' ? await require('playwright').webkit.launch({ headless: !process.env.HEADED }) : await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   // (DPR=3 PHONE=1: the page as an iPhone has it, three device pixels to the point and its user agent, as tools/mem_check.js opens it)
