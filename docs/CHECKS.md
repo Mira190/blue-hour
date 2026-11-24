@@ -921,6 +921,10 @@ walkers 0.41 m apart, a group abreast as it seems: open. Also open: a crossing w
 head, 5 cm deep in one or three readings of some 350 (the crowd keeps two canopies apart, not a canopy from the player);
 a step rule against it held walkers beside the player and a lean of the canopy away from the head did not measure
 better, so neither landed.
+Then, as people pass under umbrellas, the walker's umbrella is held higher while its canopy's rim comes within a head's
+width of the player's head (`UMB_RAISE`, 0.2 m: a second hold pose found once beside the first by `makeHold`, `umbLay`
+blending towards it, up over 0.3 s and down over 0.5): over 240 s of the walk's rain on a phone the deepest canopy in the
+player read 0.8 cm, against 4.7 and 5.3 cm before. `RAISED=n` takes stills of those moments.
 
 ## Nobody paces (issue 168)
 
