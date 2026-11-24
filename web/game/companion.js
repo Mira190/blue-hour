@@ -446,12 +446,13 @@ window.OECompanion = (function () {
     }
     // the player further along the way than he is (they ran past him): each one's distance left along the way, from where
     // they stand on it (and how far off it they are)
+    // (each one's distance left along his way, from where they stand on it, and how far off it they are)
+    const pathLeft = (P, x, y) => { let best = Infinity, out = Infinity, rest = 0; for (let i = P.length - 1; i > 0; i--) { const a = P[i - 1], b = P[i], ux = b[0] - a[0], uy = b[1] - a[1], L = Math.hypot(ux, uy) || 1e-9, k = Math.max(0, Math.min(1, ((x - a[0]) * ux + (y - a[1]) * uy) / (L * L))), d = Math.hypot(a[0] + ux * k - x, a[1] + uy * k - y); if (d < best - 0.01) { best = d; out = rest + L * (1 - k); } rest += L; } return [out, best]; };
     function onAhead() {
       const P = s.path, px = player.x, py = player.y;
       if (!s.to) return false;
       if (!P || P.length < 2) return Math.hypot(s.to[0] - px, s.to[1] - py) < dist(s.to[0], s.to[1]) - 1.5;
-      const left = (x, y) => { let best = Infinity, out = Infinity, rest = 0; for (let i = P.length - 1; i > 0; i--) { const a = P[i - 1], b = P[i], ux = b[0] - a[0], uy = b[1] - a[1], L = Math.hypot(ux, uy) || 1e-9, k = Math.max(0, Math.min(1, ((x - a[0]) * ux + (y - a[1]) * uy) / (L * L))), d = Math.hypot(a[0] + ux * k - x, a[1] + uy * k - y); if (d < best - 0.01) { best = d; out = rest + L * (1 - k); } rest += L; } return [out, best]; };
-      const [lp, off] = left(px, py), [ld] = left(s.x, s.y);
+      const [lp, off] = pathLeft(P, px, py), [ld] = pathLeft(P, s.x, s.y);
       return (off < 8 && lp < ld - 1.5) || lead() < -1.5;
     }
     // How far he is ahead of the player along the way (m; less than nothing when they are further on), each one's way
@@ -470,6 +471,9 @@ window.OECompanion = (function () {
     }
     function lead() {
       if (!s.to) return 0;
+      // (on his way, or near it, both read along it, which costs nothing; the router is asked only for a player off it)
+      const P = s.path;
+      if (P && P.length > 1) { const [lp, off] = pathLeft(P, player.x, player.y), [ld] = pathLeft(P, s.x, s.y); if (off < 4) return lp - ld; const a = wayLeft(s.wl.you, player.x, player.y); if (a != null && ld < Infinity) return a - ld; }
       const a = wayLeft(s.wl.you, player.x, player.y), b = wayLeft(s.wl.me, s.x, s.y);
       return a != null && b != null ? a - b : Math.hypot(s.to[0] - player.x, s.to[1] - player.y) - dist(s.to[0], s.to[1]); // (no way for one of them: both as the crow flies)
     }
