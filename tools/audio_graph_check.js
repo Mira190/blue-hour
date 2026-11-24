@@ -39,7 +39,7 @@ const { chromium } = require('playwright');
       return seen.size;
     };
     // the beds the street keeps and the story's hall (made once): made first, so that they are in the count before
-    A.sfx('found'); A.murmur(0.5); A.screens(0.5); A.trainAt(0, { near: 20, above: 0, v: 12, a: 0, len: 20, pan: 0 }, 0.1); A.rain(0.3, true, false);
+    A.sfx('found'); A.screens(0.5); A.trainAt(0, { near: 20, above: 0, v: 12, a: 0, len: 20, pan: 0 }, 0.1); A.rain(0.3, true, false);
     await wait(6000);
     window.__early.length = 0;
     const before = live();
