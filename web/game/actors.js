@@ -2908,7 +2908,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       mv: undefined, mv0: undefined, trip: undefined, parking: undefined, park: undefined, wantPark: undefined,
       dodgeT: undefined, dodgeBrake: undefined, rev: undefined, vBend: undefined, nx: undefined, pv: undefined,
       exA: undefined, ex2: undefined, ex: undefined, plan: undefined, halt: undefined, q: undefined, lcT: undefined,
-      lnWait: undefined, wallGap: undefined, wallT: undefined, atWall: undefined, narrow: undefined,
+      lnWait: undefined, zipTo: undefined, wallGap: undefined, wallT: undefined, atWall: undefined, narrow: undefined,
       narrowF: undefined, narrowIn: undefined, m4: undefined, m4At: undefined, inAhead: undefined, ps: undefined,
       pz: undefined, pst: undefined, np: undefined, xWaitT: undefined, bonnetT: undefined, waitOn: undefined,
       waitOnCar: undefined, faceGap: undefined, faceAll: undefined, faceT: undefined, faceCar: undefined,
@@ -4069,6 +4069,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             }
           }
         }
+        // a car beside, stood waiting to move into this lane (zipTo, the lane changes below): the next in this lane, wholly
+        // behind it, stops short of its tail and leaves it the gap, as in a zip merge; the one beside it goes on (#198)
+        for (const j of onLine.get(c.line) || []) {
+          const o = C[j]; if (o === c || o.dir !== c.dir || o.zipTo !== (c.ln || 0) || o.zipTo == null) continue;
+          const d = (o.s - c.s) * c.dir - o.half - c.half;
+          if (d > 1 && d < 15 && d - 1 < gap) { gap = d - 1; byCar = true; front = o; why = 'car'; }
+        }
         // a ride or your car on the move, along its way as a car of the traffic is (not along a straight line from
         // the bonnet, which misses one round the corner it is turning), and given way to by the same rule as the
         // traffic's (first): the one that goes on is the one that would. A ride stopped on its way counts as on
@@ -4369,10 +4376,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                 // there is one (the traffic wanders, so any way will do). A queue that waits for room behind a queue
                 // that waits for room, round a block and back, is a ring that never moves: Shibuya's station streets
                 // had a car stand 220 s at its line so. Taking another way out breaks the ring, as drivers do
-                // (and in a lane its way out does not leave from, stood at the line: a stopped car changes no lane, and the queue
-                // head at 1978 arm 0 waited so about 100 s with the drive to 109 behind it, CI's roads on 0cfce671 and
-                // 8bd427d3, #198. Another way out from the lane it is in, as a driver in the wrong lane takes)
-                c.roomT = (noRoom || !inLane) && toLine - c.half < 2.5 && c.v < 0.6 && !c.mv ? (c.roomT || 0) + dt : 0;
+                c.roomT = noRoom && toLine - c.half < 2.5 && c.v < 0.6 && !c.mv ? (c.roomT || 0) + dt : 0;
                 if (c.roomT > 5) {
                   c.roomT = 0; c.ex2 = null; // (its way across the junction just after chosen again too)
                   // (as JN.choose weighs them: ahead before a turn, a main road before a lane; never a turn back, a road
@@ -4481,9 +4485,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             // (one at a time: not while a car close by on this road is moving across itself)
             let busy = false;
             for (const j of onLine.get(c.line) || []) { const o = C[j]; if (o !== c && o.dir === c.dir && Math.abs(o.s - c.s) < ml + o.half + c.half + 6 && Math.abs(o.lo - side * JN.shiftOf(l, o.ln)) > 0.15) { busy = true; break; } }
-            if (!busy && overlaps(c, tmp.x, tmp.y, fx, fy, ml, 0.25) === 0 && peopleIn(c, tmp.x, tmp.y, fx, fy) === 0) { c.ln = to; c.lcT = 0; c.lnWait = 0; laneChanges++; }
-          }
-        } else c.ln = 0;
+            if (!busy && overlaps(c, tmp.x, tmp.y, fx, fy, ml, 0.25) === 0 && peopleIn(c, tmp.x, tmp.y, fx, fy) === 0) { c.ln = to; c.lcT = 0; c.lnWait = 0; c.zipTo = null; laneChanges++; }
+            // (stood 3 s waiting to move across into the lane it must be in: the next in that lane gives it the gap, as in a
+            // zip merge, below where the cars ahead are found. The lane beside it crept past 2.4 m apart, never a car's
+            // length, and a car in the wrong lane at junction 1978 arm 0, whose one way out leaves from the other lane,
+            // stood at its line 150 s with the queue behind it, the roads check's drive to 109 among it, #198)
+            else c.zipTo = must && c.lnWait > 3 && c.v < 0.6 ? to : null;
+          } else c.zipTo = null;
+        } else { c.ln = 0; c.zipTo = null; }
         // given its way across but not yet at its line, and stopped there behind a car that is not in
         // that junction (one waiting at another of its lines, where two roads come in side by side,
         // for this very movement to clear): it gives the movement up and waits its turn
