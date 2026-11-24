@@ -30,7 +30,9 @@ const LEADS = [
   { name: 'f7-hachiko-to-kerb', from: [377.0, -1013.2], to: [359.4, -983.0] },
   // (last: it ends at Yuna, and the story starts her talk and calls him to heel)
   { name: 'f4-hachiko-to-lift', live: 3 },
-].filter(l => !process.env.LEADS || process.env.LEADS.split(',').some(k => l.name.startsWith(k)));
+].filter(l => process.env.GUIDE_PART !== 'own' && (!process.env.LEADS || process.env.LEADS.split(',').some(k => l.name.startsWith(k))));
+// (GUIDE_PART=own: frame 4's legs with a player on their own line alone; =ways: the ways he leads alone. A runner each,
+// tools/check.sh guide1 and guide3: the own-line legs of #207 took the whole past its cap of an hour on run 347)
 (async () => {
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
@@ -95,7 +97,7 @@ const LEADS = [
     { name: 'f4-own-overtake', speed: 6, from: [374.79, -1046.45], start: 8, until: 90, short: 6 },
     { name: 'f4-own-drop-back', speed: 2.4, from: [374.79, -1046.45], pause: [10, 18], until: 120, short: 6 },
   ]) {
-    if (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k))) continue;
+    if (process.env.GUIDE_PART === 'ways' || (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k)))) continue;
     const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 2.5, STUCK_M: 0.3, TRACE: !!process.env.TRACE }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));
     const ok = !r.error && !r.faults.length && (r.state === 'sit' || r.left < 3.5) && Math.hypot(r.player[0] - live.target[0], r.player[1] - live.target[1]) < 9; // (and both got there: the player was not held anywhere on the way)
     if (!ok) fails++;
