@@ -14,7 +14,9 @@
 //     that are half pixels keep the floor;
 //   - hitches (a frame in thirty held up by the page's script) are not taken for the scene's cost (issue 184);
 //   - a device under twenty frames a second with nothing left to give steps a tier down, and back up once it holds
-//     its ceiling for a minute; a fast device, a hitchy one and one settled below its ceiling keep their tier.
+//     its ceiling for a minute; a fast device, a hitchy one and one settled below its ceiling keep their tier;
+//   - a frame as slow on any tier (Safari on an M3, issue 184): the step is judged and taken back, remembered for the
+//     next visit, the resolution and the extras kept, the aim half the display's rate; a step that buys frames is kept.
 //   node tools/governor_unit.js [--old <path to an older quality.js>]    (prints each model's changes a minute)
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const file = process.argv.includes('--old') ? process.argv[process.argv.indexOf('--old') + 1] : path.join(__dirname, '..', 'web', 'quality.js');
@@ -101,9 +103,11 @@ for (const [name, cost] of [['at 40 a second', () => 24], ['at 25 a second', () 
   if (process.env.SHOW) console.log(log.concat(late).map(c => `${Math.round(c.s)}s ${c.to}`).join('  '));
   check(g.scale >= 0.8 - 1e-9 && late.length <= 20, `frames as slow at any resolution, ${name}: the resolution is given back (${g.scale.toFixed(2)}/${g.extras} after two minutes and twenty more; ${log.length} changes, then ${late.length})`);
 }
-// and where the pixels are half of a slow frame, the floor is kept: it was worth having
+// and where the pixels are half of a slow frame, the floor is kept: it was worth having. (Or as much above it as half
+// the display's rate holds: this device is 33.3 ms a frame at the floor, and since issue 184 aims at thirty a second
+// there, where it once aimed at sixty for good; at 0.8 its frame is 33 ms, on the edge of a second refresh)
 { const g = gov(); g.startLow(); play(g, 120, s => 14 + 30 * s * s, 10);
-  check(Math.abs(g.scale - g.min) < 1e-6, `frames that are half pixels keep the floor (${g.scale.toFixed(2)}/${g.extras})`); }
+  check(g.scale < 0.8 - 1e-6 && g.frameMs <= 1.15 * g.targetMs, `frames that are half pixels keep the floor, or what half the display's rate holds (${g.scale.toFixed(2)}/${g.extras}, ${g.frameMs.toFixed(1)} ms a frame for ${g.targetMs.toFixed(1)})`); }
 // 7. hitches are not load (issue 184): a device whose scene costs it 4 to 13 ms, with 3 frames in 100 held up 60 to 140 ms
 // by the page's script and one in 300 by 300 ms (a model arriving, a texture sent), keeps its ceiling with every
 // extra. (The governor took each hitch for the scene's cost: modelled, such a device ended at 0.45 with every extra
@@ -127,11 +131,12 @@ if (has('onTier')) {
     const T = tiered(g, (s, e) => 18 + 70 * s * s + 14 * e);
     play(g, 30, T.cost, 11); const at30 = T.tier;
     play(g, 90, T.cost, 12);
-    check(at30 >= 1 && T.tier === 2 && T.asks.every(a => a.d < 0), `a device under 20 frames a second at its floor steps a tier down within thirty seconds (${at30} down at 30 s) and on to low (${T.tier} down at two minutes)`);
+    // (on until its frames hold at least half the display's rate: medium holds thirty here, and climbs its resolution there)
+    check(at30 >= 1 && T.tier >= 1 && g.frameMs <= 1.15 * g.targetMs && T.asks.every(a => a.d < 0), `a device under 20 frames a second at its floor steps a tier down within thirty seconds (${at30} down at 30 s) and on until its frames hold half the display's rate (${T.tier} down at two minutes, ${g.frameMs.toFixed(1)} ms a frame for ${g.targetMs.toFixed(1)}, at ${g.scale.toFixed(2)}/${g.extras})`);
     // the scene lightens (the device was busy, or the player went where there is less to draw): back up after a minute held
-    const T2 = { n: T.asks.length };
+    const T2 = { n: T.asks.length, tier: T.tier };
     play(g, 200, (s, e) => (4 + 6 * s * s + 2 * e) * [1, 0.7, 0.5][T.tier], 13);
-    check(T.tier < 2 && T.asks.slice(T2.n).every(a => a.d > 0), `and climbs back a tier after a minute held at its ceiling (${T.tier} down, ${T.asks.length - T2.n} up)`);
+    check(T.tier < T2.tier && T.asks.slice(T2.n).every(a => a.d > 0), `and climbs back a tier after a minute held at its ceiling (${T.tier} down, ${T.asks.length - T2.n} up)`);
   }
   // a fast device, and the light one with hitches, never step down
   for (const [name, cost] of [['a fast device', (s, e) => 3 + 6 * s * s + 2 * e], ['a light scene with hitches', (() => { const r = rng(5); return (s, e) => { const x = r(); return x < 0.03 ? 60 + 80 * r() : 4 + 7 * s * s + 2 * e; }; })()]]) {
@@ -139,13 +144,38 @@ if (has('onTier')) {
     const T = tiered(g, cost); play(g, 300, T.cost, 14);
     check(T.asks.length === 0, `${name} keeps its tier (${T.asks.length} steps in five minutes)`);
   }
+  // Safari 18.6 on an M3 (issue 184): 34 to 38 ms a frame whatever the scale, the extras or the tier (its time is the
+  // frame's WebGL calls, after the script), and no gap between frames under 16.9 ms, so the display's rate is never
+  // read. On main before this it stepped medium → low in 15 s and kept low for good, the extras shed, aiming at 16.7 ms.
+  // Now: the step is judged, taken back within twenty seconds and not asked again; the resolution and every extra come
+  // back (they bought nothing); the aim is half the display's rate, which the frames are within 15% of
+  { const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
+    let tier = 0; const asks = [], r = rng(21);
+    g.tierRoom = 1; g.tierDown = 0; g.upWait = 60000;
+    g.onTier(d => { tier = Math.max(0, Math.min(1, tier - d)); g.tierDown = tier; g.tierRoom = 1 - tier; asks.push({ d, s: (t - 1e6) / 1000 }); });
+    let t = 1e6; const at = []; // (no vsync and no display read: frames as Safari gave them)
+    for (let sec = 0; sec < 300; sec++) { for (const end = t + 1000; t < end;) { t += 34 + 4 * r(); g.raf(t); g.tick(t); } if (sec === 59 || sec === 299) at.push(`${g.scale.toFixed(2)}/${g.extras}`); }
+    const back = asks.length === 2 && asks[0].d < 0 && asks[1].d > 0 && asks[1].s - asks[0].s < 20;
+    check(back && tier === 0, `a frame as slow on any tier (Safari on an M3): the tier step is taken back within twenty seconds and not asked again (${asks.map(a => `${a.d < 0 ? 'down' : 'up'} at ${Math.round(a.s)} s`).join(', ')}; ${tier} down after five minutes)`);
+    check(at[0] === '1.00/1' && at[1] === '1.00/1' && Math.abs(g.targetMs - 2000 / 60) < 0.1, `and it keeps its resolution and every extra, aiming at half the display's rate (${at.join(' at one minute, ')} at five; aiming at ${g.targetMs.toFixed(1)} ms)`);
+  }
+  // the same device a frame ten percent shorter on the tier below keeps the step (a step that buys frames is kept)
+  { const g = Q.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
+    let tier = 0; const asks = [], r = rng(22);
+    g.tierRoom = 1; g.tierDown = 0; g.upWait = 60000;
+    g.onTier(d => { tier = Math.max(0, Math.min(1, tier - d)); g.tierDown = tier; g.tierRoom = 1 - tier; asks.push(d); });
+    let t = 1e6;
+    for (let sec = 0; sec < 120; sec++) for (const end = t + 1000; t < end;) { t += (34 + 4 * r()) * (tier ? 0.8 : 1); g.raf(t); g.tick(t); }
+    check(tier === 1 && asks.length === 1, `and a step that makes the frame a fifth shorter is kept (${asks.join(' ')}; ${tier} down after two minutes)`);
+  }
   // a device at its limit between two steps of resolution, at 60 frames a second, keeps its tier
   { const g = gov(); g.startLow(); const T = tiered(g, (s, e) => 5.2 + 13.5 * s * s + 4 * e); play(g, 600, T.cost, 15);
     check(T.asks.length === 0, `a device settled below its ceiling keeps its tier (${T.asks.length} steps in ten minutes, at ${g.scale.toFixed(2)}/${g.extras})`); }
 }
 // 9. the tier a desktop draws at (quality.js auto, tierStep, issue 184), on a WebGL 2 context faked as a desktop GPU's
-function desktop(ua) {
-  const store = new Map(), window = { devicePixelRatio: 2 };
+function desktop(ua) { return desktopWith(ua, new Map()); }
+function desktopWith(ua, store) {
+  const window = { devicePixelRatio: 2 };
   const gl = { MAX_TEXTURE_SIZE: 1, MAX_SAMPLES: 2, RENDERER: 3, FRAMEBUFFER: 4, FRAMEBUFFER_COMPLETE: 5, TEXTURE_2D: 6, RGBA16F: 7, RGBA: 8, HALF_FLOAT: 9, COLOR_ATTACHMENT0: 10, RENDERBUFFER: 11,
     getParameter: k => ({ 1: 16384, 2: 8, 3: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)' })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
     createFramebuffer() {}, bindFramebuffer() {}, deleteFramebuffer() {}, createTexture() {}, bindTexture() {}, texImage2D() {}, framebufferTexture2D() {}, deleteTexture() {},
@@ -165,7 +195,35 @@ if (desktop('x').tierStep) {
   chrome.tierStep(1); seen.push(chrome.tier().name, chrome.stepped().wait);
   chrome.tierStep(-1); seen.push(chrome.stepped().wait); // (a climb that failed at once: the next waits twice as long)
   check(seen.join(' ') === 'high 4 medium 2 1 low 0 medium 60000 120000', `a desktop steps high → medium → low and no lower, back up, and waits twice as long after a climb that failed (${seen.join(' ')})`);
+  // a step judged to have bought nothing is kept with the tier: the next visit starts on its own tier and asks no more
+  if (desktop('x').tierFlat) { const m = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36');
+    m.tierStep(-1); m.tierStep(1); m.tierFlat(36.04);
+    const g = m.governor({ auto: true, min: 0.45, mid: 0.7 }); g.max = 1; g.startLow();
+    let asks = 0, t = 1e6; g.tierRoom = 1; g.onTier(d => { if (d < 0) asks++; });
+    for (let i = 0; i < 300 * 28; i++) { t += 36; g.raf(t); g.tick(t); }
+    check(m.tier().name === 'high' && m.stepped().flat === 36 && asks === 0, `a step that bought nothing is remembered: the next visit is on its own tier and asks for none at that frame time (${m.tier().name}, flat ${m.stepped().flat} ms, ${asks} asks in five minutes)`);
+    for (let i = 0; i < 60 * 18; i++) { t += 56; g.raf(t); g.tick(t); }
+    check(asks === 1, `but asks again once the frame is half as long again (${asks} ask at 56 ms)`); }
+  // a step kept by the governor before steps were judged is let go: such a device starts on its own tier again
+  if (desktop('x').tierFlat) { const m = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
+    m.tierStep(-1); const judged = m.tier().name;
+    const ctxStore = m.stepped(); // (written by this version: kept)
+    check(judged === 'low' && ctxStore.down === 1, `a judged step is kept for the next visit (${judged}, ${ctxStore.down} down)`); }
+  { const store = new Map([['bh-tier-shibuya', JSON.stringify({ down: 1, wait: 60000, upAt: 0, t: Date.now() })]]);
+    const old = desktopWith('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', store);
+    if (old.tierFlat) check(old.tier().name === 'medium' && old.stepped().down === 0, `a step kept before steps were judged is let go (Safari starts on ${old.tier().name})`); }
   const safari = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
   check(safari.tier().name === 'medium' && safari.city().samples === 0 && safari.tier().settings.samples === 0, `a Mac's Safari starts on medium without multisampling (${safari.tier().name}, ${safari.city().samples} samples)`);
 }
+// 10. the telemetry's reading of the display's rate and of what bound the frame (web/telemetry.js rateOf, issue 184):
+// Safari on an M3 at 26 to 29 frames a second was read "hz 30, bound ok", so no dashboard showed it slow
+{ const src = fs.readFileSync(path.join(__dirname, '..', 'web', 'telemetry.js'), 'utf8'), i = src.indexOf('function rateOf(at)');
+  if (i >= 0 && !process.argv.includes('--old')) {
+    const rateOf = vm.runInNewContext(`(${src.slice(i, src.indexOf('\n  }\n', i) + 4)})`, { Math });
+    const atOf = gaps => { const bins = new Array(100).fill(0); for (const d of gaps) bins[Math.min(99, d / 2 | 0)]++; return p => { let c = 0; for (let k = 0; k < 100; k++) { c += bins[k]; if (c >= gaps.length * p) return (k + 1) * 2; } return 200; }; };
+    const r = rng(31), many = f => Array.from({ length: 600 }, f);
+    const safari = rateOf(atOf(many(() => { const x = r(); return x < 0.1 ? 26 + 6 * r() : x < 0.9 ? 33 + 6 * r() : 40 + 17 * r(); })));
+    const lpm = rateOf(atOf(many(() => 33.3 + (r() - 0.5) * 1.2))), sixty = rateOf(atOf(many(() => 16.7 + (r() - 0.5)))), slow60 = rateOf(atOf(many(() => (r() < 0.5 ? 16.7 : 33.3))));
+    check(safari === 60 && lpm === 30 && sixty === 60 && slow60 === 60, `the display's rate from the frames: Safari's uneven 26 to 57 ms ${safari} Hz, an even 30 (Low Power Mode) ${lpm}, sixty ${sixty}, half the frames late ${slow60}`);
+  } }
 process.exit(fails ? 1 : 0);
