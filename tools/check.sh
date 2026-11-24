@@ -229,7 +229,7 @@ else
       vercel.json|tools/stamp.js|tools/vercel_build.sh|.github/workflows/pages.yml|tools/launch_check.js) static=1; add launch ;;
       web/index.html|web/world.js|web/gltf.js|web/pack.js|web/pack-worker.js|web/bvh-worker.js|web/visibility.js|web/visibility-worker.js|web/tex.js|web/verts.js|web/version.js|web/telemetry.js) static=1; page; add launch ;;
       web/data/$MAP/d/*) static=1; add mem walk2; [ "$TIER" = full ] || add budget1 budget2 budget3 ;;   # what a phone loads, and plays its walk in
-      pipeline/district.py|tools/mem_check.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
+      pipeline/district.py|tools/mem_check.js|tools/crowd_cost.js|tools/load_tex.js|tools/lost_check.js|tools/killed_check.js|tools/ctx_beats.js|web/lifeline.js) static=1; add mem ;;
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|web/assets/story/late/cue-phone.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
@@ -475,6 +475,11 @@ run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB ([0-9.]* MB under its [0-9]*' "$OUT/mem.log" | head -1)), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
   else echo "FAIL mem    $(grep -o 'over [0-9]*' "$OUT/mem.log" | paste -sd ';' - | head -c120)   (see $OUT/mem.log)"; fi
+  # (the walkers' and the cars' objects each laid out one way, issue 130: a field first set on one outside the literal that
+  # makes it splits the layouts, and every read of a field in the crowd's and the traffic's steps goes the slow way,
+  # 59 ms a step for 17 on a desktop, with nothing else to show it; docs/PERFORMANCE.md, "The crowd's script")
+  if LAYOUTS=${LAYOUTS:-3} timeout 600 $X node tools/crowd_cost.js 390x844 >"$OUT/layouts.log" 2>&1; then echo "ok   mem    $(grep -o 'layouts: .*' "$OUT/layouts.log" | head -1)"
+  else echo "FAIL mem    $(grep '^LAYOUTS\|page errors\|Error' "$OUT/layouts.log" | head -2 | cut -c1-200 | paste -sd ';' -)   (see $OUT/layouts.log)"; fi
   # (a desktop's pictures in blocks, web/tex.js and bc7.js: the story to its title with ?tex=bc7, which packs on a software
   # renderer too: every picture packed, none left under the floor, the textures held under MAX_TEX; docs/PERFORMANCE.md)
   if MAX_TEX=${MAX_TEX:-400} timeout 900 $X node tools/load_tex.js '?tex=bc7' >"$OUT/load_tex.log" 2>&1; then echo "ok   mem    $(grep -o 'textures [0-9]* MB' "$OUT/load_tex.log" | head -1) at a desktop's title with its pictures in blocks, $(grep -o '"packed":[0-9]*' "$OUT/load_tex.log" | cut -d: -f2) packed"
@@ -492,6 +497,10 @@ run_mem() {
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/killed.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/killed.log)"; fi
   if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
+  # (and the set-up's bake, here because mem loads the whole page and so is played wherever the set-up's code changes, against the page computing it, map and district: a change to the code it runs that changes what the set-up
+  # computes asks for a rebake, tools/bake_setup.js; issue 194)
+  if timeout 900 $X node tools/bake_setup.js --compare >"$OUT/bake.log" 2>&1; then grep '^ok' "$OUT/bake.log"
+  else echo "FAIL bake   $(grep -A1 '^FAIL' "$OUT/bake.log" | head -4 | sed 's/^FAIL bake *//' | cut -c1-170 | paste -sd ';' -)   (see $OUT/bake.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {
@@ -674,6 +683,7 @@ rm -rf "$OUT/keep"
     st goals goals - '^FAIL' node tools/goals_check.js
     st pack pack "the packs up to date" '^FAIL' python3 pipeline/pack.py --check
     st pack pack_decode "the packs decode to their JSON" '^FAIL|Error' node tools/pack_check.js
+    st bake bake - '^FAIL' node tools/bake_setup.js --check
     st vis vis "the sweep hides nothing an exact ray reaches" '^FAIL|Error' env EYES=12 node tools/vis_unit.js
     st budget budget - '^FAIL' budgets_kept
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
