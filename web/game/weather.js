@@ -613,6 +613,7 @@ void main() {
     // more on every side: a walker is 14 seconds crossing that, and the map is drawn again every six. The cover map
     // takes its own square out of it. It is drawn again when the cover map's square leaves it, not at every two metres
     // of the camera's way: on foot in rain that was a hundred draws and 280,000 triangles every second and a half)
+    const STILL_PART = 48; // (the things of the still map drawn in one frame, at most: renderOcc)
     const STILL_N = Math.round(T.occ * 1.5 / 2) * 2, STILL_M = (STILL_N - T.occ) / 2 * (2 * OCC_R / T.occ); // (its side in texels; its margin in metres, a whole number of texels)
     const occStill = occRT ? new THREE.WebGLRenderTarget(STILL_N, STILL_N, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
     const coverStat = { cache: new URLSearchParams(location.search).get('occ') !== 'whole', whole: 0, still: 0, moves: 0, off: '' };
@@ -636,9 +637,13 @@ void main() {
       const walk = (o, st) => {
         // (shKeys: the trees' sets, trees.js: a crown sways in its shader and stands where it stands. They were drawn with
         // what moves, 54 draws and 67,000 triangles of a phone's cover map every half second it rained)
-        st = st || !!o.userData.shadowStatic || !!o.userData.oeStill || (!COVER_TREES_MOVE && !!o.userData.shKeys); // (oeStill: what stands still and casts no shadow, the ground's tiles, the far land)
+        // (oeTree: the same sets by what they are, not by their shadow's order, which is written only while the sun is up:
+        // after dark they were drawn with what moves, 26 of a phone's draws each time the map was drawn. bounds-works: the
+        // road works' cones and barricades, which stand; and the canal, issue 192)
+        const tree = !COVER_TREES_MOVE && !!(o.userData.shKeys || o.userData.oeTree);
+        st = st || !!o.userData.shadowStatic || !!o.userData.oeStill || tree || o.name === 'bounds-works' || o.name === 'inland'; // (oeStill: what stands still and casts no shadow, the ground's tiles, the far land)
         if (o.isMesh || o.isLine || o.isPoints) (st ? stillList : movesList).push(o);
-        if (st && o.userData.shKeys && o.isInstancedMesh) treeSets.push(o);
+        if (st && tree && o.isInstancedMesh) treeSets.push(o);
         for (const c of o.children) walk(c, st);
       };
       walk(world, false);
@@ -773,7 +778,7 @@ void main() {
     // for, water.waves), from the prevailing bearing, wandering a little, with gusts on top
     const windBase = () => (climate && climate.wind_ms != null ? (clockAt ? monthly(climate.wind_ms, clockAt[1], clockAt[2]) : monthly(climate.wind_ms, 6, 15)) : windCfg && windCfg.wind_ms != null ? windCfg.wind_ms * 0.7 : 3.2);
     const windFrom0 = (climate && climate.wind_from_deg) ?? (windCfg && windCfg.wind_from_deg) ?? 250;
-    let clockAt = null, snap = true, cover = { roof: false, h: 0, at: 0 }, occT = -9, occAt = new THREE.Vector3(1e9, 0, 0), hideList = [], hideAt = -99;
+    let stillJob = null, stillOnly = false, clockAt = null, snap = true, cover = { roof: false, h: 0, at: 0 }, occT = -9, occAt = new THREE.Vector3(1e9, 0, 0), hideList = [], hideAt = -99;
     const lastCam = new THREE.Vector3().copy(camera.position), vel = new THREE.Vector3();
     const baseClouds = su && su.cloudCoverage ? [su.cloudCoverage.value, su.cloudDensity.value] : null;
     const readBuf = new Float32Array(4), readHalf = new Uint16Array(4);
@@ -1288,7 +1293,7 @@ void main() {
         // (not in a check's frame not drawn, tools/story_play.js DRAW=n: its render is not run there, #51, and the read back
         // after it waited for the GPU to finish the frame drawn before, a quarter of frame 7's time on a software renderer, #70.
         // The map is drawn and read in the next frame drawn, which then shows the rain kept from under cover as it is)
-        if (occRT && !(window.__draw && window.__draw.on === false) && ((falling && tSec - occT > (light ? 2 : 0.5)) || occOn.value < 0.5 || tSec < occT || camera.position.distanceTo(occAt) > (!falling ? 14 : light ? 8 : 4))) {
+        if (occRT && !(window.__draw && window.__draw.on === false) && (stillOnly || (falling && tSec - occT > (light ? 2 : 0.5)) || occOn.value < 0.5 || tSec < occT || camera.position.distanceTo(occAt) > (!falling ? 14 : light ? 8 : 4))) {
           occT = tSec; occAt.copy(camera.position);
           renderOcc(tSec);
         }
@@ -1344,6 +1349,8 @@ void main() {
       // (the map's camera from the map's place alone: the still things' depth is kept with it; and its height the still
       // map's while the camera is within two metres of it, or a step's rise drew the still things again)
       const cx = ctr.cx, cz = ctr.cz, cy = coverStat.cache && stillCtr && Math.abs(ctr.y - stillCtr.cy) <= 2 ? stillCtr.cy : ctr.y;
+      const base0 = occBase.value, box0 = occBox.value.clone();
+      stillOnly = false;
       occBase.value = Math.round(cy);
       occCam.position.set(cx, cy + 1500, cz);
       occCam.lookAt(cx, cy, cz);
@@ -1364,27 +1371,42 @@ void main() {
         try {
           // (the still map's place: the cover map's when it was last drawn; kept while the cover map's square lies within it
           // and the height its depths are counted from is the same)
-          if (!stillKey || !stillCtr || Math.abs(cx - stillCtr.cx) > STILL_M || Math.abs(cz - stillCtr.cz) > STILL_M || cy !== stillCtr.cy || tSec - stillAt > 6 || tSec < stillAt || (tSec - stillAt > 2 && treesNow() !== treesAt)) {
+          if (!stillJob && (!stillKey || !stillCtr || Math.abs(cx - stillCtr.cx) > STILL_M || Math.abs(cz - stillCtr.cz) > STILL_M || cy !== stillCtr.cy || tSec - stillAt > 6 || tSec < stillAt || (tSec - stillAt > 2 && treesNow() !== treesAt))) {
             if (tSec - sortAt > 2 || tSec < sortAt || !stillList.length) { sortCover(); sortAt = tSec; }
             stillCtr = { cx, cz, cy };
             stillCam.position.set(cx, cy + 1500, cz); stillCam.lookAt(cx, cy, cz);
             stillCam.near = occCam.near; stillCam.far = occCam.far; stillCam.updateProjectionMatrix(); stillCam.updateMatrixWorld();
             renderer.setRenderTarget(occStill); renderer.clear();
+            stillJob = { i: 0, key, at: tSec, trees: treesNow(), list: stillList.filter(o => o.visible) };
+          }
+          if (stillJob) {
+            // (issue 192: the still map is a hundred and more draws, and the moving pass was fifty more in the same frame: a
+            // phone's heaviest frame of the rain. Where a cover map is there to keep, it is kept while the still map is drawn
+            // a part a frame, STILL_PART things at a time, and the moving pass drawn over it in the frame after the last part)
+            const J = stillJob, keep = occOn.value > 0.5 && read && tSec >= 0;
+            const n = keep ? Math.ceil(J.list.length / Math.max(1, Math.ceil(J.list.length / STILL_PART))) : J.list.length;
+            const part = new Set(J.list.slice(J.i, J.i + n)), rest = stillList.filter(o => !part.has(o));
+            J.i += n;
+            renderer.setRenderTarget(occStill); renderer.autoClear = false;
             // (every still thing, seen or not: a building the visibility sweep has hidden from the camera still keeps the rain
             // off, and the map is kept after the camera has moved to where it is seen. As the shadow pass has them)
             const vis = window.OEVis && OEVis.shadow ? OEVis : null;
             if (vis) vis.shadow(true);
-            try { without(movesList, () => renderer.render(world, stillCam)); } finally { if (vis) vis.shadow(false); }
-            stillKey = key; stillAt = tSec; treesAt = treesNow(); coverStat.still++;
+            try { without(movesList, () => without(rest, () => renderer.render(world, stillCam))); } finally { if (vis) vis.shadow(false); }
+            if (J.i >= J.list.length) { stillKey = J.key; stillAt = J.at; treesAt = J.trees; coverStat.still++; stillJob = null; }
+            stillOnly = keep;
           }
+          if (!stillOnly) {
           renderer.setRenderTarget(occRT);
           // (its square of the still map: a texel is a texel in both, and both look down with the map's north up)
           copyStill(Math.round((cx - stillCtr.cx + STILL_M) / texel), Math.round((stillCtr.cz - cz + STILL_M) / texel));
           renderer.autoClear = false;
           without(stillList, () => renderer.render(world, occCam));
           coverStat.moves++;
+          }
         } catch (e) { // (a GPU that will not copy: whole, as it was)
           coverStat.cache = false; coverStat.off = String(e).slice(0, 120); console.warn('rain cover: drawn whole', e);
+          stillOnly = false; stillJob = null;
           whole();
         }
       }
@@ -1393,6 +1415,10 @@ void main() {
       renderer.autoClear = prev.auto;
       world.background = prev.bg; world.fog = prev.fog; world.overrideMaterial = prev.over; renderer.shadowMap.autoUpdate = prev.sh;
       hide.forEach((o, i) => { o.visible = was[i]; });
+      if (stillOnly) { // (the still map alone this frame: the cover map, its place and its base as they were, the rest next frame)
+        occBox.value.copy(box0); occBase.value = base0;
+        return;
+      }
       occOn.value = 1;
       // a roof over the camera's focus, read back without stalling the frame
       // (the map's v runs from +z at the bottom to -z at the top: occBox's negative depth)

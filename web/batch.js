@@ -96,13 +96,27 @@ window.OEBatch = (function () {
       ids = geos.map(g => b.addGeometry(g));
       for (let i = 0; i < cap; i++) b.setVisibleAt(b.addInstance(ids[0]), false);
     } catch (e) { console.warn('batch pool:', material.name, e); if (b) b.dispose(); return null; }
-    b.frustumCulled = false; b.perObjectFrustumCulled = true; b.sortObjects = !!material.transparent; b.visible = false;
+    b.perObjectFrustumCulled = true; b.sortObjects = !!material.transparent; b.visible = false;
     b.userData.batched = cap;
+    // (issue 192: the pool as a whole culled by a sphere round the places put this frame, so that a pool none of whose
+    // cars is in a pass's view is not drawn there at all: 18 of a phone's draws on foot by the Scramble, every train
+    // in the city, each pool a draw with nothing in it)
+    let reach = 0;
+    for (const g of geos) { if (!g.boundingSphere) g.computeBoundingSphere(); reach = Math.max(reach, g.boundingSphere.center.length() + g.boundingSphere.radius); }
+    const lo = new THREE.Vector3(), hi = new THREE.Vector3(), e = [];
+    b.frustumCulled = true; b.boundingSphere = new THREE.Sphere();
     const at = new Int32Array(cap).fill(0); let n = 0, shown = 0;
     stats.batches++;
-    return { mesh: b, begin() { n = 0; },
-      put(k, matrix) { if (n >= cap) return false; if (at[n] !== k) { b.setGeometryIdAt(n, ids[k]); at[n] = k; } b.setMatrixAt(n, matrix); if (n >= shown) b.setVisibleAt(n, true); n++; return true; },
-      end() { for (let i = n; i < shown; i++) b.setVisibleAt(i, false); shown = n; b.visible = n > 0; } };
+    return { mesh: b, begin() { n = 0; lo.set(Infinity, Infinity, Infinity); hi.set(-Infinity, -Infinity, -Infinity); },
+      put(k, matrix) {
+        if (n >= cap) return false; if (at[n] !== k) { b.setGeometryIdAt(n, ids[k]); at[n] = k; } b.setMatrixAt(n, matrix); if (n >= shown) b.setVisibleAt(n, true); n++;
+        e[0] = matrix.elements[12]; e[1] = matrix.elements[13]; e[2] = matrix.elements[14]; lo.min({ x: e[0], y: e[1], z: e[2] }); hi.max({ x: e[0], y: e[1], z: e[2] });
+        return true;
+      },
+      end() {
+        for (let i = n; i < shown; i++) b.setVisibleAt(i, false); shown = n; b.visible = n > 0;
+        if (n) { b.boundingSphere.center.addVectors(lo, hi).multiplyScalar(0.5); b.boundingSphere.radius = lo.distanceTo(hi) / 2 + reach; }
+      } };
   }
   // Cells that come and go, of one material, in one draw, their vertices the GPU's alone: the buildings round the
   // player (buildings.js put). A cell was a mesh and a draw of its own, 27 to 45 of them in a phone's frame on foot. A
