@@ -456,11 +456,11 @@
    "title": {
     "at": {
      "draws": 302,
-     "tris": 1720492,
+     "tris": 1672070,
      "passes": 17,
      "px_x": 4.17,
-     "tex_mb": 573.1,
-     "gpu_mb": 747.9
+     "tex_mb": 259.8,
+     "gpu_mb": 434.6
     },
     "noise": {
      "draws": 20,
@@ -471,23 +471,23 @@
      "gpu_mb": 2
     },
     "draws": 362,
-    "tris": 1927000,
+    "tris": 1873000,
     "passes": 17,
     "px_x": 4.38,
-    "tex_n": 149,
-    "tex_mb": 591,
+    "tex_n": 148,
+    "tex_mb": 268,
     "buf_mb": 139,
-    "gpu_mb": 771,
-    "js_ms": 42.9
+    "gpu_mb": 448,
+    "js_ms": 50.8
    },
    "frame 1": {
     "at": {
-     "draws": 452,
-     "tris": 2372213,
+     "draws": 453,
+     "tris": 2480381,
      "passes": 18,
      "px_x": 5.17,
-     "tex_mb": 1166.1,
-     "gpu_mb": 1375.8
+     "tex_mb": 462,
+     "gpu_mb": 673.2
     },
     "noise": {
      "draws": 20,
@@ -497,24 +497,24 @@
      "tex_mb": 2,
      "gpu_mb": 2
     },
-    "draws": 512,
-    "tris": 2657000,
+    "draws": 513,
+    "tris": 2779000,
     "passes": 18,
     "px_x": 5.43,
-    "tex_n": 511,
-    "tex_mb": 1202,
-    "buf_mb": 173.2,
-    "gpu_mb": 1418,
-    "js_ms": 100.1
+    "tex_n": 500,
+    "tex_mb": 476,
+    "buf_mb": 174.7,
+    "gpu_mb": 694,
+    "js_ms": 67.6
    },
    "frame 2": {
     "at": {
      "draws": 458,
-     "tris": 2538088,
+     "tris": 2463278,
      "passes": 17,
      "px_x": 4.17,
-     "tex_mb": 1165.5,
-     "gpu_mb": 1375
+     "tex_mb": 461.4,
+     "gpu_mb": 672.4
     },
     "noise": {
      "draws": 20,
@@ -525,23 +525,23 @@
      "gpu_mb": 2
     },
     "draws": 518,
-    "tris": 2843000,
+    "tris": 2759000,
     "passes": 17,
     "px_x": 4.38,
-    "tex_n": 512,
-    "tex_mb": 1201,
-    "buf_mb": 174.9,
-    "gpu_mb": 1417,
-    "js_ms": 76.8
+    "tex_n": 513,
+    "tex_mb": 476,
+    "buf_mb": 174.8,
+    "gpu_mb": 693,
+    "js_ms": 68.6
    },
    "frame 3": {
     "at": {
-     "draws": 529,
-     "tris": 2233985,
+     "draws": 548,
+     "tris": 2459880,
      "passes": 18,
      "px_x": 5.17,
-     "tex_mb": 1173.9,
-     "gpu_mb": 1385.7
+     "tex_mb": 464.9,
+     "gpu_mb": 676.5
     },
     "noise": {
      "draws": 20,
@@ -551,24 +551,24 @@
      "tex_mb": 2,
      "gpu_mb": 2
     },
-    "draws": 593,
-    "tris": 2503000,
+    "draws": 614,
+    "tris": 2756000,
     "passes": 18,
     "px_x": 5.43,
-    "tex_n": 522,
-    "tex_mb": 1210,
-    "buf_mb": 175.3,
-    "gpu_mb": 1428,
-    "js_ms": 44.5
+    "tex_n": 525,
+    "tex_mb": 479,
+    "buf_mb": 175.2,
+    "gpu_mb": 697,
+    "js_ms": 51.1
    },
    "frame 4": {
     "at": {
-     "draws": 540,
-     "tris": 2853464,
+     "draws": 513,
+     "tris": 2641093,
      "passes": 18,
      "px_x": 5.17,
-     "tex_mb": 1281.9,
-     "gpu_mb": 1506.5
+     "tex_mb": 518.9,
+     "gpu_mb": 743.1
     },
     "noise": {
      "draws": 20,
@@ -578,51 +578,24 @@
      "tex_mb": 2,
      "gpu_mb": 2
     },
-    "draws": 605,
-    "tris": 3196000,
+    "draws": 575,
+    "tris": 2959000,
     "passes": 18,
     "px_x": 5.43,
-    "tex_n": 604,
-    "tex_mb": 1321,
-    "buf_mb": 187,
-    "gpu_mb": 1552,
-    "js_ms": 78.8
+    "tex_n": 607,
+    "tex_mb": 535,
+    "buf_mb": 186.6,
+    "gpu_mb": 766,
+    "js_ms": 269.6
    },
    "frame 5": {
     "at": {
-     "draws": 466,
-     "tris": 2108313,
+     "draws": 481,
+     "tris": 2128307,
      "passes": 19,
      "px_x": 6.17,
-     "tex_mb": 1203.2,
-     "gpu_mb": 1418
-    },
-    "noise": {
-     "draws": 20,
-     "tris": 60000,
-     "passes": 0,
-     "px_x": 0.0,
-     "tex_mb": 2,
-     "gpu_mb": 2
-    },
-    "draws": 526,
-    "tris": 2362000,
-    "passes": 19,
-    "px_x": 6.48,
-    "tex_n": 583,
-    "tex_mb": 1240,
-    "buf_mb": 180.9,
-    "gpu_mb": 1461,
-    "js_ms": 43.7
-   },
-   "frame 6": {
-    "at": {
-     "draws": 481,
-     "tris": 2513370,
-     "passes": 18,
-     "px_x": 5.17,
-     "tex_mb": 1192.3,
-     "gpu_mb": 1409.2
+     "tex_mb": 482.4,
+     "gpu_mb": 691.6
     },
     "noise": {
      "draws": 20,
@@ -633,23 +606,23 @@
      "gpu_mb": 2
     },
     "draws": 541,
-    "tris": 2815000,
-    "passes": 18,
-    "px_x": 5.43,
-    "tex_n": 580,
-    "tex_mb": 1229,
-    "buf_mb": 180.4,
-    "gpu_mb": 1452,
-    "js_ms": 97
+    "tris": 2384000,
+    "passes": 19,
+    "px_x": 6.48,
+    "tex_n": 587,
+    "tex_mb": 497,
+    "buf_mb": 178.5,
+    "gpu_mb": 713,
+    "js_ms": 52.5
    },
-   "frame 7": {
+   "frame 6": {
     "at": {
-     "draws": 667,
-     "tris": 3098951,
+     "draws": 489,
+     "tris": 2522075,
      "passes": 18,
-     "px_x": 5.33,
-     "tex_mb": 1177.7,
-     "gpu_mb": 1389
+     "px_x": 5.17,
+     "tex_mb": 473.3,
+     "gpu_mb": 687.5
     },
     "noise": {
      "draws": 20,
@@ -659,15 +632,42 @@
      "tex_mb": 2,
      "gpu_mb": 2
     },
-    "draws": 748,
-    "tris": 3471000,
+    "draws": 549,
+    "tris": 2825000,
+    "passes": 18,
+    "px_x": 5.43,
+    "tex_n": 583,
+    "tex_mb": 488,
+    "buf_mb": 177.9,
+    "gpu_mb": 709,
+    "js_ms": 80.7
+   },
+   "frame 7": {
+    "at": {
+     "draws": 661,
+     "tris": 2945193,
+     "passes": 18,
+     "px_x": 5.33,
+     "tex_mb": 471,
+     "gpu_mb": 674.4
+    },
+    "noise": {
+     "draws": 20,
+     "tris": 60000,
+     "passes": 0,
+     "px_x": 0.0,
+     "tex_mb": 2,
+     "gpu_mb": 2
+    },
+    "draws": 741,
+    "tris": 3299000,
     "passes": 18,
     "px_x": 5.6,
-    "tex_n": 531,
-    "tex_mb": 1214,
-    "buf_mb": 174.9,
-    "gpu_mb": 1431,
-    "js_ms": 90.9
+    "tex_n": 519,
+    "tex_mb": 486,
+    "buf_mb": 174.2,
+    "gpu_mb": 695,
+    "js_ms": 97.6
    }
   },
   "size": "1440x900",
