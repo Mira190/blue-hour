@@ -90,6 +90,9 @@ const LEADS = [
   for (const R of [
     { name: 'f4-own-line', speed: 6, from: [377.8, -1035.5], until: 90, short: 6 }, // (stopped 6 m short of Yuna: her talk begins within 3, and the leads after this one want her silent)
     { name: 'f4-own-line-hachiko', speed: 6, from: [374.79, -1046.45], until: 90, short: 6 },
+    // (and the two ways the rule goes on one line: a player who starts 8 m on past him, and one who stops for 8 s and drops back)
+    { name: 'f4-own-overtake', speed: 6, from: [374.79, -1046.45], start: 8, until: 90, short: 6 },
+    { name: 'f4-own-drop-back', speed: 2.4, from: [374.79, -1046.45], pause: [10, 18], until: 120, short: 6 },
   ]) {
     if (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k))) continue;
     const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 1.5, STUCK_M: 0.3, TRACE: !!process.env.TRACE }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));

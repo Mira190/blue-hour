@@ -24,12 +24,13 @@ module.exports = ({ R, live, STUCK_S, STUCK_M, TRACE }) => new Promise(done => {
   let s = R.start, was = performance.now(), t = 0;
   const hist = [], faults = [], seen = {}, trace = [];
   const fault = (kind, msg) => { if (seen[kind] && seen[kind] > 3) return; seen[kind] = (seen[kind] || 0) + 1; faults.push(`${kind} t=${t.toFixed(1)} ${msg}`); if (!window.__f207) window.__f207 = kind; };
-  let waitT = 0, heldT = 0;
+  let waitT = 0, heldT = 0, backT = 0;
   const step = now => {
     const dt = Math.min(0.05, Math.max(0, (now - was) / 1000)); was = now; t += dt; window.__t207 = t; // (the lead's own clock, for timed stills)
     // the player: along their own line at their speed (as a walker steps: nav.slide), never waiting for him
     const pl0 = [pl.x, pl.y];
-    if (pl.mode === 'foot' && Math.hypot(to[0] - pl.x, to[1] - pl.y) > (R.short || 2.5)) { // (R.short: stopped outside the reach that starts the goal's talk, story.js meet_m)
+    const paused = R.pause && t >= R.pause[0] && t < R.pause[1]; // (R.pause [from, to] s: the player drops back, standing still)
+    if (!paused && pl.mode === 'foot' && Math.hypot(to[0] - pl.x, to[1] - pl.y) > (R.short || 2.5)) { // (R.short: stopped outside the reach that starts the goal's talk, story.js meet_m)
       s = own.len - left(pl.x, pl.y); const q = along(s + 3), // (a point 3 m on from where they are on it: a carrot that cannot run ahead of a held player and point through a wall)
            dx = q[0] - pl.x, dy = q[1] - pl.y, d = Math.hypot(dx, dy);
       if (d > 1e-3) { const k = Math.min(1, R.speed * dt * 1.5 / d), m = nav.slide(pl.x, pl.y, pl.z, dx * k, dy * k), wk = nav.walk(m.x, m.y, pl.z + 0.3, true); if (wk.ok) { pl.x = m.x; pl.y = m.y; pl.z = wk.z; } pl.h = Math.atan2(dx, dy); if (g.cam) g.cam.yaw = pl.h; }
@@ -44,6 +45,13 @@ module.exports = ({ R, live, STUCK_S, STUCK_M, TRACE }) => new Promise(done => {
     const lp = left(pl.x, pl.y), ld = left(dog.x, dog.y), arrived = Math.hypot(to[0] - dog.x, to[1] - dog.y) < 3.5;
     // a step asked for and not gone, STUCK_S running
     if (!arrived && hist.length > 5 && t - hist[0][0] > STUCK_S * 0.9 && hist.every(q => q[3] > 0.5) && Math.hypot(dog.x - hist[0][1], dog.y - hist[0][2]) < STUCK_M) fault('stuck', `${dog.state} at ${dog.x.toFixed(2)}, ${dog.y.toFixed(2)}, ${dog.z.toFixed(2)} (player ${pl.x.toFixed(1)}, ${pl.y.toFixed(1)}; ${(lp - ld).toFixed(1)} m ${lp < ld ? 'ahead of' : 'behind'} him on the way)`);
+    // The owner's rule, both ways (issue 207). The player ahead of him (past him on his line, or further on along
+    // another): he does not wait; he runs, and is in front again within BACK_S. The player behind him (dropped back):
+    // he waits, turned to look back, and does not run off: never more than RUNOFF_M ahead of them along the way, and
+    // standing by the end of the pause
+    if (lp < ld - 1.5 && !paused) { backT += dt; if (backT > 8) fault('never-in-front', `the player ${(ld - lp).toFixed(1)} m further on for 8 s; he is at ${dog.x.toFixed(1)}, ${dog.y.toFixed(1)}, ${dog.state}`); } else backT = 0;
+    if (paused && lp - ld > 14) fault('runs-off', `he is ${(lp - ld).toFixed(1)} m ahead of a player who stopped, at ${dog.x.toFixed(1)}, ${dog.y.toFixed(1)}`);
+    if (R.pause && t >= R.pause[1] - 0.3 && t < R.pause[1] && !arrived && dog.speed > 0.5 && lp > ld) fault('no-wait', `still going at ${dog.speed.toFixed(1)} m/s ${(lp - ld).toFixed(1)} m ahead of a player who stopped ${(R.pause[1] - R.pause[0]).toFixed(0)} s ago`);
     // waiting while the player is further along than he is
     if (dog.state === 'wait' && lp < ld - 1.5) { waitT += dt; if (waitT > 0.5) fault('waits-behind', `he waits at ${dog.x.toFixed(1)}, ${dog.y.toFixed(1)} with the player ${(ld - lp).toFixed(1)} m further along`); } else waitT = 0;
     if (Math.round(t * 4) !== Math.round((t - dt) * 4)) trace.push([+t.toFixed(2), dog.state, +dog.x.toFixed(2), +dog.y.toFixed(2), +dog.speed.toFixed(2), +pl.x.toFixed(1), +pl.y.toFixed(1), +(lp - ld).toFixed(1)]);

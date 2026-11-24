@@ -46,11 +46,13 @@ He moves in the Stop, comes to you the first time it comes, and goes home when t
 has the most famous waiter in Japan at its door; that is enough. He is the guide, never a witness: he says nothing and
 knows nothing the player needs.
 
-He waits for you; you never wait for him (the owner's rule, issue 207). Ahead of you along the way, and far, he stops
-and looks back. Level with you or behind you (held by a planter's rail or the crowd, or you took the other side of the
-street) nothing waits for him: he runs to be in front again, and held up for good he is found at your heels. You are
+The rule for waiting, in the owner's words (issue 207). **The player ahead of the dog** (they have walked on past him,
+or are further along the way than he is, on his line or another): the dog does not wait. He runs, faster than his walk,
+catches up, gets back in front and leads again; held up for good, he is found at the player's heels. **The player
+behind the dog** (lagging): he waits for them, turned to look back, and goes on when they come close. The player is
 never held, slowed or told to wait for him, and no beat waits for him to arrive or sit. Who is ahead is measured along
-each one's own way on foot to where he leads (`companion.js` `lead`), not along his line alone.
+the way on foot to where he leads, each from where they stand (`companion.js` `lead`), not across it: a player 15 m off
+his line and further on is ahead of him. `tools/guide_way.js` holds both ways (`tools/guide_own.js`).
 
 ## 3. What the best of them do, and what is taken from each
 
