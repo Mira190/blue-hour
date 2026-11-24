@@ -654,6 +654,26 @@ ambience from point emitters placed in the world rather than from a stereo loop 
 the survey at the top of this page); the owner's own ear on 21 November (issue 127: the street to stand beside a AAA
 game's) and on 24 November.
 
+## Soft air
+
+The owner, 24 November 2026, on the roof's wind and frame 7's rain once the beds were gone: still grating; softer, as
+other AAA games do it, or take them out. Both were white noise left open at the top: the wind a wide band round 900 Hz
+with most of its power from 1 to 8 kHz, the rain a hiss high-passed at 3.2 kHz with a third of its power over 8 kHz.
+The ear is most sensitive, and least forgiving of a sound with no grain, from 2 to 5 kHz.
+
+What games with a name for their weather do (their published talks and their middleware's documentation; the design
+only): the rain is layers mixed by intensity and distance, a far wash that is low and soft, a near surface layer, and
+the near drops as discrete impacts on what you can see, never one hiss turned up (Wwise's and FMOD's layered
+ambiences; the GDC talks on Red Dead Redemption 2's and The Last of Us Part II's weather); the wind is a low body of air
+moved slowly by gusts, its whistle a separate emitter at an edge or a railing (Audiokinetic's SoundSeed Air Wind, with
+its deflectors). Both sit under the scene, not in front of it.
+
+Taken here, with the nodes already there (no new voice): the wind through two low-passes, 260 to 840 Hz with the gust
+and 1.1 kHz, so almost nothing of it is over 2 kHz (`tools/beds_listen.js`: 4 to 8 kHz from −7 to −57 dB of its power);
+the rain's wash between 400 Hz and 2.8 kHz (1.2 kHz through a roof or a window), its patter lower (1.1 kHz) and its
+flutter slower and shallower (5.1 Hz, a sine, 0.2), so its power over 8 kHz fell from −4 to −20 dB. Heard by the owner
+first; the listening points' `weather` ranges are set again once the owner has chosen between this and none.
+
 ## Trains
 
 A train going by is told from a jet by its wheels. What the ear takes for a train, from the way railway noise is made

@@ -150,11 +150,14 @@ window.OEAudio = (function () {
       eo.connect(el); el.connect(eg); eg.connect(B.self); eo.start();
       return { vol: eg, osc: eo };
     },
-    // wind at height and speed
+    // wind at height and speed: a low, moving body of air, its highs rolled off steeply (two low-passes), the gust
+    // opening it a little. It was noise through a wide band round 900 Hz, most of its power from 1 to 8 kHz: a hiss the
+    // owner heard as grating on SHIBUYA SKY's roof (24 November 2026). Wind out of doors is low (docs/SOUND.md "Soft
+    // air"): the whistle of an edge is a thing of its own, not the wind's body
     wind() {
-      const wn = noiseSource(), wl = ctx.createBiquadFilter(), wg = ctx.createGain();
-      wl.type = 'bandpass'; wl.frequency.value = 900; wl.Q.value = 0.4; wg.gain.value = 0;
-      wn.connect(wl); wl.connect(wg); wg.connect(B.weather);
+      const wn = noiseSource(), wl = ctx.createBiquadFilter(), w2 = ctx.createBiquadFilter(), wg = ctx.createGain();
+      wl.type = 'lowpass'; wl.frequency.value = 400; wl.Q.value = 0.9; w2.type = 'lowpass'; w2.frequency.value = 1100; w2.Q.value = 0.5; wg.gain.value = 0;
+      wn.connect(wl); wl.connect(w2); w2.connect(wg); wg.connect(B.weather);
       return { vol: wg, f: wl };
     },
     // a car's engine: two saws a fifth apart through a low-pass that opens with the throttle
@@ -171,20 +174,21 @@ window.OEAudio = (function () {
       sn.connect(sb); sb.connect(sg); sg.connect(B.self);
       return { vol: sg };
     },
-    // rain: a hiss of fine drops (high-passed noise), the patter on leaves and paving (a band of
-    // noise that flutters), and under a roof its drumming (a low band, louder there)
+    // rain: the wash of a street's drops (noise between 400 Hz and 2.8 kHz: it was high-passed at 3.2 kHz and left open
+    // to the top, a hiss the owner heard as grating, 24 November 2026), the patter on leaves and paving (a band of noise
+    // that flutters), and under a roof its drumming (a low band, louder there)
     rain() {
-      const hn = noiseSource(), hh = ctx.createBiquadFilter(), hg = ctx.createGain();
-      hh.type = 'highpass'; hh.frequency.value = 3200; hg.gain.value = 0;
-      hn.connect(hh); hh.connect(hg); hg.connect(B.weather);
+      const hn = noiseSource(), hh = ctx.createBiquadFilter(), hl = ctx.createBiquadFilter(), hg = ctx.createGain();
+      hh.type = 'highpass'; hh.frequency.value = 400; hl.type = 'lowpass'; hl.frequency.value = 2800; hl.Q.value = 0.5; hg.gain.value = 0;
+      hn.connect(hh); hh.connect(hl); hl.connect(hg); hg.connect(B.weather);
       const pn = noiseSource(), pb = ctx.createBiquadFilter(), pg = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain(), pv = ctx.createGain();
-      pb.type = 'bandpass'; pb.frequency.value = 1400; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
-      pl.type = 'triangle'; pl.frequency.value = 7.3; plg.gain.value = 0.35; pl.connect(plg); plg.connect(pg.gain); pl.start();
+      pb.type = 'bandpass'; pb.frequency.value = 1100; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
+      pl.type = 'sine'; pl.frequency.value = 5.1; plg.gain.value = 0.2; pl.connect(plg); plg.connect(pg.gain); pl.start();
       pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(B.weather);
       const rn2 = noiseSource(), rb = ctx.createBiquadFilter(), rgain = ctx.createGain();
       rb.type = 'bandpass'; rb.frequency.value = 420; rb.Q.value = 0.9; rgain.gain.value = 0;
       rn2.connect(rb); rb.connect(rgain); rgain.connect(B.weather);
-      return { hiss: hg, patter: pv, roof: rgain, hp: hh };
+      return { hiss: hg, patter: pv, roof: rgain, hp: hl };
     },
   };
   // the bed, made now if it is to be heard (on: the level asked for is over silence); null while it is not there and
@@ -200,7 +204,7 @@ window.OEAudio = (function () {
   }
   function engine(level) { const c = ctx && bed('engine', level > 0.001); if (c) { ramp(c.vol.gain, level * 0.09); ramp(c.osc.frequency, 42 + level * 18, 0.6); } }
   // level 0..1: the air's rush (a helicopter's speed, or the weather's wind and its gusts, whichever is louder)
-  function wind(level, gust = 0) { const c = ctx && bed('wind', level > 0.001); if (!c) return; ramp(c.vol.gain, Math.min(0.14, level * 0.12), 0.4); ramp(c.f.frequency, 500 + 700 * level + 500 * gust, 0.5); }
+  function wind(level, gust = 0) { const c = ctx && bed('wind', level > 0.001); if (!c) return; ramp(c.vol.gain, Math.min(0.2, level * 0.17), 0.4); ramp(c.f.frequency, 260 + 300 * level + 280 * gust, 0.7); }
   // rpm 0..1 (idle to the red line), throttle 0..1, level 0..1 (0 off; lower from the back seat)
   function car(rpm, throttle = 0, level = 1) {
     const c = ctx && bed('car', level > 0.001);
@@ -250,7 +254,7 @@ window.OEAudio = (function () {
     ramp(c.hiss.gain, level * 0.05 * k * (roof ? 0.6 : 1), 0.8);
     ramp(c.patter.gain, level * 0.07 * k * (roof ? 0.5 : 1), 0.8);
     ramp(c.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0.035 * umb) * Math.min(1, level * 1.4), 0.6);
-    ramp(c.hp.frequency, inside ? 1800 : 3200, 0.5);
+    ramp(c.hp.frequency, inside ? 1200 : 2800, 0.5); // (the wash's top: lower through a roof or a window)
     // under a roof, now and then a drop off its edge
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }

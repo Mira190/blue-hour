@@ -80,15 +80,16 @@ function wav(file, c, f0, f1) {
   }, [x, y, z, sec, act]);
   const notes = {}, rate = () => [...ctxs.values()].find(c => c.chunks.length);
   const seg = async (name, r) => { await new Promise(res => setTimeout(res, 600)); const c = rate(); notes[name] = Object.assign(wav(path.join(OUT, `${name}.wav`), c, r.f0, r.f1), { sig: r.sig, marks: r.marks, near: r.near, place: r.place, mix: r.mix }); console.log(name, JSON.stringify(notes[name])); };
-  const kerb = await hold(380, -1028, null, MAXCYC, 'cycle'); await seg('kerb', kerb);
+  const ONLY = (process.env.ONLY || 'kerb,stop,roof,rain').split(','); // (ONLY=roof,rain: those alone)
+  const kerb = ONLY.includes('kerb') ? await hold(380, -1028, null, MAXCYC, 'cycle') : null; if (kerb) await seg('kerb', kerb);
   // red.wav: the longest stretch with the walk off, up to 20 s, from its middle
-  { const ch = [[0, null], ...kerb.sig, [(kerb.f1 - kerb.f0) / rate().rate, 'end']]; let best = null;
+  if (kerb) { const ch = [[0, null], ...kerb.sig, [(kerb.f1 - kerb.f0) / rate().rate, 'end']]; let best = null;
     for (let i = 0; i < ch.length - 1; i++) if (ch[i][1] === 'walk off' || (i === 0 && ch[1] && ch[1][1] === 'walk on')) { const len = ch[i + 1][0] - ch[i][0]; if (!best || len > best[1] - best[0]) best = [ch[i][0], ch[i + 1][0]]; }
     if (best) { const mid = (best[0] + best[1]) / 2, half = Math.min(10, (best[1] - best[0]) / 2), R = rate().rate; notes.red = wav(path.join(OUT, 'red.wav'), rate(), kerb.f0 + (mid - half) * R, kerb.f0 + (mid + half) * R); notes.red.from = +(mid - half).toFixed(1); console.log('red', JSON.stringify(notes.red)); } }
-  await seg('stop', await hold(380, -1028, null, 13, 'stop'));
-  await seg('roof', await hold(541, -1124, 241.8, 25, 'far'));
-  await p.evaluate(() => window.__game.weather.set('rain', { now: true }));
-  await seg('rain', await hold(380, -1028, null, 30, ''));
+  if (ONLY.includes('stop')) await seg('stop', await hold(380, -1028, null, 13, 'stop'));
+  if (ONLY.includes('roof')) await seg('roof', await hold(541, -1124, 241.8, 25, 'far'));
+  if (ONLY.includes('rain')) await p.evaluate(() => window.__game.weather.set('rain', { now: true }));
+  if (ONLY.includes('rain')) await seg('rain', await hold(380, -1028, null, 30, ''));
   fs.writeFileSync(path.join(OUT, 'notes.json'), JSON.stringify(notes, null, 1));
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
