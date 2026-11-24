@@ -1933,6 +1933,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             let bx = 0, by = 0, br = 9;
             for (const r of [1, 2, 3, 4]) { for (let k = 0; k < 8 && br > r; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); if (!pz.road(q.x + ux * r, q.y + uy * r) && !pz.road(q.x + ux * (r + 0.8), q.y + uy * (r + 0.8))) { br = r; bx = ux; by = uy; } } if (br <= r) break; }
             if (br < 9) { q.T.x = q.x + bx * (br + 0.6); q.T.y = q.y + by * (br + 0.6); q.ph = 'wait'; q.roadOut = true; q.squeeze = 4; }
+            // (no pavement within 4 m: out in the box itself, to the nearest kerb its crossings land at, at a crosser's
+            // pace through the press. Looked for only 4 m off, one stranded 4 m from the Scramble's middle strolled there
+            // through the traffic's turns, and a driver who had stopped for them waited 150 s, issue 204)
+            else { let G = null, gd = Infinity; for (const g of gatesOf(pz)) { const e = Math.hypot(g.x - q.x, g.y - q.y); if (e < gd) { gd = e; G = g; } }
+              if (G) { toGate(q, G); q.sTries = 0; q.roadOut = true; q.squeeze = 4; } }
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
