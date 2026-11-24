@@ -413,6 +413,16 @@ window.OECompanion = (function () {
         let best = Infinity;
         for (let r = 1; r < 8 && best === Infinity; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const i = (b % nx) + di, j = Math.floor(b / nx) + dj; if (i < 0 || j < 0 || i >= nx || j >= ny) continue; const k = j * nx + i; if (extra[k] !== Infinity && Math.hypot(di, dj) < best) { best = Math.hypot(di, dj); b = k; } }
       }
+      // (and a place whose every neighbour is shut, by a post and his reach round it or by the player beside it: the
+      // nearest cell that is open and has an open neighbour, within 2.5 m. Sent to the afterimage in a Stop's talk, the
+      // goal's cell was let in and none round it was, and the search ran to its cap three times a frame, issue 206)
+      const reach = k => { const i = k % nx, j = Math.floor(k / nx); for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < nx && jj < ny && open(jj * nx + ii)) return true; } return false; };
+      if (!reach(b)) {
+        let best = Infinity, bb = -1;
+        for (let r = 1; r <= Math.ceil(2.5 / GRID) && best === Infinity; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const i = (b % nx) + di, j = Math.floor(b / nx) + dj; if (i < 0 || j < 0 || i >= nx || j >= ny) continue; const k = j * nx + i, d = Math.hypot(di, dj); if (d < best && open(k) && reach(k)) { best = d; bb = k; } }
+        if (bb < 0) return null;
+        b = bb;
+      }
       const g = new Float32Array(nx * ny).fill(Infinity), from = new Int32Array(nx * ny).fill(-1), heap = [], bi = b % nx, bj = Math.floor(b / nx);
       const H = k => { const di = Math.abs(k % nx - bi), dj = Math.abs(Math.floor(k / nx) - bj); return Math.max(di, dj) + 0.4142 * Math.min(di, dj); };
       const push = (f, k) => { heap.push([f, k]); let i = heap.length - 1; while (i > 0) { const u = (i - 1) >> 1; if (heap[u][0] <= heap[i][0]) break; [heap[u], heap[i]] = [heap[i], heap[u]]; i = u; } };
@@ -441,7 +451,7 @@ window.OECompanion = (function () {
       const pts = []; let p = [s.x, s.y], i = 0;
       while (i < cells.length - 1) { let j = cells.length - 1; while (j > i + 1 && !clear(p, at(cells[j]))) j--; p = at(cells[j]); pts.push(p); i = j; }
       if (!pts.length) return null;
-      if (extra[cell(tx, ty)] !== Infinity) pts[pts.length - 1] = [tx, ty]; // (and to the place itself, not the middle of its cell)
+      if (b === cell(tx, ty) && extra[b] !== Infinity) pts[pts.length - 1] = [tx, ty]; // (and to the place itself, not the middle of its cell)
       return { pts, i: 0, tx, ty, sticky };
     }
     // the player further along the way than he is (they ran past him): each one's distance left along the way, from where
