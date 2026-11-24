@@ -24,7 +24,8 @@
 //            avatar through every held clip). Deeper than its LIMIT for three readings fails the play: the owner saw a
 //            texting forearm in a jacket at the crossing in the opening.
 //   seats    in the helicopter and in a car: the seat under the pelvis, the floor under the feet and the roof over the
-//            head, by rays into the vehicle's own model, once a second.
+//            head, by rays into the vehicle's own model, once a second; and each limb against the vehicle from the limb's
+//            own middle outwards. No play of the story runs it (its flight shows no player): tools/clip_people.js seats does.
 //
 // Every case is kept once, with where the story was when it began (frame, phase, beat), the place, its greatest depth
 // and how many frames it lasted. tools/story_play.js prints them all and fails the play on those in `fails`.
@@ -134,6 +135,14 @@ function pageSide(NEAR, HOLD) {
   // the lowest of each foot (a person), or of the whole animal: found once, in the pose it is first seen in
   const soles = (rig) => {
     if (rig.soles) return rig.soles;
+    // (an animal: its skin itself, every vertex of the lowest band of it as it was bound, skinned as the GPU skins it. Moved
+    // by its one strongest bone, the folded hock of the guide sitting read 10 cm under the floor where the skin, blended
+    // over its bones, is 1.4 cm under it at most: issue 157)
+    if (!rig.human && rig.meshes.length) {
+      const band = [];
+      for (const o of rig.meshes) { const pos = o.geometry.attributes.position; let lo = Infinity, hi = -Infinity; const ys = new Float32Array(pos.count); for (let i = 0; i < pos.count; i++) { ys[i] = v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).y; lo = Math.min(lo, ys[i]); hi = Math.max(hi, ys[i]); } const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight; for (let i = 0; i < pos.count; i++) if (ys[i] < lo + (hi - lo) * 0.12) { let bi = 0, bw = -1, whole = true; const on = []; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k), j = si.getComponent(i, k); if (w > 0) { on.push([j, w]); if (!o.skeleton.bones[j]) whole = false; } if (w > bw) { bw = w; bi = j; } } if (whole) band.push([o, v.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).clone(), on, (o.skeleton.bones[bi] || {}).name || '?']); } }
+      return (rig.soles = [{ name: 'paws', skin: band }]);
+    }
     const feet = rig.human ? rig.parts.filter(x => /Foot$/.test(x.bone.name)) : [null];
     rig.soles = feet.map(part => {
       const cand = [];
@@ -208,9 +217,11 @@ function pageSide(NEAR, HOLD) {
         for (const s of soles(rig)) {
           // (each foot over the floor under it: on a slope or a step the floor at the body's middle is not the foot's)
           let y = Infinity;
-          for (const [, pt, l] of s.pts) { v.copy(l).applyMatrix4(pt.bone.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) y = h; }
+          let at = '';
+          if (s.skin) for (const [o, q, on, bn] of s.skin) { /* (skinned from the vertex as bound, as three.js skins it: a phone repacks the geometry once loaded) */ const sk = o.skeleton; if (!on.every(([j]) => sk.bones[j])) continue; v.set(0, 0, 0); for (const [j, w] of on) v.addScaledVector(v2.copy(q).applyMatrix4(sk.boneInverses[j]).applyMatrix4(sk.bones[j].matrixWorld), w); v.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) { y = h; at = bn; } }
+          else for (const [, pt, l] of s.pts) { v.copy(l).applyMatrix4(pt.bone.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) y = h; }
           if (y < low) { low = y; lowName = s.name; }
-          if (y < -0.03) note('sunk', a.name, s.name, -y, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}`);
+          if (y < -0.03) note('sunk', a.name, s.name, -y, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}${at ? `, under ${at}` : ''}`);
         }
         if (low < Infinity && low > 0.04 && !a.moving) note('floating', a.name, lowName, low, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}`);
       }
@@ -289,13 +300,15 @@ function pageSide(NEAR, HOLD) {
     const now = performance.now();
     if ((player.mode === 'heli' || player.mode === 'car') && player.rig && player.rig.root && player.rig.root.visible && now - P.seatT > 1000) {
       P.seatT = now;
-      const veh = player.mode === 'heli' ? ctx.heli && (ctx.heli.root || ctx.heli.group || ctx.heli.model) : ctx.car && (ctx.car.root || ctx.car.group || (ctx.car.D && ctx.car.D.root));
+      const veh = player.mode === 'heli' ? ctx.heli && (ctx.heli.root || ctx.heli.group || ctx.heli.model) : ctx.car && (ctx.car.root || ctx.car.group || (ctx.car.C && ctx.car.C.group) || (ctx.car.D && ctx.car.D.root));
       const rig = rigOf(player.rig.root, 'you');
       if (veh && rig) {
         pose(player.rig.root, rig); veh.updateWorldMatrix(true, true);
-        const ray = new T.Raycaster(); ray.firstHitOnly = false;
+        const ray = new T.Raycaster(); ray.firstHitOnly = false; ray.camera = ctx.camera; // (a lamp's sprite in the ray's way asks for a camera: without one the measure threw at its first ray, and no seat was ever read, issue 157)
         const skip = o => { for (let q = o; q; q = q.parent) if (q === player.rig.root) return true; return false; };
-        const cast = (from, dir, far) => { ray.set(from, dir); ray.far = far; ray.near = 0; const h = ray.intersectObject(veh, true).filter(x => !skip(x.object) && x.object.visible); return h.length ? h[0].distance : null; };
+        // (a surface is met from either side: one-sided, a limb's middle already inside a cushion saw nothing on its way out. Each material's side is put back before anything is drawn)
+        const mats = []; veh.traverse(o => { if (o.isMesh && !skip(o)) for (const mt of [].concat(o.material || [])) if (mt && mt.side !== T.DoubleSide && !mats.some(q => q[0] === mt)) mats.push([mt, mt.side]); });
+        const cast = (from, dir, far) => { ray.set(from, dir); ray.far = far; ray.near = 0; let h = []; for (const q of mats) q[0].side = T.DoubleSide; try { h = ray.intersectObject(veh, true).filter(x => !skip(x.object) && x.object.visible && x.object.isMesh && !x.object.isSprite); } finally { for (const q of mats) q[0].side = q[1]; } return h.length ? h[0].distance : null; };
         const part = n => rig.parts.find(x => x.bone.name.endsWith(n));
         const world = (pt, l) => l.clone().applyMatrix4(pt.bone.matrixWorld);
         const pel = part('Pelvis'), head = part('Head');
@@ -322,9 +335,13 @@ function pageSide(NEAR, HOLD) {
           else if (d != null && d > 0.25 + 0.12) note('seat', 'you', `${name}: ${s.name} over the floor`, d - 0.25, ctx, player.x, player.y, player.z);
         }
         for (const pa of rig.parts) if (/(Hand|Forearm|Calf|Thigh)$/.test(pa.bone.name)) {
-          // (a limb through the shell: from the pelvis out to each of its points, the first thing of the vehicle met on the way)
-          const c = pel ? world(pel, pel.c) : null; if (!c) break;
-          for (const pt of pa.pts) { const w = world(pa, pt), dir = w.clone().sub(c), L = dir.length(); if (L < 0.05) continue; const d = cast(c, dir.normalize(), L); if (d != null && L - d > 0.05 && d > 0.25) { note('seat', 'you', `${name}: ${pa.name} through a part of it`, L - d, ctx, player.x, player.y, player.z); break; } }
+          // (a limb in a part of the vehicle: from the limb's own middle out to each of its points, anything of the vehicle
+          // met on the way lies inside the limb. Until issue 157 the ray was from the pelvis, and a thigh on its own
+          // cushion or a shin behind a seat's front edge read 15 to 43 cm "through a part": the cushion's edge stands
+          // between any seated hip and its shin)
+          const c = world(pa, pa.c); let deep = 0;
+          for (const pt of pa.pts) { const w = world(pa, pt), dir = w.clone().sub(c), len = dir.length(); if (len < 0.02) continue; const d = cast(c, dir.normalize(), len); if (d != null && len - d > deep) deep = len - d; }
+          if (deep > 0.04) note('seat', 'you', `${name}: ${pa.name} in a part of it`, deep, ctx, player.x, player.y, player.z);
         }
       }
     }
@@ -356,9 +373,21 @@ const H = require('./hold_depth');
 // read 11 cm for a hundred frames on main as it was, a reading of his sit pose not yet looked at in a still, issue 157)
 // (and the guide's body in a wall for more than WALL_N frames: he stood in the roof's glass for 492 frames of frame 4)
 const STAND = 0.07, STAND_N = 60, WALL_N = 30;
+// (issue 157 again, on 8ff6099: the guide's paws read 4 to 11 cm under the floor through every beat of frames 1 and 2,
+// 67 frames at frame 2's shutter, the floors there flat to 2 cm. The model's own sit is 1.4 cm low at most
+// (blender/build_dog.py's Akita); it was his hind feet as the crossfade between a clip and the sit folded them, up to 5 cm
+// in the model by itself, and held halfway by a Stop; and his hind feet over the sky lobby's planks, 11 cm over the ground
+// under his middle, as he sat at the lift in frame 4. Now he is lifted by any paw his skin puts under its floor (companion.js
+// onSoles); paws past PAW for more than PAW_N frames fail.
+// (The player's hand in someone run at still prints, and does not fail: at 0.57 m from an NPC's middle, a post of 0.22,
+// the leading hand reads 4 to 7 cm in Aoi's or Shun's back for a frame or two as you are stopped against them, by the
+// parts' ellipsoids; open in issue 157. Kept further off them, the player was held up passing one in frame 1's walk to
+// Sumiko; with wider posts, the crowd's and the guide's ways round them changed.)
+const PAW = 0.05, PAW_N = 30;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
-  || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1);
+  || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1)
+  || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW);
 
 async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }

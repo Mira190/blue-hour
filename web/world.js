@@ -2943,7 +2943,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     compiling++;
     return (async () => {
       const props = renderer.properties, mats = new Set(), t0 = performance.now(), flying = new Set();
-      const inFlight = () => { for (const p of flying) if (p.isReady()) flying.delete(p); return flying.size; };
+      // (a program three.js has destroyed, its material disposed while it linked, is no longer GL's to be asked about: asking
+      // read GL_INVALID_VALUE, 'Program object expected', the story's storyp check on main. One that failed to link is alive, p.program
+      // set, and three.js's first use of it reports it as ever)
+      const gone = p => !p || !p.program;
+      const inFlight = () => { for (const p of flying) if (gone(p) || p.isReady()) flying.delete(p); return flying.size; };
       let slices = 0, longest = 0;
       const n = objs.length + casters.length;
       for (let i = 0; i < n;) {
@@ -2958,7 +2962,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
           // in the call that sends it until the GPU has caught up, a stall of seconds on a software renderer or a
           // device that compiles one at a time, issue 299; the slice ends and the next one waits for them instead)
           while (i < n && performance.now() - s0 < (behind ? sliceMs(true) / 2 + (leanNow() ? 6 : 0) : SLICE_MS) && inFlight() < flight) {
-            const add = m => { mats.add(m); const p = props.get(m).currentProgram; if (p && p.isReady && !p.isReady()) flying.add(p); };
+            const add = m => { mats.add(m); const p = props.get(m).currentProgram; if (!gone(p) && p.isReady && !p.isReady()) flying.add(p); };
             if (i < objs.length) for (const m of renderer.compile(objs[i++], camera, scene)) add(m);
             else { const j = i - objs.length, k = Math.min(casters.length, j + 24); for (const m of compileDepth(renderer, casters.slice(j, k), camera, scene)) add(m); i += k - j; }
           }
@@ -2971,7 +2975,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       const all = new Set(mats);
       await new Promise(done => {
         const check = () => {
-          for (const m of mats) { const p = props.get(m).currentProgram; if (!p || !p.isReady || p.isReady()) mats.delete(m); }
+          for (const m of mats) { const p = props.get(m).currentProgram; if (gone(p) || !p.isReady || p.isReady()) mats.delete(m); }
           if (mats.size) setTimeout(check, 10); else done();
         };
         check();
@@ -3066,7 +3070,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   function firstUse(renderer, mats) {
     for (const m of mats) {
       const mp = renderer.properties.get(m), ps = mp.programs ? [...mp.programs.values()] : [mp.currentProgram];
-      for (const p of ps) try { if (p && p.getUniforms && (!p.isReady || p.isReady())) { p.getUniforms(); p.getAttributes(); } } catch (e) { /* read on its first draw instead */ }
+      for (const p of ps) try { if (p && p.program && p.getUniforms && (!p.isReady || p.isReady())) { p.getUniforms(); p.getAttributes(); } } catch (e) { /* read on its first draw instead */ } // (not one three.js has destroyed: compile, above)
     }
   }
 

@@ -950,7 +950,13 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False, dry=Fal
     for h in game.get("hero", []):
         if h.get("at") and h.get("r") and not h.get("graded"):
             hero |= np.hypot(x0 + gx * t["cell"] - h["at"][0], y1 - gy * t["cell"] - h["at"][1]) < h["r"] + 2 * t["cell"]
-    via = viaduct(G, game) & ~hero
+    # (... and inside a level that says so, hero[].viaduct: the Scramble's, whose bed north of the girder bridge stood
+    # on the survey's earth as a paved mound until the level was built again on the ground without it, issue 158)
+    opened = np.zeros(T.shape, bool)
+    for h in game.get("hero", []):
+        if h.get("at") and h.get("r") and h.get("viaduct"):
+            opened |= np.hypot(x0 + gx * t["cell"] - h["at"][0], y1 - gy * t["cell"] - h["at"][1]) < h["r"] + 2 * t["cell"]
+    via = viaduct(G, game) & (~hero | opened)
     keep, laid = keep & ~via, laid & ~via
     centre = game["start"]["at"]
     rep = {"city": cid, "graded": t.get("levelled", 0), "radius_m": radius, "now": report(Tc, G, game, centre, radius, keep, Gc),
@@ -972,7 +978,7 @@ def run(cid, measure=False, force=False, radius=300.0, only_holes=False, dry=Fal
     # the ground between the streets, stretched from them (lots())
     # (every hero level's ground stays as it is now, whether or not the level draws it: each was built and looked at
     # on this ground, and the membrane is fixed along it)
-    held = hero.copy()
+    held = hero & ~via
     # (and the ground a landmark stands on: protected() keeps what lies under its flat faces for the streets, but a
     # hoarding, a crane's mast or a wall has only its feet on the ground, and with a lump of the survey taken from
     # under them the story's frame 5 hoarding hung 3 m in the air)

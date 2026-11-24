@@ -373,7 +373,9 @@ window.OEWalkTalk = (function () {
       if (!ev || ev.phase === 'gone') return;
       ev.phase = 'gone'; ev.t = 0;
       const ns = ev.e.people.map(id => ctx.npc(id)).filter(Boolean);
-      const to = ns[0] && ctx.clear ? away([ns[0].x, ns[0].y], 26, 12, false) || away([ns[0].x, ns[0].y], 14, 12, false) : null;
+      // (every ten degrees round, and a shorter way where the corner is tight: on MAGNET's corner, its footways as surveyed
+      // and narrower than the bands they were drawn as, twelve tries found no way and he stood where he was, issue 196)
+      const to = ns[0] && ctx.clear ? away([ns[0].x, ns[0].y], 26, 36, false) || away([ns[0].x, ns[0].y], 14, 36, false) || away([ns[0].x, ns[0].y], 9, 36, false) : null;
       if (to) ns.forEach(n => walk(n, [to[0] + (n.x - ns[0].x), to[1] + (n.y - ns[0].y)], 1.3, null));
     }
     function street(dt, hide) {

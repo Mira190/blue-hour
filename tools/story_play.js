@@ -47,7 +47,7 @@
 // another or a foot off its floor fails the play (CLIP_OUT=file: the cases as JSON). After each talk, and in each Stop, the
 // player is walked straight into everyone within 14 m (a still of each, into-*.png) and must stop at their shoulder.
 const { chromium } = require('playwright');
-const { logger: browserLog, watch: watchPage } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
@@ -69,7 +69,41 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
   fs.mkdirSync(out, { recursive: true });
+  // FPS=1: the page's frames a second beat by beat (issues 8 and 206), counted in the page from its animation frames
+  // and named as the telemetry names a beat ("frame 3: stop seek"): for each, the frames, the median and the 95th
+  // percentile of the gap between them, and the seconds spent there. Read every half minute and printed when the
+  // play ends, however it ends. The harness's own stills fall inside the beats they are taken in.
+  // GOV=free: the governor runs as a player's does inside the tier (under automation it stands still, quality.js).
+  // In another engine than Chromium a phone's page is told it has a touch screen (tools/engine.js phone).
+  if (process.env.FPS) {
+    await p.addInitScript(() => {
+      const F = window.__fps = {}; let last = 0;
+      const raf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = fn => raf(t => {
+        if (t !== last) {
+          const g = window.__game, S = g && g.story && g.story.state, T = document.getElementById('g-title');
+          const spot = !g ? 'load' : T && !T.hidden ? 'title' : !S ? 'street' : S.phase === 'done' ? 'the last card' : `frame ${S.fi + 1}: ${S.phase}${S.beat ? ` ${S.beat}` : ''}`;
+          if (last && t - last < 5000) { const b = F[spot] || (F[spot] = { n: 0, ms: 0, bins: new Array(251).fill(0), first: Math.round(t) }); b.n++; b.ms += t - last; b.bins[Math.min(250, Math.floor((t - last) / 4))]++; }
+          last = t;
+        }
+        fn(t);
+      });
+    });
+    let seen = null;
+    const read = () => p.evaluate(() => window.__fps).then(f => { if (f) seen = f; }, () => {});
+    const every = setInterval(read, 30000); every.unref();
+    const at = (b, q) => { let c = 0; for (let i = 0; i < b.bins.length; i++) { c += b.bins[i]; if (c >= b.n * q) return i * 4 + 2; } return 1000; };
+    process.on('exit', () => {
+      if (!seen) return;
+      console.log('fps by beat (frames a second by the median gap | median gap, 95th, ms | frames | seconds):');
+      for (const [k, b] of Object.entries(seen).sort((x, y) => x[1].first - y[1].first)) if (b.n >= 5) console.log(`fps: ${k} | ${(1000 / at(b, 0.5)).toFixed(0)} | ${at(b, 0.5)}, ${at(b, 0.95)} | ${b.n} | ${(b.ms / 1000).toFixed(1)}`);
+    });
+    p.fpsRead = read;
+  }
+  if (process.env.GOV === 'free') await p.addInitScript(() => { const id = setInterval(() => { const g = window.__game && window.__game.governor; if (g) { g.auto = true; clearInterval(id); } }, 200); });
+  if (process.env.PHONE && process.env.ENGINE && process.env.ENGINE !== 'chromium') await require('./engine').phone(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
@@ -204,6 +238,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       };
     }, { once: true });
   }, [DRAW, process.env.TASKS !== '0', !!process.env.GLCOUNT]);
+  if (process.env.STOPCOST) await require('./stop_cost').install(p); // (STOPCOST=1: each beat's frames, the guide's planning and the programs linked in it, issue 206: tools/stop_cost.js)
   // BUDGET=file: what each still's frame asks of the GPU and what WebGL holds at it, a line of JSON a still (tools/beat_count.js,
   // tools/gl_mem.js), for tools/beat_budget.py: the story's beats against their budgets (docs/PERFORMANCE.md, "A budget for every beat")
   const BUDGET = process.env.BUDGET || '';
@@ -382,7 +417,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       console.log(`  ${name}: the glass's cube of ${q.id} (${q.res} a side, taken ${q.taken}): ${(q.lit * 100).toFixed(0)}% lit, ${(q.over * 100).toFixed(2)}% at 128 or more, ${(q.bad * 100).toFixed(2)}% no number${ok ? '' : ' (WRONG)'}`);
       if (!ok) { errors.push(`${name}: the cube ${q.id}'s glass mirrors is wrong`); console.log(`error: ${name}: the cube the glass of ${q.id} mirrors is ${q.lit <= 0.5 ? 'not drawn' : 'not light a place gives'} (issue 203)`); }
     }
-    const shot = async () => { await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await drawAll(true); await hold(true); let b = null; try { b = await p.screenshot({ timeout: 120000 }); } catch (e) { /* no picture: nothing compared */ } await hold(false); await drawAll(false); return b; };
+    // (the picture alone, the interface hidden: a line of words fading in between the two shots, on its dark ground, was
+    // counted as the pane's footprint and read as the glass blacking out what is behind it, issue 13)
+    const shot = async () => { await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await drawAll(true); await hold(true); let b = null; const bare = await p.addStyleTag({ content: '#game-stage > :not(#game-gl) { visibility: hidden !important; }' }).catch(() => null); try { b = await p.screenshot({ timeout: 120000 }); } catch (e) { /* no picture: nothing compared */ } if (bare) await bare.evaluate(e => e.remove()).catch(() => {}); await hold(false); await drawAll(false); return b; };
     const panes = await p.evaluate(`(${hero})().glass(true)`).catch(() => 0);
     if (!panes) return;
     const withIt = await shot();
@@ -627,7 +664,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       await p.evaluate(() => window.__game.storyLog.show(false)); await p.waitForTimeout(600); await snap('goal-largest'); big = 1;
       logWas = r.lines;
       if (process.env.LOGRELOAD) { // the page opened again in the middle of the case: the log is as it was
-        await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
+        expectReload(p, 'LOGRELOAD: the page opened again in the middle of the case'); await p.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
         await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
         await p.waitForTimeout(1500); await listen(); await begin();
         await p.waitForFunction(() => !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 900000, polling: 500 });
@@ -777,7 +814,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           await frames(2);
           let last = null;
           for (const [n, k] of [0.06, 0.2, 0.34, 0.47, 0.6, 0.7, 0.78, 0.84, 0.93].entries()) {
-            await p.evaluate(k => window.__game.cine.seek(k), k);
+            // (a seek is taken only once the shot has begun, web/cine.js: asked again until it has come to k. Under load the
+            // shot had not begun at the first four, and the line from the street's sample to the one at 191 m ran through
+            // Scramble Square, a way the camera never went: main's storyp on 2f1b4cb, issue 181)
+            await p.waitForFunction(k => { const c = window.__game.cine; if (!c.active) return true; c.seek(k); return Math.abs(c.k - k) < 0.05; }, k, { timeout: 60000, polling: 250 }).catch(() => {});
             await frames(2); await snap(`${s.fi + 1}-lift-ride${n ? `-${n}` : ''}`);
             const c = await p.evaluate(last => { const g = window.__game, c = g.camera.position, T3 = window.THREE; return { k: +g.cine.k.toFixed(2), at: [c.x, -c.z, c.y].map(v => +v.toFixed(1)), z: +g.player.z.toFixed(1), clear: last ? +g.nav.clearFraction(new T3.Vector3(last[0], last[2], -last[1]), c).toFixed(2) : 1 }; }, last);
             console.log(`frame ${s.fi + 1} lift ride:`, JSON.stringify(c));
@@ -1295,7 +1335,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     }
     if (+process.env.BACKTO > 1) { // into a frame again from the last card: the roll as it was on arriving there, played to its print
       const n = +process.env.BACKTO;
-      await clickEl(`#g-story-end [data-back="${n - 1}"]`);
+      expectReload(p, `the last card's back into frame ${n}`); await clickEl(`#g-story-end [data-back="${n - 1}"]`);
       await p.waitForFunction(() => !window.__game || !window.__game.story || window.__game.story.state.phase === 'idle', null, { timeout: 120000, polling: 200 }).catch(() => {});
       await p.waitForFunction(() => window.__game && window.__game.story && !['idle', 'dressed'].includes(window.__game.story.state.phase), null, { timeout: 900000, polling: 500 });
       const a = await p.evaluate(() => { const st = window.__game.story.state; return { fi: st.fi, prints: st.prints.length, flags: Object.keys(st.flags).length, file: st.file.length }; });
@@ -1325,15 +1365,17 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (hard.length) errors.push(`clip: ${hard.length} cases of a body in another or a foot off its floor (${[...new Set(hard.map(c => `${c.a} / ${c.b}`))].slice(0, 8).join('; ')})`);
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
+    if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }
     const { hard } = pacing.print(await pacing.report(p));
     if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
   }
-  for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
+  for (const e of errors) console.log('error:', lost.tag() + String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`stills: ${ST.n}, ${(ST.whole / 1000).toFixed(0)} s drawing their frames whole, ${(ST.shot / 1000).toFixed(0)} s taking them`);
   console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}${DRAW > 1 ? `; ${await p.evaluate(() => (D => `${D.drawn} of ${D.steps} frames drawn (${D.own} between the stills; ${D.frames} asked for), ${(D.js / Math.max(1, D.steps)).toFixed(1)} ms of script in each, ${D.skipped} renders skipped; ${['off', 'on', 'still'].map(k => (x => `${{ off: 'not drawn', on: 'drawn', still: 'across a still' }[k]} ${x.n}: ${(x.wall / Math.max(1, x.n)).toFixed(0)} ms of the wall each, ${(x.js / Math.max(1, x.n)).toFixed(0)} of script, ${(x.wall / 1000).toFixed(0)} s in all, the game's clock ${(x.game / Math.max(1e-3, x.wall / 1000)).toFixed(2)} of the wall's`)(D.split[k])).join('; ')}`)(window.__draw))}` : ''}`);
   if (process.env.GLCOUNT) console.log('WebGL calls in frames not drawn:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glIn).sort((a, b) => b[1] - a[1]).slice(0, 30))), '\nand outside the frames:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glOut).sort((a, b) => b[1] - a[1]).slice(0, 40))));
   // PRINTS=dir: the photographs taken, as files (the loading screen's frames are made from them)
   if (process.env.PRINTS) { fs.mkdirSync(process.env.PRINTS, { recursive: true }); const pr = await p.evaluate(() => window.__game.story.state.prints.map(q => q.src)); pr.forEach((src, i) => { if (src) fs.writeFileSync(`${process.env.PRINTS}/frame-${i + 1}.jpg`, Buffer.from(src.split(',')[1], 'base64')); }); }
+  if (p.fpsRead) await p.fpsRead();
   await b.close();
   process.exit(done && !errors.length ? 0 : 1);
 })();
