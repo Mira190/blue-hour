@@ -4661,6 +4661,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
+    // (come back from a menu's Title screen, menus.js: the press was made already, so the title opens on its menu)
+    { let back = false; try { back = sessionStorage.getItem('bh-title-auto') === '1'; sessionStorage.removeItem('bh-title-auto'); } catch (e) { /* storage blocked */ }
+      if (back) titleScreen('menu'); }
     $('#g-title').hidden = false;
     // a load after a lost context the page could not redraw: the player taken up where they were (noteResume), no card
     { const R = takeResume();

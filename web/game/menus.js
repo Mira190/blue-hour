@@ -16,8 +16,26 @@ window.OEGameMenus = function (g) {
     if (w) g.$$('#gm-words button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.solid != null ? w.solid : +b.dataset.size === w.size)));
     if (again) { again.classList.remove('sure'); again.textContent = 'Start the case again'; again.parentNode.hidden = !at; }
     if (note) note.hidden = true;
+    // (the title screen: the case is kept as each frame begins, so a frame left part-way is taken up from its beginning;
+    // a first frame is not kept at all, and the case begins again at its first card)
+    const tn = g.$('#gm-title-note');
+    if (tn) { tn.textContent = !at ? '' : at.fi > 0 ? `Continue, on the title, takes up frame ${at.fi + 1} from its beginning.` : 'The case is kept from its second frame: from here it begins again at its first card.'; tn.hidden = !tn.textContent; }
   }
   g.on(g.$('#gm-resume'), 'click', () => { g.$('#g-menu').hidden = true; });
+  // back to the title, from the case or the walk: the page opened again on the title's menu, past its press (game.js reads
+  // bh-title-auto). Not in place: a case's people, its guide and its timers, and the walk's people, car and helicopter,
+  // have no way off the street, and the ways between the two were page loads already (#gm-story, the case begun again).
+  // What is kept is kept as the case goes (story.js keep), the walk's stories as they are told (walktalk.js)
+  g.on(g.$('#gm-title'), 'click', e => {
+    const b = e.currentTarget;
+    if (b.disabled) return;
+    b.disabled = true;
+    try { sessionStorage.setItem('bh-title-auto', '1'); } catch (err) { /* storage blocked: the title opens on its press */ }
+    const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); u.hash = '';
+    document.documentElement.classList.add('bh-leave'); // (the street dims at once: story.css, "Title screen")
+    const go = () => { if (u.toString() === location.href.replace(/#$/, '')) location.reload(); else location.href = u.toString(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) go(); else setTimeout(go, 240);
+  });
   g.on(g.$('#gm-words'), 'click', e => {
     const b = e.target.closest('button'); if (!b || !g.storyLog) return;
     g.storyLog.setWords(b.dataset.solid != null ? { solid: !g.storyLog.words().solid } : { size: +b.dataset.size });
