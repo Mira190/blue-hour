@@ -3387,13 +3387,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // that way (and the cars already crossing to it)?
     // (on an exit with two lanes, behind the cars in the lane it will be in)
     // the arm with signals whose queue car c stands in, by the cars ahead of it (each queued behind the next), or null
+    // (a car held at a line without signals for the signalled junction just after, crossed with it, is in that one's queue
+    // whatever holds it: its light, or with the light green a movement across its way. Counted only while its light was
+    // red, the car at 807's line for the Scramble's arm 1 gave way to the oncoming arm on its green, the Scramble read the
+    // arm as empty and cut the turn at its minimum, and the queue behind it stood a whole cycle more, 149 s, issue 204)
+    const twinOf = x => x.lineArm && !x.lineArm.j.sig && x.why !== 'room' && x.lineEx && x.ex2 && x.ex2.a && x.ex2.a.j.sig && x.ex2.a.line === x.lineEx.m.line ? x.ex2.a : null;
     function queuedFor(c) {
       let x = c.front;
       if (c.why === 'room' && c.lineArm && !c.lineArm.j.sig) x = c;
+      else if (c.why !== 'light' && twinOf(c)) x = c; // (its own wait: one held by the light there is counted where it is held, below)
       for (let n = 0; n < 8 && x && x.q; n++) {
         const a = x.lineArm;
         if (a && a.j.sig) return a;
-        if (a && x.why === 'light' && x.ex2 && x.ex2.a && x.ex2.a.j.sig) return x.ex2.a; // (held at this line by the light of the junction just after)
+        { const b = twinOf(x); if (b) return b; } // (held at this line by the junction just after)
         if (a && x.why === 'room' && x.lineEx) { const b = JN.armBy(x.lineEx.m.line, 1 - x.lineEx.m.end); return b && b.in && b.j.sig ? b : null; }
         x = x.front;
       }
