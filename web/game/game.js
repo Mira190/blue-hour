@@ -3396,7 +3396,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // air. A sound with a source: the street at a red signal is its traffic (docs/SOUND.md "No bed without a source")
   const tSlot = [null, null, null], tPick = [], tL = [];
   function trafficSound() {
-    if (!A.traffic) return;
+    if (!A.traffic || !A.on) return; // (nothing to hear before the sound is made: a phone's opening has no context)
     const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y, e = camera.matrixWorld.elements, rl = Math.hypot(e[0], e[2]) || 1, rx = e[0] / rl, ry = -e[2] / rl;
     tPick.length = 0;
     for (const c of cars.live) {
