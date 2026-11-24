@@ -1268,13 +1268,14 @@
                 401.5,
                 -1029.0
               ],
-              "speed": 1.75
+              "speed": 4.5
             },
             "face": [
               354.5,
               -968.6
             ],
             "after_s": 3,
+            "calm_s": 25,
             "near": 16,
             "down_s": 24,
             "help": "Help her up",
