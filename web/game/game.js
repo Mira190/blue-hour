@@ -5035,7 +5035,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) groundLod(player.mode === 'heli' ? heli.st.x : player.x, player.mode === 'heli' ? heli.st.y : player.y);
     if (titleOn && titleYaw != null && !simHold) { titleT += dt; titleYaw = openingHere() ? openingView().yaw + OPENING.sway * Math.sin(titleT * 0.06) : DISTRICT ? titleYaw0 + 0.3 * Math.sin(titleT * 0.05) : titleYaw + dt * 0.05; }
     if (simHold) { /* (held by a harness: the camera too, which the traffic reads, what is in view; advance() moves it) */ } else if (photo.on) photoCamera(dt); else if (closeup && !titleOn) closeupCamera(dt); else updateCamera(dt, titleOn);
-    if (!titleOn) lensGuard(); // (whichever camera it was, its window in nobody: issue 209)
+    if (!titleOn) lensGuard(); // (whichever camera it was, its window in nobody: issue 226)
     if (photo.on && crowdDraw && crowdDraw.still) crowdDraw.still(); // (a photograph's crowd: everyone near enough to be seen drawn whole, the world held: issue 174)
     placeNightFill();
     marks.frame(); // (the camera as it stands for this frame, and who is drawn near it: what every mark over the picture asks, marks.js)
@@ -6098,7 +6098,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (q.lensOut) { crowdDraw.hide(i, true); lensNear.gone++; }
     }
   }
-  // The lens's window (issue 209). A camera takes its picture through a window, not from a point: the near plane's
+  // The lens's window (issue 226). A camera takes its picture through a window, not from a point: the near plane's
   // rectangle, camera.near in front of the lens and as wide as the lens's angle makes it, and whatever that window is
   // inside is drawn from within. The owner's still of frame 3 had the chase view over the head looking down, the window
   // through the hair and the skull, the eyes and the lashes seen from behind. So, every frame and from every camera (the
@@ -6192,7 +6192,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const n of NEARS) if (n <= base + 1e-6 && guardDepth(m, n) <= 0) return n;
     return 0;
   }
-  // The last resort, faded (issue 209, the owner's ask): where no window clears someone the lens cannot leave (you, the
+  // The last resort, faded (issue 226, the owner's ask): where no window clears someone the lens cannot leave (you, the
   // story's people, the map's people, the guide), they go out of the picture over FADE_S, uniformly, and come back the same
   // way, begun FADE_NEAR short of the smallest window touching them. Not issue 129's fade: that was a dither held for as long
   // as someone stood near, read as a screen of dots, with the street and a clear umbrella seen through a body. This is never
@@ -6301,7 +6301,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const CEIL_GAP = 0.3; // how far under a drawn ceiling the lens keeps (its near plane and a lamp's depth: heroSoffit)
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
   // (the steepest a view on foot may look down from an arm that long: a lift over a wall behind that is then pulled in
-  // short stands the lens over your head looking down at your hair, the owner's still of issue 209 and issue 99's; from
+  // short stands the lens over your head looking down at your hair, the owner's still of issue 226 and issue 99's; from
   // 2.5 m out any pitch, from 0.8 m in 0.5 rad, about the lowest lift's view over a shoulder. Issue 209)
   const pitchRoom = arm => 0.5 + 0.85 * Math.min(1, Math.max(0, (arm - 0.8) / 1.7));
   const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
