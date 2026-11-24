@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write
   pages: write
+  actions: write   # (to read this run's artifacts, and to remove an earlier attempt's: below)
   id-token: write
 
 jobs:
@@ -34,7 +35,7 @@ jobs:
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,11 +54,41 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # (a re-run's earlier attempt left its artifact on the run, and deploy-pages refused two of the name: "Multiple
+      # artifacts named github-pages", 24 November. The one this attempt uploads is the only one)
+      - name: Remove an earlier attempt's artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=github-pages" --jq '.artifacts[].id' 2>/dev/null); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" && echo "removed artifact $id of an earlier attempt"
+          done
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
 
+      # (GitHub's list of a run's artifacts lags their upload: deploy-pages asked 0.4 s after the 108 MB was finalized,
+      # found none, and failed, three times for 8bd427d3 on 24 November. Waited for until it lists it, 90 s at most)
+      - name: Wait until the run lists its artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 0 30); do
+            n=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=github-pages" --jq '.total_count' 2>/dev/null || echo 0)
+            if [ "${n:-0}" -ge 1 ]; then echo "listed after $((i * 3)) s"; exit 0; fi
+            sleep 3
+          done
+          echo "::warning::the run does not list its github-pages artifact after 90 s; deploying all the same"
+
+      # (and tried once more, half a minute on, where GitHub's side refused it)
       - id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - id: deployment2
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
       # (and Vercel whether or not Pages took the deploy: a refusal on GitHub's side, "try again later", kept `live` back

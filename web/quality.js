@@ -48,6 +48,10 @@ window.OEQuality = (function () {
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     c.renderer = String((dbg && gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || '');
     if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(c.renderer)) c.software = true;
+    // a laptop's GPU on the processor's die (Intel's UHD, HD and Iris; AMD's APUs, "Radeon(TM) Graphics" and Vega with
+    // no model number; not Intel's Arc, which is a card of its own): the device floor's desktop (issue 220), which
+    // reports 8 GB and four cores and so was given high
+    c.integrated = !c.software && ((/intel|iris|\buhd\b|hd graphics/i.test(c.renderer) && !/\barc\b/i.test(c.renderer)) || /radeon\(tm\) graphics|radeon graphics|vega \d+ graphics/i.test(c.renderer));
     // whether the GPU compiles shaders in parallel (KHR_parallel_shader_compile): the loader's warm-up can then overlap
     // its own animation (world.js compile; issue 27 asks whether iOS Safari has it: telemetry.js reports it)
     try { c.parallel = (gl.getSupportedExtensions() || []).indexOf('KHR_parallel_shader_compile') >= 0; } catch (e) { c.parallel = false; }
@@ -89,7 +93,7 @@ window.OEQuality = (function () {
     if (!c.gl2 || c.maxTex < 2048) return 'still';
     const phone = c.touch && Math.min(innerWidth, innerHeight) < 600;
     if (c.software || phone || (c.memory && c.memory <= 4)) return 'low';
-    if (c.touch || c.safari || !c.hdrMsaa || c.maxTex < 8192 || (c.memory && c.memory < 8) || (c.cores && c.cores < 4)) return 'medium';
+    if (c.touch || c.safari || c.integrated || !c.hdrMsaa || c.maxTex < 8192 || (c.memory && c.memory < 8) || (c.cores && c.cores < 4)) return 'medium';
     return 'high';
   }
   // A desktop that turns out slower than its tier (issue 184): the governor (below) asks for a tier down when it has
