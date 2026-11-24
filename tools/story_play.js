@@ -1127,7 +1127,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         const drift = ang(first.d, last.d), q = last.q, inFrame = q[2] < 1 && Math.abs(q[0]) < 0.7 && Math.abs(q[1]) < 0.7;
         await snap(`${s.fi + 1}-raised`);
         console.log(`frame ${s.fi + 1} raised from 63 degrees off: the thing at ${q[0].toFixed(2)}, ${q[1].toFixed(2)} in the picture, the lens drifting ${drift.toFixed(2)} degrees and turning ${jit.toFixed(2)} at most a frame with no hand on it (${settle.length} frames)`);
-        if (!inFrame) { errors.push(`frame ${s.fi + 1}: raised from 63 degrees off, the camera does not come up on the thing (at ${q[0].toFixed(2)}, ${q[1].toFixed(2)})`); console.log(errors[errors.length - 1]); }
+        // (and what the game had when it did not: the lens comes up onto story.subject only where there is one and it lies
+        // within 100 degrees of the view, game.js fpOn; twice in seven of main's whole budget plays it never turned, at -5.37)
+        const why = inFrame ? '' : await p.evaluate(at => { const g = window.__game, st = g.story, pl = g.player, sj = st.subject, b = Math.atan2(at[0] - pl.x, at[1] - pl.y), d = Math.atan2(Math.sin(g.cam.yaw - b), Math.cos(g.cam.yaw - b));
+          return JSON.stringify({ subject: sj ? sj.map(v => +(+v).toFixed(1)) : sj, cam: !!st.state.cam, phase: st.state.phase, beat: st.state.beat, at: [+pl.x.toFixed(1), +pl.y.toFixed(1)], off: +(d * 180 / Math.PI).toFixed(0), mode: g.cam.mode, photo: !!(g.photo && g.photo.on), cine: !!(g.cine && g.cine.active) }); }, T.subject).catch(e => String(e).slice(0, 80));
+        if (!inFrame) { errors.push(`frame ${s.fi + 1}: raised from 63 degrees off, the camera does not come up on the thing (at ${q[0].toFixed(2)}, ${q[1].toFixed(2)}; ${why})`); console.log(errors[errors.length - 1]); }
         if (drift > 0.3 || jit > 0.15) { errors.push(`frame ${s.fi + 1}: the raised camera moves by itself (${drift.toFixed(2)} degrees, ${jit.toFixed(2)} a frame)`); console.log(errors[errors.length - 1]); }
         await raise(false); await frames(6);
       }

@@ -23,6 +23,9 @@ const [,, out = '/tmp/guide-way', size = '1440x900'] = process.argv;
 const FLOAT_M = 0.06, SINK_M = 0.08, WIDE_M = 3.2, EDGE_M = 0.8, RUN_M = 1.5, DOG_RUN_M = 2.5, MOUTH_M = 2.5;
 // each frame's lead: from where the player stands when it is given to whom or where the story sends them
 // (f4 is the frame as the story gives it: from where the page leaves you at its start; the others from the data)
+// LEADS=a,b: only the legs whose names begin so; LEADS_NOT=a,b: none of those (tools/check.sh plays the guide in parts,
+// a runner each, the last part every leg the others do not name, so that a leg added is never left out)
+const picked = n => (!process.env.LEADS || process.env.LEADS.split(',').some(k => n.startsWith(k))) && !(process.env.LEADS_NOT || '').split(',').some(k => k && n.startsWith(k));
 const LEADS = [
   { name: 'f2-kerb-to-shun', from: [362.3, -988.6], to: [342.1, -978.4] },
   { name: 'f3-centergai-to-hachiko', from: [342.1, -978.4], to: [374.79, -1046.45] },
@@ -30,9 +33,7 @@ const LEADS = [
   { name: 'f7-hachiko-to-kerb', from: [377.0, -1013.2], to: [359.4, -983.0] },
   // (last: it ends at Yuna, and the story starts her talk and calls him to heel)
   { name: 'f4-hachiko-to-lift', live: 3 },
-].filter(l => process.env.GUIDE_PART !== 'own' && (!process.env.LEADS || process.env.LEADS.split(',').some(k => l.name.startsWith(k))));
-// (GUIDE_PART=own: frame 4's legs with a player on their own line alone; =ways: the ways he leads alone. A runner each,
-// tools/check.sh guide1 and guide3: the own-line legs of #207 took the whole past its cap of an hour on run 347)
+].filter(l => picked(l.name));
 (async () => {
   const [w, h] = size.split('x').map(Number);
   const args = process.env.GPU === 'metal' ? ['--ignore-gpu-blocklist', '--use-angle=metal', '--enable-gpu']
@@ -97,15 +98,16 @@ const LEADS = [
     { name: 'f4-own-overtake', speed: 6, from: [374.79, -1046.45], start: 8, until: 90, short: 6 },
     { name: 'f4-own-drop-back', speed: 2.4, from: [374.79, -1046.45], pause: [10, 18], until: 120, short: 6 },
   ]) {
-    if (process.env.GUIDE_PART === 'ways' || (process.env.LEADS && !process.env.LEADS.split(',').some(k => R.name.startsWith(k)))) continue;
+    if (!picked(R.name)) continue;
+    const t0 = Date.now();
     const r = await p.evaluate(require('./guide_own'), { R, live, STUCK_S: 2.5, STUCK_M: 0.3, TRACE: !!process.env.TRACE }).catch(e => ({ error: String(e).slice(0, 300), faults: [] }));
     const ok = !r.error && !r.faults.length && (r.state === 'sit' || r.left < 3.5) && Math.hypot(r.player[0] - live.target[0], r.player[1] - live.target[1]) < 9; // (and both got there: the player was not held anywhere on the way)
     if (!ok) fails++;
-    console.log(ok ? 'ok  ' : 'FAIL', R.name, JSON.stringify(r));
+    console.log(ok ? 'ok  ' : 'FAIL', R.name, JSON.stringify(r), `(${Math.round((Date.now() - t0) / 1000)} s of the wall)`);
     await shoot(`${out}/${R.name}-end.png`);
   }
   for (const L of LEADS) {
-    const lead = L.live ? { name: L.name, from: live.at, to: live.target, live: true } : L;
+    const lead = L.live ? { name: L.name, from: live.at, to: live.target, live: true } : L, t0 = Date.now();
     if (L.live) await p.evaluate(({ at, target }) => { const g = window.__game, st = g.story.state, pl = g.player; pl.x = at[0]; pl.y = at[1]; pl.z = at[2]; st.target = target; const d = st.dog, f = d.free(pl.x + 1.2, pl.y + 1.2, 2) || [pl.x, pl.y]; d.place(f[0], f[1], 0); d.met(); }, live);
     // (no hero level half come: a level loading is not drawn yet, and the ground under him would read as the game's own; a
     // second level, frame 5's place, comes as the way nears it)
@@ -256,7 +258,7 @@ const LEADS = [
     await run;
     const ok = !r.error && !r.nfloat && !r.edge.length && !r.wayEdge.length && !r.arrows.length && r.state === 'sit';
     if (!ok) fails++;
-    console.log(ok ? 'ok  ' : 'FAIL', (ok ? '' : lost.tag()) + lead.name, JSON.stringify(r));
+    console.log(ok ? 'ok  ' : 'FAIL', (ok ? '' : lost.tag()) + lead.name, JSON.stringify(r), `(${Math.round((Date.now() - t0) / 1000)} s of the wall)`);
     await shoot(`${out}/${lead.name}-end.png`);
   }
   console.log(`page errors: ${errors.length}`);

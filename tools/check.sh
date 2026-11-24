@@ -84,7 +84,7 @@
 #   storyl  the story down its losing branches, as the man: seen through at frames 3, 5 and 6 and told at 7, the false
 #           solution said aloud and the lecturer named, frame 5 spent, and frame 3 gone back into from the last card
 #           (PLAYER=M SLIP=3,5,6,7 CHOOSE=3:0,4:0 SPEND=5 BACKTO=3). Both on main's full tier only, a runner each
-#   walk1, walk3, walk2, guide1, guide3, guide2  the walk's desktop page in two halves and its phone's, the guide's own-line legs, his ways and his body: a runner each
+#   walk1, walk3, walk2, guide1, guide3, guide4, guide5, guide2  the walk's desktop page in two halves and its phone's, the guide's legs in four parts and his body: a runner each
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
 # Prints one line per check and the time each took, and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
@@ -114,7 +114,7 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 storyp storyl walk walk1 walk2 walk3 guide guide1 guide2 guide3 clip gl touch game"
+KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 storyp storyl walk walk1 walk2 walk3 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
 ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
@@ -153,7 +153,7 @@ eta() {
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
   case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
-    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|guide1|guide2|guide3) echo 560 ;; budget1|budget2|budget3) echo 300 ;; game) echo 2700 ;; *) echo 600 ;; esac
+    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
 static=0 want= base= looks=
@@ -262,7 +262,7 @@ else
       page
       # (ground moved: the guide led along his ways, his feet measured against what is drawn under them. A forecourt's
       # planks carried on under a deck left him 7.7 cm in the air on frame 6's way, found on main, issue 155)
-      echo "$changed" | grep -q '\[ground\]' && add guide1 guide3
+      echo "$changed" | grep -q '\[ground\]' && add guide1 guide3 guide4 guide5
     elif ! is_in story1 "$want"; then echo "the models changed keep their names, flags, attributes and ground ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
   is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2\|walk3' | paste -sd ' ' -)   # (both pages already)
@@ -276,7 +276,7 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
     # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
     # (and the story whole on a runner of its own: a case carried in one page from frame 4 to 5 and from 6 to 7, which the
     # fast tier, playing the parts, no longer plays before landing)
-    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget ;; walk) echo walk1; echo walk3; echo walk2 ;; guide) echo guide1; echo guide3; echo guide2 ;; *) echo "$k" ;; esac
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget ;; walk) echo walk1; echo walk3; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
   done
   exit 0
@@ -420,11 +420,14 @@ run_storyl() {
     printf 'ok   %-6s the losing branches played as the man: seen through %s times and told once, the accusation, a frame spent, a frame gone back into; %s\n' storyl "$(grep -c ': seen through$' "$log")" "$(grep -o 'played in [0-9]* s' "$log" | tail -1)"
   else printf 'FAIL %-6s %s   (see %s; STILLS=1 tools/check.sh storyl for its pictures)\n' storyl "$(why "$log")" "$log"; fi
 }
-run_guide() { run_guide1; run_guide3; run_guide2; }   # the guide along each frame's way, on a small page; and his body and the player's never in each other
-# (a runner each: CHECK_SPLIT=1. Frame 4 with a player on their own line, and the ways he leads: one page took the two
-# past its hour on run 347, after #207 added the own-line legs, tools/guide_way.js GUIDE_PART)
-run_guide1() { GUIDE_PART=own guide_ways guide "legs of frame 4 with a player on their own line: he never waits behind them, never holds them"; }
-run_guide3() { GUIDE_PART=ways guide_ways guide-ways "ways led: his feet on the paving drawn, down the middle, and the mark along the way"; }
+run_guide() { run_guide1; run_guide3; run_guide4; run_guide5; run_guide2; }   # the guide along each frame's way, on a small page; and his body and the player's never in each other
+# (in four parts, a runner each: CHECK_SPLIT=1. One page took them past its hour on runs 347 and 353, after #207 added
+# frame 4's legs with a player on their own line, up to two minutes of the game's clock each; each part begins from
+# frame 4's lead as the story gives it, and the last plays every leg the others do not name: tools/guide_way.js LEADS)
+run_guide1() { LEADS=f4-own-line guide_ways guide "legs of frame 4 with a player on their own line: he never waits behind them, never holds them"; }
+run_guide3() { LEADS=f4-own-overtake,f4-own-drop-back guide_ways guide-own2 "legs of frame 4 with a player who overtakes him or drops back"; }
+run_guide4() { LEADS=f2,f3,f7,f4-hachiko guide_ways guide-ways "ways led: his feet on the paving drawn, down the middle, and the mark along the way"; }
+run_guide5() { LEADS_NOT=f4-own-line,f4-own-overtake,f4-own-drop-back,f2,f3,f7,f4-hachiko guide_ways guide-rest "ways led, the longest of them (and any leg the parts before do not name)"; }
 guide_ways() {   # <log name> <what a pass says>
   if CHROME_LOG="$OUT/$1-chrome.log" timeout 3600 $X node tools/guide_way.js "$OUT/$1" 800x500 >"$OUT/$1.log" 2>&1; then echo "ok   guide  $(grep -c '^ok' "$OUT/$1.log") $2"
   else echo "FAIL guide  $(why "$OUT/$1.log")   (see $OUT/$1.log)"; fi
