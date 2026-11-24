@@ -98,8 +98,11 @@ window.OEQuality = (function () {
   // waits), so the next visit starts where this one ended; a climb that fails within two minutes doubles the wait
   // (one minute up to sixteen). A phone's tier is its level's business (level()), and a tier the visitor chose is theirs.
   const TKEY = id => `bh-tier-${id}`, UP0 = 60000, UPMAX = 960000;
+  // (v 2: a step the governor judged. One kept before it was never judged, and a Mac's Safari had stepped to low for
+  // nothing and kept it: such a record is let go, and the device steps again, judged, if it needs to)
   function stepped(id = mapId()) {
-    const d = id ? note(TKEY(id)) : null;
+    let d = id ? note(TKEY(id)) : null;
+    if (d && d.v !== 2) d = null;
     return { down: d ? Math.max(0, Math.min(2, d.down | 0)) : 0, wait: d && d.wait ? Math.max(UP0, Math.min(UPMAX, d.wait)) : UP0, upAt: (d && d.upAt) || 0, flat: (d && d.flat > 0 && +d.flat) || 0 };
   }
   // how many tiers further down this device can go from where it draws now (0 where it cannot step: a phone, a chosen tier)
@@ -116,14 +119,14 @@ window.OEQuality = (function () {
     if (dir < 0) { if (room() <= 0) return s.down; s.down++; if (s.upAt && now - s.upAt < 120000) s.wait = Math.min(UPMAX, s.wait * 2); }
     else if (s.down > 0) { s.down--; s.upAt = now; }
     if (flat > 0) s.flat = Math.round(flat * 10) / 10;
-    try { if (id) localStorage.setItem(TKEY(id), JSON.stringify({ down: s.down, wait: s.wait, upAt: s.upAt, flat: s.flat || undefined, t: now })); } catch (e) { /* storage blocked */ }
+    try { if (id) localStorage.setItem(TKEY(id), JSON.stringify({ v: 2, down: s.down, wait: s.wait, upAt: s.upAt, flat: s.flat || undefined, t: now })); } catch (e) { /* storage blocked */ }
     return s.down;
   }
   // the mark alone (the step itself was taken back through the game's own call)
   function tierFlat(ms, id = mapId()) {
     const s = stepped(id);
     if (!id || !(ms > 0)) return;
-    try { localStorage.setItem(TKEY(id), JSON.stringify({ down: s.down, wait: s.wait, upAt: s.upAt, flat: Math.round(ms * 10) / 10, t: Date.now() })); } catch (e) { /* storage blocked */ }
+    try { localStorage.setItem(TKEY(id), JSON.stringify({ v: 2, down: s.down, wait: s.wait, upAt: s.upAt, flat: Math.round(ms * 10) / 10, t: Date.now() })); } catch (e) { /* storage blocked */ }
   }
   function override() {
     try { const v = localStorage.getItem(KEY); return ORDER.includes(v) ? v : null; } catch (e) { return null; }

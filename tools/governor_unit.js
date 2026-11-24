@@ -173,8 +173,9 @@ if (has('onTier')) {
     check(T.asks.length === 0, `a device settled below its ceiling keeps its tier (${T.asks.length} steps in ten minutes, at ${g.scale.toFixed(2)}/${g.extras})`); }
 }
 // 9. the tier a desktop draws at (quality.js auto, tierStep, issue 184), on a WebGL 2 context faked as a desktop GPU's
-function desktop(ua) {
-  const store = new Map(), window = { devicePixelRatio: 2 };
+function desktop(ua) { return desktopWith(ua, new Map()); }
+function desktopWith(ua, store) {
+  const window = { devicePixelRatio: 2 };
   const gl = { MAX_TEXTURE_SIZE: 1, MAX_SAMPLES: 2, RENDERER: 3, FRAMEBUFFER: 4, FRAMEBUFFER_COMPLETE: 5, TEXTURE_2D: 6, RGBA16F: 7, RGBA: 8, HALF_FLOAT: 9, COLOR_ATTACHMENT0: 10, RENDERBUFFER: 11,
     getParameter: k => ({ 1: 16384, 2: 8, 3: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M3)' })[k], getExtension: () => null, getSupportedExtensions: () => [], getError: () => 0,
     createFramebuffer() {}, bindFramebuffer() {}, deleteFramebuffer() {}, createTexture() {}, bindTexture() {}, texImage2D() {}, framebufferTexture2D() {}, deleteTexture() {},
@@ -203,6 +204,14 @@ if (desktop('x').tierStep) {
     check(m.tier().name === 'high' && m.stepped().flat === 36 && asks === 0, `a step that bought nothing is remembered: the next visit is on its own tier and asks for none at that frame time (${m.tier().name}, flat ${m.stepped().flat} ms, ${asks} asks in five minutes)`);
     for (let i = 0; i < 60 * 18; i++) { t += 56; g.raf(t); g.tick(t); }
     check(asks === 1, `but asks again once the frame is half as long again (${asks} ask at 56 ms)`); }
+  // a step kept by the governor before steps were judged is let go: such a device starts on its own tier again
+  if (desktop('x').tierFlat) { const m = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
+    m.tierStep(-1); const judged = m.tier().name;
+    const ctxStore = m.stepped(); // (written by this version: kept)
+    check(judged === 'low' && ctxStore.down === 1, `a judged step is kept for the next visit (${judged}, ${ctxStore.down} down)`); }
+  { const store = new Map([['bh-tier-shibuya', JSON.stringify({ down: 1, wait: 60000, upAt: 0, t: Date.now() })]]);
+    const old = desktopWith('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', store);
+    if (old.tierFlat) check(old.tier().name === 'medium' && old.stepped().down === 0, `a step kept before steps were judged is let go (Safari starts on ${old.tier().name})`); }
   const safari = desktop('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15');
   check(safari.tier().name === 'medium' && safari.city().samples === 0 && safari.tier().settings.samples === 0, `a Mac's Safari starts on medium without multisampling (${safari.tier().name}, ${safari.city().samples} samples)`);
 }

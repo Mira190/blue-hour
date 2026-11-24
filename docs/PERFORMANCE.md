@@ -2710,7 +2710,8 @@ Changed (`web/quality.js` governor, `web/telemetry.js`):
   is kept with the tier (`bh-tier-<map>`'s `flat`, fourteen days, `quality.js` `tierStep`, `tierFlat`): neither this
   visit nor the next asks for it again until the frames are half as long again as that. A step that buys frames is
   kept as before. What a tier changes within a session is pixels; a frame that is slow for something else is as slow
-  on the tier below.
+  on the tier below. A step kept before steps were judged (a record without `v: 2`) is let go, so a Mac's Safari that
+  the old governor left on low starts on medium again, and steps again, judged, if it needs to.
 - **What bought nothing is given back, the extras too.** Where the floor bought less than 15% (`flat`), the
   resolution came back a step at a time while the frame stayed within 8%; now the extras come back the same way, half
   at a time, and the floor no longer sheds the ones a try showed cost nothing.
