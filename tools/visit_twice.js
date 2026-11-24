@@ -2,7 +2,7 @@
 // over the network and what from the browser's cache, and what the pictures' encoders did each time (web/tex.js): does a
 // second visit download or encode anything again? (issues 199 and 194: a local server has no network, no compression
 // and no cache headers to speak of).
-//   GPU=metal node tools/visit_twice.js https://host/path/ ['?tex=raw']      (xvfb-run -a elsewhere; TIER=, SIZE=, VISITS=n)
+//   GPU=metal node tools/visit_twice.js https://host/path/ ['?tex=raw']      (xvfb-run -a elsewhere; TIER=, SIZE=, VISITS=n, LIMIT=seconds to the title, 120)
 // One browser context, so the HTTP cache is kept between the visits; each visit is a new page. The visits send no
 // telemetry: a harness's page is navigator.webdriver, which telemetry.js leaves out, the visitor's own switch
 // (localStorage "oe3d-telemetry" = "off") is set as well, and a request to the telemetry's host fails the run.
@@ -20,6 +20,7 @@ const [,, base = `http://localhost:${process.env.PORT || 8800}/`, query = ''] = 
   for (let v = 1; v <= +(process.env.VISITS || 2); v++) {
     const p = await ctx.newPage(), errors = [], net = { n: 0, cached: 0, bytes: 0, revalidated: 0, biggest: [] }, ids = new Map();
     p.on('pageerror', e => errors.push(String(e).slice(0, 160)));
+    const failed = []; let navs = 0; p.on('requestfailed', r => failed.push(`${r.url().replace(base, '').slice(0, 60)} ${(r.failure() || {}).errorText || ''}`)); p.on('response', r => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url().replace(base, '').slice(0, 60)}`); }); p.on('framenavigated', f => { if (f === p.mainFrame()) navs++; });
     p.on('request', r => { if (/posthog|\/batch\//.test(r.url())) told++; });
     // (what crossed the network: the bytes on the wire of each response, and which were answered by the cache or by a 304)
     const cdp = await ctx.newCDPSession(p); await cdp.send('Network.enable');
@@ -28,7 +29,7 @@ const [,, base = `http://localhost:${process.env.PORT || 8800}/`, query = ''] = 
     cdp.on('Network.loadingFinished', e => { const x = ids.get(e.requestId) || {}; net.n++; if (x.cache) net.cached++; else { net.bytes += e.encodedDataLength; if (x.status === 304) net.revalidated++; net.biggest.push([e.encodedDataLength, (x.url || '').replace(base, '').split('?')[0]]); } });
     const t0 = Date.now();
     await p.goto(base + query, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 100 });
+    await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: +(process.env.LIMIT || 120) * 1000, polling: 100 }).catch(async e => { console.log(`visit ${v}: no title in ${process.env.LIMIT || 120} s at ${p.url()}; the loader says "${await p.evaluate(() => (document.getElementById('g-load-msg') || {}).textContent || '').catch(() => '?')}"; ${net.n} responses, ${failed.length} failed (${failed.slice(0, 6).join(', ')}); navigations ${navs}; page errors: ${errors.slice(0, 4).join(' | ')}`); await b.close(); process.exit(1); });
     const title = (Date.now() - t0) / 1000;
     await p.evaluate(() => (window.OETex && OETex.settled ? OETex.settled() : null));
     const settled = (Date.now() - t0) / 1000;

@@ -43,7 +43,7 @@ async function once(b, run) {
   await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 1000 }); await cdp.send('Profiler.start');
   // the page's clock and the profile's: performance.timeOrigin (ms since the epoch) and the profile's start (µs, monotonic)
   await p.goto(`${BASE || `http://localhost:${process.env.PORT || 8800}/`}${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 1500000, polling: 500 });
+  await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: BASE ? 180000 : 1500000 /* (a real host under the GPU lock: three minutes, not twenty-five) */, polling: 500 });
   const st = await p.evaluate(() => { const o = {}; for (const k of ['fetched', 'decoded', 'built', 'frame']) { const m = performance.getEntriesByName(`oe:${k}`, 'mark').pop(); if (m) o[k] = m.startTime; } o.ready = performance.now(); return o; });
   const warmAt = await p.evaluate(() => window.__warmDone || null);
   let tap = null;
