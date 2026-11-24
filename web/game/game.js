@@ -746,7 +746,64 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return g[j * n + i];
     };
   }
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: heroCover }) : null;
+  // the ceilings a hero level draws over where you walk (issue 208), as nav.js ceilOver reads the landmarks', and its rails: the chase
+  // camera stays under them (rig ceilCut). Read from what is drawn as the level comes: every flat face of its model that
+  // stands 1.8 m or more over the ground, in HC m cells with its heights in layers, kept where it covers as a ceiling does
+  // (nav.js soffits). h.ceilOver(x, y, z): the lowest over z, or null. Made once, as the paving's grid is
+  function heroSoffit(h, root) {
+    if (h.ceilOver !== undefined || !h.at || !h.r) return;
+    const t0 = performance.now(), tris = [], v = new THREE.Vector3(), box = new THREE.Box3();
+    root.traverse(o => {
+      if (!o.isMesh || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const mt = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (mt && (mt.transparent || /leaf|tree|foliage|glass/i.test(mt.name || ''))) return; // (seen through, or a crown: not a ceiling)
+      if (/(^|_)(ground|room_floor)_/.test(o.name)) return; // (the paving: under your feet)
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+      if (box.max.y < Math.max(h.z || 0, nav.terrain((box.min.x + box.max.x) / 2, -(box.min.z + box.max.z) / 2)) + 1.8) return; // (all of it under a walker's head)
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count, nm = new THREE.Matrix3().getNormalMatrix(o.matrixWorld), nv = new THREE.Vector3();
+      const nrm = o.geometry.attributes.normal;
+      for (let t = 0; t + 2 < m; t += 3) {
+        // (a face that looks down, by its first corner's normal: the ceiling's underside, not the roof over it)
+        if (nrm && nv.fromBufferAttribute(nrm, idx ? idx.getX(t) : t).applyMatrix3(nm).normalize().y > -0.7) continue;
+        const T = [0, 1, 2].map(k => { v.fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld); return [v.x, -v.z, v.y]; });
+        const zl = Math.min(T[0][2], T[1][2], T[2][2]);
+        if (zl < Math.max(0, nav.terrain(T[0][0], T[0][1])) + 1.8 && zl < (h.z || 0) + 1.8) continue; // (under a walker's head: a bench's or a step's underside)
+        tris.push(T);
+      }
+    });
+    h.ceilOver = OENav.soffits(tris, h.at[0] - h.r, h.at[1] - h.r, Math.ceil(2 * h.r / HC), HC);
+    // and its guard rails as drawn (issue 208): the cells of HC m a rail's body crosses, 0.15 to 1.3 m over the ground
+    // under it, so that a car that comes for you stops at the kerb where none stands between it and you (rides.js openKerb)
+    const n = Math.ceil(2 * h.r / HC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, rail = new Set(), P = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    root.traverse(o => {
+      if (!o.isMesh || !o.geometry || !/(^|_)metal_guard/.test(`${o.name} ${(o.material && o.material.name) || ''}`)) return;
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
+      for (let t = 0; t + 2 < m; t += 3) {
+        for (let k = 0; k < 3; k++) P[k].fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld);
+        for (let k = 0; k < 3; k++) {
+          const a = P[k], b = P[(k + 1) % 3], c = Math.max(1, Math.ceil(a.distanceTo(b) / (HC / 2)));
+          for (let i = 0; i <= c; i++) {
+            v.lerpVectors(a, b, i / c);
+            const x = v.x, y = -v.z, gz = Math.max(h.z || 0, nav.terrain(x, y));
+            if (v.y < gz + 0.15 || v.y > gz + 1.3) continue;
+            const ci = Math.floor((x - x0) / HC), cj = Math.floor((y - y0) / HC);
+            if (ci >= 0 && cj >= 0 && ci < n && cj < n) rail.add(cj * n + ci);
+          }
+        }
+      }
+    });
+    h.rail = (x, y) => { const ci = Math.floor((x - x0) / HC), cj = Math.floor((y - y0) / HC); return ci >= 0 && cj >= 0 && ci < n && cj < n && rail.has(cj * n + ci); };
+    h.railCells = rail.size;
+    h.ceilCells = h.ceilOver ? h.ceilOver.cells : 0; h.ceilMs = Math.round(performance.now() - t0); // (for tools/cam_ceiling.js)
+  }
+  // the lowest drawn ceiling over (x, y) above the height z, of the landmarks and every hero level, or null
+  const heroCeil = (x, y, z) => {
+    let best = nav.ceilOver(x, y, z); // (and the landmarks' own: the station's free passage, nav.js ceilOver)
+    for (const q of G.hero || []) if (q.ceilOver) { const c = q.ceilOver(x, y, z); if (c !== null && (best === null || c < best)) best = c; }
+    return best;
+  };
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -1082,7 +1139,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   try {
     lib = await OEPeople.load('assets/people/', { warmLater: true }); // (its warm-up given once the loader has compiled: lib.setWarm, below)
     if ((G.crowd || {}).style) OEPeople.setStyle(G.crowd.style);
-    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
+    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit, Wd.U && Wd.U.uFaceCap); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
   } catch (e) { console.warn('Realistic people unavailable, using simple figures:', e); lib = null; }
   // the box-built figures are the last resort, for a device that could load none of the people's
   // files: one character that fails to load (after its retries, gltf.js) leaves the rest of the
@@ -4641,6 +4698,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
+    // (come back from a menu's Title screen, menus.js: the press was made already, so the title opens on its menu)
+    { let back = false; try { back = sessionStorage.getItem('bh-title-auto') === '1'; sessionStorage.removeItem('bh-title-auto'); } catch (e) { /* storage blocked */ }
+      if (back) titleScreen('menu'); }
     $('#g-title').hidden = false;
     // a load after a lost context the page could not redraw: the player taken up where they were (noteResume), no card
     { const R = takeResume();
@@ -5942,6 +6002,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3(), heliMid = new THREE.Vector3(), aheadT = new THREE.Vector3(), aheadP = new THREE.Vector3(), aheadM = new THREE.Vector3();
+  const CEIL_GAP = 0.3; // how far under a drawn ceiling the lens keeps (its near plane and a lamp's depth: heroSoffit)
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
   const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
   // the people standing or walking within the camera's reach of your head (the crowd's near people, the named cast, the
@@ -6163,7 +6224,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       return t;
     };
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b)); };
+    // a hero level's drawn ceiling (heroSoffit, issue 208): the fraction of the line from your head to the lens before it
+    // comes within CEIL_GAP of a ceiling over your head, sampled every 0.25 m; never looked past. Only on foot and at the
+    // wheel (in the air the lens is over the roofs by design)
+    const ceilCut = (a, b) => {
+      if (air) return 1;
+      const L = a.distanceTo(b), k = Math.max(1, Math.ceil(L / 0.25)), z0 = a.y - 0.4;
+      for (let i = 1; i <= k; i++) {
+        const t = i / k, y = a.y + (b.y - a.y) * t, c = heroCeil(a.x + (b.x - a.x) * t, -(a.z + (b.z - a.z) * t), z0);
+        if (c !== null && y > c - CEIL_GAP) return (i - 1) / k;
+      }
+      return 1;
+    };
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b), ceilCut(a, b)); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
     // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
@@ -6266,6 +6339,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const yFloor = camPos.y;
     const ceil = nav.ceilingAt(camPos.x, -camPos.z, camTarget.y - 1); // under a slab (a colonnade): below its soffit
     if (ceil !== null && camPos.y > ceil - 0.2) camPos.y = Math.max(ground + 0.5, ceil - 0.2);
+    // and under a ceiling a hero level draws (heroSoffit, issue 208): below it whatever the floor under the lens says (the
+    // ground modelled under the station rises through the passage's floor, and lifted the lens to it: the drawn ceiling is
+    // what the player sees, so it wins)
+    const hceil = air ? null : heroCeil(camPos.x, -camPos.z, camTarget.y - 0.4);
+    if (hceil !== null && camPos.y > hceil - CEIL_GAP) camPos.y = Math.max(camTarget.y - 0.4, hceil - CEIL_GAP);
     // lifted over steps (a stairwell's flight beside a colonnade), the line to the head can graze what the
     // probe went round, the edge of the slab over the well: then closer in along it
     if (camPos.y !== y0 && player.mode === 'foot') {
