@@ -103,6 +103,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.GOV === 'free') await p.addInitScript(() => { const id = setInterval(() => { const g = window.__game && window.__game.governor; if (g) { g.auto = true; clearInterval(id); } }, 200); });
   if (process.env.PHONE && process.env.ENGINE && process.env.ENGINE !== 'chromium') await require('./engine').phone(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
@@ -1365,7 +1366,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const { hard } = pacing.print(await pacing.report(p));
     if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
   }
-  for (const e of errors) console.log('error:', String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
+  for (const e of errors) console.log('error:', lost.tag() + String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`stills: ${ST.n}, ${(ST.whole / 1000).toFixed(0)} s drawing their frames whole, ${(ST.shot / 1000).toFixed(0)} s taking them`);
   console.log(`played in ${Math.round((Date.now() - t0) / 1000)} s; page errors: ${errors.length}${DRAW > 1 ? `; ${await p.evaluate(() => (D => `${D.drawn} of ${D.steps} frames drawn (${D.own} between the stills; ${D.frames} asked for), ${(D.js / Math.max(1, D.steps)).toFixed(1)} ms of script in each, ${D.skipped} renders skipped; ${['off', 'on', 'still'].map(k => (x => `${{ off: 'not drawn', on: 'drawn', still: 'across a still' }[k]} ${x.n}: ${(x.wall / Math.max(1, x.n)).toFixed(0)} ms of the wall each, ${(x.js / Math.max(1, x.n)).toFixed(0)} of script, ${(x.wall / 1000).toFixed(0)} s in all, the game's clock ${(x.game / Math.max(1e-3, x.wall / 1000)).toFixed(2)} of the wall's`)(D.split[k])).join('; ')}`)(window.__draw))}` : ''}`);
   if (process.env.GLCOUNT) console.log('WebGL calls in frames not drawn:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glIn).sort((a, b) => b[1] - a[1]).slice(0, 30))), '\nand outside the frames:', await p.evaluate(() => JSON.stringify(Object.entries(window.__draw.glOut).sort((a, b) => b[1] - a[1]).slice(0, 40))));
