@@ -53,18 +53,19 @@ window.OERoute = (function () {
       return out;
     }
   }
-  // A slice of the build a frame (issue 194: it builds behind the title, and in WebKit the title's first seconds were rough
-  // beside it): each a quarter of the last frame's length, 4 to 250 ms, so that a device at 60 frames a second gives it 4 ms of
-  // each 16.7 (30: 8 of 33) and a slow one, whose frames are long anyway, still has its routes before the player can walk anywhere. Before,
-  // a slice ran 10 ms or more and the next began at once (a zero timeout), and the build took most of every frame; given only
-  // a frame's idle time, it never finished on a device with none. `until`: when the slice under way stops; due(): whether it has
-  let until = 0, lastFrame = 0, frameMs = 16.7;
+  // A slice of the build, then a rest three times as long (issue 194: it builds behind the title, and in WebKit the title's first
+  // seconds were rough beside it): about a quarter of the main thread, whatever the device. Each slice is a third of the rest
+  // before it, 4 to 250 ms: 4 ms between a 60 Hz page's frames, and on a slow device, whose rests come back late behind its
+  // long frames, longer slices, so that it still has its routes before the player can walk anywhere. On the clock, not on
+  // requestAnimationFrame: a harness that draws one frame in n counts every frame callback as one of the game's. Before, a slice
+  // ran 10 ms or more and the next began at once (a zero timeout), and the build took most of every frame. `until`: when the
+  // slice under way stops; due(): whether it has (a clock read, cheap)
+  let until = 0, sliceMs = 4;
   const due = () => performance.now() >= until;
-  const slice = () => new Promise(r => requestAnimationFrame(t => {
-    if (lastFrame) frameMs = Math.min(1000, Math.max(4, t - lastFrame));
-    lastFrame = t;
-    setTimeout(() => { until = performance.now() + Math.max(4, Math.min(250, frameMs / 4)); r(); }, 0);
-  }));
+  const slice = () => new Promise(r => {
+    const t0 = performance.now();
+    setTimeout(() => { const rest = performance.now() - t0; sliceMs = Math.max(4, Math.min(250, rest / 3)); until = performance.now() + sliceMs; r(); }, sliceMs * 3);
+  });
 
   // a polyline in the network's form, from [[x, y, z]]
   function polyline(P, c) {
