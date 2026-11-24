@@ -134,8 +134,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       await press('#gt-story-go'); await until(() => document.getElementById('g-title').dataset.screen === 'story', null, 20000);
       await press('#gt-play');
       if (await until(() => document.getElementById('g-title').dataset.screen === 'who', null, 5000)) { await press('#gt-who [data-c="W"]'); await p.waitForTimeout(500); await press('#gt-who-go'); }
-      if (!(await until(() => { const s = window.__game.story.state; return document.getElementById('g-title').hidden && s.phase !== 'idle' && s.phase !== 'dressed'; }, null, 600000))) fail('from the title, the case did not begin');
-      else ok('from the title, the case begins');
+      // (begun: the title gone and the street not the walk's; the opening's film, where it plays, is the case's first minutes)
+      const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}, walk ${document.getElementById('game-stage').classList.contains('walk')}`; }).catch(e => String(e).slice(0, 80));
+      if (!(await until(() => document.getElementById('g-title').hidden && !document.getElementById('game-stage').classList.contains('walk'), null, 120000))) fail(`from the title, the case did not begin (${await where()})`);
+      else ok(`from the title, the case begins (${await where()})`);
     }
   };
   if (process.env.WALK_ONLY === 'title') {
