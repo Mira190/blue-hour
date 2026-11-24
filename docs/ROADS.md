@@ -720,6 +720,47 @@ one stranded deeper in the box than 4 m from pavement goes to the nearest kerb i
 (`tools/box_stranded.js`). The drive back: 8 of 9 plays within time after, the one over (by 11 s) a different route
 behind a queue waiting on `cross`.
 
+## The traffic round the player: a ring
+
+Issue 204 (and 220's rule, compute spent where the player looks). Counted at Hachiko's kerb (362, -1012) at 17:57 for
+five minutes of the game's time at the real rate (`tools/traffic_near.js`), the traffic round the player was six to nine
+times sparser than the real Scramble: the nearest moving vehicle at a median of 60 m, one within 30 m in 28% of the
+samples, about 220 vehicles an hour into the Scramble's box, where Shibuya ward's 2017 count has about 1,900 at a
+weekday peak, 50 to 65 a signal cycle. The 200 cars were spread over the whole ring of 550 m, 0.95 km², and steering
+them (a branch routed three in five through the player and put half of them back within 120 m) moved nothing beyond
+the count's noise. What an open world does instead is hold its population by distance to the player:
+
+- **The ring.** The traffic is held within `game.crowd.cars_ring_m` (240 m) of the player on foot, a third wider at the
+  wheel, and the whole of `radius_m` + 100 from the helicopter, whose eye takes in the map (`game.js` `trafficRing`,
+  `actors.js` `ringStep`, `outRing`). A car past the ring by a seventh leaves it only where nobody sees it go (the
+  crowd's `seen()`, sight through the buildings included, looked at every eighth frame), and comes back inside the ring
+  out of sight, as before (`respawn`: 0.48 to 1 times the ring off, never where the camera sees). Past the widest ring
+  it leaves whatever the eye sees, as before. The far map holds no cars at all.
+- **The count by the hour.** `game.crowd.cars` (240) is the peak's count; `cars_hours` the share of it out by the hour
+  (the evening peak whole, the small hours a quarter: an estimate in the shape of a weekday on central Tokyo's
+  arterials); times the density setting and the frame governor's share (`game.js` `trafficWant`). More come at once,
+  each out of sight; fewer leave from the list's end, each only once out of sight (`api.want`); a cut, `api.fresh`.
+- **The count by the tier.** A phone has 0.65 of the slots (`CARS_PHONE`, 156).
+
+Measured, a desktop's page, five minutes from 17:57 (main against the ring):
+
+| | Main | The ring |
+|---|---|---|
+| Cars on the streets | 200 within 550 m | 239 within 240 m |
+| Within 60 m of you, on average | 10.1 | 10.3 |
+| Within 120 m | 22.8 | 40.6 |
+| Within 100 m (`tools/traffic_feed.js`), and standing | 12.0, 70% (at the light 3.6, behind a car 2.1) | 29.2, 76% (behind a car 13.2, at the light 4.6) |
+| The nearest moving: median, 90% within; one within 30 m | 60 m, 108 m; 28% | 56 m, 84 m; 28% |
+| Into the Scramble's box an hour | 216 | 300 |
+| The traffic's step a frame (`tools/crowd_cost.js`, self time, this machine) | 3.3 ms | 4.5 ms |
+
+What the ring shows: the streets round the Scramble now hold their real queues, every arm full back past the next
+junction, and moving cars within 100 m double (3.6 to 7.0). The Scramble's own count is no longer the count's to raise:
+its arms are full and it passes what its greens let through, 1.7 to 5 vehicles a green at headways of 5 to 9 s
+(`tools/junction_flow.js`, 4 minutes from 17:57: 175, 105, 58 and 122 an hour on its four arms in, the head car
+standing for a way across its own: "cross by" 7 to 17 s of a green). A real stop line discharges at about 2 s a
+vehicle. That is the junction's capacity (above), the next lever for 1,900 an hour.
+
 ## Not done, and why
 
 - **The mounds beside the streets at the embankment** are the survey's ground, left as it is by `street_ground.py`
