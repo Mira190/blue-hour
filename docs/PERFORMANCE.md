@@ -3097,6 +3097,26 @@ and off; nothing counted it. A grown index buffer is first bound as an index buf
 | of which the buildings' cells | 27 to 45 | 1 |
 | GPU memory | 212 MB | 213 MB |
 
+### The cells' streaming on a phone (issue 220)
+
+The walk's moving beats were 35% longer on a session's machine after the cells went into one draw, and the question
+was whether a phone pays it. `tools/stream_probe.js` (with `tools/phone_frame.js`: the emulated iPhone carried 450 m
+east and back, three metres a frame, every frame timed and the arena's own work on the page's thread counted) split it:
+
+| over the walk | adding the cells (272) | giving back idle room (5 trims) | growing |
+|---|---|---|---|
+| before | 66 ms in all, 0.24 ms a cell | 2,024 ms, the longest 652 ms | 1 ms |
+| after | 73 ms | 30 ms, the longest 10 ms | 2 ms |
+
+Sending a cell's vertices is cheap, so spreading the uploads over frames would buy nothing. The trim was the hitch:
+it read the whole index buffer back from the GPU to move the cells' indices, and a read back waits for every draw
+queued before it (on a phone's GPU as on a software one). Each cell now keeps its own indices from its first vertex
+(16 bits where they fit: about 1.4 MB of the page's memory on a phone), and a trim writes them again from those. The
+arena's longest frame of work went from 656 to 16 ms on the software renderer. After four trips the arena holds
+21.2 MB for 20.8 used, and every cell's indices on the GPU, read back by the harness alone, are what they should be
+(`tools/arena_probe.js`). The mac found no difference a player sees from the streaming on a real GPU and in Safari
+(issue 192); this takes out the one stall a phone would have felt.
+
 ### What is left
 
 - **The player's car parked by the Scramble** (since the first drive landed): about 77,000 triangles and 40 draws
