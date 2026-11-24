@@ -24,13 +24,18 @@ module.exports = ({ R, live, STUCK_S, STUCK_M, TRACE }) => new Promise(done => {
   let s = R.start, was = performance.now(), t = 0;
   const hist = [], faults = [], seen = {}, trace = [];
   const fault = (kind, msg) => { if (seen[kind] && seen[kind] > 3) return; seen[kind] = (seen[kind] || 0) + 1; faults.push(`${kind} t=${t.toFixed(1)} ${msg}`); if (!window.__f207) window.__f207 = kind; };
-  let waitT = 0, heldT = 0, backT = 0;
+  let waitT = 0, heldT = 0, backT = 0, went = 0, last = null, runT = 0;
   const step = now => {
     const dt = Math.min(0.05, Math.max(0, (now - was) / 1000)); was = now; t += dt; window.__t207 = t; // (the lead's own clock, for timed stills)
     // the player: along their own line at their speed (as a walker steps: nav.slide), never waiting for him
     const pl0 = [pl.x, pl.y];
+    // (what the player has really gone, whatever moved them: the page's own step adds to the harness's, and a player
+    // said to run at 6 m/s went at 9 to 12, which no dog keeps ahead of. They step only while within R.speed of the time)
+    if (last) went += Math.hypot(pl.x - last[0], pl.y - last[1]);
+    last = [pl.x, pl.y];
     const paused = R.pause && t >= R.pause[0] && t < R.pause[1]; // (R.pause [from, to] s: the player drops back, standing still)
-    if (!paused && pl.mode === 'foot' && Math.hypot(to[0] - pl.x, to[1] - pl.y) > (R.short || 2.5)) { // (R.short: stopped outside the reach that starts the goal's talk, story.js meet_m)
+    if (!paused) runT += dt;
+    if (!paused && went < R.speed * runT && pl.mode === 'foot' && Math.hypot(to[0] - pl.x, to[1] - pl.y) > (R.short || 2.5)) { // (R.short: stopped outside the reach that starts the goal's talk, story.js meet_m)
       s = own.len - left(pl.x, pl.y); const q = along(s + 3), // (a point 3 m on from where they are on it: a carrot that cannot run ahead of a held player and point through a wall)
            dx = q[0] - pl.x, dy = q[1] - pl.y, d = Math.hypot(dx, dy);
       if (d > 1e-3) { const k = Math.min(1, R.speed * dt / d), m = nav.slide(pl.x, pl.y, pl.z, dx * k, dy * k), wk = nav.walk(m.x, m.y, pl.z + 0.3, true); if (wk.ok) { pl.x = m.x; pl.y = m.y; pl.z = wk.z; } pl.h = Math.atan2(dx, dy); if (g.cam) g.cam.yaw = pl.h; }
