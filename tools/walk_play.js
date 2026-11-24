@@ -601,7 +601,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                           await beside(1.8);
                           if ((await line()).gate !== 'shown' || !(await waitPrompt(/Talk to Nagi/))) fail(`her last photograph is not the one she asked for (${JSON.stringify(await line())})`);
                           else {
-                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
+                            // (her talk opens in a frame after E: up to a second of the game's clock after each press, not 600 ms of the
+                            // wall's. Beside another browser the three presses ran out before it opened, the talk was left unread, and she
+                            // never went: issue 211)
+                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20 && !g.dlg.open; i++) g.frame(0.05); }); }
                             await through(); await p.waitForTimeout(1500); await through();
                             await p.waitForFunction(() => window.__game.walkLine().gate === 'going', null, { timeout: 120000, polling: 250 }).catch(() => {}); // (the walkers go by the page's own frames)
                             await shot('4b-goes');
