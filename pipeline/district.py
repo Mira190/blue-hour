@@ -301,15 +301,16 @@ def cut_buildings(B, scene, LM, R):
         if k in B:
             # (not the rooftop kit's condenser rows: a phone does not draw them, web/buildings.js)
             out[k] = [[smap[row[0]]] + row[1:] for row in B[k] if row[0] in smap and not (k == "p" and row[1] == 7)]
-    if "passages" in B:
-        out["passages"] = [smap[si] for si in B["passages"] if si in smap]
+    for k in ("passages", "decks", "over_roads"):   # (by solid: road_passages.py, stations.py)
+        if k in B:
+            out[k] = [smap[si] for si in B[k] if si in smap]
     for k in ("inner_posts", "no_posts"):
         if isinstance(B.get(k), dict):
             out[k] = {str(bmap[int(bi)]): v for bi, v in B[k].items() if int(bi) in bmap}
     if isinstance(B.get("piers"), dict):  # (by solid: pipeline/stations.py)
         out["piers"] = {str(smap[int(si)]): v for si, v in B["piers"].items() if int(si) in smap}
     known = {"fields", "b", "s_fields", "s", "styles", "roof_shapes", "roof_materials", "roof_sources", "r_fields", "r", "f_fields", "f",
-             "p_fields", "p", "passages", "inner_posts", "no_posts", "piers", "note"}
+             "p_fields", "p", "passages", "decks", "over_roads", "inner_posts", "no_posts", "piers", "note"}
     odd = [k for k in B if k not in known]
     if odd:
         raise SystemExit(f"buildings.json has keys this cut does not know: {odd} (pipeline/district.py cut_buildings)")
