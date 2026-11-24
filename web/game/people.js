@@ -166,6 +166,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
   // shaft in the crease under the fingers' roots. Looked at side by side with looser and tighter ones, close, from
   // four sides: tools/umbrella_held.js HANDS=1 FISTS=[...]. UMB_END: the handle's end, this far down the shaft from
   // the middle of the hand)
+  const UMB_RAISE = 0.2; // how much higher an umbrella is held over someone passing under it (m, people.js umbRaise; issue 157 item 7)
   const UMB_FIST = { x: 0.085, y: 0, palm: 0.022, slant: 0, curl: [1.35, 1.65, 0.9], thumb: [-0.45, 0.5, 0.35], roll: 0 }, UMB_END = 0.07;
   const UMB_LEN = Math.hypot(UMB_TOP[0] - UMB_GRIP[0], UMB_TOP[1] - UMB_GRIP[1], UMB_TOP[2] - UMB_GRIP[2]);
   // umbrellas are off for now: the hand on the handle doesn't read right yet, so nobody carries one,
@@ -1363,9 +1364,12 @@ ${PAT_GLSL}`)
     // frame, and the rest of the clip (the legs, the other arm, the spine) is as it was. The clip's own turns are kept
     // (umbHold.clip) and put back before the mixer runs again (armBack): the mixer writes a bone only when its value
     // changes, so a turn left on would be the next frame's start, under a still clip or a held world
-    let umbHold = null, umbUp = false, umbLaid = false, armHeld = null, canopy = null, umbW = 1;
+    let umbHold = null, umbUp = false, umbLaid = false, armHeld = null, canopy = null, umbW = 1, umbRaise = 0;
     // (the umbrella leant away from a neighbour's, a little, at the wrist: rig.umbLean, in the body's own space)
     const umbLeanQ = new THREE.Quaternion(); let umbLeant = false;
+    // (the umbrella held higher, 0 to 1 of UMB_RAISE: lifted over someone's head as one passes under it, issue 157 item 7;
+    // the second pose is found once beside the first, umbHold.hi, and a frame blends the two, umbLay)
+    rig.umbRaise = k => { umbRaise = k > 0 ? Math.min(1, k) : 0; };
     rig.umbLean = (x, z) => {
       const a = Math.hypot(x, z);
       umbLeant = a > 1e-3 && !!umbHold;
@@ -1376,7 +1380,8 @@ ${PAT_GLSL}`)
       for (let k = 0; k < n; k++) {
         const b = H.bones[k];
         H.clip[k].copy(b.quaternion);
-        if (k === 2 && umbLeant) sq2.multiplyQuaternions(umbLeanQ, H.q[k]); else sq2.copy(H.q[k]);
+        sq2.copy(H.q[k]); if (umbRaise > 0 && H.hi) sq2.slerp(H.hi[k], umbRaise);
+        if (k === 2 && umbLeant) sq2.premultiply(umbLeanQ);
         if (umbW < 1) b.quaternion.slerp(sq2, umbW); else b.quaternion.copy(sq2);
       }
       umbLaid = true;
@@ -1758,7 +1763,7 @@ ${PAT_GLSL}`)
     // for the fist, rig.umbTune: tools/umbrella_held.js lays several side by side to be looked at)
     const refPose = [];
     model.traverse(o => { if (o.isBone) refPose.push([o, o.quaternion.clone(), o.position.clone()]); });
-    const makeHold = (t = UMB_FIST) => {
+    const makeHold = (t = UMB_FIST, lift = 0) => { // (lift: the grip that much higher, m, for umbHold.hi)
       const now = refPose.map(([b]) => [b.quaternion.clone(), b.position.clone()]);
       for (const [b, q, at] of refPose) { b.quaternion.copy(q); b.position.copy(at); }
       const a = arms[1], G = grip.WristR, fingers = [];
@@ -1768,6 +1773,7 @@ ${PAT_GLSL}`)
       const mw = model.matrixWorld, mq = model.getWorldQuaternion(new THREE.Quaternion()), ms = model.getWorldScale(V3(0, 0, 0)).y;
       const toW = v => v.clone().applyMatrix4(mw), dirW = v => v.clone().applyQuaternion(mq).normalize(), wq = b => b.getWorldQuaternion(new THREE.Quaternion());
       const H = umbrellaHold(ref.Head.pos), F = toW(H.grip), yT = dirW(H.dir);
+      if (lift) F.y += lift * ms;
       const S = a.ua.getWorldPosition(V3(0, 0, 0)), E0 = a.la.getWorldPosition(V3(0, 0, 0)), W0 = a.wr.getWorldPosition(V3(0, 0, 0));
       const L1 = S.distanceTo(E0), L2 = E0.distanceTo(W0), pole = dirW(V3(-0.5, -1, -0.3));
       // (the middle of the closed hand from the wrist, as the reference pose has the hand: t.x along the fingers, t.y
@@ -1815,8 +1821,10 @@ ${PAT_GLSL}`)
       if ((look.acc || []).includes('umbrella_open')) { accKey = ''; setAccessories(); } // (made with an umbrella already up: hung again, from the hand)
     };
     if (reaches && ref.Head) {
-      makeHold();
-      rig.umbTune = t => { armBack(); makeHold(Object.assign({}, UMB_FIST, t)); };
+      // (the hold, and the same hold with the grip UMB_RAISE higher: umbLay blends towards it by rig.umbRaise)
+      const holdBoth = t => { makeHold(t, UMB_RAISE); const hi = umbHold.q.map(q => q.clone()); makeHold(t); umbHold.hi = hi; };
+      holdBoth(UMB_FIST);
+      rig.umbTune = t => { armBack(); holdBoth(Object.assign({}, UMB_FIST, t)); };
     }
     // The mixer only writes a bone whose value has changed, so under a still clip a foot moved
     // here stays moved: put it back where the clip had it before measuring again (or standing up).
@@ -2592,6 +2600,11 @@ transformed = crowdPose(transformed, false);`);
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null, clip: u ? null : p.look.clip || null }); } // (the phone put away while the umbrella's hand holds it up)
         if (u && r.umbOpen) r.umbOpen(ut);
         if (u && r.umbLean) { const c = Math.cos(Math.PI - p.h), s = Math.sin(Math.PI - p.h); r.umbLean(p.umbLx * c + p.umbLy * s, p.umbLx * s - p.umbLy * c); } // (the lean, from the world's plan into the body's own space)
+        // (held higher while its canopy's rim comes within a head's width of the player's head, where the crowd is centred
+        // this step: people passing under umbrellas lift one over the other's head. Up over 0.3 s, down over 0.5. A canopy went
+        // 7 cm into the player's head as a crossing walker passed; a step rule against it trapped walkers by the player and a
+        // lean of the canopy did not clear it. Issue 157 item 7)
+        if (r.umbRaise) { let want = 0; if (u && lastBegin) { const D = Math.hypot(p.rx + (p.ucx || 0) - lastBegin[0], p.ry + (p.ucy || 0) - lastBegin[1]); want = D < (p.umbR || 0) + 0.12 + 0.25 ? 1 : 0; } const k = 1 - Math.exp(-dtNow / (want > (p.umbUpT || 0) ? 0.3 : 0.5)); p.umbUpT = (p.umbUpT || 0) + (want - (p.umbUpT || 0)) * k; r.umbRaise(p.umbUpT); }
         unshow(p);
         p.whole = true; // (drawn as a whole person: actors.js keeps two of them NEAR_BODY apart)
         r.root.visible = true; // (as hide(i, true) left it, a frame ago)

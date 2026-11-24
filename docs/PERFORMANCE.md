@@ -2771,7 +2771,15 @@ passes a frame are the device's work whatever renders them; their milliseconds a
 | low (a phone's set) | 220 | 3,876 | 9 | 74 |
 
 (The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
-beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`); the laptop's medium is not held yet.
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`). The laptop's medium is recorded beside them ("medium": the story's three parts at 1440 x 900 with `Q='?tex=bc7'`,
+`beat_budget.py set ... --parts medium`), to be held by a CI shard of its own once a few runs have shown its noise.
+Its pictures are packed as the laptop packs them (BC7, BC5 for normal maps: `?tex=bc7`); a software renderer otherwise
+keeps every picture raw, at four times the bytes, and the first recording read 771 to 1,552 MB for what is 435 to 743
+on the device. Its cap: 800 MB a beat. Frame 4's peak, 743 MB with BC7: textures 535, buffers 187, render targets 38.
+The largest textures there are the Sky roof pad's ORM (2048², kept as pixels: 21 MB), the night map (night.js, 2048 x
+1841: 19 MB), the buildings' facade blocks (4096 x 3680: 19 MB), the woods' and the shore's ground pictures (17 and 11
+MB, kept as pixels), two 2048² shadow maps (12 MB each: the sun's and its still copy, world.js shadowCache), the inland
+water (11 MB) and the two scene targets at 1440 x 900 (10 MB each).
 
 ### Not checked here
 

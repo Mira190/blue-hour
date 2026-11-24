@@ -4,10 +4,10 @@
 tools/story_play.js BUDGET=file writes a line for every still: what that frame asked of the GPU (draw calls, triangles,
 full-screen passes, the pixels the passes shade and the scene's targets hold) and what WebGL held (textures, buffers,
 renderbuffers). A beat is one of the episode's frames (and the title before the first); its cost is the heaviest of
-its stills (of what a frame draws, the second heaviest: a thing drawn once is not the beat's cost). The budgets are in tools/budgets/<map>.json, a set for the desktop's tier and one for a phone's.
+its stills (of what a frame draws, the second heaviest: a thing drawn once is not the beat's cost). The budgets are in tools/budgets/<map>.json, a set for the desktop's tier, one for a phone's, and one for the device floor's laptop (medium, issue 220).
 
-  tools/beat_budget.py check <samples.jsonl> <desktop|phone> [--map shibuya]   exit 1 on a beat over its budget
-  tools/beat_budget.py set   <samples.jsonl>... <desktop|phone> [--margin 0.1] the budgets from a play, or better from
+  tools/beat_budget.py check <samples.jsonl> <desktop|phone|medium> [--map shibuya]   exit 1 on a beat over its budget
+  tools/beat_budget.py set   <samples.jsonl>... <desktop|phone|medium> [--margin 0.1] the budgets from a play, or better from
                                                     several of the same code: each measure the median of them, the room
                                                     over it never under three times what they differed by (only their beats)
                                                     --parts a.jsonl b.jsonl ...: the files are parts of one play
@@ -99,7 +99,7 @@ def main(a):
     cmd = a[0]
     path, B = load(m)
     if cmd == 'table':
-        for dev in ('phone', 'desktop'):
+        for dev in ('phone', 'desktop', 'medium'):
             d = B.get(dev)
             if not d:
                 continue
