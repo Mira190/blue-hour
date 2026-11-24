@@ -20,6 +20,13 @@ Three things a buildings.json written before typology.facade_style() learned the
   a lower solid of the same building. web/buildings-geo.js draws the piers and the solid's underside;
   web/game/nav.js makes them solid.
 
+- a solid standing on a road the survey has as a driven carriageway (pipeline/road_ground.py: PLATEAU's carriageway that
+  a piece of the map's roads runs through) cannot reach the ground there: it is a deck, a bridge or an overhang over the
+  road. Its underside is raised to CLEAR_M (UNDERSIDE where its record is known), and it stands on piers kept off the
+  carriageway when nothing of its building touches the ground. Shibuya's west exit deck (しぶにしデッキ, OpenStreetMap
+  man_made=bridge) was a two-storey building of shops on the bus terminal's carriageway, with a road through it (the
+  owner's report, 24 November 2026; tools/deck_check.py, issue 196).
+
 Rewrites web/data/<city>/buildings.json in place; running it again changes nothing.
 """
 import argparse
@@ -41,7 +48,11 @@ GRID, INSET, PIER = 9.0, 1.0, 0.9                      # the piers' spacing, how
 # which a storey of 3.9 m put 2.8 m over the pavement at its south edge: a ceiling at head height across frame 5's view
 # (issue 33). Its concourse is at the second-floor deck's level, which the decks to Hikarie and Scramble Square meet
 # 6 to 7 m over the street; buses (3.3 m) stand under it. Estimated from photographs; no published figure was found.
-UNDERSIDE = {"w810356690": 7.0}
+UNDERSIDE = {"w810356690": 7.0,
+             # Shibuya's west exit deck (しぶにしデッキ, 2023), over the west exit's bus terminal: its walkway at the second
+             # floor's level, as the east side's decks meet 6 to 7 m over the street; the record's 10 m is to its roof
+             "w1333409445": 6.0}
+CLEAR_M = 4.7      # a structure over a carriageway: Japan's 4.5 m clearance (道路構造令 第12条) and a little more
 # Piers further apart than the grid's 9 m where the record of the building says so: the same station stands on fewer,
 # heavier piers than the one it replaced (seven over Meiji-dori became three, Tokyo Metro, 2019)
 SPACING = {"w810356690": 18.0}
@@ -77,6 +88,25 @@ def restyle(B, japan):
     return n
 
 
+def over_roads(B, city, game):
+    """Raise every solid standing on a driven surveyed carriageway to stand over it (see the module's note): the
+    number raised. Needs the survey (cities/<id>/road_surface.json); without it nothing is done."""
+    if not game or not os.path.exists(os.path.join(ROOT, "cities", city, "road_surface.json")):
+        return 0
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import deck_check
+    n = 0
+    for si, bi, P, on, under in deck_check.standing(city, game, B):
+        s = B["s"][si]
+        low = round(UNDERSIDE.get(B["b"][bi][6], CLEAR_M) * 10)
+        if s[3] - low < 15:
+            continue   # (lower than a vehicle passes under: left as the record has it, and listed by the check)
+        s[2] = max(s[2], low)
+        n += 1
+    return n
+
+
 def piers(B, game):
     by_b = defaultdict(list)
     for k, s in enumerate(B["s"]):
@@ -91,7 +121,7 @@ def piers(B, game):
         ways.append(LineString([(p[i] / 10, p[i + 1] / 10) for i in range(0, len(p), 3)]).buffer(1.2 + PIER))
     out = {}
     for bi, ks in by_b.items():
-        if B["b"][bi][1] == "roof" or any(B["s"][k][2] <= 0 for k in ks):
+        if B["b"][bi][1] == "roof" or any(B["s"][k][2] <= 0 for k in ks) and B["b"][bi][6] not in UNDERSIDE:
             continue  # (a canopy has its posts already: pipeline/arcades.py; a building with a foot on the ground stands on it)
         # its storeys start at its underside, not at a ground it does not touch: a row of windows was cut in half by the
         # slab's edge. One underside for the whole building (the lowest its solids have), the ground floor that high,
@@ -146,6 +176,7 @@ def main():
     game = json.load(open(os.path.join(d, "game.json"), encoding="utf8")) if os.path.exists(os.path.join(d, "game.json")) else {}
     before = json.dumps(B, sort_keys=True)
     n = restyle(B, typology.region_name(cfg) == "japan")
+    raised = over_roads(B, a.city, game)
     P = piers(B, game)
     if P:
         B["piers"] = P
@@ -155,7 +186,7 @@ def main():
     if changed:
         with open(path, "w") as f:
             json.dump(B, f, separators=(",", ":"))
-    print(f"{a.city}: {n} stations restyled, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
+    print(f"{a.city}: {n} stations restyled, {raised} solids raised over a carriageway, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
 
 
 if __name__ == "__main__":
