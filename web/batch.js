@@ -70,9 +70,7 @@ window.OEBatch = (function () {
       } catch (e) { console.warn('batch:', m.name, e); if (b) b.dispose(); continue; } // (left as they were)
       b.name = opts.name ? opts.name(m, first) : m.name || 'batch';
       b.castShadow = first.castShadow; b.receiveShadow = first.receiveShadow; b.renderOrder = first.renderOrder; b.layers.mask = first.layers.mask; b.visible = first.visible;
-      // (the squares of an opaque material need no order among themselves; a pane's are drawn far to near, as they were.
-      // Culled square by square, which sends the batch's list to the GPU every frame (26 textures on the walk, issue 191):
-      // drawn whole instead, a phone drew 80,000 to 100,000 triangles more on foot by Hachiko, so the cull stays)
+      // (the squares of an opaque material need no order among themselves; a pane's are drawn far to near, as they were)
       b.sortObjects = !!m.transparent; b.perObjectFrustumCulled = true;
       b.userData.batched = s.length;
       b.computeBoundingBox(); b.computeBoundingSphere();
@@ -98,8 +96,6 @@ window.OEBatch = (function () {
       ids = geos.map(g => b.addGeometry(g));
       for (let i = 0; i < cap; i++) b.setVisibleAt(b.addInstance(ids[0]), false);
     } catch (e) { console.warn('batch pool:', material.name, e); if (b) b.dispose(); return null; }
-    // (culled car by car, which sends the pool's list again every frame, as many textures as pools, 18 on the walk: drawn
-    // whole instead, a phone's frames were slow enough at the first Stop that the sound gave up the street; issue 191)
     b.frustumCulled = false; b.perObjectFrustumCulled = true; b.sortObjects = !!material.transparent; b.visible = false;
     b.userData.batched = cap;
     const at = new Int32Array(cap).fill(0); let n = 0, shown = 0;
