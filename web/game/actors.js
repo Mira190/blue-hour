@@ -3303,6 +3303,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return c.trip ?? -1;
     };
     const parkedN = () => { let k = 0; for (let j = 0; j < api.active; j++) if (C[j].park && C[j].line >= 0) k++; return k; };
+    const THRU = 0.6; // (the share of the cars made bound past you: issue 204, the Scramble's counted traffic)
     function respawn(c, cx, cy, rMin) {
       const cand = net.near(cx, cy, rMin, radius), T = JN.trips && JN.trips();
       JN.forget(c);
@@ -3325,7 +3326,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // of two streets drawn, the bigger one four times in five)
         let line = cand[Math.floor(rnd() * cand.length)];
         if (c.trip >= 0) { const l2 = cand[Math.floor(rnd() * cand.length)], RK = OEJunctions.RANK, r1 = RK[net.L[line].c] || 2, r2 = RK[net.L[l2].c] || 2; if ((r2 > r1) === (rnd() < 0.8) && r1 !== r2) line = l2; }
-        const L1 = net.L[line], s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (c.trip >= 0 && T.facing(c.trip, line)) || (rnd() < 0.5 ? 1 : -1);
+        const L1 = net.L[line], s = L1.len * (0.1 + 0.8 * rnd());
+        // (three in five bound for the far side of you from where they set out: their ways run past you, trips.js across)
+        if (T && T.across && rnd() < THRU) { net.at(line, s, tmp); c.trip = T.across(tmp.x, tmp.y, cx, cy); }
+        const dir = L1.ow || (c.trip >= 0 && T.facing(c.trip, line)) || (rnd() < 0.5 ? 1 : -1);
         if (JN.inner(line) || L1.len < 15 || (net.fit && net.fit[line] < c.hw)) continue; // (nor on a street too narrow for it)
         // (the road plan: traffic is made only on a street that leads from one of the map's gates to another, never in a
         // cul-de-sac or on the stub before a closure, where it could only stand at the end; nor on a piece the game itself

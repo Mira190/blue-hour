@@ -139,13 +139,27 @@ window.OETrips = (function () {
       }
       return towns[Math.floor(rnd() * towns.length)];
     }
+    // a place for a car setting out at (sx, sy) whose way runs past (cx, cy): of the places, one of the three nearest the
+    // point as far beyond (cx, cy) as the car starts before it. The cars that come into the part of town the player stands
+    // in come through it, as a main road's traffic does: bound for anywhere, they spread over the whole map and the
+    // Scramble passed a seventh of its counted traffic, issue 204
+    function across(sx, sy, cx, cy) {
+      if (!places.length || rnd() >= BOUND) return -1;
+      const tx = 2 * cx - sx, ty = 2 * cy - sy, near = [-1, -1, -1], nd = [Infinity, Infinity, Infinity];
+      for (let k = 0; k < places.length; k++) {
+        const d = Math.hypot(places[k].x - tx, places[k].y - ty);
+        for (let m = 0; m < 3; m++) if (d < nd[m]) { for (let r = 2; r > m; r--) { nd[r] = nd[r - 1]; near[r] = near[r - 1]; } nd[m] = d; near[m] = k; break; }
+      }
+      const got = near.filter(k => k >= 0);
+      return got.length ? got[Math.floor(rnd() * got.length)] : -1;
+    }
     // the way along a two-way piece that its place lies (1, -1), four times in five; else 0, and chance decides
     function facing(k, line) {
       const a = cost(k, line, 1), b = cost(k, line, -1);
       if (a === b || rnd() >= 0.8) return 0;
       return a < b ? 1 : -1;
     }
-    return { places, cost, pick, facing, inbound, hour, ARRIVE, fields: () => fields.filter(Boolean).length };
+    return { places, cost, pick, across, facing, inbound, hour, ARRIVE, fields: () => fields.filter(Boolean).length };
   }
   return { create };
 })();
