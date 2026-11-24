@@ -29,7 +29,6 @@ const want = process.argv.slice(2);
         for (const [F, k] of [[820, 1], [1180, 0.6], [2700, 0.18]]) { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = F; bp.Q.value = 9; const fg = c.createGain(); fg.gain.value = k; o.connect(bp); bp.connect(fg); fg.connect(og); }
         og.gain.value = 0.4; og.connect(g); o.start(); vib.start(); } },
     'the score (bluehour), its room whole': async (c, x, T) => { OEMusic.create({ volume: 1, persist: false })._render(c, T, { palette: 'bluehour', slot: 'evening', mode: 'foot', theme: 0 }); },
-    'crowd beds (murmur, screens)': (c, x) => { const n = c.createBufferSource(); n.buffer = x.buffer; n.loop = true; n.start(); for (let j = 0; j < 2; j++) { const a = c.createBiquadFilter(), bq = c.createBiquadFilter(), g = c.createGain(), am = c.createOscillator(), ag = c.createGain(); a.type = 'bandpass'; a.frequency.value = 420; bq.type = 'bandpass'; bq.frequency.value = 1150; am.frequency.value = 4.3; ag.gain.value = 0.25; am.connect(ag); ag.connect(g.gain); am.start(); n.connect(a); n.connect(bq); a.connect(g); bq.connect(g); g.connect(c.destination); } },
   }));
   const T = +(process.env.SECONDS || 10), RATE = 48000, Q = 128 / RATE * 1000;
   console.log(`each part rendered for ${T} s at ${RATE} Hz, best of three; a block is ${Q.toFixed(2)} ms`);

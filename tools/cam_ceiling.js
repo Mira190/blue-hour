@@ -5,7 +5,7 @@
 // is not the picture"): a ray up from your head finds the ceiling you are under; then a ray down from the lens that
 // meets a drawn surface over your head means the lens stands over the roof and looks down through it, and the line from
 // your head to the lens crossing a drawn surface over your head means it is through the ceiling. Either is a fault.
-//   PORT=8800 xvfb-run -a node tools/cam_ceiling.js            (PHONE=1: as a phone; PLACE=passage: one place)
+//   PORT=8800 xvfb-run -a node tools/cam_ceiling.js            (PHONE=1: as a phone; PLACE=passage: one place; AT=x,y,r: the scan in that circle only)
 // (A phone lets go of a mesh's arrays once it is on the GPU: those meshes are not read.)
 // Exits 1 on a frame with the lens over or through the ceiling, 2 when the page fails.
 const { open } = require('./cam_jumps');
@@ -22,7 +22,7 @@ const PLACES = [
 // within 5 m over their head (a ray up through what is drawn, not the game's own reading), spots at least 8 m apart,
 // each stood at and the view turned and dragged round: the Scramble and Hachiko Square, the passage's ends, frame 5's
 // Miyamasu under the Ginza line's station and SKY's lift hall under Scramble Square's skirts
-const SCAN = [[368, -1002, 100], [512, -1052, 50], [530.5, -1077, 30]];
+const SCAN = process.env.AT ? [process.env.AT.split(',').map(Number)] : [[368, -1002, 100], [512, -1052, 50], [530.5, -1077, 30]]; // (AT=x,y,r: that circle only)
 
 async function scan(p) {
   return p.evaluate(async SCAN => {
@@ -64,6 +64,22 @@ async function run(p, place) {
         let d = Infinity;
         for (let i = 1; i < B.way.length; i++) { const [ax, ay] = B.way[i - 1], [bx, by] = B.way[i], L2 = (bx - ax) ** 2 + (by - ay) ** 2, t = Math.max(0, Math.min(1, ((cx - ax) * (bx - ax) + (cy - ay) * (by - ay)) / L2)); d = Math.min(d, Math.hypot(ax + (bx - ax) * t - cx, ay + (by - ay) * t - cy)); }
         if (d < B.w / 2 && c.y > pl.z + B.h + 0.05) { frames.push(1); bad.push({ phase, x: +pl.x.toFixed(1), y: +pl.y.toFixed(1), z: +pl.z.toFixed(2), cam: c.toArray().map(v => +v.toFixed(2)), why: `in the passage's corridor ${(c.y - pl.z).toFixed(2)} m over the floor, its ceiling at ${B.h} (as built)` }); return; }
+      }
+      // the lens behind a wall (issue 217), read with the game's own solids (nav.clearFraction: the buildings' cells, the
+      // landmarks, the decks), as the camera reads them: the line from your head to the lens stopped short of it by more than
+      // 10 cm (a frame's walk at most: the lens is placed for where you stood when the camera ran, read here after; a wall that
+      // near behind the lens lies inside its near plane's 0.3 m and is not in the picture), and not a post or a column the camera looks past on purpose (its own rule, game.js thin: one of the lines beside it
+      // stopped too). Under cover or not
+      {
+        const eye = V(pl.x, pl.y, pl.z + 1.55), d = c.clone().sub(eye), L = d.length(); // (from where the camera aims: game.js camTarget)
+        if (L > 0.6) {
+          const sd = new T.Vector3(d.z, 0, -d.x).normalize(), cut = (a, b) => g.nav.clearFraction(a, b) * L < L - 0.1;
+          // (the camera's own rule for a post it looks past, game.js thin: a line 0.45 m to the side at your head and 0.6 m at the lens)
+          if (cut(eye, c) && [1, -1].some(k => cut(eye.clone().addScaledVector(sd, 0.45 * k), c.clone().addScaledVector(sd, 0.6 * k)))) {
+            frames.push(1);
+            bad.push({ phase, x: +pl.x.toFixed(1), y: +pl.y.toFixed(1), z: +pl.z.toFixed(2), cam: c.toArray().map(v => +v.toFixed(2)), pull: +(g.cam.pull ?? 1).toFixed(2), why: `behind a wall: ${(L - g.nav.clearFraction(eye, c) * L).toFixed(2)} m of the line past it` });
+          }
+        }
       }
       const roof = hit(head, up, 8);
       frames.push(1);
@@ -137,7 +153,8 @@ if (require.main === module) (async () => {
   const { b, p } = await open('shibuya', { width: 1440, height: 900 });
   let fails = 0;
   const places = PLACES.filter(q => !process.env.PLACE || q.id === process.env.PLACE);
-  if (process.env.SCAN !== '0' && !process.env.PLACE) {
+  for (const q of (process.env.SPOT || '').split(';').filter(Boolean)) { const [x, y] = q.split(',').map(Number); places.push({ id: `at ${x},${y}`, spot: true, way: [[x, y], [x, y + 1]] }); } // (SPOT=x,y;x,y: stood there, as a scanned spot)
+  if (process.env.SCAN !== '0' && !process.env.PLACE && !process.env.SPOT) {
     const spots = (await scan(p)).slice(0, +(process.env.SPOTS || 16));
     console.log(`scan: ${spots.length} covered spots: ${spots.map(q => `${q[0]},${q[1]} (${q[2]})`).join('; ')}`);
     for (const [x, y, what] of spots) places.push({ id: `under ${what} at ${x},${y}`, spot: true, way: [[x, y], [x, y + 1]] });
