@@ -22,17 +22,37 @@ sys.path.insert(0, HERE)
 import hero_kit as K  # noqa: E402
 
 
+def write_posts(city, meta):
+    """The level's posts (its lamps, placed from its kerbs at this build) into the map's entry, which the walking grid
+    and the traffic stand off: a list left from an older build had 13 of the Scramble's 18 in the carriageway once its
+    kerbs were the survey's (issue 213)."""
+    if meta.get("posts") is not None:
+        import re
+        cp = os.path.join(ROOT, "cities", city, "city.json")
+        txt = open(cp, encoding="utf8").read()
+        at = txt.find(f'"id": "{meta["id"]}"')
+        m = re.compile(r'"posts": \[[^\n]*\],').search(txt, at) if at >= 0 else None
+        if m and txt.rfind('"id": "', 0, m.start()) == at:
+            new = '"posts": ' + json.dumps(meta["posts"]) + ","
+            if txt[m.start():m.end()] != new:
+                open(cp, "w", encoding="utf8").write(txt[:m.start()] + new + txt[m.end():])
+                print(f"{meta['id']}: {len(meta['posts'])} posts written to {cp} (then pipeline/game_text.py)")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--city", required=True)
     ap.add_argument("--level", default=None, help="a map's other level: cities/<id>/hero_<level>.py")
     ap.add_argument("--no-meshopt", action="store_true")
+    ap.add_argument("--posts", action="store_true", help="write the level's posts into city.json and stop: no bake, no model")
     a = ap.parse_args()
     spec = importlib.util.spec_from_file_location("hero_level", os.path.join(ROOT, "cities", a.city, f"hero_{a.level}.py" if a.level else "hero.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     t0 = time.time()
     geo, atlas, materials, meta = mod.build(K)
+    if a.posts:
+        return write_posts(a.city, meta)
     tris, verts = geo.count()
     print(f"{meta['id']}: {tris} triangles, {verts} vertices, {len(geo.parts)} materials, {len(geo.emitters)} lights to bake ({time.time() - t0:.1f} s)")
     t1 = time.time()
@@ -67,7 +87,7 @@ def main():
             subprocess.run(["node", os.path.join(ROOT, "pipeline", "meshopt_glb.mjs"), glb], check=True)
         print(f"-> {glb} ({os.path.getsize(glb) / 1e6:.2f} MB) in {time.time() - t0:.0f} s")
     json.dump(meta, open(os.path.join(tmp, f"{meta['id']}.json"), "w"), indent=1)
-
+    write_posts(a.city, meta)
 
 if __name__ == "__main__":
     main()
