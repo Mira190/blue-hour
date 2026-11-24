@@ -71,9 +71,9 @@ window.OEBatch = (function () {
       b.name = opts.name ? opts.name(m, first) : m.name || 'batch';
       b.castShadow = first.castShadow; b.receiveShadow = first.receiveShadow; b.renderOrder = first.renderOrder; b.layers.mask = first.layers.mask; b.visible = first.visible;
       // (the squares of an opaque material need no order among themselves; a pane's are drawn far to near, as they were.
-      // An opaque one is drawn whole: culled square by square, three rebuilt its list and sent it to the GPU as a texture
-      // every frame, 26 of them on the walk (tools/gl_calls.js, issue 191), for squares of three to seven a side)
-      b.sortObjects = !!m.transparent; b.perObjectFrustumCulled = !!m.transparent;
+      // Culled square by square, which sends the batch's list to the GPU every frame (26 textures on the walk, issue 191):
+      // drawn whole instead, a phone drew 80,000 to 100,000 triangles more on foot by Hachiko, so the cull stays)
+      b.sortObjects = !!m.transparent; b.perObjectFrustumCulled = true;
       b.userData.batched = s.length;
       b.computeBoundingBox(); b.computeBoundingSphere();
       b.matrixAutoUpdate = false; b.updateMatrix();
