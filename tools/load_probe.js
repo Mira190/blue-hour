@@ -11,15 +11,19 @@ const fs = require('fs');
 const [,, size = '1440x900', outFile = ''] = process.argv;
 const [w, h] = size.split('x').map(Number), phone = w < 600;
 const RUNS = +(process.env.RUNS || 1), WAIT = +(process.env.WAIT || 5);
+// BASE=https://host/path/: a real host instead of the local server (the page as deployed: its network, compression and cache
+// headers). The User-Agent then names the project, and the visitor's own switch turns the telemetry off (a harness's page
+// is navigator.webdriver, which telemetry.js leaves out already).
+const BASE = process.env.BASE || '';
 const med = a => { const s = a.filter(x => x != null).sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
 
 async function once(b, run) {
-  const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
+  const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone, ...(BASE ? { userAgent: 'blue-hour-tools (+https://github.com/Mira190/blue-hour)' } : {}) });
   const p = await ctx.newPage();
   const logs = [];
-  p.on('console', m => { const t = m.text(); if (/^(warm|compile|buffers|gate)/.test(t)) logs.push(t.slice(0, 300)); });
+  p.on('console', m => { const t = m.text(); if (/^(warm|compile|buffers|gate|set-up)/.test(t)) logs.push(t.slice(0, 300)); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 200)}`));
-  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); if (location.hostname !== 'localhost') localStorage.setItem('oe3d-telemetry', 'off'); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
   await p.addInitScript(() => {
     // programs linked, by a warm-up's compile or by a draw (the stack names compile for the first)
     const P = WebGL2RenderingContext.prototype, G = window.__links = [];
@@ -46,8 +50,8 @@ async function once(b, run) {
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 1000 }); await cdp.send('Profiler.start');
   // the page's clock and the profile's: performance.timeOrigin (ms since the epoch) and the profile's start (µs, monotonic)
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 1500000, polling: 500 });
+  await p.goto(`${BASE || `http://localhost:${process.env.PORT || 8800}/`}${process.env.Q || ''}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: BASE ? 180000 : 1500000 /* (a real host under the GPU lock: three minutes, not twenty-five) */, polling: 500 });
   const st = await p.evaluate(() => { const o = {}; for (const k of ['fetched', 'decoded', 'built', 'frame']) { const m = performance.getEntriesByName(`oe:${k}`, 'mark').pop(); if (m) o[k] = m.startTime; } o.ready = performance.now(); return o; });
   const warmAt = await p.evaluate(() => window.__warmDone || null);
   let tap = null;
