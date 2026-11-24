@@ -116,7 +116,8 @@ function pageSide() {
         const A = skOf(a), B = skOf(b); if (!A.limbs) { const k = window.__skin; A.sk = A.sk || k._skinned(a.rig.root); A.limbs = k._points(A.sk, /(Hand|Forearm)$/).concat(k.held(a.rig.root)); }
         if (!B.body) { const k = window.__skin; B.sk = B.sk || k._skinned(b.rig.root); B.body = k._tris(B.sk, null, /(Calf|Foot)$/); }
         const r = window.__skin.deep(A.limbs, B.body); if (r.deep > 0) { const ca = g.crowd && a.crowd ? g.crowd.P[+a.name.split(' ')[1]] : null, cb = g.crowd && b.crowd ? g.crowd.P[+b.name.split(' ')[1]] : null, ph = q => q ? (q.pz ? q.ph || 'plaza' : q.state) + (q.moving ? ' moving' : ' stood') : 'not of the crowd';
-          out.push({ a: a.name, b: b.name, deep: r.deep, part: r.part, at: r.at && r.at.map(x => +x.toFixed(1)), apart: +Math.hypot(pa.x - pb.x, pa.z - pb.z).toFixed(2), pa: ph(ca), pb: ph(cb), clip: a.rig.look && a.rig.look.clip || null, umb: !!(ca && ca.umbR > 0) }); } } }
+          out.push({ a: a.name, b: b.name, deep: r.deep, part: r.part, at: r.at && r.at.map(x => +x.toFixed(1)), apart: +Math.hypot(pa.x - pb.x, pa.z - pb.z).toFixed(2), pa: ph(ca), pb: ph(cb), mates: !!(ca && cb && ((ca.lead >= 0 && (cb.id === ca.lead || cb.lead === ca.lead)) || (cb.lead >= 0 && cb.lead === ca.id))), // (one group, walking together: actors.js mateOf)
+            moving: ca ? +Math.hypot(ca.vx || 0, ca.vy || 0).toFixed(2) : null, clip: a.rig.look && a.rig.look.clip || null, umb: !!(ca && ca.umbR > 0) }); } } }
     return { pairs: out, near: who.filter(q => q.crowd).length, others: who.filter(q => !q.crowd).map(q => q.name) }; };
   S._skinned = skinned; S._points = points; S._tris = tris;
   S.cam = (pos, look) => { const g = window.__game, T = window.THREE; const P = S.pose || (S.pose = { pos: new T.Vector3(), look: new T.Vector3() }); P.pos.set(pos[0], pos[2], -pos[1]); P.look.set(look[0], look[2], -look[1]); if (!g.cine.active) g.cine.play(() => S.pose, 1e9, { label: 'film' }); };
