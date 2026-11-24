@@ -69,7 +69,7 @@ function rimInside(A, B) {
   return Math.max(0, A.r + B.r - len(add(v, B.n, -t)));
 }
 function judge(rows, { held = false, loose = false } = {}) {
-  const who = r => `#${r.i} ${r.character} (${r.near ? 'near' : 'far copy'}, ${r.wait ? 'waiting' : r.moving ? 'walking' : 'standing'}, leaning ${(r.lean * 57.3).toFixed(0)} deg) at ${r.x}, ${r.y}, ${r.d} m from the lens`;
+  const who = r => `#${r.i} ${r.character} (${r.near ? 'near' : 'far copy'}, ${r.wait ? 'waiting' : r.moving ? 'walking' : 'standing'} ${r.pz ? 'in a square' : `on footway ${r.line}`}, leaning ${(r.lean * 57.3).toFixed(0)} deg) at ${r.x}, ${r.y}, ${r.d} m from the lens`;
   const umb = rows.filter(r => r.umb && r.up >= 1), bad = [], brush = [];
   let worstHand = 0, worstShaft = Infinity, worstRim = 0;
   for (const r of umb) {

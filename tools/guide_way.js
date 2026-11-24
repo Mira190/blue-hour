@@ -42,6 +42,7 @@ const LEADS = [
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300)); });
   fs.mkdirSync(out, { recursive: true });
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
+  const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
   // DRAW=n: one frame in n drawn, the others run the game without their draw calls (as tools/story_play.js: on a software
   // renderer the game's clock runs at its frames' pace, and a lead of 200 m took ten minutes); stills are drawn whole
   const DRAW = +(process.env.DRAW ?? (process.env.GPU === 'metal' ? 0 : 20));
@@ -232,7 +233,7 @@ const LEADS = [
     await run;
     const ok = !r.error && !r.nfloat && !r.edge.length && !r.wayEdge.length && !r.arrows.length && r.state === 'sit';
     if (!ok) fails++;
-    console.log(ok ? 'ok  ' : 'FAIL', lead.name, JSON.stringify(r));
+    console.log(ok ? 'ok  ' : 'FAIL', (ok ? '' : lost.tag()) + lead.name, JSON.stringify(r));
     await shoot(`${out}/${lead.name}-end.png`);
   }
   console.log(`page errors: ${errors.length}`);
