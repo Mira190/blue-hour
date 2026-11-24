@@ -122,6 +122,7 @@ async function run(p, place) {
     if (place.spot) { spin('stood'); return { frames: frames.length, bad, meshes: set.length, levels: [] }; }
     await walk(w.slice(1), 'in');
     spin('far end');
+    if (place.quick) return { frames: frames.length, bad, meshes: set.length, levels: [] }; // (quick: in, and the far end's turn and drag)
     await walk(w.slice(0, -1).reverse(), 'back');
     spin('near end');
     // and the middle, stood still with the view swung round

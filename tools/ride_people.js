@@ -183,7 +183,7 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
   // as drawn and as built: tools/cam_ceiling.js. PASSAGE=0 leaves it out)
   if (ended === 'arrived' && process.env.PASSAGE !== '0') {
     await p.evaluate(() => { window.__ridePeople.was = null; window.requestAnimationFrame = () => 0; }); // (the watch over; the world stepped by the walk alone)
-    const r = await camCeiling.run(p, camCeiling.PLACES[0]);
+    const r = await camCeiling.run(p, Object.assign({ quick: process.env.PASSAGE !== 'all' }, camCeiling.PLACES[0])); // (PASSAGE=all: both ways and the middle too)
     for (const f of r.bad.slice(0, 6)) console.log('  ceiling', JSON.stringify(f));
     console.log(`passage: ${r.frames} frames walked, ${r.bad.length} with the lens over or through its ceiling`);
     if (r.bad.length) errors.push(`the lens over or through the passage's ceiling in ${r.bad.length} frames`);
