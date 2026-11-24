@@ -53,7 +53,18 @@ window.OERoute = (function () {
       return out;
     }
   }
-  const slice = () => new Promise(r => setTimeout(r, 0));
+  // A slice of the build a frame (issue 194: it builds behind the title, and in WebKit the title's first seconds were rough
+  // beside it): each a quarter of the last frame's length, 4 to 250 ms, so that a device at 60 frames a second gives it 4 ms of
+  // each 16.7 (30: 8 of 33) and a slow one, whose frames are long anyway, still has its routes before the player can walk anywhere. Before,
+  // a slice ran 10 ms or more and the next began at once (a zero timeout), and the build took most of every frame; given only
+  // a frame's idle time, it never finished on a device with none. `until`: when the slice under way stops; due(): whether it has
+  let until = 0, lastFrame = 0, frameMs = 16.7;
+  const due = () => performance.now() >= until;
+  const slice = () => new Promise(r => requestAnimationFrame(t => {
+    if (lastFrame) frameMs = Math.min(1000, Math.max(4, t - lastFrame));
+    lastFrame = t;
+    setTimeout(() => { until = performance.now() + Math.max(4, Math.min(250, frameMs / 4)); r(); }, 0);
+  }));
 
   // a polyline in the network's form, from [[x, y, z]]
   function polyline(P, c) {
@@ -400,7 +411,7 @@ window.OERoute = (function () {
       if (building) return building;
       building = (async () => {
         let t0 = performance.now();
-        const tick = async (f, what) => { const t = performance.now(); if (t - t0 > 10) { busy += t - t0; phases[what] = Math.round((phases[what] || 0) + t - t0); if (onProgress) onProgress(f, what); await slice(); t0 = performance.now(); } };
+        const tick = async (f, what) => { const t = performance.now(); if (t >= until) { busy += t - t0; phases[what] = Math.round((phases[what] || 0) + t - t0); if (onProgress) onProgress(f, what); await slice(); t0 = performance.now(); } };
         // segments into a 24 m grid
         const segL = [], segK = [], grid = new Map();
         for (let i = 0; i < lines.length; i++) {
@@ -444,7 +455,7 @@ window.OERoute = (function () {
               splits[i].push([sAt(i, k, t), nd]); splits[j].push([sAt(j, kk, u), nd]);
             }
           }
-          if (++done % 400 === 0) await tick(0.15 * done / grid.size, 'crossings');
+          if (++done && due()) await tick(0.15 * done / grid.size, 'crossings');
         }
         // a line ending on another (a footway up to the kerb): split that one there, and join the two
         const links = [];
@@ -468,7 +479,7 @@ window.OERoute = (function () {
             const mine = splits[i][e ? 1 : 0][1];
             if (mine !== nd) links.push([mine, nd]);
           }
-          if (i % 500 === 0) await tick(0.15 + 0.1 * i / lines.length, 'junctions');
+          if (due()) await tick(0.15 + 0.1 * i / lines.length, 'junctions');
         }
         // each stretch between two splits, walked and moved off the walls, cut where it can't be walked
         const pos = { x: 0, y: 0, z: 0, hx: 0, hy: 0 };
@@ -526,7 +537,7 @@ window.OERoute = (function () {
           const l = lines[i], sp = splits[i].sort((a, b) => a[0] - b[0]);
           for (let k = 1; k < sp.length; k++) if (sp[k][1] !== sp[k - 1][1]) stretch(l, sp[k - 1][0], sp[k][0], sp[k - 1][1], sp[k][1], l.c);
           if (l.strip) stripEnds.push(sp[0][1], sp[sp.length - 1][1]);
-          if (i % 50 === 0) await tick(0.25 + 0.6 * i / lines.length, 'walking the footways');
+          if (due()) await tick(0.25 + 0.6 * i / lines.length, 'walking the footways');
         }
         for (const [a, b] of links) stretch(null, 0, 0, a, b, 'link');
         // lifts: from one stop to the next, a jump the line doesn't draw (LIFT marks the edge)
@@ -546,7 +557,7 @@ window.OERoute = (function () {
             const zd = (ground && ground(pos.x, pos.y, pos)) ?? pos.z, f = nav.floorAt(pos.x, pos.y, zd + 0.6, true);
             if (!f || Math.abs(f.z - zd) > LEVEL || !nav.room(pos.x, pos.y, f.z, 0.9, 1.6, nav.isDeck(f.kind))) drive[i] = 1;
           }
-          if (i % 100 === 0) await tick(0.85 + 0.15 * i / roadNet.L.length, 'the roads');
+          if (due()) await tick(0.85 + 0.15 * i / roadNet.L.length, 'the roads');
         }
         // a one-way road that comes to a wall (a lane the data runs into a building: game.js cutAtWalls),
         // or whose only ways on are roads a car can't get along: a car on it could only wait at its end,
@@ -651,7 +662,7 @@ window.OERoute = (function () {
         let done = false;
         for (const [, j] of list.slice(0, 6)) if (segOK(NX[n], NY[n], NZ[n], SP[3 * j], SP[3 * j + 1], SP[3 * j + 2])) { join(n, j, null); done = true; break; }
         if (!done && list.length && own >= 200 && own < top * 0.5) round.push([list[0][0], n]);
-        if (n % 200 === 0) await tick(0.9 + 0.05 * n / NX.length, 'joining the pieces');
+        if (due()) await tick(0.9 + 0.05 * n / NX.length, 'joining the pieces');
       }
       // no straight way: round whatever is in the way, over the ground, no more than 30 m, from a
       // piece of 200 m or more still cut off from the main network (from a smaller one the
@@ -737,7 +748,7 @@ window.OERoute = (function () {
             if (!path.some((q, i) => i && acrossRoad(path[i - 1][0], path[i - 1][1], path[i - 1][2], q[0], q[1], q[2]))) { join(n, j, path); shortcuts++; }
           }
         }
-        if (n % 200 === 0) await tick(0.985, 'short cuts');
+        if (due()) await tick(0.985, 'short cuts');
       }
       phases.shortcuts = [shortcuts, floods, Math.round(floodMs)]; // (how many, how many searched round a corner for, and the milliseconds those took)
       // split the edges at the points joined, from the far end back, and name each point's node
