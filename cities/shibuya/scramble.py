@@ -909,6 +909,55 @@ def entrance_sites(D, near, radius=150.0):
     return out
 
 
+def door_sites(D, near, built, radius=120.0):   # (the level and its rim: A1 and A2 further out were not checked)
+    """The subway exits OpenStreetMap maps at a building's wall, not on a little building of their own: a door
+    into the building's basement concourse (A3, A6c, Miyamasuzaka's and an unnamed one round the Scramble; each
+    node on a building's edge in Tokyo's 2023 orthophoto with no roof of its own beside it: issue 213). Each gets
+    the exit's sign over the door, on the wall the node stands at: where on the wall, which way it faces, the
+    ground there."""
+    from shapely.geometry import Polygon as Poly
+    have = {e["ref"] for e in built}
+    out = []
+    for n in D.nodes:
+        t = n["tags"]
+        if t.get("railway") != "subway_entrance" or not t.get("ref") or t["ref"] in have or np.linalg.norm(n["xy"] - near) > radius:
+            continue
+        p = Point(*n["xy"])
+        best, bd = None, 4.0                       # (a footprint traced from the air lies up to 4 m off: A3)
+        for s in D.solids:
+            if len(s["ring"]) < 4 or abs(s["ring"][0][0] - n["xy"][0]) > 80 or abs(s["ring"][0][1] - n["xy"][1]) > 80:
+                continue
+            g = Poly(s["ring"])
+            if not g.is_valid or (g.area < 200 and s["top"] <= 5):
+                continue
+            d = g.exterior.distance(p)
+            if d < bd:
+                best, bd = (s, g), d
+        if best is None:
+            continue
+        s, g = best
+        q = g.exterior.interpolate(g.exterior.project(p))
+        co = np.asarray(g.exterior.coords)
+        k = int(np.argmin([LineString([co[i], co[i + 1]]).distance(q) for i in range(len(co) - 1)]))
+        tng = unit(co[k + 1] - co[k])
+        out_n = np.array([tng[1], -tng[0]])
+        qq = np.array([q.x, q.y])
+        if g.contains(Point(*(qq + out_n * 0.3))):
+            out_n = -out_n
+        out.append({"ref": t["ref"], "name": t.get("name") or "渋谷駅", "at": qq, "f": out_n, "g": D.ground(*qq), "si": s["si"]})
+    return out
+
+
+def door_sign(K, A, d):
+    """An exit's sign over a door in a building's wall, as Tokyo's underground signs the exits it shares with a
+    building: a navy box 1.4 m long on the wall, its face the exit's code on yellow and the station's name, lit
+    from within. Its height is the photographs' usual (an estimate)."""
+    P = frame(d["at"], d["f"])
+    z0 = d["g"] + 2.55
+    box(K["x_panel"], P, 0.0, 0.12, -0.72, 0.72, z0 - 0.02, z0 + 0.34)
+    A.quad(K["x_atlas"], P(0.125, -0.7, z0), P(0.125, 0.7, z0), P(0.125, 0.7, z0 + 0.3), P(0.125, -0.7, z0 + 0.3), f"exit_{d['ref']}")
+
+
 def entrance(K, A, e):
     """A covered stair down to the underground: a flat roof on a steel frame, aluminium panels to waist
     height and glass above on three sides, the stair (30 cm treads, 16.5 cm risers) going down between
@@ -2539,7 +2588,8 @@ class Build:
         self.D = Data(city_id)
         self.node = np.asarray(node, float)
         self.entrances = entrance_sites(self.D, self.node)
-        items = [(f"exit_{e['ref']}", 512, 96) for e in self.entrances] + [("exit_side", 1024, 64)]
+        self.doors = door_sites(self.D, self.node, self.entrances)
+        items = [(f"exit_{e['ref']}", 512, 96) for e in self.entrances + self.doors] + [("exit_side", 1024, 64)]
         for b in BILLBOARDS:
             items += [(k, int(min(512, 96 * w / h)) if w >= h else 128, 96 if w >= h else int(128 * h / w)) for k, w, h in b["boxes"]]
         items += [(k, 768, 76) for b in BANDS for _, k in b["rows"]]
@@ -2573,6 +2623,8 @@ class Build:
             if ring:   # (a lift's housing has no well)
                 clip.append({"ring": ring, "well": True})   # (a stair well the crowd keeps out of while the station below is not built: game.js WELLS; drop the mark when it opens)
             hidden.append(e["si"])
+        for d in self.doors:
+            door_sign(K, self.A, d)
         plan = Plan(self.D, [c["ring"] for c in clip])
         tactile(K, self.D, Plan(self.D, [c["ring"] for c in clip], r=125.0), top=self.top)   # (round the scramble a little wider than the hero level)
         guard_rails(K, self.D, plan)
@@ -2582,7 +2634,7 @@ class Build:
     def draw(self, out_dir):
         from PIL import Image
         img = Image.new("RGB", (self.A.W, self.A.H), (30, 32, 36))
-        for e in self.entrances:
+        for e in self.entrances + self.doors:
             draw_exit(img, self.A.rects[f"exit_{e['ref']}"], e["ref"], e["name"])
         draw_side(img, self.A.rects["exit_side"])
         draw_qfront(img, self.A.rects)
