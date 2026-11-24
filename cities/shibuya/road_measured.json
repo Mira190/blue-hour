@@ -1,8 +1,10 @@
-{"source":"The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-23): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.","cut":[[4630,-12985,5928,-14075],
+{"source":"The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-24): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.","cut":[[4630,-12985,5928,-14075],
 [4664,-11979,5086,-11814],
+[5501,-30375,5818,-30078],
 [5501,-30375,6039,-31000],
 [5818,-30078,5858,-29050],
-[6055,-9795,6271,-10253],
+[5818,-30078,7700,-29524],
 [6625,-31000,5818,-30078]],"off":[[-26378,-27168,-26345,-27539],
 [-6312,-26728,-7096,-26034],
+[5232,-30473,5501,-30375],
 [6000,-14729,5928,-14075]]}
