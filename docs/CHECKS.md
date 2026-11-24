@@ -679,6 +679,11 @@ route, actors, junctions) changes what it computes. Either way the answer is `xv
 `python pipeline/pack.py`, which bakes after it packs), and the two `setup.bin` committed with the change. Never merge one by
 hand: bake again on the merged tree.
 
+So a repack needs the browser: `python pipeline/pack.py` ends with `node tools/bake_setup.js --if-stale`, which does nothing
+while the bake is fresh (a hash, no browser), and where a pack it reads changed loads the page twice in Chromium (the map and a
+phone's district; under `xvfb-run` where there is no display, serving `web/` itself): about a minute on a session's machine.
+The static check (`--check`) is a hash of `game.bin`, `buildings.bin`, `landmarks.bin` and `BAKE_V` alone, no browser.
+
 ## What is not checked
 
 - The story past its first episode: `tools/story_play.js` plays episode one. A new episode adds its
