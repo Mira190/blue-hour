@@ -920,8 +920,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         console.log('frame 1: the camera raised away from her corner:', JSON.stringify(away));
         if (away.phase !== 'go' || !away.finder) { errors.push(`frame 1: raised away from her corner, ${JSON.stringify(away)} (the world still running, the lens's view)`); console.log(errors[errors.length - 1]); }
         await face(J.at);
-        for (let k = 0; k < 200 && await p.evaluate(() => window.__game.story.state.phase === 'go'); k++) await frames(2);
-        const st0 = await p.evaluate(() => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder, cut: document.getElementById('gd').classList.contains('cut') }));
+        // (the world stops once her corner has stood in the frame lines for the job's hold, 0.8 s of the game's own time,
+        // story.js jobTick. Waited for by the game's state, up to two minutes of the wall's, not by 400 frames drawn: on a
+        // phone's tier a drawn frame carries little of the game's time, the hold reached 0.77 s at the 80th of 200 here, and
+        // on main's budget run on 169c9fe the 400 frames ran out with the lens on her corner. The harness's, not the game's:
+        // a player holding the lens there 0.8 s always stops it. Where it does not stop, how far the hold came is said)
+        let held = 0;
+        await p.waitForFunction(() => { const st = window.__game.story.state; window.__jobMax = Math.max(window.__jobMax || 0, st.jobT || 0); return st.phase !== 'go'; }, null, { timeout: 120000, polling: 100 }).catch(() => {});
+        held = await p.evaluate(() => +(window.__jobMax || 0).toFixed(2));
+        const st0 = await p.evaluate(h => ({ phase: window.__game.story.state.phase, finder: !!window.__game.story.finder, cut: document.getElementById('gd').classList.contains('cut'), held: h }), held);
         console.log('frame 1: her corner held in the finder:', JSON.stringify(st0));
         if (st0.phase !== 'stop' || !st0.finder) { errors.push(`frame 1: her corner held in the finder, ${JSON.stringify(st0)} (the world stopped, seen in the lens)`); console.log(errors[errors.length - 1]); }
         await snap('1-stop-in-the-finder');

@@ -613,6 +613,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                       const sat = await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return { me: g.player.mode, her: !!n.sit, wait: g.walkLine().wait }; });
                       if (sat.me !== 'seat' || !sat.her || !sat.wait) fail(`Wait with her: not the two of them sat on the wall (${JSON.stringify(sat)})`);
                       else ok('Wait with her: the two of you on Hachiko\'s wall, the night passing');
+                      // (her sit is laid on in her next pose, and the seat's thigh slope comes to rest a step a frame: measured after
+                      // a second of the game's own clock, not the wall's. Beside another browser no frame had run in the 400 ms act()
+                      // waits, and she was read standing, her hips 0.52 m over the stone, or half sat, 0.026: issue 211)
+                      await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20; i++) g.frame(0.05); });
                       for (const r of await p.evaluate(drawnSeat, { rigs: ['nagi'] })) { if (r.ok === null) console.log(`(${r.who}: what is drawn under them cannot be read here: this device let go of its vertices)`); else if (!r.ok) fail(`Wait with her: ${r.who} is not sat on anything drawn (${JSON.stringify(r.under)})`); else ok(`Wait with her: ${r.who} on the drawn stone`); }
                       await shot('4b-wait');
                       if (!(await p.waitForFunction(() => window.__game.walkLine().gate === 'ask', null, { timeout: 900000, polling: 500 }).then(() => true, () => false))) fail(`she never came to the station's front (${JSON.stringify(await line())})`);
@@ -630,11 +634,20 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                           await beside(1.8);
                           if ((await line()).gate !== 'shown' || !(await waitPrompt(/Talk to Nagi/))) fail(`her last photograph is not the one she asked for (${JSON.stringify(await line())})`);
                           else {
-                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.waitForTimeout(600); }
-                            // (her last words come 0.9 s of the wall after she takes yours, and are said from a frame after that: on a
-                            // slow machine the second press came before them, and her talk stood open for good)
-                            for (let k = 0; k < 40 && (await line()).gate === 'shown'; k++) { await through(); await p.waitForTimeout(1000); }
-                            await p.waitForFunction(() => window.__game.walkLine().gate === 'going', null, { timeout: 120000, polling: 250 }).catch(() => {}); // (the walkers go by the page's own frames)
+                            // (her talk opens in a frame after E: up to a second of the game's clock after each press, not 600 ms of the
+                            // wall's. Beside another browser the three presses ran out before it opened, the talk was left unread, and she
+                            // never went: issue 211)
+                            for (let k = 0; k < 3 && !(await p.evaluate(() => window.__game.dlg.open)); k++) { await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 20 && !g.dlg.open; i++) g.frame(0.05); }); }
+                            // (what she says when shown it, a pause of 900 ms of the wall's clock, then her last words, and only then does
+                            // she go: walktalk.js gateTalk. Each talk read as it opens, until she goes, the page's frames and the wall's
+                            // clock both running. Read twice with 1.5 s between, her last words opened after the second read on a slow
+                            // machine and stayed open: she never went, and every talk after it was shut out: issue 211)
+                            for (let t0 = Date.now(); Date.now() - t0 < 120000;) {
+                              await through();
+                              if (await p.evaluate(() => window.__game.walkLine().gate === 'going')) break;
+                              await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 4 && !g.dlg.open; i++) g.frame(0.05); });
+                              await p.waitForTimeout(250);
+                            }
                             await shot('4b-goes');
                             const gone = await p.waitForFunction(() => window.__game.walkLine().w === 'gone', null, { timeout: 600000, polling: 500 }).then(() => true, () => false);
                             const hid = await p.evaluate(() => { const n = window.__game.npcById('nagi'); return !!n.away && !n.rig.root.visible; });
