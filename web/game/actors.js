@@ -1807,6 +1807,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (Math.abs(lat) > hw && Math.abs(lat) > Math.abs(q.lat || 0)) return;
       const x = q.x + nx * d, y = q.y + ny * d;
       if ((clear && !clear(x, y, q.z)) || keepRoom(x, y, 0.5) < Math.min(0.35, keepRoom(q.x, q.y, 0.5)) || !bodyClear(i, q.x, q.y, x, y, 0.42)) return;
+      // (and never off the pavement into a carriageway: a stood walker stepped out of another's body at the Scramble's
+      // western arm stood in the lane, and a car waited on them 150 s, tools/check.sh roads, issue 187)
+      { const R = api.crossings && api.crossings.road; if (R && R(x, y) && !R(q.x, q.y)) return; }
       q.lat = lat; if (q.lim != null) q.lim += d; q.x = x; q.y = y;
     }
     function bodyClear(self, x0, y0, x, y, r) {
