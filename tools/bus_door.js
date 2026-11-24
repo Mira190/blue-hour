@@ -1,7 +1,8 @@
 // A bus's stop watched (issue 204's second item): the people who get off a standing bus and those who walk to its door,
 // each frame, against the body of every car of the traffic. The ride check once found one of a bus's passengers set
 // down inside their own standing bus (388.8,-938.7, state 'leave'); this plays the street there without the story.
-//   xvfb-run -a node tools/bus_door.js shibuya [minutes=10] [x,y=388,-938]      (GAME_TIME=17:57 as the roads check)
+//   xvfb-run -a node tools/bus_door.js shibuya [minutes=10] [x,y=388,-938]      (GAME_TIME=17:57 as the roads check; OFF=n
+//   has n get off at every stop, where the street gives up to two and only of those out of sight)
 // Every bus stop within 150 m of the place is listed; then for each frame (1/30 s) a walker getting on or off a bus
 // ('board', 'leave') or one of the crowd within 2 m of a standing bus is tested against each car's box as the ride
 // check tests it (its middle inside the length and width, with 5 cm). The first few inside are printed with the bus,
@@ -23,12 +24,14 @@ const at = AT.split(',').map(Number);
   await p.waitForFunction('window.__game && window.__game.cars', null, { timeout: 400000 });
   await p.evaluate(async () => { const g = window.__game; g.hold(true, true); await g.ways.build(); if (g.lateReady) await g.lateReady(); });
   await startPlay(p, { asIs: true });
+  if (process.env.OFF) await p.evaluate(n => { window.__OFF = n; }, +process.env.OFF);
   const stops = await p.evaluate(at => {
     const g = window.__game, q = g.roadNet.nearest(at[0], at[1], 60);
     g.hopTo(q.x, q.y, q.z, 'the kerb');
     for (let t = 0; t < 10 && (g.arriving() || g.cine.active); t += 0.25) g.advance(0.25);
     const out = [];
     for (const S of g.cars.busStops.values()) for (const s of S) if (Math.hypot(s.x - at[0], s.y - at[1]) < 150) out.push(`line ${s.line} dir ${s.dir} at ${s.x.toFixed(1)},${s.y.toFixed(1)}`);
+    const off = +(window.__OFF || 0); if (off) { const b0 = g.crowd.board; g.crowd.board = (door, n, m, ...r) => b0(door, n, Math.max(m, off), ...r); } // (OFF=n: n off at every stop, for more of them to watch)
     window.__bd = { bad: [], n: 0, frames: 0, alighted0: g.crowd.alighted, boarded0: g.crowd.boarded, stopped0: g.cars.busStopped, was: new Map() };
     return out;
   }, at);
