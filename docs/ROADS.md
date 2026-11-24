@@ -731,36 +731,43 @@ weekday peak, 50 to 65 a signal cycle. The 200 cars were spread over the whole r
 them (a branch routed three in five through the player and put half of them back within 120 m) moved nothing beyond
 the count's noise. What an open world does instead is hold its population by distance to the player:
 
-- **The ring.** The traffic is held within `game.crowd.cars_ring_m` (240 m) of the player on foot, a third wider at the
+- **The ring.** The traffic is held within `game.crowd.cars_ring_m` (280 m) of the player on foot, a third wider at the
   wheel, and the whole of `radius_m` + 100 from the helicopter, whose eye takes in the map (`game.js` `trafficRing`,
   `actors.js` `ringStep`, `outRing`). A car past the ring by a seventh leaves it only where nobody sees it go (the
   crowd's `seen()`, sight through the buildings included, looked at every eighth frame), and comes back inside the ring
-  out of sight, as before (`respawn`: 0.48 to 1 times the ring off, never where the camera sees). Past the widest ring
+  out of sight, as before (`respawn`: 0.48 to 1 times the ring off and never within 125 m, `MADE_NEAR`, nor where the camera sees). Past the widest ring
   it leaves whatever the eye sees, as before. The far map holds no cars at all.
-- **The count by the hour.** `game.crowd.cars` (240) is the peak's count; `cars_hours` the share of it out by the hour
+- **The count by the hour.** `game.crowd.cars` (200) is the peak's count; `cars_hours` the share of it out by the hour
   (the evening peak whole, the small hours a quarter: an estimate in the shape of a weekday on central Tokyo's
   arterials); times the density setting and the frame governor's share (`game.js` `trafficWant`). More come at once,
   each out of sight; fewer leave from the list's end, each only once out of sight (`api.want`); a cut, `api.fresh`.
-- **The count by the tier.** A phone has 0.65 of the slots (`CARS_PHONE`, 156).
+- **The count by the tier.** A phone has 0.65 of the slots (`CARS_PHONE`, 130).
 
-Measured, a desktop's page, five minutes from 17:57 (main against the ring):
+Measured, a desktop's page, five minutes from 17:57 (main against the ring tried at 240 cars within 240 m, and as landed,
+200 within 280 m):
 
-| | Main | The ring |
-|---|---|---|
-| Cars on the streets | 200 within 550 m | 239 within 240 m |
-| Within 60 m of you, on average | 10.1 | 10.3 |
-| Within 120 m | 22.8 | 40.6 |
-| Within 100 m (`tools/traffic_feed.js`), and standing | 12.0, 70% (at the light 3.6, behind a car 2.1) | 29.2, 76% (behind a car 13.2, at the light 4.6) |
-| The nearest moving: median, 90% within; one within 30 m | 60 m, 108 m; 28% | 56 m, 84 m; 28% |
-| Into the Scramble's box an hour | 216 | 300 |
-| The traffic's step a frame (`tools/crowd_cost.js`, self time, this machine) | 3.3 ms | 4.5 ms |
+| | Main | 240 in 240 m | 200 in 280 m |
+|---|---|---|---|
+| Cars on the streets | 200 within 550 m | 239 within 240 m | 200 within 280 m |
+| Within 60 m of you, on average | 10.1 | 10.3 | 10.9 |
+| Within 120 m | 22.8 | 40.6 | 25.1 |
+| Within 100 m (`tools/traffic_feed.js`), and standing | 12.0, 70% (at the light 3.6, behind a car 2.1) | 29.2, 76% (behind a car 13.2, at the light 4.6) | |
+| The nearest moving: median, 90% within; one within 30 m | 60 m, 108 m; 28% | 56 m, 84 m; 28% | 61 m, 137 m; 21% |
+| Into the Scramble's box an hour | 216 | 300 | 228 |
+| The traffic's step a frame (`tools/crowd_cost.js`, self time, this machine) | 3.3 ms | 4.5 ms | |
 
 What the ring shows: the streets round the Scramble now hold their real queues, every arm full back past the next
 junction, and moving cars within 100 m double (3.6 to 7.0). The Scramble's own count is no longer the count's to raise:
 its arms are full and it passes what its greens let through, 1.7 to 5 vehicles a green at headways of 5 to 9 s
 (`tools/junction_flow.js`, 4 minutes from 17:57: 175, 105, 58 and 122 an hour on its four arms in, the head car
 standing for a way across its own: "cross by" 7 to 17 s of a green). A real stop line discharges at about 2 s a
-vehicle. That is the junction's capacity (above), the next lever for 1,900 an hour.
+vehicle. That is the junction's capacity (above), the next lever for 1,900 an hour (issue 224).
+
+Why it landed at 200 within 280 m: at 240 within 240 m the queues at Hachiko's kerb held the story's ride still, and its
+cut on (`rides.js` `skipRide`, `setDown`: the furthest clear point short of the stop) set it down 8 m short, a rail
+between its door and the pavement (`tools/ride_people.js`, issue 208's check); once its pickup was never boarded. The
+ring and the count by the hour and the tier are the mechanism; the count is raised once the Scramble discharges at a
+real stop line's rate, and its queues no longer spill back onto the story's kerbs.
 
 ## Not done, and why
 
