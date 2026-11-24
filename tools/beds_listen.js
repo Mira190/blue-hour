@@ -22,6 +22,7 @@ function sink(kind, meta, data) {
   if (kind === 'pcm') { const c = ctxs.get(m.id); if (c) c.chunks.push({ f0: m.f0, buf: Buffer.from(data, 'base64') }); }
 }
 function wav(file, c, f0, f1) {
+  f0 = Math.round(f0); f1 = Math.round(f1); // (whole frames: a fractional start put every sample between two and wrote noise)
   const n = Math.max(0, Math.round(f1 - f0)), pcm = Buffer.alloc(n * 4);
   for (const ch of c.chunks) {
     const len = ch.buf.length / 4;
@@ -62,7 +63,9 @@ function wav(file, c, f0, f1) {
     const g = window.__game, A = window.OEAudio, fr = () => Math.round(A.ctx.currentTime * A.ctx.sampleRate), raf = () => new Promise(r => requestAnimationFrame(r));
     const put = () => { if (g.player.mode !== 'foot') return; const f = g.nav.floorAt(x, y, 400); g.player.x = x; g.player.y = y; g.player.z = z != null ? z : f ? f.z : g.nav.terrain(x, y); g.player.speed = 0; g.player.vz = 0; g.player.ground = true; };
     for (let i = 0; i < 30; i++) { put(); await raf(); } // (settled where it is put, the place's mix taken)
-    const f0 = fr(), t0 = performance.now(), sig = [], near = [], marks = [];
+    const f0 = fr(), t0 = performance.now(), sig = [], near = [], marks = [], tr = window.__tr = window.__tr || { calls: 0, heard: 0, max: 0 };
+    if (A.traffic && !A.traffic.__w) { const f = A.traffic; A.traffic = L => { tr.calls++; const m = Math.max(0, ...(L || []).map(o => (o ? o.g : 0))); if (m > 0.05) tr.heard++; tr.max = Math.max(tr.max, m); return f(L); }; A.traffic.__w = 1; }
+    tr.calls = tr.heard = 0; tr.max = 0;
     let walk = null, ons = 0, offs = 0, next = 1;
     while (performance.now() - t0 < sec * 1000) {
       put(); await raf();
@@ -76,10 +79,10 @@ function wav(file, c, f0, f1) {
       }
       if (act === 'far' && !marks.length && t > 6) { A.far('siren', 600, -0.3); marks.push([+(fr() - f0) / A.ctx.sampleRate, 'a far siren asked for, 600 m off (heard 1.7 s later)']); }
     }
-    return { f0, f1: fr(), sig, near, marks, place: g.soundPlace(), mix: A.mixNow };
+    return { f0, f1: fr(), sig, near, marks, place: g.soundPlace(), mix: A.mixNow, traffic: Object.assign({}, tr) };
   }, [x, y, z, sec, act]);
   const notes = {}, rate = () => [...ctxs.values()].find(c => c.chunks.length);
-  const seg = async (name, r) => { await new Promise(res => setTimeout(res, 600)); const c = rate(); notes[name] = Object.assign(wav(path.join(OUT, `${name}.wav`), c, r.f0, r.f1), { sig: r.sig, marks: r.marks, near: r.near, place: r.place, mix: r.mix }); console.log(name, JSON.stringify(notes[name])); };
+  const seg = async (name, r) => { await new Promise(res => setTimeout(res, 600)); const c = rate(); notes[name] = Object.assign(wav(path.join(OUT, `${name}.wav`), c, r.f0, r.f1), { sig: r.sig, marks: r.marks, traffic: r.traffic, place: r.place, mix: r.mix }); console.log(name, JSON.stringify(notes[name])); };
   const ONLY = (process.env.ONLY || 'kerb,stop,roof,rain').split(','); // (ONLY=roof,rain: those alone)
   const kerb = ONLY.includes('kerb') ? await hold(380, -1028, null, MAXCYC, 'cycle') : null; if (kerb) await seg('kerb', kerb);
   // red.wav: the longest stretch with the walk off, up to 20 s, from its middle

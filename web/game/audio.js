@@ -174,20 +174,22 @@ window.OEAudio = (function () {
       sn.connect(sb); sb.connect(sg); sg.connect(B.self);
       return { vol: sg };
     },
-    // rain: the wash of a street's drops (noise between 400 Hz and 2.8 kHz: it was high-passed at 3.2 kHz and left open
+    // rain: the wash of a street's drops (noise between 200 Hz and 1.1 kHz, rolled off steeply over it: it was high-passed at 3.2 kHz and left open
     // to the top, a hiss the owner heard as grating, 24 November 2026), the patter on leaves and paving (a band of noise
     // that flutters), and under a roof its drumming (a low band, louder there)
     rain() {
       const hn = noiseSource(), hh = ctx.createBiquadFilter(), hl = ctx.createBiquadFilter(), hg = ctx.createGain();
-      hh.type = 'highpass'; hh.frequency.value = 400; hl.type = 'lowpass'; hl.frequency.value = 2800; hl.Q.value = 0.5; hg.gain.value = 0;
-      hn.connect(hh); hh.connect(hl); hl.connect(hg); hg.connect(B.weather);
+      hh.type = 'highpass'; hh.frequency.value = 200; hl.type = 'lowpass'; hl.frequency.value = 1300; hl.Q.value = 0.5; hg.gain.value = 0;
+      // (and one more low-pass over the wash and the patter together: twelve decibels an octave left too much over 3 kHz)
+      const top = ctx.createBiquadFilter(); top.type = 'lowpass'; top.frequency.value = 900; top.Q.value = 0.6; top.connect(B.weather);
+      hn.connect(hh); hh.connect(hl); hl.connect(hg); hg.connect(top);
       const pn = noiseSource(), pb = ctx.createBiquadFilter(), pg = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain(), pv = ctx.createGain();
-      pb.type = 'bandpass'; pb.frequency.value = 1100; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
+      pb.type = 'bandpass'; pb.frequency.value = 600; pb.Q.value = 0.7; pg.gain.value = 0.6; pv.gain.value = 0;
       pl.type = 'sine'; pl.frequency.value = 5.1; plg.gain.value = 0.2; pl.connect(plg); plg.connect(pg.gain); pl.start();
-      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(B.weather);
+      pn.connect(pb); pb.connect(pg); pg.connect(pv); pv.connect(top);
       const rn2 = noiseSource(), rb = ctx.createBiquadFilter(), rgain = ctx.createGain();
       rb.type = 'bandpass'; rb.frequency.value = 420; rb.Q.value = 0.9; rgain.gain.value = 0;
-      rn2.connect(rb); rb.connect(rgain); rgain.connect(B.weather);
+      rn2.connect(rb); rb.connect(rgain); rgain.connect(top); // (the drumming too: a band-pass's skirts left a hiss over 2 kHz)
       return { hiss: hg, patter: pv, roof: rgain, hp: hl };
     },
   };
@@ -213,6 +215,40 @@ window.OEAudio = (function () {
     ramp(c.vol.gain, level * (0.035 + 0.05 * throttle), 0.08);
     ramp(c.a.frequency, f, 0.06); ramp(c.b.frequency, f * 1.5, 0.06);
     ramp(c.lp.frequency, 220 + 900 * throttle * rpm + 200 * rpm, 0.08);
+  }
+  // The traffic going by you: the nearest moving cars and buses (game.js trafficSound, at most three), each the voice
+  // your own car has (an engine of two saws a fifth apart through a low-pass, and the tyres on the road, a band of
+  // noise) on a slot of its own, panned to where it is, into the near bus through a low-pass for its distance. A bus is
+  // lower and rougher. The owner asked for "a car going by" to stay, and it had never been there: the traffic was silent
+  // but for a honk (docs/SOUND.md "No bed without a source"). L: [{ g, v, pan, fc, bus }] by slot (g 0: silent). Made
+  // the first time a car is heard; given up at level 2 with the street's other beds
+  const trafficCh = [];
+  function traffic(L) {
+    if (!ctx) return;
+    for (let i = 0; i < 3; i++) {
+      const o = (shed >= 2 || muted) ? null : L && L[i];
+      let c = trafficCh[i];
+      if (!c) {
+        if (!(o && o.g > 0.002)) continue;
+        const a = ctx.createOscillator(), b = ctx.createOscillator(), elp = ctx.createBiquadFilter(), eg = ctx.createGain();
+        a.type = b.type = 'sawtooth'; a.frequency.value = 45; b.frequency.value = 67; elp.type = 'lowpass'; elp.frequency.value = 200; elp.Q.value = 0.6; eg.gain.value = 0;
+        const n = noiseSource(), tb = ctx.createBiquadFilter(), tg = ctx.createGain();
+        tb.type = 'lowpass'; tb.frequency.value = 450; tb.Q.value = 0.5; tg.gain.value = 0;
+        const lp = ctx.createBiquadFilter(), pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+        lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.6;
+        a.connect(elp); b.connect(elp); elp.connect(eg); eg.connect(lp); n.connect(tb); tb.connect(tg); tg.connect(lp);
+        if (pn) { lp.connect(pn); pn.connect(B.near); } else lp.connect(B.near);
+        a.start(); b.start();
+        c = trafficCh[i] = { a, b, elp, eg, tb, tg, lp, pn };
+      }
+      const g = o ? o.g : 0, v = o ? Math.min(20, o.v) : 0, bus = !!(o && o.bus), k = Math.min(1, v / 12);
+      const f = (bus ? 24 : 32) + v * (bus ? 1.4 : 2.1);
+      ramp(c.eg.gain, g * (bus ? 0.06 : 0.035) * (0.5 + 0.5 * k), 0.12);
+      ramp(c.tg.gain, g * (bus ? 0.09 : 0.07) * k, 0.12);
+      ramp(c.a.frequency, f, 0.2); ramp(c.b.frequency, f * 1.5, 0.2);
+      ramp(c.elp.frequency, (bus ? 240 : 170) + 8 * v, 0.2); ramp(c.tb.frequency, 300 + 15 * v, 0.2);
+      if (o) { ramp(c.lp.frequency, Math.max(300, Math.min(1200, o.fc || 1200)), 0.15); if (c.pn) ramp(c.pn.pan, Math.max(-1, Math.min(1, o.pan || 0)) * 0.85, 0.08); }
+    }
   }
   function skid(level) { const c = ctx && bed('skid', level > 0.001); if (c) ramp(c.vol.gain, Math.min(0.06, level * 0.06), 0.06); }
   // level 0..1 (drizzle to a downpour); roof: under one, which drums; inside: a car or a cabin, muffled
@@ -251,10 +287,11 @@ window.OEAudio = (function () {
     const c = ctx && bed('rain', level > 0.001);
     if (!c) return;
     const k = inside ? 0.35 : 1;
-    ramp(c.hiss.gain, level * 0.05 * k * (roof ? 0.6 : 1), 0.8);
-    ramp(c.patter.gain, level * 0.07 * k * (roof ? 0.5 : 1), 0.8);
+    // (8 dB under what it was: the rain stood 25 dB over the rest of the kerb, the loudest thing in the street)
+    ramp(c.hiss.gain, level * 0.02 * k * (roof ? 0.6 : 1), 0.8);
+    ramp(c.patter.gain, level * 0.028 * k * (roof ? 0.5 : 1), 0.8);
     ramp(c.roof.gain, (roof ? 0.11 : inside ? 0.05 : 0.035 * umb) * Math.min(1, level * 1.4), 0.6);
-    ramp(c.hp.frequency, inside ? 1200 : 2800, 0.5); // (the wash's top: lower through a roof or a window)
+    ramp(c.hp.frequency, inside ? 800 : 1300, 0.5); // (the wash's top: lower through a roof or a window)
     // under a roof, now and then a drop off its edge
     const now = ctx.currentTime;
     if (roof && level > 0.05 && now > dripAt) { dripAt = now + 0.25 + Math.random() * (1.6 - level); blip(900 + Math.random() * 700, 0.05, 'sine', 0.025); }
@@ -1482,7 +1519,7 @@ window.OEAudio = (function () {
         ...P.log.slice(-4)].join('\n');
     }, 250);
   }
-  function stop() { want = false; probeStop(); if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; screenBed = null; trainCh.length = 0; } }
+  function stop() { want = false; probeStop(); if (hRun) { clearInterval(hRun); hRun = null; } hs = []; xr = []; oBase = null; o3 = []; if (ctx) { ctx.close(); ctx = null; live = 0; shedHit = []; shedAt = -1e9; if (!SHED_SET) shed = 0; mbus = null; tape = null; deck = null; screenBed = null; trafficCh.length = 0; trainCh.length = 0; } }
   // for the score (game/music.js): the context it plays on, and a bus into the mix (ducked under dialogue, muted with
   // everything else, not braked: the score is not the street's)
   let mbus = null;
@@ -1685,5 +1722,5 @@ window.OEAudio = (function () {
       setTimeout(() => { try { q.os.forEach(o => o.stop()); q.g.disconnect(); } catch (e) { /* already gone */ } }, 6500);
     }
   }
-  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo, get probe() { return P; }, tune, tuneWav, quiet, hold, onGaveUp, get guard() { return GUARD; }, get gaveUp() { return gaveUp; }, get streetOff() { return streetOff; }, get holding() { return holdOn; }, get tunes() { return TUNE; }, get needsTouch() { return TUNE ? !unlocked && !muted : null; } };
+  return { reverb, normScale, impulse, hallIR, health, RT_FRAMES, get verb() { return VERB; }, start, made, get pending() { return want && !ctx; }, get tape() { return deck ? 'deck' : tape ? 'worklet' : null; }, get ready() { return ready; }, place, reach, world, mix, MIX, BUSES, get mixNow() { return mixNow; }, far, lift, liftChime, road, indicator, tap, heard, get ctx() { return ctx; }, voice, sfx, held, musicBus, traffic, screens, piyo, kakko, walkCall, train, trainAt, clack, platformChime, doorChime, melody, get on() { return !!ctx; }, announce, rotor, engine, wind, rain, thunder, hush, cicadas, car, skid, beep, step, horn, honk, chime, bell, kan, thump, shutter, penguin, gull, setMuted, stop, get muted() { return muted; }, get shed() { return shed; }, shedTo, get probe() { return P; }, tune, tuneWav, quiet, hold, onGaveUp, get guard() { return GUARD; }, get gaveUp() { return gaveUp; }, get streetOff() { return streetOff; }, get holding() { return holdOn; }, get tunes() { return TUNE; }, get needsTouch() { return TUNE ? !unlocked && !muted : null; } };
 })();

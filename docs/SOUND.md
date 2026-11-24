@@ -668,11 +668,35 @@ ambiences; the GDC talks on Red Dead Redemption 2's and The Last of Us Part II's
 moved slowly by gusts, its whistle a separate emitter at an edge or a railing (Audiokinetic's SoundSeed Air Wind, with
 its deflectors). Both sit under the scene, not in front of it.
 
-Taken here, with the nodes already there (no new voice): the wind through two low-passes, 260 to 840 Hz with the gust
-and 1.1 kHz, so almost nothing of it is over 2 kHz (`tools/beds_listen.js`: 4 to 8 kHz from −7 to −57 dB of its power);
-the rain's wash between 400 Hz and 2.8 kHz (1.2 kHz through a roof or a window), its patter lower (1.1 kHz) and its
-flutter slower and shallower (5.1 Hz, a sine, 0.2), so its power over 8 kHz fell from −4 to −20 dB. Heard by the owner
-first; the listening points' `weather` ranges are set again once the owner has chosen between this and none.
+**The owner's test, and its measure.** "To the ear it is not sharp; it is soft." The psychoacoustic name for what
+fails that test is sharpness (Zwicker; DIN 45692): the centre of gravity of a sound's loudness along the ear's critical
+bands, weighted up steeply above 15.8 Bark, about 3 kHz, where a sound is heard as shrill; 1 acum is a band of noise at
+1 kHz. `tools/sharpness.py` reads it from a WAV (Zwicker's specific loudness against the threshold of hearing, no
+masking between bands: a ranking, not a meter), and `tools/sound_render.js` renders each bed alone (`bed-rain`,
+`bed-rain-open`, `bed-wind`, `bed-traffic`). The owner accepted the wind at 0.64 to 0.73 acum and refused the rain at
+1.57 and 1.72; the street's background is held near the accepted figure:
+
+| Sound | Before | Refused | Now |
+|---|---|---|---|
+| the wind alone | 1.99 | | 0.73 (accepted) |
+| the rain alone | 2.64 | 1.57 to 1.72 | 0.87 |
+| the traffic alone | | 1.27 | 0.63 |
+| Hachiko's kerb, recorded | 1.68 | | 0.70 |
+| the kerb in frame 7's rain, recorded | 2.46 | | 0.86 |
+
+Taken here: the wind through two low-passes, 260 to 840 Hz with the gust and 1.1 kHz; the rain's wash between 200 Hz
+and 1.3 kHz, its patter at 600 Hz with a slower, shallower flutter, and all three of its layers (the drumming on
+umbrellas too, whose band-pass skirts had left a hiss over 2 kHz) through one more low-pass at 900 Hz; the rain 8 dB
+quieter, as it stood 25 dB over the rest of the kerb. A sound's own character (a walk call's chirp, the Stop's glass)
+is a thing to hear and is not held to this; a bed, a texture with no event in it, is.
+
+**The traffic going by** (`audio.js` `traffic`, `game.js` `trafficSound`). The owner named a car going by as a sound to
+keep, and the traffic had none: only a honk when a car dodged the player's. The three nearest moving cars and buses
+within 90 m now each have the voice the player's car has (an engine of two saws a fifth apart, the tyres a band of
+noise), on a slot of their own while they stay among the three, panned to their side, quieter and duller with distance;
+a bus lower and rougher; given up at level 2. Softened as the rain was: 0.63 acum. At the Scramble's red the nearest
+moving car is 40 to 90 m off in the simulation, so the red is still mostly quiet: the traffic there is sparser than
+the place's own, which is the traffic's to fix, not the sound's.
 
 ## Trains
 

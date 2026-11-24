@@ -3390,6 +3390,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (Q.d < 260) A.announce(Math.min(1, (260 - Q.d) / 160) * Q.g, Q.fc);
     }
   }
+  // The traffic going by: the three nearest moving cars and buses within 90 m of the ears (a street's traffic carries:
+  // at the Scramble's red the nearest moving car is 40 to 90 m off), each kept on its own voice
+  // while it stays among them (audio.js traffic), panned to its side, quieter and duller with its distance through the
+  // air. A sound with a source: the street at a red signal is its traffic (docs/SOUND.md "No bed without a source")
+  const tSlot = [null, null, null], tPick = [], tL = [];
+  function trafficSound() {
+    if (!A.traffic) return;
+    const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y, e = camera.matrixWorld.elements, rl = Math.hypot(e[0], e[2]) || 1, rx = e[0] / rl, ry = -e[2] / rl;
+    tPick.length = 0;
+    for (const c of cars.live) {
+      if (c.line < 0 || !(c.v > 1)) continue;
+      const dx = c.x - cx, dy = c.y - cy; if (Math.abs(dx) > 90 || Math.abs(dy) > 90) continue;
+      const d = Math.hypot(dx, dy, (c.z || 0) + 0.6 - cz); if (d > 90) continue;
+      tPick.push([d, c]);
+    }
+    tPick.sort((a, b) => a[0] - b[0]); if (tPick.length > 3) tPick.length = 3;
+    for (let i = 0; i < 3; i++) if (tSlot[i] && !tPick.some(p => p[1] === tSlot[i])) tSlot[i] = null;
+    for (const [, c] of tPick) if (!tSlot.includes(c)) tSlot[tSlot.indexOf(null)] = c;
+    for (let i = 0; i < 3; i++) {
+      const c = tSlot[i], p = c && tPick.find(q => q[1] === c);
+      if (!p) { tL[i] = null; continue; }
+      const d = p[0];
+      tL[i] = { g: Math.min(1, 8 / Math.max(4, d)) * Math.min(1, (90 - d) / 20), v: c.v, pan: ((c.x - cx) * rx + (c.y - cy) * ry) / Math.max(1, d), fc: 9000 * Math.exp(-0.02 * d) + 500, bus: c.half > 4 };
+    }
+    A.traffic(tL);
+  }
   let crowdAuto = true, govCrowd = 1; // (govCrowd: the frame-time governor's share of the crowd, its ladder below)
   // (a phone's crowd as many as its faces can fill: the walkers near you are drawn whole from QC.budget.cast scanned people,
   // 4 on a phone's usual set and 2 on its lightest (quality.js), and a phone's whole crowd, far copies too, is those same
@@ -4866,7 +4892,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (!paused) checkSteps();
     }
     if (!paused) simulate(dt);
-    if (!paused && !(story && story.stopped)) { crossingSound(dt); if (!(overture && overture.active)) walkCalls.update(dt, camera); } // (the overture's score has the birds' calls in it)
+    if (!paused && !(story && story.stopped)) { crossingSound(dt); trafficSound(); if (!(overture && overture.active)) walkCalls.update(dt, camera); } // (the overture's score has the birds' calls in it)
     else { if (places) places.hush(); if (trains) trains.hush(); } // a paused game (the title, the menu, photo mode) shows no caption
     if (player.mode !== 'heli' && !simHold) nav.prefetch(player.x, player.y); // the landmarks' fine collision ahead of the walker or the car, a few ms a frame (held by a harness: advance() lays them, below)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) groundLod(player.mode === 'heli' ? heli.st.x : player.x, player.mode === 'heli' ? heli.st.y : player.y);
