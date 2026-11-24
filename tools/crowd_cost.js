@@ -37,6 +37,13 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
       const x = (late ? vis('gt-continue') || vis('gt-cont-go') : null) || vis('gt-story-go') || vis('gt-cont-go') || document.getElementById('gt-play'); if (x) x.click(); return false; }, !!process.env.FROM)) break;
     await p.waitForTimeout(1500);
   }
+  // (a late case first plays its arrival, a film any key skips, and the frame begins only after it: skipped, and waited for
+  // until the story has left the title's 'dressed', so that FROM's frame is the one measured and not the film over frame 1)
+  if (process.env.FROM) for (let k = 0; k < 60; k++) {
+    const st = await p.evaluate(() => { const g = window.__game, s = g.story && g.story.state; if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); return s ? s.phase : ''; });
+    if (st && st !== 'dressed') break;
+    await p.waitForTimeout(1000);
+  }
   await p.evaluate(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; requestAnimationFrame(f); });
   const cdp = await p.context().newCDPSession(p);
   if (RATE > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: RATE });
