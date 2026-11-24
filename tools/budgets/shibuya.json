@@ -337,7 +337,7 @@
    },
    "frame 4": {
     "draws": 370,
-    "tris": 1048000,
+    "tris": 1175000,
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 506,
@@ -355,7 +355,7 @@
     },
     "noise": {
      "draws": 20,
-     "tris": 60000,
+     "tris": 201000,
      "passes": 0,
      "px_x": 0.0,
      "tex_mb": 2,
