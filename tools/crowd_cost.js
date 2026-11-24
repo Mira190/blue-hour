@@ -31,7 +31,10 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(4000);
   for (let k = 0; k < 15; k++) {
-    if (await p.evaluate(() => { const t = document.getElementById('g-title'); if (!t || t.hidden) return true; const x = document.getElementById('gt-play'); if (x) x.click(); return false; })) break;
+    if (await p.evaluate(late => { const t = document.getElementById('g-title'); if (!t || t.hidden) return true; const vis = id => { const e = document.getElementById(id); return e && e.offsetParent ? e : null; };
+      // (a case left at a frame, FROM=n: Continue takes it up there; Play began the case again at frame 1, and every reading
+      // said fi 1 whatever FROM asked)
+      const x = (late ? vis('gt-continue') || vis('gt-cont-go') : null) || vis('gt-story-go') || vis('gt-cont-go') || document.getElementById('gt-play'); if (x) x.click(); return false; }, !!process.env.FROM)) break;
     await p.waitForTimeout(1500);
   }
   await p.evaluate(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; requestAnimationFrame(f); });
