@@ -111,6 +111,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
+  await require('./cam_intrude').install(p); // (the camera's window in nobody's body, every frame, from every camera: issue 209)
   // LINKLAG=ms: a GPU that links a program in ms, one after another, as a real one does behind KHR_parallel_shader_compile
   // (a software renderer links as it is asked, so no draw here meets a program still linking). A program reads as not
   // complete until its turn in the queue is over; three.js's own wait for a link (LINK_STATUS) is not held. Each still
@@ -1422,6 +1423,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     for (const r of ((C && C.bad) || []).slice(0, 8)) console.log(`FAIL ceiling: frame ${r.frame} ${r.beat}, at ${r.at}, the lens ${r.over} m over the passage's floor (its ceiling at ${ceilWatch.H})${r.shot ? ', in a shot' : ''}`);
     if (C && C.bad.length) errors.push(`ceiling: ${C.bad.length} frames with the lens through the passage's ceiling`);
     else console.log(`ceiling: the lens under the passage's ceiling${C && C.frames ? ` in all ${C.frames} frames on foot in it` : ' (the play did not go through it)'}`);
+  }
+  { // the camera's window in nobody's body, every frame of the play and from every camera (issue 209: tools/cam_intrude.js)
+    const ci = require('./cam_intrude'), R = await ci.report(p), { errs } = ci.print(R);
+    if (!R || R.err) errors.push(`cam: the window was not measured (${R ? R.err : 'not in the page'})`);
+    for (const e of errs) { errors.push(`cam: ${e}`); console.log(errors[errors.length - 1]); }
   }
   { // nobody of the crowd paced, on any street the play was in (issue 168)
     if (process.env.STOPCOST) { const sc = require('./stop_cost'); sc.print(await sc.report(p)); }
