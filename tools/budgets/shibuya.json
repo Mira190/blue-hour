@@ -364,7 +364,7 @@
    },
    "frame 5": {
     "draws": 588,
-    "tris": 1149000,
+    "tris": 1260000,
     "passes": 10,
     "px_x": 3.46,
     "tex_n": 451,
@@ -382,7 +382,7 @@
     },
     "noise": {
      "draws": 20,
-     "tris": 60000,
+     "tris": 155000,
      "passes": 0,
      "px_x": 0.0,
      "tex_mb": 2,
@@ -424,7 +424,7 @@
     "tex_n": 428,
     "tex_mb": 174,
     "buf_mb": 73.8,
-    "gpu_mb": 250,
+    "gpu_mb": 253,
     "js_ms": 50.2,
     "at": {
      "draws": 551,
