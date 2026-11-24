@@ -1,11 +1,70 @@
 {
  "_": "Issue 213 item 8: the planting OpenStreetMap maps at the west exits (beside A5a, w155807198 and w155807200) and along Dogenzaka-shita's footways (w155807168 to w155807189), seen on foot and from above (tools/scramble_shot.js).",
- "date": [11, 14],
- "times": {"day": "13:00", "dusk": "sunset+20", "night": "21:00"},
+ "date": [
+  11,
+  14
+ ],
+ "times": {
+  "day": "13:00",
+  "dusk": "sunset+20",
+  "night": "21:00"
+ },
  "views": [
-  {"name": "a5_beds", "eye": [343, -1006, 1.6], "look": [331, -1026, 0.6], "fov": 60},
-  {"name": "dogenzaka_north", "eye": [322, -986, 1.6], "look": [286, -984, 0.8], "fov": 60},
-  {"name": "dogenzaka_south", "eye": [326, -1006, 1.6], "look": [284, -1002, 0.8], "fov": 60},
-  {"name": "beds_air", "eye": [300, -1050, 45], "look": [310, -1000, 0], "fov": 55}
+  {
+   "name": "a5_beds",
+   "eye": [
+    341,
+    -1022,
+    1.6
+   ],
+   "look": [
+    331,
+    -1031,
+    0.2
+   ],
+   "fov": 60
+  },
+  {
+   "name": "dogenzaka_north",
+   "eye": [
+    322,
+    -984,
+    1.6
+   ],
+   "look": [
+    296,
+    -983.5,
+    0.3
+   ],
+   "fov": 60
+  },
+  {
+   "name": "dogenzaka_south",
+   "eye": [
+    330,
+    -1004,
+    1.6
+   ],
+   "look": [
+    300,
+    -1002,
+    0.3
+   ],
+   "fov": 60
+  },
+  {
+   "name": "beds_air",
+   "eye": [
+    318,
+    -1045,
+    30
+   ],
+   "look": [
+    318,
+    -1005,
+    0
+   ],
+   "fov": 55
+  }
  ]
 }
