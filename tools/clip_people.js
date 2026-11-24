@@ -21,7 +21,7 @@
 //          thighs and calves against the vehicle's own model by rays from the hips, the hips over the seat, the head under
 //          the roof (tools/clip_probe.js's seat measure, which no play of the story runs: its flight shows no player), and
 //          stills from outside and from the next seat.
-// STORY=n: the story opened at frame n+1 instead of the map without it. TIER=low PHONE=1 with 390x844: a phone's page.
+// WEATHER=rain: the page asked for that weather (?weather=). STORY=n: the story opened at frame n+1 instead of the map without it. TIER=low PHONE=1 with 390x844: a phone's page.
 // Exits 1 on a seated head more than 3 cm through a roof, a hand more than DEEP (0.03 m) in someone for more than 2 frames, an arm more than 5 cm in someone run past,
 // or a head or its hair more than HAIR (0.06 m) in its own chest for more than a second. How far a run past someone gets is printed for a
 // look beside the same run on main: head on, a body stops a body, so the distance alone fails nothing.
@@ -139,7 +139,7 @@ function pageSide() {
   await skip(p, STILL && mode === 'into' ? 1 : +process.env.DRAW || 30);
   const story = process.env.STORY != null;
   if (story) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.STORY);
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/${story ? '' : '?walk=1'}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8800}/${story ? (process.env.WEATHER ? '?weather=' + process.env.WEATHER : '') : '?walk=1' + (process.env.WEATHER ? '&weather=' + process.env.WEATHER : '')}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.waitForTimeout(1500);
   await p.evaluate(() => document.getElementById('gt-play').click());
@@ -290,6 +290,8 @@ function pageSide() {
   if (mode === 'crowd') {
     // every EVERY frames (10) for SECS seconds (30): who of the crowd had a hand, a forearm or what it held in whom, the
     // deepest of each pair and for how many readings; then the deepest pairs, and a still of the deepest reading (STILL=1)
+    // (UMB=1: read from when someone near has an umbrella up, frame 7's rain, up to ten minutes' wait)
+    if (process.env.UMB) { const t = Date.now(); await p.waitForFunction(() => { const g = window.__game, R = g.crowdDraw(); if (!R || !R.active) return false; for (const i of R.active.keys()) { const q = g.crowd.P[i]; if (q && q.umbR > 0) return true; } return false; }, null, { timeout: 600000, polling: 1000 }).then(() => console.log(`an umbrella up near after ${((Date.now() - t) / 1000).toFixed(0)} s`)).catch(() => console.log('no umbrella up near in ten minutes')); }
     const SECS = +process.env.SECS || 30, EVERY = +process.env.EVERY || 10, t0 = Date.now(), seen = new Map(); let reads = 0, nearMax = 0;
     while (Date.now() - t0 < SECS * 1000) {
       const r = await p.evaluate(() => window.__skin.crowdPairs()); reads++; nearMax = Math.max(nearMax, r.near);
