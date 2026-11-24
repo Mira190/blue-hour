@@ -74,12 +74,15 @@ const RUNS = [
     let r = null;
     const run = p.evaluate(require('./guide_own'), { R, live, STUCK_S, STUCK_M, TRACE: !!process.env.TRACE }).then(v => { r = v; }, e => { r = { error: String(e).slice(0, 300) }; });
     let shot = false;
+    // (AT=1.5,30: stills at those seconds of the lead's own clock, beside the one taken where a fault is first seen)
+    const at = (process.env.AT || '').split(',').filter(Boolean).map(Number);
     while (!r) {
       await p.waitForTimeout(500);
+      if (at.length) { const tt = await p.evaluate(() => window.__t207 || 0).catch(() => 0); if (tt >= at[0]) { const a0 = at.shift(); await shoot(`${out}/${R.name}-${a0}s.png`); } }
       if (!shot && await p.evaluate(() => !!window.__f207).catch(() => false)) { shot = true; await shoot(`${out}/${R.name}-fault.png`); }
     }
     await run;
-    await p.evaluate(() => { window.__f207 = null; });
+    await p.evaluate(() => { window.__f207 = null; window.__t207 = 0; });
     const ok = !r.error && !r.faults.length && (r.state === 'sit' || R.until || (r.state === 'heel' && r.left < 5)); // (heel: the story's own beat came, Yuna's talk, as the player arrived)
     if (!ok) fails++;
     const { trace, ...head } = r;
