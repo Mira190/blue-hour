@@ -2883,6 +2883,31 @@ of the city's vertex buffers (`buffers:` in the page's log).
 phone's tier the same order, half the size. Each second here is about half a second on the owner's M3 (6.3 s set-up at
 p75) and more on a phone; they are the next place to cut (issue opened with this).
 
+**The set-up's fixed work, baked (issue 194, item 2).** On the owner's M3 the set-up keeps the main thread busy 5.4 s of its
+6.9 (`tools/load_probe.js`, `GPU=metal`), and of that the decks' plan, the two networks' sweeps and the collision reads under
+them were 1.6 s. They are a function of the map's data alone, and the title draws what they make (the decks' meshes; the crowd
+and the traffic walk and drive the networks), so they could not wait for the first frame. They are computed once instead, by
+the page's own set-up run in a browser (`tools/bake_setup.js`, `?bake=1`), and kept beside the packs as `setup.bin` (the
+values as gzipped JSON: the decks' runs and pieces with their columns cleared, the road and footway lines handed to
+`OEActors.network`, the road lines the first sweep gives one lane, the second's fit per street), one for the whole map and one
+for a phone's district (`d/setup.bin`: a phone computes its networks from the cut map, and the result differs). The set-up
+reads them (`game.js`, `bakeIn`, `BK`) and computes as before when there is none, or one of another `BAKE_V`; `?bake=off`
+computes, to measure against. The benches are still computed (their seats point at their bench, which a file cannot keep).
+
+What keeps it right: the static checks fail on a bake stale against the packs it was made from (`game.bin`, `buildings.bin`,
+`landmarks.bin`) or against `BAKE_V` (bumped when what the set-up means by them changes), and `pipeline/pack.py` bakes again
+after it packs (a run of `pipeline/district.py` alone leaves `d/` without one, and the check says so). The code it runs is not
+hashed (five sessions edit it at once): `tools/check.sh`'s mem target (played wherever the set-up's code changes, as it loads the whole page) loads the page computing and compares it with the
+bake field by field, and a change that changes the result fails there ("rebake with `node tools/bake_setup.js`").
+
+Measured on a session's machine, two runs each, `?bake=off` against the bake: the fixed work 2.7 to 3.0 s → 0.03 to 0.1 s on
+the desktop tier and 1.0 s → 0.012 s on the phone's; "built" 18.4 → 16.3 s on the desktop tier. The phone's "built" did not
+move here (8.1 → 8.2 s): the saved time went into `setSun`'s first draw waiting on the software GPU, busy with the early
+warm-up's compile (1.7 s waited there against 0.6), and the first frame here is held by the compile on both tiers (46 s either
+way on the desktop's). On the M3, where the set-up is the CPU's and the programs are ready 0.5 s after built, the 1.6 s
+should come off "built" and the first frame; the next deploy's telemetry and a run on the M3 will say. The download: 1.1 MB
+for the map, 0.28 MB for a phone's district.
+
 ### The one you play: the head's and the hair's pictures at a phone's size (issue 130, 23 November)
 
 By whose each texture is (`BUDGET_TOP`'s `owners`: every texture a material holds, by the names up its mesh's parents),

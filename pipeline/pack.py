@@ -58,6 +58,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -540,6 +541,14 @@ def main(argv):
     cut = [c for c in vis_cities(named) if named or district.stale(c)]
     if cut:
         district.main(cut)
+    # and the set-up's fixed work, baked from the packs it reads (setup.bin, and d/setup.bin from the district: the page's own set-up
+    # run once in a browser, tools/bake_setup.js), where the packs have changed under it: a minute
+    for c in vis_cities(named):
+        node = ["node", "tools/bake_setup.js", "--if-stale"]
+        cmd = (["xvfb-run", "-a"] + node) if shutil.which("xvfb-run") and not os.environ.get("DISPLAY") else node
+        if subprocess.run(cmd, cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."), env=dict(os.environ, MAP=c)).returncode:
+            print(f"{c}: the set-up's bake failed: xvfb-run -a node tools/bake_setup.js")
+            return 1
     return 0
 
 

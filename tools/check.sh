@@ -492,6 +492,10 @@ run_mem() {
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/killed.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/killed.log)"; fi
   if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
+  # (and the set-up's bake, here because mem loads the whole page and so is played wherever the set-up's code changes, against the page computing it, map and district: a change to the code it runs that changes what the set-up
+  # computes asks for a rebake, tools/bake_setup.js; issue 194)
+  if timeout 900 $X node tools/bake_setup.js --compare >"$OUT/bake.log" 2>&1; then grep '^ok' "$OUT/bake.log"
+  else echo "FAIL bake   $(grep -A1 '^FAIL' "$OUT/bake.log" | head -4 | sed 's/^FAIL bake *//' | cut -c1-170 | paste -sd ';' -)   (see $OUT/bake.log)"; fi
 }
 # every sound on the audio thread, as an iPhone makes it (docs/SOUND.md "Every sound on the audio thread")
 run_audio() {
@@ -674,6 +678,7 @@ rm -rf "$OUT/keep"
     st goals goals - '^FAIL' node tools/goals_check.js
     st pack pack "the packs up to date" '^FAIL' python3 pipeline/pack.py --check
     st pack pack_decode "the packs decode to their JSON" '^FAIL|Error' node tools/pack_check.js
+    st bake bake - '^FAIL' node tools/bake_setup.js --check
     st vis vis "the sweep hides nothing an exact ray reaches" '^FAIL|Error' env EYES=12 node tools/vis_unit.js
     st budget budget - '^FAIL' budgets_kept
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
