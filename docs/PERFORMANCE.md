@@ -2908,6 +2908,18 @@ way on the desktop's). On the M3, where the set-up is the CPU's and the programs
 should come off "built" and the first frame; the next deploy's telemetry and a run on the M3 will say. The download: 1.1 MB
 for the map, 0.28 MB for a phone's district.
 
+**The guide's routes after the first frame (issue 194).** With the set-up's fixed work baked, the largest piece of a phone's
+load left between "built" and the first frame was the guide's route graph (`route.js` `build`, started by `routeline.js` the
+moment the part was made), its ticks 1 to 2 s of the main thread beside the loader's warm-up on the phone's tier (`route.js`
+0.8 to 0.9 s inclusive, with the `nav.walk` and collision reads it makes). Nothing before play reads it (the gold line, the mark
+and the guide ask for `ways.ready` first), so it is built once the first frame is drawn (`firstFramed`), behind the title.
+Measured on a session's machine, two runs each, pressing Begin the moment the title takes a press: on the phone's tier the
+warm-up done 13.3–13.9 → 11.9–12.7 s, the first frame 13.9–14.5 → 12.6–13.3 s, the title 15.7–17.1 → 14.1–15.3 s; the routes
+ready 5.1 to 5.3 s before even that press (0.3 to 1.3 s before it on the desktop's tier), and the order card, the opening and
+the office's call come before the guide's first step; the title's own frames while they build, median 133–150 → 167 ms and
+the 95th 567–650 → 667–700 ms on the software renderer (its frames are 130 to 170 ms anyway). The check: `tools/bake_setup.js
+--compare` (the end of `mem`) fails when the routes are built before the first frame, or not at all.
+
 ### The one you play: the head's and the hair's pictures at a phone's size (issue 130, 23 November)
 
 By whose each texture is (`BUDGET_TOP`'s `owners`: every texture a material holds, by the names up its mesh's parents),
