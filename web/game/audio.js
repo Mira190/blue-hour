@@ -1250,31 +1250,48 @@ window.OEAudio = (function () {
     setTimeout(() => URL.revokeObjectURL(hush.url), 4000);
     probeStart(); probeNote('music: elements begun in a touch');
   }
-  // tune(src, { loop, at }): src a file's URL or tuneWav()'s; returns { stop(fadeSeconds), playing, el }. Null where the
-  // music is the context's (a mouse, ?music=web): the caller then plays it there, as before
+  // tune(src, { loop, at }): src a file's URL or tuneWav()'s, at seconds or a function giving them when it begins; returns
+  // { stop(fadeSeconds), playing, el }. Null where the
+  // music is the context's (a mouse, ?music=web): the caller then plays it there, as before.
+  // One tune at a time (issue 166): the owner's iPhone played the loading cue and the opening's score on two elements at
+  // once (`snd_music: el 2`, 23 November), each mixed by the system on its own, and heard noise in the opening. So a new
+  // tune lets the one before it go: that one fades out over HAND seconds (at once where the volume is fixed, or it had
+  // not begun), and the new one begins only when it has ended, joined where it would have been by then (not a loop; a
+  // film's score where the film is)
+  const HAND = 1.2;
   function tune(src, opts = {}) {
     if (!TUNE) return null;
     const url = typeof src === 'string' ? src : src.url;
-    const t = { el: null, dead: false, base: null, late: false,
+    const t = { el: null, dead: false, base: null, late: false, asked: performance.now(),
       go() {
         if (t.dead || t.el || !unlocked) return;
+        if (tunes.some(q => q !== t && q.el)) return; // (the one before still fading: begun when it has ended, end() below)
         const el = pool.find(q => !q._tune); if (!el) return;
         el._tune = t; t.el = el; el.loop = !!opts.loop; el.volume = 1; el.src = url;
-        if (opts.at > 0) { const seek = () => { el.removeEventListener('loadedmetadata', seek); try { el.currentTime = opts.at; } catch (e) { /* not seekable yet */ } }; el.addEventListener('loadedmetadata', seek); }
+        const at = typeof opts.at === 'function' ? Math.max(0, opts.at() || 0) : (opts.at || 0) + (opts.loop ? 0 : (performance.now() - t.asked) / 1000); // (where the picture is by now: a film's score asks the film)
+        if (at > 0.05) { const seek = () => { el.removeEventListener('loadedmetadata', seek); try { el.currentTime = at; } catch (e) { /* not seekable yet */ } }; el.addEventListener('loadedmetadata', seek); }
         t.started = performance.now();
+        if (t.started - t.asked > 300) probeNote(`music: begun ${Math.round(t.started - t.asked)} ms after it was asked, at ${at.toFixed(1)} s`);
         el.play().catch(e => probeNote(`music: not played (${e && e.name})`));
       },
       stop(fade = 0) {
-        if (t.dead) return; t.dead = true;
-        const el = t.el, end = () => { if (el) { el.pause(); el.removeAttribute('src'); try { el.load(); } catch (e) { /* gone */ } el._tune = null; } if (src.blob) URL.revokeObjectURL(url); const i = tunes.indexOf(t); if (i >= 0) tunes.splice(i, 1); };
+        const el = t.el;
+        if (t.dead) { if (t.fade && fade < t.fade.left()) t.fade.go(fade); return; } // (a fade under way made shorter: the next tune waits on it)
+        t.dead = true;
+        let id = 0;
+        const end = () => { clearInterval(id); t.fade = null; if (el) { el.pause(); el.removeAttribute('src'); try { el.load(); } catch (e) { /* gone */ } el._tune = null; } t.el = null; if (src.blob) URL.revokeObjectURL(url); const i = tunes.indexOf(t); if (i >= 0) tunes.splice(i, 1); tuneNext(); };
         if (!el || !canVolume || !(fade > 0) || el.paused) { end(); return; }
-        const t0 = performance.now(), id = setInterval(() => { const k = (performance.now() - t0) / (fade * 1000); if (k >= 1) { clearInterval(id); end(); } else el.volume = (1 - k) * (1 - k); }, 40);
+        let t0, v0, sec;
+        t.fade = { left: () => sec - (performance.now() - t0) / 1000, go(s) { clearInterval(id); t0 = performance.now(); v0 = el.volume; sec = s; if (!(s > 0)) { end(); return; } id = setInterval(() => { const k = (performance.now() - t0) / (sec * 1000); if (k >= 1) end(); else el.volume = v0 * (1 - k) * (1 - k); }, 40); } };
+        t.fade.go(fade);
       },
       get playing() { return !!t.el && !t.el.paused; } };
+    for (const q of tunes.slice()) q.stop(HAND); // (the one before let go: one music element at a time)
     tunes.push(t);
     if (!muted && !document.hidden) t.go();
     return t;
   }
+  function tuneNext() { if (!muted && !document.hidden) for (const q of tunes) if (!q.dead && !q.el) q.go(); }
   function tuneSync() { // the Sound switch, and a page put away or seen again
     if (!TUNE || !unlocked) return;
     const on = !muted && !document.hidden;
