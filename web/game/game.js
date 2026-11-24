@@ -1277,7 +1277,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } }
   if (junctions.heads && junctions.heads.walkPosts) for (const q of junctions.heads.walkPosts) posts.add(q.x, q.y, q.z, 0.09, 'lamp'); // (a scramble's walk signals stand beside its crosswalks: walked round)
   // (is (x, y) in a carriageway, as the game draws the roads? nobody waits there)
-  const onRoad = (x, y) => { const q = roadNet.nearest(x, y, 8); return !!q && q.d < rwOf(roadNet.L[q.line]) / 2 + 0.3; };
+  const onRoadQ = {}, onRoad = (x, y) => { const q = roadNet.nearD(x, y, 8, onRoadQ); return !!q && q.d < rwOf(roadNet.L[q.line]) / 2 + 0.3; }; // (nearD: nearest()'s answer without its lists, asked several times a person a frame)
   // the crowd waits at the kerb for the walk signal where its footways cross a junction's roads
   // (and where a footway steps onto a road with no crossing marked, the crowd looks for a gap in the traffic:
   // road says what is carriageway, zebra where a zebra's stripes are, the cars giving way there instead)
