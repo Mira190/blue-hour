@@ -246,7 +246,10 @@ else
       # contract, tools/model_contract.py, so a level rebuilt with its ground and its names as they were is looked at and
       # weighed like any model, and one whose ground moved is played)
       web/data/$MAP/hero/*.glb) static=1; asset "$f" ;;
-      web/data/$MAP/hero/*) static=1; page ;;
+      web/data/$MAP/hero/*) static=1; page; add ride ;;
+      # (what frame 6's ride and the passage after it read as solid: the landmarks' feet and posts, the game's rails and
+      # its hero levels' posts. A landmark's pack changed on hachiko-213 reached the page's checks and not the ride's, #213)
+      web/data/$MAP/landmarks.*|web/data/$MAP/game.*|web/data/$MAP/setup.bin) static=1; page; add ride ;;
       web/*.glb|web/*.webp|web/*.png|web/*.jpg|web/*.jpeg|web/*.avif|web/*.ktx2) static=1; asset "$f" ;;
       web/*.mp3|web/*.ogg|web/*.m4a|web/*.wav) static=1; add audio; asset "$f" ;;
       web/*|cities/$MAP/city.json) static=1; page ;;   # (tools/story_play.js reads the city's story from city.json itself)
