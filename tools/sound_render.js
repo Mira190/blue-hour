@@ -5,7 +5,7 @@
 //   NODE_PATH=$(npm root -g) [TAPE=worklet|deck] [VERB=hybrid|whole] node tools/sound_render.js [outdir] [cue ...]
 // (VERB: the reverbs as a phone hears them, the default here, or convolved whole as with a mouse: docs/SOUND.md "Every
 // sound on the audio thread")
-// The cues one by one; the Stop over the street (its murmur, the screens' song, the walk calls, footsteps), braked,
+// The cues one by one; the Stop over the street (the screens' song, the walk calls, footsteps), braked,
 // held five seconds and let go; and the same footsteps and a call in each place's room.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -28,7 +28,7 @@ async function render(browser, seconds, script) {
   await p.addScriptTag({ content: `Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => 5 });` });
   await p.addScriptTag({ content: `window.__t = 0;
     window.AudioContext = class extends OfflineAudioContext { constructor() { super(2, ${SR} * ${seconds}, ${SR}); window.__ctx = this; } get currentTime() { return window.__t; } };` });
-  await p.addScriptTag({ path: path.join(__dirname, '../web/game/audio.js') });
+  await p.addScriptTag({ path: process.env.AUDIO_JS || path.join(__dirname, '../web/game/audio.js') }); // (AUDIO_JS: another checkout's, for a before)
   const r = await p.evaluate(async src => {
     const A = window.OEAudio; A.start(); await A.ready;
     await (0, eval)(`(async (A, at) => { ${src} })`)(A, t => { window.__t = t; });
@@ -69,7 +69,7 @@ function wav(file, b64) {
 // asks for it), footsteps at a walk, and the scramble's calls
 const STREET = (from, to) => `
   for (let t = ${from}; t < ${to}; t += 0.1) {
-    at(t); A.murmur(0.9); A.screens(0.8);
+    at(t); A.screens(0.8);
     if (Math.round(t * 10) % 5 === 0) A.step();
     if (Math.round(t * 10) % 15 === 0) A.walkCall(['piyo', 'piyopiyo', 'kakko', 'kakakko'][Math.round(t * 10 / 15) % 4], 0.7, Math.sin(t));
   }`;
@@ -93,6 +93,11 @@ const CUES = {
   // a held note braked (a car's engine idling, two saws a fifth apart): the pitch to read the brake's curve by
   'tape-engine': [6, `at(0); A.car(0.5, 0.6, 1); at(2); A.hush(true); at(4); A.hush(false);`],
   stop: [4, `at(0.2); A.sfx('stop');`],
+  // the street's beds alone, eight seconds each, to read how sharp each is (tools/sharpness.py; docs/SOUND.md "Soft air")
+  'bed-rain': [8, `at(0); A.rain(0.8, false, false, 0.5);`],
+  'bed-rain-open': [8, `at(0); A.rain(0.8, false, false, 0);`],
+  'bed-wind': [8, `at(0); A.wind(0.6, 0.3);`],
+  'bed-traffic': [8, `at(0); A.traffic && A.traffic([{ g: 0.6, v: 10, pan: -0.3, fc: 4000 }, { g: 0.3, v: 13, pan: 0.5, fc: 2500, bus: true }]);`],
   run: [3, `at(0.2); A.sfx('run');`],
 };
 // (footsteps and a cuckoo's call with nothing under them, then a second and a half of the room's tail)
