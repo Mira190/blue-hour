@@ -17,7 +17,7 @@ async function once(b, run) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
   const logs = [];
-  p.on('console', m => { const t = m.text(); if (/^(warm|compile|buffers|gate)/.test(t)) logs.push(t.slice(0, 300)); });
+  p.on('console', m => { const t = m.text(); if (/^(warm|compile|buffers|gate|set-up)/.test(t)) logs.push(t.slice(0, 300)); });
   p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 200)}`));
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || (phone ? 'low' : 'high'));
   await p.addInitScript(() => {
@@ -35,6 +35,14 @@ async function once(b, run) {
     const E = window.__events = [];
     try { new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.interactionId) E.push({ t: e.startTime, ms: e.duration, type: e.name, proc: e.processingEnd - e.processingStart, delay: e.processingStart - e.startTime }); }).observe({ type: 'event', durationThreshold: 16, buffered: true }); } catch (e) { /* no Event Timing */ }
   });
+  // LINKLAG=ms: a GPU that links a program in ms, one after another (as tools/story_play.js): a software renderer links as it is
+  // asked, so without it the gate (world.js) never meets a program still linking
+  if (+process.env.LINKLAG) await p.addInitScript(lag => {
+    const P = WebGL2RenderingContext.prototype, link = P.linkProgram, get = P.getProgramParameter, due = new WeakMap();
+    let last = 0;
+    P.linkProgram = function (prog) { const t = Math.max(performance.now(), last) + lag; last = t; due.set(prog, t); return link.call(this, prog); };
+    P.getProgramParameter = function (prog, what) { if (what === 0x91B1 && due.has(prog) && performance.now() < due.get(prog)) return false; return get.call(this, prog, what); };
+  }, +process.env.LINKLAG);
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 1000 }); await cdp.send('Profiler.start');
   // the page's clock and the profile's: performance.timeOrigin (ms since the epoch) and the profile's start (µs, monotonic)

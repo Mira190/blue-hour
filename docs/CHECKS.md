@@ -669,6 +669,21 @@ frames and its load order, and is where most of these came from. What was found,
 | `budget` and the story's beats, frame 7 (issue 151) | A still's count was begun by the harness before it asked for the still's frame and ended after it heard of it: a frame the play drew of itself in between (one in DRAW) was counted with it, twice the passes and triangles under one still's name, or the still's own frame was missed and two of the game's frames were sampled instead (`frames: 2`). And the sky's light taken afresh (world.js setSun, three.js's PMREMGenerator.fromScene: a cube of targets 256 x 256 and smaller) fell in whichever frame it fell in and was counted as that beat's cost | The count begins and ends inside the still's frame, round its own calls (`tools/story_play.js`, the frame's flush). The sky's refresh is counted as what it is: `sky_refresh` with its draws and triangles beside the frame's, not in them (`tools/beat_count.js`; `tools/sky_count.js` forces one inside a counted frame and fails unless it is counted apart) | Frame 7 played with one frame in five drawn: 3 of 20 stills with `frames: 2` | 64 of 64 stills of their own frame in two plays; a forced refresh, 32 draws, counted apart |
 | `guide1`, frame 4's lead to SKY's lift (main's checks, about three runs in eight) | Not the check: the walk. A level whose floor is its own (SKY's street lift hall, `hero[].floor`) was walked on at its floor grid's height, one value a 0.5 m cell taken at the cell's middle (`game.js` `heroCover`). Where a plank's step or a kerb crossed a cell, the whole cell took one side's height, and the guide stood 7 to 9 cm in the air on the other side, whenever the crowd put his way over such a cell | Each cell of such a level keeps the floor's upward triangles over it, and the height is read at the point itself (the grid's value only where no triangle is over it). `tools/floor_grid.js` compares the height walked on with a ray onto the drawn floor every 5 cm over the level's circle | 140 of 80,844 points (0.17%) more than 6 cm out, the worst 38.5 cm | none; the worst 0.0 cm |
 
+## The set-up's bake (issue 194)
+
+`web/data/<map>/setup.bin` and `d/setup.bin` are the set-up's fixed work computed once (docs/PERFORMANCE.md, "The set-up's fixed
+work, baked"). Two checks hold them: the static `bake` (`node tools/bake_setup.js --check`) fails when one is missing or older
+than the packs it was made from or the set-up's `BAKE_V`; and the page computing is compared with each bake field
+by field (`--compare`, at the end of `mem`, which loads the whole page and so is played wherever that code changes), failing with "the set-up's output changed" when a change to the code it runs (decks, nav, collision,
+route, actors, junctions) changes what it computes. Either way the answer is `xvfb-run -a node tools/bake_setup.js` (or
+`python pipeline/pack.py`, which bakes after it packs), and the two `setup.bin` committed with the change. Never merge one by
+hand: bake again on the merged tree.
+
+So a repack needs the browser: `python pipeline/pack.py` ends with `node tools/bake_setup.js --if-stale`, which does nothing
+while the bake is fresh (a hash, no browser), and where a pack it reads changed loads the page twice in Chromium (the map and a
+phone's district; under `xvfb-run` where there is no display, serving `web/` itself): about a minute on a session's machine.
+The static check (`--check`) is a hash of `game.bin`, `buildings.bin`, `landmarks.bin` and `BAKE_V` alone, no browser.
+
 ## What is not checked
 
 - The story past its first episode: `tools/story_play.js` plays episode one. A new episode adds its
