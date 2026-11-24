@@ -375,7 +375,7 @@ window.OEQuality = (function () {
     // that wait, since a try can hold for seconds before the scene shows what it costs. bad: a step the frames
     // stopped fitting at with no try behind it (the scene got heavier), left alone half a minute, so that the way
     // back is not climbed while the heavy scene lasts and is quick once it has passed.
-    const BAD0 = 30000, BADMAX = 480000, EX0 = 60000, EXMAX = 960000;
+    const BAD0 = 30000, BADMAX = 480000, EX0 = 60000, EXMAX = 960000, TIER_WARM = 30000, FLAT_WARM = 15000;
     // Resolution that buys nothing is given back (flat). A frame that is slow for its draw calls and its triangles,
     // as a phone's is in a dense city, takes as long at 0.6 as at 0.8: there the governor used to sit at its floor,
     // blurred, for no frame gained. So the frame time at `mid` with no extras left (e0) is kept, and when the floor
@@ -499,7 +499,10 @@ window.OEQuality = (function () {
       slowT = ema > 50 ? slowT + ms : 0;
       starveT = spent && load > 1.15 ? starveT + ms : 0;
       floorHeld = spent ? floorHeld + ms : 0;
-      if (g.tierRoom > 0 && (slowT > 6000 || starveT > 8000 || floorHeld > 20000)) {
+      // (not in a visit's first half minute: its frames are the city coming in, not the scene's cost. Safari on an M3, on a
+      // second visit, stepped down 15 s in on frames of 46 ms that were 36 a few seconds later, and judged by them kept
+      // the step: issue 184)
+      if (g.tierRoom > 0 && clock >= TIER_WARM && (slowT > 6000 || starveT > 8000 || floorHeld > 20000)) {
         if (tierFlatNow() && ema < 1.5 * flatMs) { slowT = starveT = floorHeld = 0; return; } // (a step down did not help at this frame time)
         const at = ema; tierAsk(-1); judging = at; return;
       }
@@ -539,7 +542,7 @@ window.OEQuality = (function () {
         const want = Math.max(0.85, Math.min(0.95, Math.sqrt(1 / load))); // (pixels go with the square of the scale)
         const midFloor = Math.max(g.min, Math.min(g.mid, g.max));
         if (flat) { // (see above: the pixels are not what these frames cost)
-          if (flatTry && !(flatTry === 2 && since < 2500)) { const worse = ema > 1.08 * flatBase, ex = flatTry === 2; flatTry = 0; if (worse) { if (ex) { flatEx = g.extras; change(g.scale, g.extras - 0.5); } else { flatTop = g.scale; change(g.scale - STEP, g.extras); } return; } }
+          if (flatTry && !(flatTry === 2 && since < 2500)) { const worse = ema > 1.05 * flatBase, ex = flatTry === 2; flatTry = 0; if (worse) { if (ex) { flatEx = g.extras; change(g.scale, g.extras - 0.5); } else { flatTop = g.scale; change(g.scale - STEP, g.extras); } return; } }
           if (flatTry) return;
           // (and the extras: what a frame sheds is given back as the resolution is, where it bought nothing. Safari's
           // frames, the same with every extra as with none, kept none of them for good: the wet street's mirror, the
@@ -559,10 +562,15 @@ window.OEQuality = (function () {
         if (floorT < 3000) return;
         floorT = 0;
         // (e0 unknown: a device that opened at the floor, from its record. It is asked a step up in the same way)
-        if (!flat && g.extras <= 0 && g.min < midFloor - 1e-6 && g.scale <= g.min + 1e-6 && (!e0 || ema > 0.85 * e0)) { flat = true; flatBase = ema; flatTop = flatEx = Infinity; flatTry = 0; top = bad = Infinity; if (e0) change(midFloor, g.extras); else since = 4000; return; }
+        // (not before FLAT_WARM: a floor's frame taken while the city comes in is a base every later step looks cheap
+        // against, and the same Safari climbed from 0.55 to 1.00 with every extra while its frames went from 38 to 45 ms.
+        // Nor half the display's rate, below: taken first, it held the floor's 0.45/0 under an aim of 33 ms for good,
+        // where the frames cost the same at any size. And a try up holds within 5% of the floor's frame, not 8%: the
+        // frames' mean over 48 is steadier than that, and 8% let a scene that pays for its pixels climb by steps)
+        if (!flat && clock >= FLAT_WARM && g.extras <= 0 && g.min < midFloor - 1e-6 && g.scale <= g.min + 1e-6 && (!e0 || ema > 0.85 * e0)) { flat = true; flatBase = ema; flatTop = flatEx = Infinity; flatTry = 0; top = bad = Infinity; if (e0) change(midFloor, g.extras); else since = 4000; return; }
         // (within reach of half the display's rate: up to 15% over it, as a step down is judged. It was 1.9, and Safari
         // on an M3, at 35 to 38 ms a frame whatever it drew, aimed at 16.7 ms for good: issue 184)
-        if (!halved && (flat || g.scale <= g.min + 1e-6 || (g.extras <= 0 && g.scale <= keep + 1e-6)) && load < 2.3) { halved = true; wait = 4000; return; } // half the display's rate, evenly
+        if (!halved && clock >= FLAT_WARM && (flat || g.scale <= g.min + 1e-6 || (g.extras <= 0 && g.scale <= keep + 1e-6)) && load < 2.3) { halved = true; wait = 4000; return; } // half the display's rate, evenly
         if (g.extras > 0 && !flat) { exFailed(g.extras); change(g.scale, g.extras - 0.5); } // (in flat, the extras there are the ones a try showed cost nothing)
         return;
       }
