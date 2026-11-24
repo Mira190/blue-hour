@@ -5,7 +5,7 @@ week of them shows what a play differs from itself by).
 
 tools/story_play.js HITCH=file (with BUDGET and DRAW=n) writes a line a still: the game's frames since the one before,
 each [its own cost in ms, drawn (1) or not (0) or drawn whole for the still (2), programs linked in it, MB sent to the
-GPU in it]. A frame's own cost is the time its callbacks took on the page, not the wall's, which a software renderer
+GPU in it, and for a frame over 100 ms that linked, the programs' names]. A frame's own cost is the time its callbacks took on the page, not the wall's, which a software renderer
 stretches; a frame not drawn has no draw calls, so what is read is the frame's script and what the GPU is given, which
 is where the hitches of #205 (programs linked on first draw), #192 (the cells' uploads) and #206 (costs that grow) are.
 The frames drawn whole for a still are the harness's and are left out.
@@ -44,7 +44,7 @@ def summary(fr):
     ms = [f[0] for f in fr]
     top = max(fr, key=lambda f: f[0]) if fr else [0, 0, 0, 0]
     return {'n': len(fr), 'p50': pct(ms, 0.5), 'p99': pct(ms, 0.99), 'max': top[0], 'max_links': top[2], 'max_mb': top[3],
-            'over100': sum(1 for m in ms if m > 100), 'links': sum(f[2] for f in fr), 'mb': round(sum(f[3] for f in fr), 1)}
+            'names': top[4] if len(top) > 4 else [], 'over100': sum(1 for m in ms if m > 100), 'links': sum(f[2] for f in fr), 'mb': round(sum(f[3] for f in fr), 1)}
 
 
 def order(k):
@@ -63,6 +63,8 @@ def main():
     print('%-9s %7s %7s %7s %8s  %s' % ('beat', 'frames', 'p50', 'p99', 'longest', 'in the longest; over 100 ms; linked and MB in the beat'))
     for k, s in rows:
         print('%-9s %7d %7.1f %7.1f %8.1f  %d linked, %.2f MB; %d; %d, %.1f MB' % (k, s['n'], s['p50'], s['p99'], s['max'], s['max_links'], s['max_mb'], s['over100'], s['links'], s['mb']))
+        if s['names']:
+            print('%-9s linked in the longest: %s' % ('', ', '.join(s['names'])))
 
 
 if __name__ == '__main__':
