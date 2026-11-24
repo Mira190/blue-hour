@@ -609,18 +609,36 @@ void main() {
     // until the map moves: it is drawn into a map of its own when the map's place changes (and every few seconds, for what
     // the map round the player has built or let go since), and each time the map is due that one is copied and what
     // moves, the cars, the trains, a door, is drawn over it with its depth. ?occ=whole: every time whole, as before.
-    const occStill = occRT ? new THREE.WebGLRenderTarget(T.occ, T.occ, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
+    // (issue 192: the still things' map is half as wide again as the cover map, the same texels with STILL_M metres
+    // more on every side: a walker is 14 seconds crossing that, and the map is drawn again every six. The cover map
+    // takes its own square out of it. It is drawn again when the cover map's square leaves it, not at every two metres
+    // of the camera's way: on foot in rain that was a hundred draws and 280,000 triangles every second and a half)
+    const STILL_N = Math.round(T.occ * 1.5 / 2) * 2, STILL_M = (STILL_N - T.occ) / 2 * (2 * OCC_R / T.occ); // (its side in texels; its margin in metres, a whole number of texels)
+    const occStill = occRT ? new THREE.WebGLRenderTarget(STILL_N, STILL_N, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, generateMipmaps: false }) : null;
     const coverStat = { cache: new URLSearchParams(location.search).get('occ') !== 'whole', whole: 0, still: 0, moves: 0, off: '' };
     // (each pass is the whole one with the other's things not shown for it: a thing made since the last sorting is in
     // neither list and is drawn in both, which is right, if twice. The map keeps its place while the camera stays within
     // two metres of where it was set: set afresh at every draw, as it was, a camera that sways a hand's width moved the
     // map a texel and the still things' map was never the same place twice.)
-    let stillKey = '', stillAt = -99, sortAt = -99, stillList = [], movesList = [], ctr = null;
+    let stillKey = '', stillAt = -99, sortAt = -99, stillList = [], movesList = [], ctr = null, stillCtr = null;
+    const stillCam = new THREE.OrthographicCamera(-OCC_R - STILL_M, OCC_R + STILL_M, OCC_R + STILL_M, -OCC_R - STILL_M, 1, 4000);
+    stillCam.up.set(0, 0, -1);
+    const COVER_TREES_MOVE = /[?&]covertrees=move\b/.test(location.search); // (the trees drawn with what moves, as they were: to tell their part of the map)
+    // (a tree's place in the still map is its set's: which trees are drawn whole, which lighter and which as cards goes by
+    // the camera, trees.js, and a crown's top differs from one to the next by a metre and more. The sets as they were
+    // when the still map was drawn: once one has changed the still map is drawn again, two seconds after it was last
+    // drawn at the soonest: on foot the sets change with every few steps, and drawn at each change the still map was
+    // drawn every time. So a crown's cover may be two seconds behind its tree's set; tools/cover_same.js)
+    let treeSets = [], treesAt = -1;
+    const treesNow = () => { let v = 0; for (const o of treeSets) v += o.instanceMatrix.version * 31 + o.count; return v; };
     function sortCover() {
-      stillList = []; movesList = [];
+      stillList = []; movesList = []; treeSets = [];
       const walk = (o, st) => {
-        st = st || !!o.userData.shadowStatic || !!o.userData.oeStill; // (oeStill: what stands still and casts no shadow, the ground's tiles, the far land)
+        // (shKeys: the trees' sets, trees.js: a crown sways in its shader and stands where it stands. They were drawn with
+        // what moves, 54 draws and 67,000 triangles of a phone's cover map every half second it rained)
+        st = st || !!o.userData.shadowStatic || !!o.userData.oeStill || (!COVER_TREES_MOVE && !!o.userData.shKeys); // (oeStill: what stands still and casts no shadow, the ground's tiles, the far land)
         if (o.isMesh || o.isLine || o.isPoints) (st ? stillList : movesList).push(o);
+        if (st && o.userData.shKeys && o.isInstancedMesh) treeSets.push(o);
         for (const c of o.children) walk(c, st);
       };
       walk(world, false);
@@ -631,14 +649,14 @@ void main() {
       for (const o of list) if (o.visible) { was[n++] = o; o.visible = false; }
       try { fn(); } finally { for (let i = 0; i < n; i++) was[i].visible = true; }
     }
-    function copyStill() {
+    function copyStill(x0 = 0, y0 = 0) {
       const props = renderer.properties, gl = renderer.getContext(), state = renderer.state;
       const src = props.get(occStill).__webglFramebuffer, dst = props.get(occRT).__webglFramebuffer;
       if (!src || !dst || !gl.blitFramebuffer) throw new Error('no framebuffer to copy');
       state.bindFramebuffer(gl.READ_FRAMEBUFFER, src);
       state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, dst);
       state.buffers.color.setMask(true); state.buffers.depth.setMask(true);
-      gl.blitFramebuffer(0, 0, T.occ, T.occ, 0, 0, T.occ, T.occ, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.blitFramebuffer(x0, y0, x0 + T.occ, y0 + T.occ, 0, 0, T.occ, T.occ, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
       state.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
       state.bindFramebuffer(gl.DRAW_FRAMEBUFFER, dst);
     }
@@ -1321,8 +1339,11 @@ void main() {
     }
     function renderOcc(tSec, read = true) {
       const c = camera.position, texel = 2 * OCC_R / T.occ;
+      coverStat.t = tSec; // (the game's clock at this draw: tools/cover_same.js draws at it)
       if (!ctr || !coverStat.cache || Math.abs(c.x - ctr.cx) > 2 || Math.abs(c.z - ctr.cz) > 2 || Math.abs(c.y - ctr.y) > 2) ctr = { cx: Math.round(c.x / texel) * texel, cz: Math.round(c.z / texel) * texel, y: c.y };
-      const cx = ctr.cx, cz = ctr.cz, cy = ctr.y; // (the map's camera from the map's place alone: the still things' depth is kept with it)
+      // (the map's camera from the map's place alone: the still things' depth is kept with it; and its height the still
+      // map's while the camera is within two metres of it, or a step's rise drew the still things again)
+      const cx = ctr.cx, cz = ctr.cz, cy = coverStat.cache && stillCtr && Math.abs(ctr.y - stillCtr.cy) <= 2 ? stillCtr.cy : ctr.y;
       occBase.value = Math.round(cy);
       occCam.position.set(cx, cy + 1500, cz);
       occCam.lookAt(cx, cy, cz);
@@ -1341,14 +1362,24 @@ void main() {
       else {
         const key = `${cx},${cz},${cy}`;
         try {
-          if (key !== stillKey || tSec - stillAt > 6 || tSec < stillAt) {
+          // (the still map's place: the cover map's when it was last drawn; kept while the cover map's square lies within it
+          // and the height its depths are counted from is the same)
+          if (!stillKey || !stillCtr || Math.abs(cx - stillCtr.cx) > STILL_M || Math.abs(cz - stillCtr.cz) > STILL_M || cy !== stillCtr.cy || tSec - stillAt > 6 || tSec < stillAt || (tSec - stillAt > 2 && treesNow() !== treesAt)) {
             if (tSec - sortAt > 2 || tSec < sortAt || !stillList.length) { sortCover(); sortAt = tSec; }
+            stillCtr = { cx, cz, cy };
+            stillCam.position.set(cx, cy + 1500, cz); stillCam.lookAt(cx, cy, cz);
+            stillCam.near = occCam.near; stillCam.far = occCam.far; stillCam.updateProjectionMatrix(); stillCam.updateMatrixWorld();
             renderer.setRenderTarget(occStill); renderer.clear();
-            without(movesList, () => renderer.render(world, occCam));
-            stillKey = key; stillAt = tSec; coverStat.still++;
+            // (every still thing, seen or not: a building the visibility sweep has hidden from the camera still keeps the rain
+            // off, and the map is kept after the camera has moved to where it is seen. As the shadow pass has them)
+            const vis = window.OEVis && OEVis.shadow ? OEVis : null;
+            if (vis) vis.shadow(true);
+            try { without(movesList, () => renderer.render(world, stillCam)); } finally { if (vis) vis.shadow(false); }
+            stillKey = key; stillAt = tSec; treesAt = treesNow(); coverStat.still++;
           }
           renderer.setRenderTarget(occRT);
-          copyStill();
+          // (its square of the still map: a texel is a texel in both, and both look down with the map's north up)
+          copyStill(Math.round((cx - stillCtr.cx + STILL_M) / texel), Math.round((stillCtr.cz - cz + STILL_M) / texel));
           renderer.autoClear = false;
           without(stillList, () => renderer.render(world, occCam));
           coverStat.moves++;

@@ -65,9 +65,9 @@ const MAXNODES = +(process.env.MAXNODES || 400), MAXLIVE = +(process.env.MAXLIVE
     // the sound's own calls, once it is there
     const wrap = () => {
       const A = window.OEAudio; if (!A || A.__wrapped) return; A.__wrapped = true;
-      for (const k of ['place', 'voice', 'sfx', 'held', 'hush', 'murmur', 'screens', 'walkCall', 'trainAt', 'clack', 'platformChime', 'doorChime', 'melody', 'announce', 'rotor', 'engine', 'wind', 'rain', 'thunder', 'car', 'skid', 'beep', 'step', 'horn', 'honk', 'chime', 'bell', 'kan', 'thump', 'shutter']) {
+      for (const k of ['place', 'voice', 'sfx', 'held', 'hush', 'screens', 'walkCall', 'trainAt', 'clack', 'platformChime', 'doorChime', 'melody', 'announce', 'rotor', 'engine', 'wind', 'rain', 'thunder', 'car', 'skid', 'beep', 'step', 'horn', 'honk', 'chime', 'bell', 'kan', 'thump', 'shutter']) {
         const f = A[k]; if (typeof f !== 'function') continue;
-        A[k] = function (...a) { const w = when(); if (w) { const quiet = (k === 'trainAt' && !a[1]) || (['murmur', 'screens', 'rotor', 'engine', 'wind', 'rain', 'car', 'skid'].includes(k) && !(a[0] > 0.001)); if (!quiet) L.calls.push(Object.assign({ k, a: JSON.stringify(a).slice(0, 80) }, w)); } return f.apply(this, a); };
+        A[k] = function (...a) { const w = when(); if (w) { const quiet = (k === 'trainAt' && !a[1]) || (['screens', 'rotor', 'engine', 'wind', 'rain', 'car', 'skid'].includes(k) && !(a[0] > 0.001)); if (!quiet) L.calls.push(Object.assign({ k, a: JSON.stringify(a).slice(0, 80) }, w)); } return f.apply(this, a); };
       }
     };
     const iv = setInterval(() => { if (window.OEAudio) { wrap(); clearInterval(iv); } }, 20);

@@ -594,7 +594,6 @@
      "made",
      "melody",
      "mix",
-     "murmur",
      "musicBus",
      "muted",
      "needsTouch",
@@ -618,6 +617,7 @@
      "streetOff",
      "thump",
      "thunder",
+     "traffic",
      "train",
      "trainAt",
      "tune",
@@ -1068,6 +1068,7 @@
      "gate",
      "hold",
      "seenNext",
+     "shadow",
      "ungate"
     ],
     "OEWater": [],

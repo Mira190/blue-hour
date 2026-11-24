@@ -204,7 +204,11 @@ gives every target it prints its own runner; it keeps no pass from an earlier ru
   do not see is a case carried in one page across frames 4 to 5 and 6 to 7, which `tools/check.sh story` (the whole
   play, on a session's machine before landing) still plays. A runner played the whole story in 75 minutes (#51).
   The walk and the guide are split the same way, so that no runner is the long pole: `walk1` the desktop's page and
-  `walk2` the phone's (together 17 minutes on one runner), `guide1` his ways and `guide2` his body (19).
+  `walk2` the phone's (together 17 minutes on one runner), `guide1` his ways and `guide2` his body (19). Since issue 192
+  the desktop's page is two halves, `walk1` from the title's way in to the seat on Hachiko's wall and `walk3` from the
+  walk's line to the end, set out at once (`tools/walk_play.js` `WALK_PART`): the buildings' cells in one draw cost a
+  software renderer a third more on the beats that cross the city (1016 s to 1373 s here, 24 November), and the whole
+  page took run 340's runner past its cap of 2400 s with no beat failed. `walk` still plays each page whole.
 - **Only a commit it passes is published.** `.github/workflows/pages.yml` runs when this workflow ends on a
   push to main, and only on a pass: it publishes that commit to GitHub Pages, tags it, and moves the branch
   `live` to it, which Vercel's production deploys (`vercel.json` builds `live`; the Vercel project's
@@ -788,8 +792,16 @@ checks hold them against what is drawn, not the walking grid:
   surfaces only) and against the passage as built (a phone lets go of the drawn arrays); then the class: every spot within
   the story's circles where a walker stands under something drawn within 5 m, stood at with the view turned round
   (`SCAN=0` leaves it out). On main before the fix: 146 frames in the passage on a desktop, 46 on a phone; after: none.
-  The spots under the city's building canopies south-west of the Scramble have a few frames of the lens pulled into a
-  wall as the view swings, on main as after (the walls', not the ceiling's: a follow-up).
+  And the lens behind a wall (issue 217), read with the game's own solids as the camera reads them: the line from your
+  eyes' height to the lens stopped more than 10 cm short of it, and not by a post the camera looks past on purpose
+  (`game.js` `thin`); 10 cm because the lens is placed for where you stood when the camera ran, and a wall that near behind
+  it lies inside its 0.3 m near plane, out of the picture. On main 73e9b226: 182 frames over the passage and the scanned
+  spots, and at (340, -1081) under the building canopies south-west of the Scramble, 7 frames of a turn with the lens
+  2.6 m behind a building cell's wall. The pull-in eased in (about 2 a second) and only a hero level's wall brought the lens
+  in front within the frame; and the swing's eased offset cut the walls' corners on its way round. Now a solid wall
+  (buildings, decks, a level's walls, ceilings; not leaves or a post looked past) between your head and the lens brings
+  it in front in that frame, both where the pull-in would leave it and where the swing does (`game.js` `solidCut`): none.
+  `SPOT=x,y;x,y` stands at given points, `AT=x,y,r` scans one circle.
 - `tools/ride_rails.js`: a ride ordered from twelve kerbs round the Scramble, Hachiko, the station's east side and
   Miyamasu, stepped in and held against the drawn rails on its way and at its door. Before the fix, rides stopped with
   Hachiko's guard rail between the door and the pavement (frame 6's own set-down among them), and one was set off
@@ -894,6 +906,21 @@ with stills on a desktop's page or a phone's (`TIER=low PHONE=1`, 390x844):
 
 The probe's limb measure in a seat is taken from the limb's own middle out to its points, met from either side: taken
 from the pelvis, the front edge of any cushion stood between a seated hip and its shin and read 15 to 43 cm.
+
+**The crowd's own people (item 7, 24 November).** `tools/clip_people.js ... crowd` reads the near crowd's hands, forearms and
+what they hold against everyone within 1.3 m, at the skin, every EVERY frames for SECS seconds (`STORY=n`, `WEATHER=rain`,
+`UMB=1` to read from the first umbrella up). At the Hachiko kerb, four runs of 240 s: 12 to 45 pairs touching a run, the
+deepest 9 to 10 cm, each for one to four readings, none into the story's people or the player. The deep ones were not arms
+reaching: the two bodies stood 0.31 to 0.49 m apart, on the crossing's press (the plazas let two centres come to 0.32 m)
+and a walker passing the kerb's waiting crowd. Now two whole rigs (near people drawn as one, `p.whole`) step no nearer
+than `NEAR_BODY` (0.46 m) on the crossing and its kerbs, whichever of the two steps; the far copies keep 0.32.
+`tools/crowd_through.js` counts what the crossing carries and how near two whole rigs come: dry, 103 crossed a minute on
+main and 105 here, steps with two whole rigs nearer than 0.46 m 286 of 3600 and 17; in the rain 98 and 106, 1092 and 44.
+At the skin on a phone's frame 1, pairs deeper than 3 cm 6 on main (to 10.2 cm), 4 here (to 7.7 cm), these last footway
+walkers 0.41 m apart, a group abreast as it seems: open. Also open: a crossing walker's open canopy over the player's
+head, 5 cm deep in one or three readings of some 350 (the crowd keeps two canopies apart, not a canopy from the player);
+a step rule against it held walkers beside the player and a lean of the canopy away from the head did not measure
+better, so neither landed.
 
 ## Nobody paces (issue 168)
 

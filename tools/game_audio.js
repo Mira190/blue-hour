@@ -5,7 +5,7 @@
 // node is labelled with the line that made it, and the ones that are open (passing sound) are listed
 // once a second, so a sound heard can be traced to its code.
 //   xvfb-run -a node tools/game_audio.js shibuya [seconds=40] [out.wav]
-//   QUERY='?noise=1' to hear the city's beds too; SKIP=1 to skip the overture
+//   QUERY='?noise=1' to hear the screens' song too; SKIP=1 to skip the overture
 const { chromium } = require('playwright');
 const fs = require('fs');
 
@@ -50,7 +50,7 @@ const fs = require('fs');
   const setup = await p.evaluate(async ({ wx }) => {
     const g = window.__game, A = window.OEAudio, calls = window.__calls = {};
     if (wx) g.weather.set(wx, { now: true });
-    for (const k of ['rotor', 'engine', 'wind', 'car', 'skid', 'rain', 'murmur', 'screens', 'walkCall', 'announce', 'step', 'bell', 'gull', 'penguin', 'horn', 'honk', 'beep', 'chime', 'thump', 'shutter']) {
+    for (const k of ['rotor', 'engine', 'wind', 'car', 'skid', 'rain', 'screens', 'walkCall', 'announce', 'step', 'bell', 'gull', 'penguin', 'horn', 'honk', 'beep', 'chime', 'thump', 'shutter']) {
       const f = A[k]; if (!f) continue;
       A[k] = (...a) => { const v = typeof a[0] === 'number' ? a[0] : typeof a[1] === 'number' ? a[1] : 1; if (v > 0.003) { const c = calls[k] = calls[k] || { n: 0, max: 0 }; c.n++; c.max = Math.max(c.max, +v.toFixed(3)); } return f(...a); };
     }

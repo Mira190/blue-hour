@@ -1755,7 +1755,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function seatMarks() {
     if (!perch || !walk) return [];
     const sat = satGet();
-    if (!seatList || seatList.n !== sat.size) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null && !(visitors && visitors.seated(p.at[0], p.at[1], 2.5))).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
+    const sitting = visitors && visitors.sittingN ? visitors.sittingN() : 0; // (made again as someone of the place sits down by a seat, or goes: visitors.js seated)
+    if (!seatList || seatList.n !== sat.size || seatList.sitting !== sitting) { seatList = perch.list.filter(p => !sat.has(p.name) && p.z != null && !(visitors && visitors.seated(p.at[0], p.at[1], 2.5))).map(p => ({ id: p.name, x: p.at[0] + p.face[0] * 0.3, y: p.at[1] + p.face[1] * 0.3, z: p.z, label: `Sit · ${p.name}` })); seatList.n = sat.size; seatList.sitting = sitting; if (perch.list.some(p => p.z == null)) { for (const p of perch.list) perch.near(p.at[0], p.at[1], 0); seatList.n = -1; } }
     return seatList;
   }
   // the next train out of Shibuya, by the walk's clock (game.json tonight.trains, the Yamanote's outer loop): the last
@@ -3400,14 +3401,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const party = ((wd === 5 || wd === 6) && h >= 18) || ((wd === 6 || wd === 0) && h < 4);
     return Math.max(0, Math.min(1, v * (party ? CR.weekend_night || 1 : 1) * (wd === 0 || wd === 6 ? CR.weekend || 1 : 1)));
   }
-  // A busy crossing's sound (game.look.sound: {at, r, station: [x, y]}): the crowd's murmur as many
-  // as are round you, the screens' music while they play, and now and then the station's
+  // A busy crossing's sound (game.look.sound: {at, r, station: [x, y]}): the screens' music while they play (?noise=1), and now and then the station's
   // announcement, all rising as you come to it (heard from the camera, so a film hears what it
   // sees). The walk signals' calls, there and at every signalled crossing: walkcalls.js.
   const walkCalls = OEWalkCalls.create({ junctions, audio: A, country: CITY.country, cfg: (G.signals || {}).sound, hour: () => clock.min / 60 });
-  // The city's constant beds as they were (the crowd's murmur at its full level and the screens' music) are off: too
-  // loud, always there. The crowd is heard low, by how many are round you (crossingSound). What comes and goes still sounds: the station's announcements, the walk signals' calls,
-  // footsteps, engines, horns, the weather, the birds and the score. ?noise=1 brings the beds back.
+  // The screens' music is off: too loud, always there; ?noise=1 brings it back. The crowd's murmur and the city's bed are
+  // gone (24 November 2026). What has a source still sounds: the station's announcements, the walk signals' calls,
+  // footsteps, engines, horns, the trains, the weather, the birds and the score.
   const CITY_NOISE = new URLSearchParams(location.search).get('noise') === '1';
   const SND = (G.look || {}).sound;
   let sndJ = null, sndAnn = 20 + Math.random() * 30, sndNear = 0, sndCount = 0, sndFar = 25 + Math.random() * 40, sndPlace = 'kerb', flightSnd = -10, sndCover = false, sndCoverT = 0, liftHop = -1;
@@ -3427,7 +3427,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the station itself, is not between them and you)
   const stnAt = SND && SND.station ? { x: SND.station[0], y: SND.station[1], z: nav.terrain(SND.station[0], SND.station[1]) + 4, skip: 45 } : null;
   function crossingSound(dt) {
-    if (!SND || !A.murmur) return;
+    if (!SND || !A.screens) return;
     const cx = camera.position.x, cy = -camera.position.z, r = SND.r || 150, ear = { x: cx, y: cy, z: camera.position.y };
     const P = A.reach ? A.reach(sndAt, ear, sndMemo, dt) : { d: Math.hypot(cx - SND.at[0], cy - SND.at[1]), g: 1, fc: 20000 }, d = P.d;
     const level = Math.max(0, Math.min(1, (r - d) / (0.6 * r))) * P.g;
@@ -3436,13 +3436,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       for (let i = 0; i < crowd.active; i++) { const p = crowd.P[i]; if (p.line >= 0 && Math.abs(p.x - cx) < 40 && Math.abs(p.y - cy) < 40) sndCount++; }
     }
     const hr = clock.min / 60;
-    // (the crowd is back as the people round you, a third of the level the owner found too loud and always there, and
-    // nothing where nobody stands: issue 127's kerb. ?noise=1 plays it and the screens' song as they were)
-    // (counted as the street has them, not as this device draws them: a phone's crowd is the share its faces can fill
-    // (faceShare) and the governor's under slow frames (govCrowd), and its kerb was heard 4 to 6 dB under a desktop's, out
-    // of the near bus's range in main's audio check of 23 November. The player's own density, and the hour, still count)
-    const heard = sndCount / Math.max(0.2, govCrowd * faceShare);
-    A.murmur(CITY_NOISE ? level * Math.min(1, 0.25 + heard / 80) : level * 0.32 * Math.min(1, heard / 60));
+    // (the crowd's murmur that was here, and the city's bed, are gone: a sound with no source the ear can pin it to reads
+    // as hiss (docs/SOUND.md "No bed without a source"). The count above stays for the tools: sound().near)
     A.screens(CITY_NOISE ? level * (hr >= 9 || hr < 0.1 ? 1 : 0) : 0, P.fc);
     // the city's far events, every minute or two: a siren, now and then a train's horn, from 350 to 900 m off, heard late
     // by that distance (audio.js far). On the roof they are the only single sounds the city has
@@ -3452,6 +3447,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const Q = A.reach ? A.reach(stnAt, ear) : { d: Math.hypot(cx - stnAt.x, cy - stnAt.y), g: 1, fc: 20000 };
       if (Q.d < 260) A.announce(Math.min(1, (260 - Q.d) / 160) * Q.g, Q.fc);
     }
+  }
+  // The traffic going by: the three nearest moving cars and buses within 90 m of the ears (a street's traffic carries:
+  // at the Scramble's red the nearest moving car is 40 to 90 m off), each kept on its own voice
+  // while it stays among them (audio.js traffic), panned to its side, quieter and duller with its distance through the
+  // air. A sound with a source: the street at a red signal is its traffic (docs/SOUND.md "No bed without a source")
+  const tSlot = [null, null, null], tPick = [], tL = [];
+  function trafficSound() {
+    if (!A.traffic || !A.on) return; // (nothing to hear before the sound is made: a phone's opening has no context)
+    const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y, e = camera.matrixWorld.elements, rl = Math.hypot(e[0], e[2]) || 1, rx = e[0] / rl, ry = -e[2] / rl;
+    tPick.length = 0;
+    for (const c of cars.live) {
+      if (c.line < 0 || !(c.v > 1)) continue;
+      const dx = c.x - cx, dy = c.y - cy; if (Math.abs(dx) > 90 || Math.abs(dy) > 90) continue;
+      const d = Math.hypot(dx, dy, (c.z || 0) + 0.6 - cz); if (d > 90) continue;
+      tPick.push([d, c]);
+    }
+    tPick.sort((a, b) => a[0] - b[0]); if (tPick.length > 3) tPick.length = 3;
+    for (let i = 0; i < 3; i++) if (tSlot[i] && !tPick.some(p => p[1] === tSlot[i])) tSlot[i] = null;
+    for (const [, c] of tPick) if (!tSlot.includes(c)) tSlot[tSlot.indexOf(null)] = c;
+    for (let i = 0; i < 3; i++) {
+      const c = tSlot[i], p = c && tPick.find(q => q[1] === c);
+      if (!p) { tL[i] = null; continue; }
+      const d = p[0];
+      tL[i] = { g: Math.min(1, 8 / Math.max(4, d)) * Math.min(1, (90 - d) / 20), v: c.v, pan: ((c.x - cx) * rx + (c.y - cy) * ry) / Math.max(1, d), fc: 9000 * Math.exp(-0.02 * d) + 500, bus: c.half > 4 };
+    }
+    A.traffic(tL);
   }
   let crowdAuto = true, govCrowd = 1; // (govCrowd: the frame-time governor's share of the crowd, its ladder below)
   // (a phone's crowd as many as its faces can fill: the walkers near you are drawn whole from QC.budget.cast scanned people,
@@ -4932,7 +4953,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (!paused) checkSteps();
     }
     if (!paused) simulate(dt);
-    if (!paused && !(story && story.stopped)) { crossingSound(dt); if (!(overture && overture.active)) walkCalls.update(dt, camera); } // (the overture's score has the birds' calls in it)
+    if (!paused && !(story && story.stopped)) { crossingSound(dt); trafficSound(); if (!(overture && overture.active)) walkCalls.update(dt, camera); } // (the overture's score has the birds' calls in it)
     else { if (places) places.hush(); if (trains) trains.hush(); } // a paused game (the title, the menu, photo mode) shows no caption
     if (player.mode !== 'heli' && !simHold) nav.prefetch(player.x, player.y); // the landmarks' fine collision ahead of the walker or the car, a few ms a frame (held by a harness: advance() lays them, below)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) groundLod(player.mode === 'heli' ? heli.st.x : player.x, player.mode === 'heli' ? heli.st.y : player.y);
@@ -6439,6 +6460,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       return 1;
     };
+    // (what of that is solid: all of it but the leaves, for the lens never to stand behind it, below)
+    const solidCut = (a, b) => { const f = nav.clearFraction(a, b); return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && thin(a, b) ? 1 : f, wallCut(a, b), ceilCut(a, b)); };
     const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b), ceilCut(a, b)); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
@@ -6499,8 +6522,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(close ? 0.06 / dist : 0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
     // (behind a level's wall the lens comes in front of it at once, as in the air: eased in, a swing round put it behind the
-    // wall for a few frames, the wall's back filling the picture)
-    const wallIn = pull < 1 && wallCut(camTarget, camPos) < 0.97;
+    // wall for a few frames, the wall's back filling the picture. And behind any wall: where the lens eased in so far would
+    // stand this frame, past a building's wall, a ceiling or a level's wall on the line from your head (not leaves, nor a post
+    // or a column looked past), it is in front of it in this frame. Under the canopies south-west of the Scramble a turn on the
+    // spot put the lens 2.6 m behind a building cell's wall for 7 frames, the pull-in easing in at 0.79: issue 217)
+    const wallIn = pull < 1 && (wallCut(camTarget, camPos) < 0.97 || (!air && pull < cam.pull && solidCut(camTarget, camProbe.lerpVectors(camTarget, camPos, cam.pull)) < 0.97));
     // (in the air a tower comes between in a frame: the lens is in front of it in that frame, and eases back out after it.
     // Eased in as on the street, at 170 km/h the helicopter went behind a tower's corner for a few frames and came out
     // again, hidden and shown, as if the model had a hole in it: the owner's report, November 2026)
@@ -6526,6 +6552,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camOff.lerp(camWant, close ? 1 - Math.exp(-dt * 10) : veh ? 1 - Math.exp(-dt * 16) : air ? 1 - Math.exp(-dt * 7) : 1);
     if ((air || wallIn) && cam.pull < 1 && camOff.lengthSq() > camWant.lengthSq()) camOff.setLength(camWant.length()); // (and its easing never holds it out past the wall)
     camPos.addVectors(camTarget, camOff);
+    // (and where the swing's easing leaves it, on foot: the offset eased round as you turn cuts a wall's corner on its way, the
+    // lens a few decimetres behind the station passage's walls for up to 10 frames of a turn on the spot. On the line it is on,
+    // in front of whatever solid stands there, in this frame: issue 217)
+    if (close && !jumped) { const fs = solidCut(camTarget, camPos); if (fs < 0.97) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
     // decks below the player's head eased in, so walking onto a stair or a deck lifts the view smoothly
@@ -6550,7 +6580,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // lifted over steps (a stairwell's flight beside a colonnade), the line to the head can graze what the
     // probe went round, the edge of the slab over the well: then closer in along it
     if (camPos.y !== y0 && player.mode === 'foot') {
-      const f = nav.clearFraction(camTarget, camPos);
+      const f = solidCut(camTarget, camPos); // (the walls, the levels and the ceilings, as the line test above: issue 217)
       if (f < 1) camPos.lerpVectors(camTarget, camPos, Math.max(close ? 0.06 / Math.max(0.06, camTarget.distanceTo(camPos)) : 0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
