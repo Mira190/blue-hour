@@ -190,7 +190,21 @@ window.OEAudio = (function () {
   // the bed, made now if it is to be heard (on: the level asked for is over silence); null while it is not there and
   // need not be
   const bed = (name, on) => ch[name] || (on && ctx && !muted ? (ch[name] = BEDS[name]()) : null);
-  const ramp = (p, v, t = 0.25) => { if (ctx) p.setTargetAtTime(v, ctx.currentTime, t); };
+  // (each voice asks for its targets every frame, the trains' fourteen parameters each among them, and a call puts an event on
+  // the parameter's timeline whether or not the target moved: asked again and again for the same silence, the timelines
+  // grew through the episode until the calls alone took 7 ms of a phone's frame at frame 6, 0.2 at its start, issue 206.
+  // A target the parameter is already on its way to, at the same pace, is not asked for again; and a new one first ends
+  // what was pending from now, held where it is (cancelAndHoldAtTime; where a browser lacks it, the value as it stands set
+  // after the rest is cancelled), so that a parameter that follows something moving every frame holds one or two events
+  // on its timeline, not one more each frame. Only ramp() moves these parameters)
+  const rampTo = new WeakMap();
+  const ramp = (p, v, t = 0.25) => {
+    if (!ctx) return;
+    const w = rampTo.get(p), now = ctx.currentTime;
+    if (w && w.t === t && Math.abs(w.v - v) <= 1e-4 * Math.max(1, Math.abs(v))) return;
+    if (w) { w.v = v; w.t = t; if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else { const was = p.value; p.cancelScheduledValues(now); p.setValueAtTime(was, now); } } else rampTo.set(p, { v, t });
+    p.setTargetAtTime(v, now, t);
+  };
   function rotor(spin, load = 0) {
     const c = ctx && bed('rotor', spin > 0.001);
     if (!c) return;
@@ -1457,13 +1471,22 @@ window.OEAudio = (function () {
     const now = performance.now();
     for (const t of tunes) {
       const el = t.el;
-      if (!el || el.paused || el.ended || el.seeking || el.readyState < 3 || now - t.started < 1500) { t.base = null; continue; } // (ended: a score that has played out is not a stall)
+      // (ended: a score that has played out is not a stall; nor its last second and a half, where its clock stops at the
+      // file's end and the element says so up to a second later: CI's walk opening and a session's story each counted
+      // one there, 24 November, 38.0 and 29.5 s after the score began, the scores' lengths)
+      if (!el || el.paused || el.ended || el.seeking || el.readyState < 3 || now - t.started < 1500 || (!el.loop && el.duration > 0 && el.currentTime > el.duration - 1.5)) { t.base = null; t.seen = 0; continue; }
       const gap = now - el.currentTime * 1000;
-      if (t.base === null || gap < t.base || gap - t.base > 20000) { t.base = gap; t.late = false; continue; } // (20 s and more: the loop went round)
+      if (t.base === null || gap < t.base || gap - t.base > 20000) { t.base = gap; t.late = false; t.seen = 0; continue; } // (20 s and more: the loop went round)
       const lag = gap - t.base;
-      if (lag > P.elMax) P.elMax = lag;
-      if (lag >= 400 && !t.late) { t.late = true; P.el++; P.totEl++; probeNote(`music ${Math.round(lag)} ms behind ${spotNow() || 'load'}`); }
-      else if (lag < 150) t.late = false;
+      // (a lag counts once a later reading, 150 ms on and in another task, still finds it: a main thread held for seconds
+      // reads the element's clock as it was cached before the hold, behind for one reading and back in step at the next
+      // (CI's walk opening, 24 November: one reading 414 ms behind with the thread held 7.8 s). A real stall stays behind,
+      // the element going on from where it stopped)
+      if (lag >= 400 && !t.late) {
+        if (!t.seen) t.seen = now;
+        else if (now - t.seen >= 150) { t.late = true; t.seen = 0; if (lag > P.elMax) P.elMax = lag; P.el++; P.totEl++; probeNote(`music ${Math.round(lag)} ms behind ${spotNow() || 'load'}`); }
+      } else { t.seen = 0; if (lag < 150) t.late = false; }
+      if (t.late && lag > P.elMax) P.elMax = lag;
     }
   }
   // what the probe saw since it was last asked (telemetry.js, with each `time` event)

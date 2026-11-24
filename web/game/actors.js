@@ -1933,6 +1933,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             let bx = 0, by = 0, br = 9;
             for (const r of [1, 2, 3, 4]) { for (let k = 0; k < 8 && br > r; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); if (!pz.road(q.x + ux * r, q.y + uy * r) && !pz.road(q.x + ux * (r + 0.8), q.y + uy * (r + 0.8))) { br = r; bx = ux; by = uy; } } if (br <= r) break; }
             if (br < 9) { q.T.x = q.x + bx * (br + 0.6); q.T.y = q.y + by * (br + 0.6); q.ph = 'wait'; q.roadOut = true; q.squeeze = 4; }
+            // (no pavement within 4 m: out in the box itself, to the nearest kerb its crossings land at, at a crosser's
+            // pace through the press. Looked for only 4 m off, one stranded 4 m from the Scramble's middle strolled there
+            // through the traffic's turns, and a driver who had stopped for them waited 150 s, issue 204)
+            else { let G = null, gd = Infinity; for (const g of gatesOf(pz)) { const e = Math.hypot(g.x - q.x, g.y - q.y); if (e < gd) { gd = e; G = g; } }
+              if (G) { toGate(q, G); q.sTries = 0; q.roadOut = true; q.squeeze = 4; } }
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
@@ -3424,13 +3429,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // that way (and the cars already crossing to it)?
     // (on an exit with two lanes, behind the cars in the lane it will be in)
     // the arm with signals whose queue car c stands in, by the cars ahead of it (each queued behind the next), or null
+    // (a car held at a line without signals for the signalled junction just after, crossed with it, is in that one's queue
+    // whatever holds it: its light, or with the light green a movement across its way. Counted only while its light was
+    // red, the car at 807's line for the Scramble's arm 1 gave way to the oncoming arm on its green, the Scramble read the
+    // arm as empty and cut the turn at its minimum, and the queue behind it stood a whole cycle more, 149 s, issue 204)
+    const twinOf = x => x.lineArm && !x.lineArm.j.sig && x.why !== 'room' && x.lineEx && x.ex2 && x.ex2.a && x.ex2.a.j.sig && x.ex2.a.line === x.lineEx.m.line ? x.ex2.a : null;
     function queuedFor(c) {
       let x = c.front;
       if (c.why === 'room' && c.lineArm && !c.lineArm.j.sig) x = c;
+      else if (c.why !== 'light' && twinOf(c)) x = c; // (its own wait: one held by the light there is counted where it is held, below)
       for (let n = 0; n < 8 && x && x.q; n++) {
         const a = x.lineArm;
         if (a && a.j.sig) return a;
-        if (a && x.why === 'light' && x.ex2 && x.ex2.a && x.ex2.a.j.sig) return x.ex2.a; // (held at this line by the light of the junction just after)
+        { const b = twinOf(x); if (b) return b; } // (held at this line by the junction just after)
         if (a && x.why === 'room' && x.lineEx) { const b = JN.armBy(x.lineEx.m.line, 1 - x.lineEx.m.end); return b && b.in && b.j.sig ? b : null; }
         x = x.front;
       }

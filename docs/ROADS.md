@@ -458,6 +458,32 @@ not raised. Views: `tools/views/deck-196.json`.
 Where the grading then reached the ground under the raised parts, it moved 445 nodes, none inside a hero level; at
 617,-1003 the ground east of the lane, under what had been a building, now steps down 3.7 m to the lot beside it.
 
+### A deck drawn as a deck (issue 212)
+
+Raised over the road, the west exit deck was still its building's box: walls and rows of windows on piers, a pale
+underside that glowed grey over the road at dusk, and nothing down to the footways. Now a solid raised over a road
+(`stations.py` `over_roads`, buildings.json `over_roads`) of a building with no foot on the ground and no deeper than
+6 m is a deck (`stations.py` `decks`, buildings.json `decks`), and `web/buildings-geo.js` `deck()` draws it as one, in the
+cells' own batches (no draws added): its underside in the concrete's grey, lit by its downlights after dark; the
+slab's edge, 0.9 m; the walkway; a glass parapet 1.1 m high with its steel rail; and where it is deep enough, a canopy
+on slim posts every 7.2 m. Past the middle distance it is its box, as every building is.
+
+Its stairs and the walkways that join it to them are landmarks (`cities/shibuya/city.py` `deck_stairs`), from what
+OpenStreetMap maps by the decks: each `highway=steps` on a layer, as a straight flight on its mapped line from the
+ground the game draws (`pipeline/levels.py`) to the deck's walkway, its head at the end OpenStreetMap joins to a
+walkway up on a layer, 16 cm risers and 30 cm treads, granite on a cast flight with one sloped soffit, steel stringers
+and handrails; each `bridge=yes` footway the deck's outline does not take in, as a 3 m slab at the walkway's level with
+a glass parapet each side and round piers every 12 m kept off the surveyed carriageway (the deck's arm to its stair at
+370,-1103, and the deck to Shibuya Fukuras).
+
+![The west exit deck before and after: from frame 3's place at dusk, from beneath it, from the terminal's footway at dusk, from the air, and its stair by day and at dusk](images/roads/deck-212.jpg)
+![On a phone at dusk: frame 3's place and the stair](images/roads/deck-212-phone.jpg)
+
+Not done: the bus bays and their shelters under the deck (the map has no bus stop polygons there: a separate job);
+the four parts of buildings raised over back lanes keep their walls (they are rooms over a lane, not decks), not
+checked against photographs; the deck at 211,-1151 (a PLATEAU solid with no OpenStreetMap record) is drawn as a deck by
+the rule and was not checked against a photograph.
+
 ### The checks
 
 - `python tools/deck_check.py shibuya`: no solid stands on a driven surveyed carriageway in or near the planned area;
@@ -667,8 +693,24 @@ were inside them (46 to 161 s) and one took 193 s, with the Scramble's red and t
 undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
 comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
 Scramble, from Bunkamura-dori to Miyamasuzaka. `TRACE=1` prints
-each stand of a drive: where, how long, behind what, at which light. `DUMP=1 node tools/junction_flow.js` prints a
+each stand of a drive: where, how long, behind what, at which light; `CRAWL=1` with it every field of the cars round a
+stand, and every five seconds the head of the queue it stands in, the light that head waits on and the movements in
+both boxes. `tools/drive_repeat.sh n` plays the check's drives n times (`TIMES=` across hours: at one hour the plays
+differ little, ten at 17:57 gave five outcomes). `DUMP=1 node tools/junction_flow.js` prints a
 junction as built: arms, stop lines, ways across, which cross and where, and where footways cross its arms.
+
+**A queue held one junction back is the next one's** (issue 204). Junction 807, without signals, lies too close to the
+Scramble to wait between, and a car at its line crosses both together. It was counted in the Scramble's arm 1 queue
+only while the Scramble's light was red. On its green the head car turned right across the oncoming arm and gave way
+(`cross`), and from then on neither it nor the queue behind it counted: the Scramble read the arm as empty, cut the turn
+at its minimum, and the queue stood a whole cycle more (149 s in 3 of 15 plays of the check's first drive). `actors.js`
+`queuedFor()` now counts a car held at a line without signals for the signalled junction just after, whatever holds it
+but room, and the head car itself. On the Scramble at 17:57 the cross turn's green went from 13.3 s to 25.8 s, its arm 1
+seen queued in 3 greens of 4 (none of 5 before), the cycle 78 to 82 s, the main turn unchanged. The stand is 61 to 78 s
+now, once 150: the turner still waits outside the box, at 807's line, for a gap in a free-flowing oncoming stream,
+and cannot take the end of the green as a driver waiting in the box does (left on issue 204, with a lamp post at
+370.6,-971.9 that `tools/box_posts.js` finds in the carriageway at the Scramble's north exit, where a car of the
+north-south turn stood 8 s).
 
 ## Not done, and why
 

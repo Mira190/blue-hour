@@ -98,6 +98,7 @@ const [,, size = '1440x900', secs = '120'] = process.argv;
   }
   await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // (the page sends its "time" when it is hidden or asked)
   await p.waitForTimeout(500);
+  console.log('device records', await p.evaluate(() => { const o = {}; for (const k of Object.keys(localStorage)) if (/^bh-(gov|tier)-/.test(k)) o[k] = localStorage.getItem(k); const gl = document.createElement('canvas').getContext('webgl2'); o.parallelCompile = !!(gl && gl.getExtension('KHR_parallel_shader_compile')); return JSON.stringify(o); }));
   await b.close();
   console.log(errs.length ? `FAIL ${errs.length} page errors` : 'no page error');
   process.exit(errs.length ? 1 : 0);

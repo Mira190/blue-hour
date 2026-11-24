@@ -746,7 +746,64 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return g[j * n + i];
     };
   }
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: heroCover }) : null;
+  // the ceilings a hero level draws over where you walk (issue 208), as nav.js ceilOver reads the landmarks', and its rails: the chase
+  // camera stays under them (rig ceilCut). Read from what is drawn as the level comes: every flat face of its model that
+  // stands 1.8 m or more over the ground, in HC m cells with its heights in layers, kept where it covers as a ceiling does
+  // (nav.js soffits). h.ceilOver(x, y, z): the lowest over z, or null. Made once, as the paving's grid is
+  function heroSoffit(h, root) {
+    if (h.ceilOver !== undefined || !h.at || !h.r) return;
+    const t0 = performance.now(), tris = [], v = new THREE.Vector3(), box = new THREE.Box3();
+    root.traverse(o => {
+      if (!o.isMesh || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const mt = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (mt && (mt.transparent || /leaf|tree|foliage|glass/i.test(mt.name || ''))) return; // (seen through, or a crown: not a ceiling)
+      if (/(^|_)(ground|room_floor)_/.test(o.name)) return; // (the paving: under your feet)
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+      if (box.max.y < Math.max(h.z || 0, nav.terrain((box.min.x + box.max.x) / 2, -(box.min.z + box.max.z) / 2)) + 1.8) return; // (all of it under a walker's head)
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count, nm = new THREE.Matrix3().getNormalMatrix(o.matrixWorld), nv = new THREE.Vector3();
+      const nrm = o.geometry.attributes.normal;
+      for (let t = 0; t + 2 < m; t += 3) {
+        // (a face that looks down, by its first corner's normal: the ceiling's underside, not the roof over it)
+        if (nrm && nv.fromBufferAttribute(nrm, idx ? idx.getX(t) : t).applyMatrix3(nm).normalize().y > -0.7) continue;
+        const T = [0, 1, 2].map(k => { v.fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld); return [v.x, -v.z, v.y]; });
+        const zl = Math.min(T[0][2], T[1][2], T[2][2]);
+        if (zl < Math.max(0, nav.terrain(T[0][0], T[0][1])) + 1.8 && zl < (h.z || 0) + 1.8) continue; // (under a walker's head: a bench's or a step's underside)
+        tris.push(T);
+      }
+    });
+    h.ceilOver = OENav.soffits(tris, h.at[0] - h.r, h.at[1] - h.r, Math.ceil(2 * h.r / HC), HC);
+    // and its guard rails as drawn (issue 208): the cells of HC m a rail's body crosses, 0.15 to 1.3 m over the ground
+    // under it, so that a car that comes for you stops at the kerb where none stands between it and you (rides.js openKerb)
+    const n = Math.ceil(2 * h.r / HC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, rail = new Set(), P = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    root.traverse(o => {
+      if (!o.isMesh || !o.geometry || !/(^|_)metal_guard/.test(`${o.name} ${(o.material && o.material.name) || ''}`)) return;
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
+      for (let t = 0; t + 2 < m; t += 3) {
+        for (let k = 0; k < 3; k++) P[k].fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld);
+        for (let k = 0; k < 3; k++) {
+          const a = P[k], b = P[(k + 1) % 3], c = Math.max(1, Math.ceil(a.distanceTo(b) / (HC / 2)));
+          for (let i = 0; i <= c; i++) {
+            v.lerpVectors(a, b, i / c);
+            const x = v.x, y = -v.z, gz = Math.max(h.z || 0, nav.terrain(x, y));
+            if (v.y < gz + 0.15 || v.y > gz + 1.3) continue;
+            const ci = Math.floor((x - x0) / HC), cj = Math.floor((y - y0) / HC);
+            if (ci >= 0 && cj >= 0 && ci < n && cj < n) rail.add(cj * n + ci);
+          }
+        }
+      }
+    });
+    h.rail = (x, y) => { const ci = Math.floor((x - x0) / HC), cj = Math.floor((y - y0) / HC); return ci >= 0 && cj >= 0 && ci < n && cj < n && rail.has(cj * n + ci); };
+    h.railCells = rail.size;
+    h.ceilCells = h.ceilOver ? h.ceilOver.cells : 0; h.ceilMs = Math.round(performance.now() - t0); // (for tools/cam_ceiling.js)
+  }
+  // the lowest drawn ceiling over (x, y) above the height z, of the landmarks and every hero level, or null
+  const heroCeil = (x, y, z) => {
+    let best = nav.ceilOver(x, y, z); // (and the landmarks' own: the station's free passage, nav.js ceilOver)
+    for (const q of G.hero || []) if (q.ceilOver) { const c = q.ceilOver(x, y, z); if (c !== null && (best === null || c < best)) best = c; }
+    return best;
+  };
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -1082,7 +1139,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   try {
     lib = await OEPeople.load('assets/people/', { warmLater: true }); // (its warm-up given once the loader has compiled: lib.setWarm, below)
     if ((G.crowd || {}).style) OEPeople.setStyle(G.crowd.style);
-    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
+    if (Wd.streetLit) OEPeople.setLight(Wd.streetLit, Wd.U && Wd.U.uFaceCap); // the street lights light the people after dark (and on the low tier the screens' pool where they stand, neon.js pooled)
   } catch (e) { console.warn('Realistic people unavailable, using simple figures:', e); lib = null; }
   // the box-built figures are the last resort, for a device that could load none of the people's
   // files: one character that fails to load (after its retries, gltf.js) leaves the rest of the
@@ -4641,6 +4698,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
+    // (come back from a menu's Title screen, menus.js: the press was made already, so the title opens on its menu)
+    { let back = false; try { back = sessionStorage.getItem('bh-title-auto') === '1'; sessionStorage.removeItem('bh-title-auto'); } catch (e) { /* storage blocked */ }
+      if (back) titleScreen('menu'); }
     $('#g-title').hidden = false;
     // a load after a lost context the page could not redraw: the player taken up where they were (noteResume), no card
     { const R = takeResume();
@@ -4878,6 +4938,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) groundLod(player.mode === 'heli' ? heli.st.x : player.x, player.mode === 'heli' ? heli.st.y : player.y);
     if (titleOn && titleYaw != null && !simHold) { titleT += dt; titleYaw = openingHere() ? openingView().yaw + OPENING.sway * Math.sin(titleT * 0.06) : DISTRICT ? titleYaw0 + 0.3 * Math.sin(titleT * 0.05) : titleYaw + dt * 0.05; }
     if (simHold) { /* (held by a harness: the camera too, which the traffic reads, what is in view; advance() moves it) */ } else if (photo.on) photoCamera(dt); else if (closeup && !titleOn) closeupCamera(dt); else updateCamera(dt, titleOn);
+    if (!titleOn) lensGuard(); // (whichever camera it was, its window in nobody: issue 209)
     if (photo.on && crowdDraw && crowdDraw.still) crowdDraw.still(); // (a photograph's crowd: everyone near enough to be seen drawn whole, the world held: issue 174)
     placeNightFill();
     marks.frame(); // (the camera as it stands for this frame, and who is drawn near it: what every mark over the picture asks, marks.js)
@@ -5940,9 +6001,138 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (q.lensOut) { crowdDraw.hide(i, true); lensNear.gone++; }
     }
   }
+  // The lens's window (issue 209). A camera takes its picture through a window, not from a point: the near plane's
+  // rectangle, camera.near in front of the lens and as wide as the lens's angle makes it, and whatever that window is
+  // inside is drawn from within. The owner's still of frame 3 had the chase view over the head looking down, the window
+  // through the hair and the skull, the eyes and the lashes seen from behind. So, every frame and from every camera (the
+  // chase view, a talk, a film, a scripted shot, the finder raised and lowered, a photograph, the close look), once the
+  // frame's camera is set: when the window is in someone's body (the one you play, the story's people, the map's people,
+  // the guide, the crowd's near people), the window first comes in towards the lens, the near plane from where that camera
+  // has it down to the close look's own 0.05 m (the depth is reversed: a near plane that close costs the far city
+  // nothing), and nobody is touched. Only someone the lens itself is inside, whom no window clears, is out of the picture
+  // for that frame, whole, as lensClear takes people out (a person of this game is in the picture whole or out of it
+  // whole: people.js, issue 129). That last case is what the chase view keeps from happening (rig: its pull-in and its
+  // lifts), and tools/cam_intrude.js measures the window against the skinned bodies every frame of a play and reads what
+  // this did (window.__lensGuard). A body here is its parts as capsules, fitted once to the vertices each bone carries,
+  // generous (the 97th hundredth of a part's vertices round its axis, and 2 cm): the measure's are the 80th, under the skin
+  const NEARS = [0.3, 0.22, 0.16, 0.12, 0.09, 0.07, 0.05];
+  const guardHid = new Set(), guardCaps = new WeakMap(), guardInv = new THREE.Matrix4(), guardA = new THREE.Vector3(), guardB = new THREE.Vector3(), guardPt = [], guardRay = [0, 0, 0, 0];
+  const GUARD_PART = /(Pelvis|Spine2|Spine1|Spine|Neck|Head|Clavicle|UpperArm|Forearm|Hand|Thigh|Calf|Foot)$/;
+  function guardFit(root) { // (once a model: its parts' capsules in their bones' own space)
+    const meshes = [], parts = new Map(), p = guardA;
+    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex) meshes.push(o); });
+    if (!meshes.length) return null;
+    const human = meshes.some(o => o.skeleton.bones.some(b => /Bip01/.test(b.name)));
+    for (const o of meshes) {
+      const g = o.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones, binv = o.skeleton.boneInverses;
+      for (let i = 0; i < pos.count; i++) {
+        let bi = 0, bw = -1;
+        for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } }
+        let b = bones[bi]; if (!b) continue;
+        if (human) for (let q = b; q && q.isBone; q = q.parent) if (GUARD_PART.test(q.name)) { b = q; break; }
+        const pi = bones.indexOf(b); if (pi < 0) continue;
+        p.fromBufferAttribute(pos, i).applyMatrix4(o.bindMatrix).applyMatrix4(binv[pi]);
+        let L = parts.get(b); if (!L) parts.set(b, L = []);
+        L.push(p.x, p.y, p.z);
+      }
+    }
+    const caps = [];
+    for (const [bone, L] of parts) {
+      const n = L.length / 3; if (n < 12) continue;
+      const lo = [0, 0, 0], hi = [0, 0, 0];
+      for (let k = 0; k < 3; k++) { const s = []; for (let i = 0; i < n; i++) s.push(L[i * 3 + k]); s.sort((x, y) => x - y); lo[k] = s[Math.floor(n * 0.02)]; hi[k] = s[Math.min(n - 1, Math.floor(n * 0.98))]; }
+      let ax = 0; for (let k = 1; k < 3; k++) if (hi[k] - lo[k] > hi[ax] - lo[ax]) ax = k;
+      const u = (ax + 1) % 3, w = (ax + 2) % 3, cu = (lo[u] + hi[u]) / 2, cw = (lo[w] + hi[w]) / 2, rad = [];
+      for (let i = 0; i < n; i++) rad.push(Math.hypot(L[i * 3 + u] - cu, L[i * 3 + w] - cw));
+      rad.sort((x, y) => x - y);
+      const r = rad[Math.floor(n * 0.97)], half = Math.max(0, (hi[ax] - lo[ax]) / 2 - r * 0.7), mid = (lo[ax] + hi[ax]) / 2, e0 = [0, 0, 0], e1 = [0, 0, 0];
+      e0[u] = e1[u] = cu; e0[w] = e1[w] = cw; e0[ax] = mid - half; e1[ax] = mid + half;
+      caps.push({ bone, a: new THREE.Vector3(...e0), b: new THREE.Vector3(...e1), r });
+    }
+    return caps;
+  }
+  // the deepest the window at depth n goes into the capsules laid out in guardPt (camera space): > 0 is inside
+  const guardDepth = (m, n) => {
+    const x0 = n * guardRay[0], x1 = n * guardRay[1], y0 = n * guardRay[2], y1 = n * guardRay[3];
+    let worst = -Infinity;
+    for (let i = 0; i < m; i += 28) {
+      const r = guardPt[i];
+      for (let k = 0; k < 9; k++) {
+        const x = guardPt[i + 1 + k * 3], y = guardPt[i + 2 + k * 3], z = guardPt[i + 3 + k * 3];
+        const dx = Math.max(x0 - x, 0, x - x1), dy = Math.max(y0 - y, 0, y - y1), dz = z + n, d = r - Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (d > worst) worst = d;
+      }
+    }
+    return worst;
+  };
+  // one body: laid out in camera space; the largest near (of NEARS, from `base` down) whose window clears it, or 0 for none
+  const guardSig = { v: 0, k: 1 }, guardSigOf = o => { if (o.isSkinnedMesh) guardSig.v += o.geometry.id * guardSig.k++; };
+  function guardCapsOf(root) { // (a model's, kept: fitted again only when the copy is dressed as someone else)
+    guardSig.v = 0; guardSig.k = 1; root.traverse(guardSigOf); const sig = guardSig.v;
+    let c = guardCaps.get(root);
+    if (!c || c.sig !== sig) { try { c = { sig, caps: guardFit(root) }; } catch (err) { c = { sig, caps: null }; } guardCaps.set(root, c); }
+    return c;
+  }
+  // (a fit takes about 11 ms for the one you play on a session's machine: the one you play and the guide are fitted while the
+  // page is idle, ahead of the first camera to come near them, not in that camera's frame)
+  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) guardCapsOf(r); };
+  function guardBody(root, base) {
+    const e = root.matrixWorld.elements, P = camera.position;
+    if (Math.abs(e[12] - P.x) > 1.8 || Math.abs(e[14] - P.z) > 1.8 || P.y < e[13] - 0.8 || P.y > e[13] + 2.8) return base;
+    const c = guardCapsOf(root);
+    if (!c.caps) return base;
+    root.updateWorldMatrix(true, true);
+    let m = 0;
+    for (const q of c.caps) {
+      guardA.copy(q.a).applyMatrix4(q.bone.matrixWorld).applyMatrix4(guardInv); guardB.copy(q.b).applyMatrix4(q.bone.matrixWorld).applyMatrix4(guardInv);
+      const me = q.bone.matrixWorld, r = q.r * Math.cbrt(Math.abs(me.determinant())) + 0.02;
+      guardPt[m] = r;
+      for (let j = 0; j < 9; j++) { const t = j / 8; guardPt[m + 1 + j * 3] = guardA.x + (guardB.x - guardA.x) * t; guardPt[m + 2 + j * 3] = guardA.y + (guardB.y - guardA.y) * t; guardPt[m + 3 + j * 3] = guardA.z + (guardB.z - guardA.z) * t; }
+      m += 28;
+    }
+    for (const n of NEARS) if (n <= base + 1e-6 && guardDepth(m, n) <= 0) return n;
+    return 0;
+  }
+  // (a frame's state, kept here so that a frame of it makes nothing new: guardOne is called for each body near the lens)
+  const guardS = { base: 0.3, near: 0.3, warmAt: -1e9 };
+  const layerOn = q => q.layers.enable(0), layerOff = q => q.layers.disable(0);
+  function guardOne(root, who, i) {
+    if (!root || !root.visible || !root.parent || !root.layers.test(camera.layers)) return;
+    const n = guardBody(root, guardS.base);
+    if (n > 0) { if (n < guardS.near) guardS.near = n; return; }
+    if (i != null) crowdDraw.hide(i, true); else { root.traverse(layerOff); guardHid.add(root); }
+    const G = window.__lensGuard; // (for a harness: who was taken out, from which camera)
+    if (G) { const mode = cine.active ? `shot ${cine.label || ''}` : talkShot ? 'talk' : story && story.film ? 'film' : fpOn ? 'finder' : photo.on ? 'photo' : closeup ? 'closeup' : `${player.mode} ${cam.mode}`, key = `${typeof who === 'function' ? who() : who} | ${mode}`; G[key] = (G[key] || 0) + 1; }
+  }
+  const guardCrowd = (r, i) => guardOne(r.root, 'crowd', i);
+  function lensGuard() {
+    if (window.__lensGuardOff) return; // (for a harness weighing what it costs: tools/walk_play.js LENSGUARD=0)
+    const gT = window.__lensGuardT, t0 = gT ? performance.now() : 0; // (and timing it: tools/cam_cost.js)
+    for (const o of guardHid) if (!lensHid.has(o)) o.traverse(layerOn);
+    guardHid.clear();
+    camera.updateMatrixWorld();
+    guardInv.copy(camera.matrixWorld).invert();
+    // (the window's edges per metre of depth, from the corners' rays: a talk's lens shift and a phone's narrow frame and all)
+    guardA.set(-1, -1, 0.5).applyMatrix4(camera.projectionMatrixInverse); guardB.set(1, 1, 0.5).applyMatrix4(camera.projectionMatrixInverse);
+    guardRay[0] = guardA.x / -guardA.z; guardRay[1] = guardB.x / -guardB.z; guardRay[2] = guardA.y / -guardA.z; guardRay[3] = guardB.y / -guardB.z;
+    guardS.base = guardS.near = camera.near;
+    if (clockT - guardS.warmAt > 5) { guardS.warmAt = clockT; (window.requestIdleCallback || (f => setTimeout(f, 300)))(guardWarm); }
+    guardOne(player.rig && player.rig.root, 'you');
+    for (let k = 0; k < storyFigs.length; k++) { const f = storyFigs[k]; if (f.rig) guardOne(f.rig.root, f.name || f.id); }
+    for (let k = 0; k < npcs.length; k++) { const q = npcs[k]; if (q.rig) guardOne(q.rig.root, q.id); }
+    if (guideMade) guardOne(guideMade.root, 'guide');
+    if (crowdDraw && crowdDraw.active) crowdDraw.active.forEach(guardCrowd);
+    if (guardS.near < guardS.base) { camera.near = guardS.near; camera.updateProjectionMatrix(); }
+    if (gT) { const d = performance.now() - t0; gT.ms += d; gT.n++; if (d > gT.max) gT.max = d; }
+  }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3(), heliMid = new THREE.Vector3(), aheadT = new THREE.Vector3(), aheadP = new THREE.Vector3(), aheadM = new THREE.Vector3();
+  const CEIL_GAP = 0.3; // how far under a drawn ceiling the lens keeps (its near plane and a lamp's depth: heroSoffit)
   const CAM_LIFTS = [0, 0.15, 0.3, 0.45, 0.6, 0.8]; // the chase camera's lifts over a wall behind, in radians of pitch
+  // (the steepest a view on foot may look down from an arm that long: a lift over a wall behind that is then pulled in
+  // short stands the lens over your head looking down at your hair, the owner's still of issue 209 and issue 99's; from
+  // 2.5 m out any pitch, from 0.8 m in 0.5 rad, about the lowest lift's view over a shoulder. Issue 209)
+  const pitchRoom = arm => 0.5 + 0.85 * Math.min(1, Math.max(0, (arm - 0.8) / 1.7));
   const CROWD_LIFT = 0.3; // (the most it lifts over people: from FOOT.pitch to about the old 0.47, the eye 4 m up at most)
   // the people standing or walking within the camera's reach of your head (the crowd's near people, the named cast, the
   // story's figures), as [x, y, z] in the game's ground plan, for folkAcross below
@@ -6163,7 +6353,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       return t;
     };
-    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b)); };
+    // a hero level's drawn ceiling (heroSoffit, issue 208): the fraction of the line from your head to the lens before it
+    // comes within CEIL_GAP of a ceiling over your head, sampled every 0.25 m; never looked past. Only on foot and at the
+    // wheel (in the air the lens is over the roofs by design)
+    const ceilCut = (a, b) => {
+      if (air) return 1;
+      const L = a.distanceTo(b), k = Math.max(1, Math.ceil(L / 0.25)), z0 = a.y - 0.4;
+      for (let i = 1; i <= k; i++) {
+        const t = i / k, y = a.y + (b.y - a.y) * t, c = heroCeil(a.x + (b.x - a.x) * t, -(a.z + (b.z - a.z) * t), z0);
+        if (c !== null && y > c - CEIL_GAP) return (i - 1) / k;
+      }
+      return 1;
+    };
+    const clear = player.mode === 'lift' ? () => 1 : (a, b) => { const f = nav.clearFraction(a, b), g = leafy.length ? leaves(a, b) : 1; return Math.min(f < 0.97 && (1 - f) * a.distanceTo(b) > 1.5 && !air && thin(a, b) ? 1 : f, g, wallCut(a, b), ceilCut(a, b)); };
     const orbit = (lift, out) => { const pitch = Math.min(1.35, cam.pitch + lift), cp = Math.cos(pitch); return out.set(camTarget.x - Math.sin(cam.yaw) * cp * dist, camTarget.y + Math.sin(pitch) * dist, camTarget.z + Math.cos(cam.yaw) * cp * dist); };
     // (and on foot, low among the people since issue 71, over whoever stands in the line from the lens to your head: the
     // lowest lift clear of the walls that is clear of them too, up to CROWD_LIFT; past that the view waits for them to
@@ -6172,7 +6374,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     let want = null, open = null;
     for (const lift of CAM_LIFTS) {
       const f = clear(camTarget, orbit(lift, camProbe));
-      if (!want || f > want.f + 0.05) want = { f, lift };
+      if ((!want || f > want.f + 0.05) && (!close || !lift || cam.pitch + lift <= pitchRoom(f * dist))) want = { f, lift };
       if (f >= 0.97) {
         if (!open) open = { f, lift }; else if (lift > CROWD_LIFT) break; // (not over a wall for them: the lowest clear of it)
         const by = !!(folk && folk.n && lift < CROWD_LIFT && folkAcross(folk, camTarget, camProbe));
@@ -6220,7 +6422,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else if ((cam.liftHold -= dt) <= 0) cam.lift = Math.max(want.lift, cam.lift - Math.min((cam.lift - want.lift) * dt * 2, dt * 0.5));
     // (in the air the helicopter's body as well as the point over it the lens looks at: beside a tower's roof one was in
     // sight and the other not, and the helicopter was hidden behind the roof's edge for seconds)
-    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(0.15, f - 0.04) : 1;
+    const f = Math.min(clear(camTarget, orbit(cam.lift, camPos)), postAtLens(camTarget, camPos), air ? clear(heliMid.set(heli.st.x, heli.st.z + 0.8, -heli.st.y), camPos) : 1), pull = f < 1 ? Math.max(close ? 0.06 / dist : 0.15, f - 0.04) : 1;
     if (jumped) cam.pull = pull;
     // (behind a level's wall the lens comes in front of it at once, as in the air: eased in, a swing round put it behind the
     // wall for a few frames, the wall's back filling the picture)
@@ -6266,11 +6468,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const yFloor = camPos.y;
     const ceil = nav.ceilingAt(camPos.x, -camPos.z, camTarget.y - 1); // under a slab (a colonnade): below its soffit
     if (ceil !== null && camPos.y > ceil - 0.2) camPos.y = Math.max(ground + 0.5, ceil - 0.2);
+    // and under a ceiling a hero level draws (heroSoffit, issue 208): below it whatever the floor under the lens says (the
+    // ground modelled under the station rises through the passage's floor, and lifted the lens to it: the drawn ceiling is
+    // what the player sees, so it wins)
+    const hceil = air ? null : heroCeil(camPos.x, -camPos.z, camTarget.y - 0.4);
+    if (hceil !== null && camPos.y > hceil - CEIL_GAP) camPos.y = Math.max(camTarget.y - 0.4, hceil - CEIL_GAP);
     // lifted over steps (a stairwell's flight beside a colonnade), the line to the head can graze what the
     // probe went round, the edge of the slab over the well: then closer in along it
     if (camPos.y !== y0 && player.mode === 'foot') {
       const f = nav.clearFraction(camTarget, camPos);
-      if (f < 1) camPos.lerpVectors(camTarget, camPos.clone(), Math.max(0.15, f - 0.04));
+      if (f < 1) camPos.lerpVectors(camTarget, camPos, Math.max(close ? 0.06 / Math.max(0.06, camTarget.distanceTo(camPos)) : 0.15, f - 0.04));
     }
     // (what this frame did, for a harness that sets cam.trace to an object: tools/cam_jumps.js)
     if (cam.trace) Object.assign(cam.trace, { jumped, f, wallIn, pullWant: pull, wantLift: want.lift, folk: !!want.by, floorUp: yFloor - y0, ceilDown: yFloor - camPos.y, gz, floor: cam.floor, pre: camSmooth.toArray() });
