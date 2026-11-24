@@ -1233,7 +1233,7 @@ ${PAT_GLSL}`)
     let gs = [...String(look.character || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
     const grnd = () => ((gs = (gs * 1664525 + 1013904223) >>> 0) / 4294967296);
     const idleAt = (made = (made + 0.6180339887) % 1); // (what one waits doing begins here in it: spread by the golden ratio, in the order people are made)
-    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character };
+    const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character, clearEvery: 1 }; // (clearEvery: armsClear)
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
     model.traverse(o => { if (o.isBone) bones[o.name] = o; });
@@ -1654,16 +1654,23 @@ ${PAT_GLSL}`)
       root.updateWorldMatrix(true, false);
       for (const nd of c.chain) upd(nd);
       root.matrixWorld.decompose(cps, cRq, csc); cRi.copy(cRq).invert();
-      for (const b of c.owners) skinM(c, b, c.M.get(b));
+      let skinned = false; // (the torso's bones as they carry it: worked out once a frame, and only if an arm asks this frame)
       c.frame++; // (each slice's frame made when a point first falls in it this frame: sliceAt)
+      // (rig.clearEvery: an arm asked every so many frames, set by the crowd for a person small on the screen, issue 130.
+      // Between, the turns last asked are kept in the body's own frame and laid on through the same springs. 1 by default:
+      // the story's people, the player and the walk's are asked every frame)
+      const every = rig.clearEvery > 1 ? rig.clearEvery : 1;
       for (let side = 0; side < 2; side++) {
         const a = arms[side], A = c.arm[side];
         // (not the arm that holds an open umbrella or a rod: its pose is laid on whole, umbHold, and what it holds is no thing at the chest)
         if (side === 1 && (umbUp || rig.hold)) continue;
-        if (!A.tSh) { A.tSh = new THREE.Vector3(); A.tEl = new THREE.Vector3(); A.pSh = new THREE.Vector3(); A.pEl = new THREE.Vector3(); A.vSh = new THREE.Vector3(); A.vEl = new THREE.Vector3(); }
+        if (!A.tSh) { A.tSh = new THREE.Vector3(); A.tEl = new THREE.Vector3(); A.pSh = new THREE.Vector3(); A.pEl = new THREE.Vector3(); A.vSh = new THREE.Vector3(); A.vEl = new THREE.Vector3(); A.gSh = new THREE.Vector3(); A.gEl = new THREE.Vector3(); A.since = side; A.asked = false; }
         A.tSh.set(0, 0, 0); A.tEl.set(0, 0, 0);
         const q0 = A.q0 || (A.q0 = [new THREE.Quaternion(), new THREE.Quaternion()]);
         q0[0].copy(a.ua.quaternion); q0[1].copy(a.la.quaternion);   // (the arm as it came in: the clip's, or the umbrella's)
+        if (every > 1 && A.asked && (A.since = (A.since + 1) % every) !== 0) { A.tSh.copy(A.gSh).applyQuaternion(cRq); A.tEl.copy(A.gEl).applyQuaternion(cRq); } // (not this arm's frame: the turns last asked)
+        else {
+        if (!skinned) { skinned = true; for (const b of c.owners) skinM(c, b, c.M.get(b)); }
         const held = A.held || (A.held = []);
         held.length = 0;
         for (const g of accObjs) if (g.parent === a.wr) for (const m of g.children) if (m.geometry) {
@@ -1693,6 +1700,8 @@ ${PAT_GLSL}`)
           keepArm(side);
           if (wsS) { upTo(wSh.divideScalar(wsS), 0.3); turnBone(a.ua, wSh, [a.la, a.wr]); aimFore(a, cwr); A.tSh.add(wSh); }
           if (wsE) { upTo(wEl.divideScalar(wsE), 0.3); turnBone(a.la, wEl, [a.wr]); A.tEl.add(wEl); }
+        }
+        A.gSh.copy(A.tSh).applyQuaternion(cRi); A.gEl.copy(A.tEl).applyQuaternion(cRi); A.asked = true; // (kept for the frames between asks)
         }
         // through the springs, and laid on the arm as it came in
         spring(A.pSh, A.vSh, A.tSh, d0); spring(A.pEl, A.vEl, A.tEl, d0);
@@ -2555,6 +2564,9 @@ transformed = crowdPose(transformed, false);`);
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
         if (p.wave) { p.wave = false; r.wave(tNow); }
+        // (how often its arms are kept out of its body, by how tall it stands on the screen: every frame from 300 pixels up,
+        // every second from 150, every third below, where a centimetre is under a pixel; issue 130)
+        if (camera && camera.isPerspectiveCamera) { const tall = 1.7 * p.look.scale * (window.innerHeight || 800) / (2 * Math.tan(camera.fov * Math.PI / 360)) / Math.max(0.5, Math.hypot(p.rx - lodX, p.ry - lodY, p.rz + 1 - camera.position.y)); r.clearEvery = tall >= 300 ? 1 : tall >= 150 ? 2 : 3; }
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
       }

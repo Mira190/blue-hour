@@ -3372,6 +3372,18 @@ frame, the largest thing left on a phone too), `update`'s loop 1.2, `walk` 1.0, 
 Not measured: a real device. The M3's 30 ms was read by `tools/fps_probe.js` there; the same run on this branch is
 the measure.
 
+**The arms' clearance, asked less often for people small on the screen** (24 November). `people.js` `armsClear` keeps a
+near person's forearms, hands and what they hold out of their own body: 48 points a person asked against the torso's
+slices, two passes, every frame, a quarter of the crowd's update after the cuts above. Of 1.18 million asks in five
+seconds at the kerb, 9% were inside the body and 26% more than 9 cm out, so an early-out for far points would save a
+quarter at most. A crowd member now has its arms asked every frame from 300 pixels tall on the screen up, every second
+frame from 150, every third below (`rig.clearEvery`, set in the crowd's `place()`); between asks the last turns are kept
+in the body's own frame and laid on through the same springs. The story's people, the player, the walk's and
+`tools/hold_check.js`'s rigs are asked every frame as before. The crowd's update, the same view, branch beside main:
+desktop 14.1 to 13.8 ms a call (`armsClear` 3.7 to 3.0), phone 3.7 to 3.5 (1.1 to 0.8). The near crowd's arms in their
+bodies every frame for twenty seconds (`ARMS=20 node tools/crowd_cost.js`, `tools/hold_depth.js`): on a desktop none
+deeper than 2 cm either way, the deepest 1.0 cm on main and 1.7 cm here, of some 800 readings.
+
 ## What is left of issue 130
 
 - **Level of detail by projected size**: not started in this round. The largest case is the near people (some
