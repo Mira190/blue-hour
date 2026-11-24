@@ -337,13 +337,29 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
       lights.push(L);
     }
     const look = new THREE.Vector3(), tmp = new THREE.Color();
-    // the middle of what the camera sees on the ground: along its line of sight to the ground, 15 to 120 m out (60 m
-    // when it looks level or up)
-    const fwd = new THREE.Vector3(), vAt = new THREE.Vector3();
-    function view(camera) {
+    // What the camera sees of the ground: three points, where its line of sight and lines 25 degrees either side of it
+    // reach the ground, 12 to 120 m out (60 m where they look level or up)
+    const fwd = new THREE.Vector3(), side = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), pts = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    function viewPoints(camera) {
       const cp = camera.position; camera.getWorldDirection(fwd);
-      const gz = ground(cp.x, -cp.z), d = fwd.y < -0.05 ? Math.max(15, Math.min(120, (cp.y - gz) / -fwd.y)) : 60;
-      return vAt.copy(cp).addScaledVector(fwd, d);
+      const gz = ground(cp.x, -cp.z);
+      for (let i = 0; i < 3; i++) {
+        side.copy(fwd).applyAxisAngle(UP, (i - 1) * 0.44);
+        const d = side.y < -0.05 ? Math.max(12, Math.min(120, (cp.y - gz) / -side.y)) : 60;
+        pts[i].copy(cp).addScaledVector(side, d); pts[i].y = Math.min(pts[i].y, gz + 1.5);
+      }
+      return pts;
+    }
+    // a screen's mean light: the mean of every keyframe of its playlist at its brightness, once its sheet can be read
+    function power(s) {
+      if (s.pow != null) return s.pow;
+      const m = s.entry.m, mat = s.entry.mat;
+      let cm = means.get(m);
+      if (!cm) { const img = mat.map && (mat.map.isCompressedTexture ? mat.map.userData.thumb : mat.map.image); if (img && img.width > 0 && img.complete !== false) means.set(m, cm = cellMeans(m, img)); }
+      if (!cm) return 0.5 * (s.bright || 1) * s.area; // (not yet: its brightness alone)
+      const F = m.frames || 1; let y = 0, n = 0;
+      for (let q = 0; q < s.clips; q++) { const clip = scrClip(s.mask, q); for (let f = 0; f < F; f++) { const c = cm[clip * F + f]; if (c) { y += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; n++; } } }
+      return (s.pow = (n ? y / n : 0.5) * (s.bright || 1) * s.area);
     }
     let last = -1;
     function colourOf(s, t, hour, night) {
@@ -372,13 +388,19 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
         const t = info.clock.t.value, hour = info.clock.hour.value, night = info.night.value;
         for (const L of cards) L.intensity = L.userData.k * night;
         if (last < 0) last = t;
-        // (the lights go to the screens that light what is in view: the screens nearest the ground the camera looks at,
-        // by their size and brightness, not nearest the lens. Chosen nearest the lens, four lights left a
-        // raised view of the Starbucks corner without the wash of the screens across from it: issue 191)
-        const cp = camera.position, v = view(camera);
-        for (const s of screens) s.score = v.distanceTo(s.c) / Math.sqrt(s.area) / Math.max(0.2, s.bright || 1);
-        const want = screens.filter(s => s.n.dot(look.copy(v).sub(s.c)) > -0.3 * v.distanceTo(s.c) || cp.distanceTo(s.c) < 30)
-          .sort((a, b) => a.score - b.score).slice(0, lights.length);
+        // The lights go to the screens by their importance to what is in view (issue 191), as a renderer chooses which of
+        // many lights to shade: a screen's power (its mean light by its area) over the square of its distance to each of
+        // three points on the ground the camera sees, counted where its face is turned to the point. A screen that holds
+        // a light keeps it unless another is a quarter more important, and a light fades in and out over half a second,
+        // so that no choice pops. (Chosen nearest the lens, four lights left a raised view of the Starbucks corner without
+        // the wash of the screens across from it.)
+        const P = viewPoints(camera);
+        for (const s of screens) {
+          let imp = 0;
+          for (const q of P) { look.copy(q).sub(s.c); const d2 = Math.max(100, look.lengthSq()), f = s.n.dot(look) / Math.sqrt(d2); if (f > 0) imp += f / d2; }
+          s.score = imp * power(s) * (lights.some(L => L.userData.screen === s && L.userData.want) ? 1.25 : 1);
+        }
+        const want = screens.filter(s => s.score > 0).sort((a, b) => b.score - a.score).slice(0, lights.length);
         const k = 1 - Math.exp(-dt / 0.35);
         for (const L of lights) if (L.userData.screen && !want.includes(L.userData.screen)) L.userData.want = 0; else L.userData.want = 1;
         for (const s of want) {
@@ -394,7 +416,7 @@ vec3 oePool(vec3 wp, vec3 nv) { return oePoolAt(wp) * saturate(0.5 + 0.5 * dot(n
         for (const L of lights) {
           const u = L.userData, s = u.screen;
           if (!s) { L.intensity = 0; continue; }
-          u.w += ((u.want ? 1 : 0) - u.w) * k * 2;
+          u.w = Math.max(0, Math.min(1, u.w + (u.want ? 1 : -1) * dt / 0.5)); // (in and out over half a second)
           if (!u.want && u.w < 0.01) { u.screen = null; L.intensity = 0; continue; }
           const c = colourOf(s, t, hour, night);
           if (c) s.col.lerp(c, k); // the light eases between keyframes, as a wall's glow does
