@@ -4,6 +4,7 @@
 // own: the chase view lifted over a wall at your back and pulled in, over your head looking down.
 //   xvfb-run -a node tools/cam_stills.js out_dir [WxH]     (PORT=8800: the page; FROM=n the frame, 2 by default)
 // Writes out_dir/<pose>-<W>x<H>.png and out_dir/poses-<W>x<H>.json (each pose's depth into whom, and whom the guard took out).
+// COST=1: and what the game's lens guard (game.js lensGuard) costs a frame at each pose, its mean and its most, over 60 frames.
 'use strict';
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -37,6 +38,7 @@ const POSES = [
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high'); // (stills on the desktop tier: AGENTS.md)
   await p.addInitScript(n => { try { localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, FROM);
   await camIn.install(p);
+  if (process.env.COST) await p.addInitScript(() => { window.__lensGuardT = { ms: 0, n: 0, max: 0 }; });
   await p.goto(`http://localhost:${process.env.PORT || 8800}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());
@@ -55,10 +57,12 @@ const POSES = [
     await p.evaluate(([s, q]) => { const g = window.__game, pl = g.player, c = g.cam; pl.x = s.x; pl.y = s.y; pl.z = s.z; pl.h = s.h; pl.speed = 0; c.yaw = s.h + q.yaw; c.pitch = q.pitch; c.dist = q.dist; c.distTo = 0; c.yawTo = c.pitchTo = null; c.lastInput = q.hand ? 1e12 : -10; c.snap = true; }, [s, q]);
     await frames(q.hand ? 20 : 45); // (the hand off: the rig's lift and pull-in eased to where they settle)
     await camIn.reset(p);
-    await frames(4);
+    if (process.env.COST) await p.evaluate(() => Object.assign(window.__lensGuardT, { ms: 0, n: 0, max: 0 }));
+    await frames(process.env.COST ? 60 : 4);
     const R = await camIn.report(p);
     const worst = R.cases.sort((x, y) => y.depth - x.depth)[0];
     res[q.name] = { into: worst ? `${worst.who}'s ${worst.part} ${worst.depth} m` : null, guard: R.guard, near: await p.evaluate(() => window.__camIn.last[3]) };
+    if (process.env.COST) res[q.name].cost = await p.evaluate(() => { const T = window.__lensGuardT; return T && T.n ? { mean_ms: +(T.ms / T.n).toFixed(3), max_ms: +T.max.toFixed(2), frames: T.n } : null; });
     await p.screenshot({ path: `${out}/${q.name}-${w}x${h}.png` });
     console.log(q.name, JSON.stringify(res[q.name]));
   }

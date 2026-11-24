@@ -6049,6 +6049,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   const guardCrowd = (r, i) => guardOne(r.root, 'crowd', i);
   function lensGuard() {
+    if (window.__lensGuardOff) return; // (for a harness weighing what it costs: tools/walk_play.js LENSGUARD=0)
+    const gT = window.__lensGuardT, t0 = gT ? performance.now() : 0; // (and timing it: tools/cam_cost.js)
     for (const o of guardHid) if (!lensHid.has(o)) o.traverse(layerOn);
     guardHid.clear();
     camera.updateMatrixWorld();
@@ -6064,6 +6066,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (guideMade) guardOne(guideMade.root, 'guide');
     if (crowdDraw && crowdDraw.active) crowdDraw.active.forEach(guardCrowd);
     if (guardS.near < guardS.base) { camera.near = guardS.near; camera.updateProjectionMatrix(); }
+    if (gT) { const d = performance.now() - t0; gT.ms += d; gT.n++; if (d > gT.max) gT.max = d; }
   }
   const blendLook = new THREE.Vector3(), blendAt = new THREE.Vector3(), blendA = new THREE.Vector3(), blendB = new THREE.Vector3();
   const cabinQ = new THREE.Quaternion(), camProbe = new THREE.Vector3(), UP_Y = new THREE.Vector3(0, 1, 0), camSide = new THREE.Vector3(), camSideA = new THREE.Vector3(), camSideB = new THREE.Vector3(), heliMid = new THREE.Vector3(), aheadT = new THREE.Vector3(), aheadP = new THREE.Vector3(), aheadM = new THREE.Vector3();
