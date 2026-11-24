@@ -3,7 +3,7 @@
 // followed: its turns (its direction along a line flipping) in any 30 s, the ground it walked and where it ended. A walker
 // that turned twice in 30 s and ended within 3 m of where the window began is counted as pacing, as tools/pacing_watch.js
 // counts it in a play of the story.
-//   GAME_TIME=17:30 xvfb-run -a node tools/pace_line.js 781[,782...] [seconds, 300]    (AT=x,y where you stand; PORT=)
+//   GAME_TIME=17:30 xvfb-run -a node tools/pace_line.js 781[,782...] [seconds, 300]    (AT=x,y where you stand; PORT=; WEATHER=rain)
 //   EVERY=1: every walker stepped every frame as if drawn (p.inPic set before each step): the walkers out of the picture
 //   step ten times a second otherwise (actors.js update, OUT_S), and this says whether that is what turns them
 const { chromium } = require('playwright');
@@ -17,7 +17,7 @@ const [,, lines = '781', secs = '300'] = process.argv;
   const p = await b.newPage({ viewport: { width: 640, height: 400 } });
   await pinClock(p, 'shibuya');
   p.on('pageerror', e => console.log(`pageerror: ${String(e).slice(0, 300)}`));
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1${process.env.WEATHER ? '&weather=' + process.env.WEATHER : ''}#play-shibuya`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction('window.__game', null, { timeout: 400000 });
   await startPlay(p);
   const at = (process.env.AT || '376.9,-1013.1').split(',').map(Number);
@@ -25,9 +25,10 @@ const [,, lines = '781', secs = '300'] = process.argv;
     window.requestAnimationFrame = () => 0;
     const g = window.__game, P = g.crowd.P, me = g.player, dt = 1 / 30, want = new Set(L);
     if (g.cine && g.cine.active) g.cine.skip();
+    g.crowd.why = true; // (each turn's reason, actors.js turn(): q.turnWhy)
     me.x = at[0]; me.y = at[1]; g.advance(1);
     for (let f = 0; f < 30 * 20; f++) { if (every) for (const q of P) q.inPic = true; g.advance(dt); }
-    const T = new Map(); let paced = 0, followed = 0, turns = 0; const cases = [];
+    const T = new Map(), why = {}; let paced = 0, followed = 0, turns = 0; const cases = [];
     for (let f = 0; f < secs * 30; f++) {
       if (every) for (const q of P) q.inPic = true;
       g.advance(dt);
@@ -40,14 +41,14 @@ const [,, lines = '781', secs = '300'] = process.argv;
         if (o.line !== q.line) { T.set(i, { line: q.line, dir: q.dir, turns: [], x: q.x, y: q.y, walked: 0, px: q.x, py: q.y, t0: t, pts: [[t, q.x, q.y]] }); continue; }
         const st = Math.hypot(q.x - o.px, q.y - o.py); if (st < 2) o.walked += st; o.px = q.x; o.py = q.y;
         if (f % 15 === 0) o.pts.push([t, q.x, q.y]);
-        if (q.dir !== o.dir) { o.dir = q.dir; o.turns.push(t); turns++;
+        if (q.dir !== o.dir) { o.dir = q.dir; o.turns.push(t); turns++; why[q.turnWhy || '?'] = (why[q.turnWhy || '?'] || 0) + 1;
           const win = o.turns.filter(s => t - s <= 30);
           if (win.length >= 2) { const s0 = win[0] - 0.5, start = o.pts.find(pt => pt[0] >= s0 - 30) || o.pts[0], d = Math.hypot(q.x - start[1], q.y - start[2]);
             if (d < 3 && !o.counted) { o.counted = true; paced++; cases.push({ i, x: +q.x.toFixed(1), y: +q.y.toFixed(1), turns: win.length, why: q.turnWhy || null, inPic: q.inPic, d: +d.toFixed(1) }); } } }
       }
     }
-    return { followed, turns, paced, cases: cases.slice(0, 8) };
+    return { followed, turns, paced, why, cases: cases.slice(0, 8) };
   }, [lines.split(',').map(Number), +secs, at, !!process.env.EVERY]);
-  console.log(`lines ${lines}, ${secs} s${process.env.EVERY ? ', every walker stepped every frame' : ''}: ${out.followed} walkers followed, ${out.turns} turns, ${out.paced} paced${out.cases.length ? ': ' + JSON.stringify(out.cases) : ''}`);
+  console.log(`lines ${lines}, ${secs} s${process.env.EVERY ? ', every walker stepped every frame' : ''}: ${out.followed} walkers followed, ${out.turns} turns ${JSON.stringify(out.why)}, ${out.paced} paced${out.cases.length ? ': ' + JSON.stringify(out.cases) : ''}`);
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
