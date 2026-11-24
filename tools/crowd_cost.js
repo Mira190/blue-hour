@@ -70,22 +70,35 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
   // wait for their character to load): issue 174, a phone drew people three to five metres off as far copies
   if (+process.env.NEARFAR) {
     const M = +(process.env.NEAR_M || 5), rows = [];
+    if (process.env.SNAP_AT) await p.evaluate(n => { window.__nfAt = n; }, +process.env.SNAP_AT);
+    // (and every frame, anyone on the screen within 15 m who changes between a far copy and a whole person while in view:
+    // a swap the player can see, per minute of the crowd's own time)
+    await p.evaluate(() => { const g = window.__game, R = g.crowdDraw(), V = new THREE.Vector3(), m = new Map(), S = window.__swap = { n: 0, t0: g.crowd.t };
+      const on = q => { for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y); if (V.clone().applyMatrix4(g.camera.matrixWorldInverse).z >= -0.1) continue; V.project(g.camera); if (Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) return true; } return false; }; // (in front of the lens first: a point behind it projects inside the square too)
+      const f = () => { const c = g.camera.position, P = g.crowd.P;
+        for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (!q.inPic || (q.line < 0 && !q.pz) || Math.hypot(q.x - c.x, q.y + c.z) > 15 || !on(q)) { m.delete(i); continue; }
+          const w = R.active.has(i), was = m.get(i); if (was !== undefined && was !== w) S.n++; m.set(i, w); }
+        S.t = g.crowd.t; requestAnimationFrame(f); };
+      requestAnimationFrame(f); });
     for (let k = 0; k < +process.env.NEARFAR; k++) {
       rows.push(await p.evaluate(M => { const g = window.__game, R = g.crowdDraw(), c = g.camera.position, P = g.crowd.P, far = [];
         let whole = 0; for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (!q.inPic || (q.line < 0 && !q.pz)) continue; const d = Math.hypot(q.x - c.x, q.y + c.z, q.z + 1 - c.y); if (d > M) continue;
           // (on the screen: its feet or its head inside the picture. A far copy is drawn up to 30 m outside the view for its
           // shadow, and the pick ranks one out of view after everyone in it: those are not what issue 174 saw)
-          { const V = new THREE.Vector3(); let on = false; for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y).project(g.camera); if (V.z > -1 && V.z < 1 && Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) on = true; } if (!on) continue; } if (R.active.has(i)) whole++; else far.push(+d.toFixed(1)); if (!R.active.has(i) && d < 4) (window.__nfWho = window.__nfWho || []).push({ i, d: +d.toFixed(1), pz: q.pz ? q.ph || 1 : 0, line: q.line, moving: !!q.moving, state: q.state, mode: q.mode, rank: (R.nearInfo().top || []).findIndex(t => t[0] === i) }); }
+          { const V = new THREE.Vector3(); let on = false; for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y); if (V.clone().applyMatrix4(g.camera.matrixWorldInverse).z >= -0.1) continue; V.project(g.camera); if (Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) on = true; } if (!on) continue; } if (R.active.has(i)) whole++; else far.push(+d.toFixed(1)); if (!R.active.has(i) && d < 4) (window.__nfWho = window.__nfWho || []).push({ i, d: +d.toFixed(1), pz: q.pz ? q.ph || 1 : 0, line: q.line, moving: !!q.moving, state: q.state, mode: q.mode, rank: (R.nearInfo().top || []).findIndex(t => t[0] === i) }); }
         const I = R.nearInfo ? R.nearInfo() : {};
-        if (far.length >= 3 && !window.__nfSnap) { const cam = g.camera, zoom = cam.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / cam.fov)) : 1, ex = c.x, ey = -c.z, top = (I.top || []);
+        if (far.length >= +(window.__nfAt || 3) && !window.__nfSnap) { const cam = g.camera, zoom = cam.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / cam.fov)) : 1, ex = c.x, ey = -c.z, top = (I.top || []);
           window.__nfSnap = { zoom: +zoom.toFixed(2), fov: cam.fov, top, far: [] };
-          for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (!q.inPic || R.active.has(i)) continue; const d = Math.hypot(q.x - c.x, q.y + c.z, q.z + 1 - c.y); if (d > 4) continue; { const V = new THREE.Vector3(); let on = false; for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y).project(cam); if (V.z > -1 && V.z < 1 && Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) on = true; } if (!on) continue; }
-            window.__nfSnap.far.push({ i, d: +d.toFixed(2), pick: +(Math.hypot(q.x - ex, q.y - ey) / zoom * (q.moving || q.state === 'sit' ? 1 : 0.75)).toFixed(2), line: q.line, pz: q.pz ? q.ph : 0, rank: top.findIndex(t => t[0] === i), whole: !!q.whole, look: q.look && q.look.character }); } }
+          for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (!q.inPic || R.active.has(i)) continue; const d = Math.hypot(q.x - c.x, q.y + c.z, q.z + 1 - c.y); if (d > 4) continue; { const V = new THREE.Vector3(); let on = false; for (const y of [0.1, 1.7]) { V.set(q.x, q.z + y, -q.y); if (V.clone().applyMatrix4(cam.matrixWorldInverse).z >= -0.1) continue; V.project(cam); if (Math.abs(V.x) <= 1 && Math.abs(V.y) <= 1) on = true; } if (!on) continue; }
+            window.__nfSnap.far.push({ i, d: +d.toFixed(2), pick: +(Math.hypot(q.x - ex, q.y - ey) / zoom * (q.moving || q.state === 'sit' ? 1 : 0.75)).toFixed(2), line: q.line, pz: q.pz ? q.ph : 0, rank: top.findIndex(t => t[0] === i), whole: !!q.whole, look: q.look && q.look.character, seen: (() => { const F = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)); return F.intersectsSphere(new THREE.Sphere(new THREE.Vector3(q.x, q.z + 1, -q.y), 1.5)); })(), moved: +cam.position.distanceTo(window.__nfCam || cam.position).toFixed(1) }); } }
+        window.__nfCam = (window.__nfCam || new THREE.Vector3()).copy(c);
         return { whole, far: far.sort((a, b) => a - b), nNear: I.nNear, want: I.want, active: I.active, unloaded: I.unloaded, capped: I.capped }; }, M));
       await p.waitForTimeout(1000);
     }
     console.log(`NEARFAR snapshot: ${JSON.stringify(await p.evaluate(() => window.__nfSnap || null))}`);
     console.log(`NEARFAR who: ${JSON.stringify(await p.evaluate(() => (window.__nfWho || []).slice(-8)))}; the pick's nearest: ${JSON.stringify(await p.evaluate(() => (window.__game.crowdDraw().nearInfo().top || []).slice(0, 14)))}`);
+    const sw = await p.evaluate(() => window.__swap);
+    console.log(`NEARFAR swaps: ${sw.n} in view within 15 m over ${((sw.t - sw.t0) / 60).toFixed(2)} min of the crowd's time, ${(sw.n / Math.max(1e-3, (sw.t - sw.t0) / 60)).toFixed(1)} a minute`);
     const farN = rows.map(r => r.far.length), worst = rows.reduce((a, r) => (r.far.length > a.far.length ? r : a), rows[0]);
     console.log(`NEARFAR within ${M} m of the lens, ${rows.length} readings: far copies ${farN.join(' ')} (most ${Math.max(...farN)}, in ${farN.filter(n => n).length} readings); whole ${rows.map(r => r.whole).join(' ')}; the worst: ${JSON.stringify(worst)}`);
     if (process.env.STILLS) { fs.mkdirSync(process.env.STILLS, { recursive: true }); await whole(p, () => p.screenshot({ path: `${process.env.STILLS}/${phone ? 'phone' : 'desktop'}-nearfar.png`, timeout: 120000 })); }
