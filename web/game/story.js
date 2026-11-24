@@ -413,6 +413,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const KEY = () => `bh-story-${st.ep ? st.ep.id : ''}`;
     let keptAs = 'full';
     const keep = () => {
+      if (st.phase === 'done') return; // (the case is closed: a note filed after the last card does not make it one going again, its photographs a second time in the store)
       const how = save(KEY(), { v: shape(st.ep), fi: st.fi, left: st.left, prints: st.prints, flags: st.flags, pairs: st.pairs, file: st.file, failed: st.failed || 0, snaps: st.snaps, helped: st.helped, told: st.told || 0, misses: st.misses || 0 });
       // (said once, when it first happens: what is lost if the page is closed, and that the evening goes on)
       if (how !== 'full' && keptAs === 'full' && ctx.toast) ctx.toast(how === 'lean' ? 'This browser\'s storage is full. Your photographs stay on the roll while this page is open; your place in the evening is still kept.'
