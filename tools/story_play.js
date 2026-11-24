@@ -953,6 +953,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (!J.ready) { await p.waitForTimeout(500); continue; }
       if (!seen.has('job')) {
         seen.add('job'); await frames(3); await mark(s, 'job-raise');
+        // (the button waited for, up to a minute of the wall: read in the step that found the job ready, it had not been
+        // put up yet on a page at 72 ms of script a frame, budgetm on medium with its pictures packed, 24 November)
+        if (!J.btn) J.btn = await p.waitForFunction(() => document.getElementById('g-story-cam').classList.contains('on'), null, { timeout: 60000, polling: 250 }).then(() => true, () => false);
         if (!J.btn) { errors.push('frame 1: the office has asked for the picture, and there is no button to raise the camera'); console.log(errors[errors.length - 1]); }
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + Math.PI; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.3; }, J.at);
         await frames(3); await raise(true); await frames(30);
