@@ -145,6 +145,7 @@ window.OEBuildings = (function () {
           // (sent: what a phone lets go of a cell's arrays once they are the GPU's, world.js onCell, goes now)
           if (slot) { for (const q of Object.values(g.attributes)) if (q.onUploadCallback) q.onUploadCallback(); if (g.index.onUploadCallback) g.index.onUploadCallback(); }
         }
+        if (ar) ar.trim(); // (what the cells that went have left idle, given back: batch.js arena)
         lods = res.lods;
         let v = 0, t = 0;
         for (const m of byId.values()) { v += m.geometry.attributes.position.count; t += m.geometry.index.count / 3; }
