@@ -154,7 +154,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
   float over = step(mod(wc.x + wc.y, 4.0), 1.5);                      // a 2x2 twill: this tow runs over, or under
   float along = over > 0.5 ? wf.x : wf.y;                             // the tow's round back across its width
   float tow = mix(0.55, 1.0, sin(along * 3.14159));
-  float seen = 1.0 - smoothstep(0.3, 0.8, max(fwidth(wg.x), fwidth(wg.y)));
+  float seen = 1.0 - smoothstep(0.15, 0.4, max(fwidth(wg.x), fwidth(wg.y))); // (gone before a tow is half a pixel, where it aliases: at 0.3 to 0.8 a phone's dense screen showed the twill a pixel a tow, as dark specks under the tail lights' glow)
   diffuseColor.rgb *= mix(1.0, (0.45 + 1.5 * over) * tow, seen);
   diffuseColor.rgb += vec3(0.012, 0.013, 0.015) * over * tow * seen;
   roughnessFactor = mix(roughnessFactor, roughnessFactor + 0.18 * (1.0 - over), seen);
