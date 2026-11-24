@@ -899,6 +899,21 @@ with stills on a desktop's page or a phone's (`TIER=low PHONE=1`, 390x844):
 The probe's limb measure in a seat is taken from the limb's own middle out to its points, met from either side: taken
 from the pelvis, the front edge of any cushion stood between a seated hip and its shin and read 15 to 43 cm.
 
+**The crowd's own people (item 7, 24 November).** `tools/clip_people.js ... crowd` reads the near crowd's hands, forearms and
+what they hold against everyone within 1.3 m, at the skin, every EVERY frames for SECS seconds (`STORY=n`, `WEATHER=rain`,
+`UMB=1` to read from the first umbrella up). At the Hachiko kerb, four runs of 240 s: 12 to 45 pairs touching a run, the
+deepest 9 to 10 cm, each for one to four readings, none into the story's people or the player. The deep ones were not arms
+reaching: the two bodies stood 0.31 to 0.49 m apart, on the crossing's press (the plazas let two centres come to 0.32 m)
+and a walker passing the kerb's waiting crowd. Now two whole rigs (near people drawn as one, `p.whole`) step no nearer
+than `NEAR_BODY` (0.46 m) on the crossing and its kerbs, whichever of the two steps; the far copies keep 0.32.
+`tools/crowd_through.js` counts what the crossing carries and how near two whole rigs come: dry, 103 crossed a minute on
+main and 105 here, steps with two whole rigs nearer than 0.46 m 286 of 3600 and 17; in the rain 98 and 106, 1092 and 44.
+At the skin on a phone's frame 1, pairs deeper than 3 cm 6 on main (to 10.2 cm), 4 here (to 7.7 cm), these last footway
+walkers 0.41 m apart, a group abreast as it seems: open. Also open: a crossing walker's open canopy over the player's
+head, 5 cm deep in one or three readings of some 350 (the crowd keeps two canopies apart, not a canopy from the player);
+a step rule against it held walkers beside the player and a lean of the canopy away from the head did not measure
+better, so neither landed.
+
 ## Nobody paces (issue 168)
 
 On 21 November 2026 the owner's still of the walk showed two men under the deck east of the Scramble walking to and
