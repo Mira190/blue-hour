@@ -1077,6 +1077,10 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // It once came up wherever that view had been pitched (on a wall's upper floors), and drifted on by itself
       if (T.subject && !T.both && !seen.has(`raise-${s.fi}`)) {
         seen.add(`raise-${s.fi}`);
+        // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
+        // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
+        // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);
