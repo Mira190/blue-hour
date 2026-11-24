@@ -4369,7 +4369,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
                 // there is one (the traffic wanders, so any way will do). A queue that waits for room behind a queue
                 // that waits for room, round a block and back, is a ring that never moves: Shibuya's station streets
                 // had a car stand 220 s at its line so. Taking another way out breaks the ring, as drivers do
-                c.roomT = noRoom && toLine - c.half < 2.5 && c.v < 0.6 && !c.mv ? (c.roomT || 0) + dt : 0;
+                // (and in a lane its way out does not leave from, stood at the line: a stopped car changes no lane, and the queue
+                // head at 1978 arm 0 waited so about 100 s with the drive to 109 behind it, CI's roads on 0cfce671 and
+                // 8bd427d3, #198. Another way out from the lane it is in, as a driver in the wrong lane takes)
+                c.roomT = (noRoom || !inLane) && toLine - c.half < 2.5 && c.v < 0.6 && !c.mv ? (c.roomT || 0) + dt : 0;
                 if (c.roomT > 5) {
                   c.roomT = 0; c.ex2 = null; // (its way across the junction just after chosen again too)
                   // (as JN.choose weighs them: ahead before a turn, a main road before a lane; never a turn back, a road
