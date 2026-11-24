@@ -1219,6 +1219,22 @@ ${PAT_GLSL}`)
   const OPT = { clearArms: true };
   const HIP_OVER = 0.09; // (m: the hip joint over what a seated person sits on)
   let made = 0;
+  // One skeleton for a person (issue 191). SkeletonUtils.clone gives every skinned part its own Skeleton, even where the
+  // parts share one skin: a person's body, head and hair and the camera in the hand each computed the same bones a frame
+  // and sent them to the GPU in a texture of their own, 53 to 78 textures a frame on the walk and 190 at a Stop, each a
+  // texSubImage2D and four texParameteri (tools/gl_calls.js). Parts whose bones are the same bones with the same inverses
+  // are bound to the first one's skeleton: one update and one upload a person.
+  function oneSkeleton(model) {
+    const kept = [];
+    model.traverse(o => {
+      if (!o.isSkinnedMesh || !o.skeleton) return;
+      const s = o.skeleton, B = s.bones, I = s.boneInverses;
+      const k = kept.find(t => t !== s && t.bones.length === B.length && t.bones.every((b, i) => b === B[i]) && t.boneInverses.every((m, i) => m.equals(I[i])));
+      if (!k) { if (!kept.includes(s)) kept.push(s); return; }
+      o.bind(k, o.bindMatrix);
+      s.dispose();
+    });
+  }
   function person(lib, look) {
     if (!up) {
       up = new THREE.Vector3(0, 1, 0); tv = new THREE.Vector3(); tq = new THREE.Quaternion(); tq2 = new THREE.Quaternion(); hp = new THREE.Vector3();
@@ -1229,6 +1245,7 @@ ${PAT_GLSL}`)
     const T = lib.tpl[look.character], speeds = T.speeds || lib.info.ground_speed[T.pack];
     const alias = n => (T.bones && T.bones[n]) || n; // the old characters' bone names on a main character's rig
     const model = noCover(THREE.SkeletonUtils.clone(T.scene));
+    oneSkeleton(model);
     let mesh = null, head = null;
     const bone = {};
     model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; if (o.isBone) bone[o.name] = o; });
@@ -2576,6 +2593,7 @@ transformed = crowdPose(transformed, false);`);
         if (u && r.umbOpen) r.umbOpen(ut);
         if (u && r.umbLean) { const c = Math.cos(Math.PI - p.h), s = Math.sin(Math.PI - p.h); r.umbLean(p.umbLx * c + p.umbLy * s, p.umbLx * s - p.umbLy * c); } // (the lean, from the world's plan into the body's own space)
         unshow(p);
+        p.whole = true; // (drawn as a whole person: actors.js keeps two of them NEAR_BODY apart)
         r.root.visible = true; // (as hide(i, true) left it, a frame ago)
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
@@ -2586,7 +2604,7 @@ transformed = crowdPose(transformed, false);`);
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
       }
-      p.wave = false;
+      p.wave = false; p.whole = false;
       const sit = p.mode === 'sit';
       at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
@@ -2627,6 +2645,7 @@ transformed = crowdPose(transformed, false);`);
     // for as long as they are near: giving their rig back and dressing another every frame is work for nothing)
     function hide(i, soft = false) {
       const p = P[i], m = p.mesh, was = m && p.slot < m.count;
+      p.whole = false;
       unshow(p);
       if (was && ended) { resend(m); m.userData.swapped = false; }
       if (p.umbF === frameNo && p.umbI >= 0) { // (its far umbrella, laid this frame: to nothing)

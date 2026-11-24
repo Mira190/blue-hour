@@ -653,6 +653,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // coming up to a road its traffic may go on waits at the kerb and presses the button, and
   // crosses when the walk signal shows.
   const HORIZON = 4;   // seconds of look-ahead
+  const NEAR_BODY = 0.46; // two whole rigs' centres: no closer than this (m): stood on a footway they step apart to it (canopyAcross), issue 157 item 7, #187
   const BODY = 0.8;    // two walkers closer than this are in each other's way (m, centre to centre)
   const CLOSE = 0.56;  // a walker never steps closer than this to another (m, centre to centre): a
                        // Rocketbox body is about 0.45 m across the shoulders and its arms swing out, so
@@ -735,7 +736,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
       yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
       off: undefined, pBack: undefined, reg0: undefined,
-      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined });
+      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -1813,6 +1814,20 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return true;
     }
+    // the nearest whole rig (a near person drawn as one, people.js place: p.whole) to (x, y), up to 1 m; any: everyone
+    // (a whole rig keeps NEAR_BODY from the others, whichever of two steps: issue 157 item 7, hands 4 to 10 cm in a
+    // neighbour where two centres came to 0.31 to 0.49 m on the crossing; the far copies keep their 0.32)
+    function nearWhole(self, x, y, any) {
+      let best = 1;
+      const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
+        if (k === self) continue;
+        const o = P[k]; if (o.line < 0 || !(any || o.whole)) continue;
+        const ex = o.x - x, ey = o.y - y; if (Math.abs(ex) > best || Math.abs(ey) > best) continue;
+        const e = Math.hypot(ex, ey); if (e < best) best = e;
+      }
+      return best;
+    }
     function nearest1(self, x, y) {
       let best = 1;
       const me = P[self], us = me.squeeze > 0 ? 0.4 : 1; // (through a press, shuffling: the canopies lean and brush)
@@ -2056,13 +2071,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // (nor inside the player or any of those not of the crowd, issue 65: one already there may step out of them)
         const room = (x, y) => keepRoom(x, y, player ? Math.min(nearest1(i, x, y), Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : nearest1(i, x, y));
         const hard = q.squeeze > 0 || q.ph === 'cross' ? 0.32 : 0.45, n0 = Math.min(hard, room(q.x, q.y));
+        // (two whole rigs no nearer than NEAR_BODY: nearer already, no nearer still; issue 157 item 7)
+        const w0 = Math.min(NEAR_BODY, nearWhole(i, q.x, q.y, !!q.whole)), fine = (x, y) => nearWhole(i, x, y, !!q.whole) >= w0 - 1e-4;
         // (nor a step into a shut stair well: along its rim on one axis, or round it to the left)
         // (nor a step off the pavement into a carriageway while the traffic has its turn: on its way to a kerb of the
         // scramble it waits where the road stops it, and crosses from there with the walk. One sent to the nearest
         // kerb in a straight line, 30 m off and across Dogenzaka, stood in the lane at the Scramble's western stop line
         // with a car before it, each waiting on the other, 150 s, issue 175)
         const offWalk = q.ph !== 'cross' && !!pz.road && Math.abs(q.vx) + Math.abs(q.vy) > 0.05 && !pz.walk() && !pz.road(q.x, q.y);
-        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
+        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && fine(x, y) && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
         // (a pace back from that kerb, the way it came: left at the road's very edge it stood within a passing car's
         // clearance, and a driver from the station's front waited on one at the Scramble's southern stop line 150 s)
         if (offWalk && pz.road(nx, ny)) { if ((q.kerbT = (q.kerbT || 0) + dt) > 1.5) { const vl = Math.hypot(q.vx, q.vy) || 1; q.kerbT = 0; q.T.x = q.x - q.vx / vl * 1.2; q.T.y = q.y - q.vy / vl * 1.2; q.ph = 'wait'; } } else q.kerbT = 0;
@@ -2716,7 +2733,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // car, the player or one of those not of the crowd: nobody stands blocked for minutes, issue 85)
       const ghost = p.ghost > 0, wasC = ghost ? blocked(p.x, p.y, false, false) : 0, roomK = ghost ? keepRoom(p.x, p.y, player ? Math.min(CLOSE, Math.hypot(player.x - p.x, player.y - p.y) - (player.r || 0.15)) : CLOSE) : 0;
       const ghostBad = (x, y) => blocked(x, y, false, false) > wasC + 1e-4 || keepRoom(x, y, player ? Math.min(CLOSE, Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : CLOSE) < Math.min(0.36, roomK) - 1e-4; // (past them a shoulder close, never inside: their room is past what one of the crowd gives another)
-      const room0 = closest(p.x, p.y, player), bad = (x, y, r) => (ghost ? ghostBad(x, y) : blocked(x, y) > was + 1e-4 || (r < lim && r < room0 - 1e-4)); // (a hair's tolerance: stood exactly at the room from someone, every step on shaved a ten-thousandth off it and was refused, issue 85)
+      const room0 = closest(p.x, p.y, player), w0 = inRoad ? Math.min(NEAR_BODY, nearWhole(i, p.x, p.y, !!p.whole)) : 0; // (on a crosswalk two whole rigs no nearer than NEAR_BODY: issue 157 item 7)
+      const bad = (x, y, r) => (ghost ? ghostBad(x, y) : blocked(x, y) > was + 1e-4 || (r < lim && r < room0 - 1e-4) || (inRoad && nearWhole(i, x, y, !!p.whole) < w0 - 1e-4)); // (a hair's tolerance: stood exactly at the room from someone, every step on shaved a ten-thousandth off it and was refused, issue 85)
       if (dl !== 0 && bad(nx1, ny1, room1)) { // drifting across into someone it is passing: straight on instead
         const lat2 = p.lat - dl, x2 = tmp.x - nhy * lat2, y2 = tmp.y + nhx * lat2, r2 = closest(x2, y2, player);
         if (!bad(x2, y2, r2)) { p.lat = lat2; dl = 0; nx1 = x2; ny1 = y2; room1 = r2; }

@@ -36,12 +36,27 @@ mins() { echo $(( ($(now) - $(cat "$1/started")) / 60 )); }
 leader() { cat "$1/pid" 2>/dev/null; }
 # every process of the job, by the mark its environment carries: what a job starts inherits it, a browser that puts
 # itself in a process session of its own too
+# (and every process of its process session and group, the leader's, whatever its environment says; a zombie is not
+# counted: it runs nothing and goes when its parent does)
 procs() {
-  local mark p
+  local mark p sid st me=$$ ch=1 out=
+  local -A par in
   mark=$(cat "$1/mark" 2>/dev/null) || return 0
+  sid=$(leader "$1")
+  # (the leader's session only while the leader is the job's: a number given again after a restart is someone else's)
+  [ -n "$sid" ] && ! tr '\0' '\n' 2>/dev/null <"/proc/$sid/environ" | grep -qx "OE_JOB=$mark" && sid=
   for p in /proc/[0-9]*; do
-    tr '\0' '\n' 2>/dev/null <"$p/environ" | grep -qx "OE_JOB=$mark" && echo "${p#/proc/}"
+    p=${p#/proc/}; [ "$p" = "$me" ] && continue
+    st=$(cat "/proc/$p/stat" 2>/dev/null) || continue
+    st=${st##*) }; set -- $st   # (state, ppid, pgrp, session: the fields after the command's name, which may hold spaces)
+    [ "$1" = Z ] && continue
+    par[$p]=$2
+    if { [ -n "$sid" ] && { [ "$4" = "$sid" ] || [ "$3" = "$sid" ]; }; } || tr '\0' '\n' 2>/dev/null <"/proc/$p/environ" | grep -qx "OE_JOB=$mark"; then in[$p]=1; fi
   done
+  # (and whatever they started, though it left their session and their environment behind)
+  while [ $ch = 1 ]; do ch=0; for p in "${!par[@]}"; do [ -z "${in[$p]:-}" ] && [ -n "${in[${par[$p]}]:-}" ] && { in[$p]=1; ch=1; }; done; done
+  for p in "${!in[@]}"; do out="$out $p"; done
+  echo $out
 }
 # (a job that wrote its exit has ended, whatever holds its process number now: after a session's worker restarts the
 # numbers are given again, and a job ended hours before was held to be running by a kernel thread on its old pid, which
@@ -144,12 +159,30 @@ stop() {
   local d="$JOBS/${1:-}" p left
   [ -n "${1:-}" ] && [ -d "$d" ] || { echo "no job ${1:-}"; return 2; }
   running "$d" || [ -n "$(procs "$d")" ] || { echo "job $1 is not running"; return 0; }
-  p=$(leader "$d"); [ -n "$p" ] && kill -TERM -- "-$p" 2>/dev/null
-  left=$(procs "$d"); [ -n "$left" ] && kill -TERM $left 2>/dev/null
-  for _ in $(seq 20); do left=$(procs "$d"); [ -z "$left" ] && ! running "$d" && break; sleep 0.5; done
-  left=$(procs "$d"); [ -n "$left" ] && kill -KILL $left 2>/dev/null
+  # (held first, every process of it, until a listing finds none it had not held: a script told to stop went on starting
+  # the next part, a browser, while the ones listed before were stopped, and kept going after "stopped" was said; the
+  # #196 session's run, 24 November, until a browser was killed for memory. Then told to end, let go to hear it, and
+  # whatever is left killed; "stopped" is said only once nothing of the job runs)
+  local held= n
+  for _ in $(seq 30); do
+    left=$(procs "$d"); n=
+    for p in $left; do case " $held " in *" $p "*) ;; *) n="$n $p" ;; esac; done
+    [ -z "$n" ] && break
+    kill -STOP $n 2>/dev/null; held="$held$n"
+  done
+  [ -n "$held" ] && { kill -TERM $held 2>/dev/null; kill -CONT $held 2>/dev/null; }
+  for _ in $(seq 20); do left=$(procs "$d"); [ -z "$left" ] && break; sleep 0.5; done
+  for _ in $(seq 20); do
+    left=$(procs "$d"); [ -z "$left" ] && break
+    kill -STOP $left 2>/dev/null; kill -KILL $left 2>/dev/null; sleep 0.5
+  done
+  left=$(procs "$d")
+  if [ -n "$left" ]; then
+    echo "job $1 NOT stopped: still running after TERM and KILL: $(for p in $left; do printf '%s (%s) ' "$p" "$(tr '\0' ' ' 2>/dev/null <"/proc/$p/cmdline" | cut -c1-60)"; done)"
+    return 1
+  fi
   [ -f "$d/exit" ] || echo stopped >"$d/exit"; touch "$d/told"
-  echo "job $1 stopped after $(mins "$d") min"
+  echo "job $1 stopped after $(mins "$d") min: nothing of it runs"
 }
 
 status() {
