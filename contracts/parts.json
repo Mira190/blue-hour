@@ -789,7 +789,6 @@
      "clock",
      "clockT",
      "cycleTrack",
-     "density",
      "doorAt",
      "dragged",
      "fer",
@@ -1017,7 +1016,9 @@
      "pool"
     ],
     "OEBuildings": [
+     "CANOPY_HIGH",
      "PIER",
+     "PLATFORM_ROOF",
      "POST",
      "SHOP_HOURS",
      "canopyPosts",
