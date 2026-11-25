@@ -1778,6 +1778,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // it, half the overlap, at up to 0.6 m/s, within the footway's width, never through a wall or into someone; walk()
     // keeps the offset (p.lat). The square's crowd steps apart in plazaStep; two waiting at a kerb on their footways stood
     // 0.37 m through each other at the Scramble's north-east corner, main's story on 8186ca5, issue 187)
+    // (a head under a stood canopy is out from under it with room: from 0.15 m under the rim's height, a canopy tilted to
+    // the side is that much lower there, to 0.25 m beyond the rim from its middle, a head's half width and its lean. With
+    // 0.03 and 0.12 heads stood 0.02 m inside, issue 238)
+    const HEAD_UNDER = 0.15, HEAD_CLEAR = 0.25;
     let umbAny = false, umbSeen = false; // (any umbrella up among the crowd, the last frame: only then is a head looked for under a canopy)
     function canopyAcross(i, q, dt, bodies = false) {
       const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
@@ -1793,14 +1797,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
-          } else if (q.crown > o.umbRim - 0.03) { // (no umbrella of its own, its head as high as the rim and under the canopy: out from under it, the whole way)
-            const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = o.umbR + 0.12;
+          } else if (q.crown > o.umbRim - HEAD_UNDER) { // (no umbrella of its own, its head near the rim's height and under the canopy: out from under it, the whole way)
+            const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = o.umbR + HEAD_CLEAR;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / ec; sx += ex * f; sy += ey * f; }
           }
         }
       }
       const nx = -q.hy, ny = q.hx; // (across the footway, as p.lat runs)
       let d = sx * nx + sy * ny;
+      // (pushed along the footway and hardly across it, a neighbour stood straight ahead or behind: the step is taken across
+      // all the same, to the side it already stands to, as one under another's umbrella in a queue steps aside. Across alone,
+      // it came to nothing, and a head stood 0.02 m inside the canopy in front of it, main's walk2 twice, issue 238)
+      if (Math.abs(d) < 1e-3 && Number.isFinite(sx) && Math.hypot(sx, sy) >= 1e-3) d = Math.hypot(sx, sy) * ((q.lat || 0) < 0 ? -1 : 1);
       if (!(Math.abs(d) >= 1e-3)) return; // (and nothing where the walker has no heading yet: a NaN taken into its place lost it from the street, issue 187)
       d = Math.sign(d) * Math.min(Math.abs(d), 0.6 * dt);
       const l = net.L[q.line], hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2), lat = (q.lat || 0) + d;
