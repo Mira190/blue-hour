@@ -5,8 +5,8 @@
 // (held: two stood people), every head inside a canopy noted: how many seconds had one, and the deepest.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/canopy_heads.js [seconds=120] [x,y=393.7,-1033.9]   (TIME=21:00 SKY=rain TIER=low; PORT)
-// And every two of a group stood on one footway, one under an open umbrella and the other without, whose head reaches
-// within 0.15 m of the canopy's rim, each second: how many stood more than 5 cm nearer than the room it asks. Exits 1 when any second had a head inside a canopy.
+// And every two stood near each other, on a footway or in a square, one under an open umbrella and the other without,
+// whose head reaches within 0.15 m of the canopy's rim (from the canopy's middle), each second: how many stood more than 5 cm nearer than the room it asks. Exits 1 when any second had a head inside a canopy.
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
 const { measure } = require('./umbrella_held');
@@ -36,13 +36,14 @@ const [,, secs = '120', at = '393.7,-1033.9'] = process.argv;
     await p.evaluate(() => { const g = window.__game; for (let f = 0; f < 30; f++) { g.player.speed = 0; g.frame(1 / 30); } });
     // (and every two of a group stood on one footway with an open umbrella between them: how near they stand, against the
     // room it asks, the canopy's radius and 0.25 m, or both canopies' and a rim's)
-    const pr = await p.evaluate(() => { const P = window.__game.crowd.P, out = [];
-      for (const q of P) { if (!(q.lead >= 0) || q.line < 0 || q.pz) continue; const L = P[q.lead]; if (!L || L.line !== q.line || L.pz || (q.v || 0) > 0.3 || (L.v || 0) > 0.3) continue;
-        const a = q.umbW || 0, c = L.umbW || 0; if (!(a > 0 || c > 0)) continue;
-        if (a > 0 && c > 0) continue; // (two canopies: tools/umbrella_held.js's rims, not a head)
-        { const h = a > 0 ? L : q, u = a > 0 ? q : L; if (!(u.umbR > 0) || !(h.crown > u.umbRim - 0.15)) continue; } // (one without: only a head that reaches up near the other's rim can go into it)
-        const need = a > 0 && c > 0 ? a + c + 0.02 + 0.04 : Math.max(a, c) + 0.25, d = Math.hypot(q.x - L.x, q.y - L.y); if (Number.isFinite(d)) out.push([d, need, d < need - 0.05 ? { q: [q.state, q.ph || '', +(q.lat || 0).toFixed(2), q.dir, +(q.v || 0).toFixed(2), +(q.umbW || 0).toFixed(2), !!q.stop, q.arrived || 0, +(q.pause || 0).toFixed(1)], L: [L.state, L.ph || '', +(L.lat || 0).toFixed(2), L.dir, +(L.v || 0).toFixed(2), +(L.umbW || 0).toFixed(2), !!L.stop, L.arrived || 0], along: +((q.x - L.x) * (L.hx || 0) + (q.y - L.y) * (L.hy || 0)).toFixed(2), d: +d.toFixed(2) } : null]); }
-      return out; });
+    const pr = await p.evaluate(([x0, y0]) => { const g = window.__game, P = g.crowd.P, out = [], n = Math.min(g.crowd.active, P.length);
+      // (every two stood within 1 m of each other and 15 m of the place, on a footway or in a square, friends or not, one
+      // under an open umbrella and the other without, whose head reaches within 0.15 m of the canopy's rim)
+      for (let i = 0; i < n; i++) { const q = P[i]; if (!(q.umbR > 0) || (q.v || 0) > 0.3 || !Number.isFinite(q.x) || Math.hypot(q.x - x0, q.y - y0) > 15) continue;
+        for (let k = 0; k < n; k++) { const h = P[k]; if (k === i || h.umbR > 0 || (h.v || 0) > 0.3 || !(h.line >= 0 || h.pz) || !(h.crown > q.umbRim - 0.15)) continue;
+          const d = Math.hypot(h.x - q.x - (q.ucx || 0), h.y - q.y - (q.ucy || 0)); if (!(d < 1)) continue;
+          out.push([d, q.umbR + 0.25, { where: h.pz ? 'square' : 'footway', mate: (h.lead >= 0 ? h.lead : k) === (q.lead >= 0 ? q.lead : i), h: [h.state, h.ph || ''], d: +d.toFixed(2) }]); } }
+      return out; }, [x, y]);
     for (const [d, need, why] of pr) { pairs++; if (d < need - 0.05) { short++; if (process.env.WHY && short % 15 === 1) console.log('short', JSON.stringify(why)); } nearest = Math.min(nearest, d - need); }
     const m = await measure(p, { within: 12, held: true });
     n = Math.max(n, m.n || 0);
@@ -55,7 +56,7 @@ const [,, secs = '120', at = '393.7,-1033.9'] = process.argv;
   }
   console.log(`canopy_heads: ${secs} s of the game in ${((Date.now() - t0) / 1000).toFixed(0)} s, up to ${n} umbrellas within 12 m; ${had} seconds with a head inside a stood canopy, the deepest ${deepest.toFixed(2)} m`);
   for (const l of [...seen.values()].slice(0, 10)) console.log(`  ${l.slice(0, 260)}`);
-  console.log(`  group pairs stood with an open umbrella, read each second: ${pairs}; ${short} more than 5 cm nearer than its room, the nearest ${Number.isFinite(nearest) ? nearest.toFixed(2) : '-'} m against it`);
+  console.log(`  pairs stood, one under an open umbrella and a head near its rim, read each second: ${pairs}; ${short} more than 5 cm nearer than its room, the nearest ${Number.isFinite(nearest) ? nearest.toFixed(2) : '-'} m against it`);
   await b.close();
   process.exit(had ? 1 : 0);
 })();
