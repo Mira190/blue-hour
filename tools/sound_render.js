@@ -2,7 +2,8 @@
 // levels, so that the cues sit together (docs/SOUND.md "Levels"): its true sample peak (dBFS), its loudest 400 ms
 // (momentary loudness, LUFS, ITU-R BS.1770 K-weighting) and its gated integrated loudness. Nothing is normalised: the
 // files are at the level the game plays them.
-//   NODE_PATH=$(npm root -g) [TAPE=worklet|deck] [VERB=hybrid|whole] node tools/sound_render.js [outdir] [cue ...]
+//   NODE_PATH=$(npm root -g) [TAPE=worklet|deck] [VERB=hybrid|whole] [DESKTOP=1] node tools/sound_render.js [outdir] [cue ...]
+// (DESKTOP=1: as a mouse's page hears it, no touch screen: the tape's worklet, the Stop's breath and the afterimage's voice)
 // (VERB: the reverbs as a phone hears them, the default here, or convolved whole as with a mouse: docs/SOUND.md "Every
 // sound on the audio thread")
 // The cues one by one; the Stop over the street (the screens' song, the walk calls, footsteps), braked,
@@ -25,7 +26,7 @@ async function render(browser, seconds, script) {
   // audio.js's context is an offline one, and its clock is the one this script sets (window.__t)
   // (as a phone hears it, with stereo pans: the HRTF panner's database loads lazily, and an offline render waiting on
   // it in headless Chromium could hang)
-  await p.addScriptTag({ content: `Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => 5 });` });
+  await p.addScriptTag({ content: `Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => ${process.env.DESKTOP ? 0 : 5} });` });
   await p.addScriptTag({ content: `window.__t = 0;
     window.AudioContext = class extends OfflineAudioContext { constructor() { super(2, ${SR} * ${seconds}, ${SR}); window.__ctx = this; } get currentTime() { return window.__t; } };` });
   await p.addScriptTag({ path: process.env.AUDIO_JS || path.join(__dirname, '../web/game/audio.js') }); // (AUDIO_JS: another checkout's, for a before)
@@ -87,6 +88,11 @@ const CUES = {
   voice: [2, `for (let k = 0; k < 14; k++) { at(0.2 + k * 0.09); A.voice({ pitch: 150 }); }`],
   // the signature: the street, the Stop at 3 s (as story.js calls it), held 5 s, let go at 8 s
   'the-stop': [12, `${STREET(0, 3)}; at(3); A.hush(true); A.sfx('stop'); A.held(true); at(8); A.hush(false); A.sfx('run'); A.held(false); ${STREET(8, 12)}`],
+  // a Stop as it is played: held 13 s, the player walking through it (a step each half second) towards the afterimage,
+  // who is 40 m off and nearing, from the left round to the right (her voice on a desktop); let go at 16 s
+  'stop-long': [22, `${STREET(0, 3)}; at(3); A.hush(true); A.sfx('stop'); A.held(true);
+    for (let t = 3; t < 16; t += 0.1) { at(t); if (t > 4.5 && Math.round(t * 10) % 5 === 0) A.step(); if (A.ghost) A.ghost({ d: 40 - (t - 3) * 2.5, pan: -0.8 * Math.cos((t - 3) * 0.25), behind: false }); }
+    at(16); A.hush(false); A.sfx('run'); A.held(false); ${STREET(16, 22)}`],
   'street-only': [4, STREET(0, 4)],
   // the brake alone, without the story's cues over it: the street braked at 2 s, held, spun up at 5 s
   tape: [8, `${STREET(0, 2)}; at(2); A.hush(true); at(5); A.hush(false); ${STREET(5, 8)}`],

@@ -81,6 +81,7 @@ function wav(pcm, rate) {
     // how far apart two kept renders are (RMS of the difference)
     window.__diff = (a, b) => { const x = window.__keep[a], y = window.__keep[b]; let s = 0; for (let i = 0; i < x.length; i++) { const d = x[i] - y[i]; s += d * d; } return Math.sqrt(s / x.length); };
     window.__far = (a, b) => { const x = window.__keep[a], y = window.__keep[b]; let m = 0; for (let i = 0; i < x.length; i++) m = Math.max(m, Math.abs(x[i] - y[i])); return m; };
+    window.__rms = (a, t0, t1, rate) => { const x = window.__keep[a], i0 = Math.floor(t0 * rate), i1 = Math.min(x.length, Math.floor(t1 * rate)); let s = 0; for (let i = i0; i < i1; i++) s += x[i] * x[i]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
     window.__drop = () => { window.__keep = {}; };
   });
   const info = await p.evaluate(() => ({ slots: OEMusic.slots, palettes: OEMusic.palettes, stings: OEMusic.stings, modes: OEMusic.modes }));
@@ -92,14 +93,14 @@ function wav(pcm, rate) {
     if (out) { fs.writeFileSync(path.join(out, name.replace(/[^\w.-]+/g, '_') + '.wav'), wav(Buffer.from(r.pcm, 'base64'), RATE)); delete r.pcm; }
     return r;
   };
-  const judge = (name, r) => {
+  const judge = (name, r, still) => {
     const bad = [];
     if (r.nan) bad.push(`${r.nan} NaN samples`);
     if (!(r.peak < 0.4)) bad.push(`peak ${r.peak.toFixed(3)} >= 0.4 (-8 dBFS)`);
     if (!(r.high < 0.03)) bad.push(`${(r.high * 100).toFixed(2)}% of the energy is above 4 kHz`);
     if (!(r.peak > 0.02)) bad.push(`peak ${r.peak.toFixed(4)} <= 0.02`);
     if (!(r.rms > 0.008 && r.rms < 0.2)) bad.push(`rms ${r.rms.toFixed(4)} outside 0.008..0.2`);
-    if (!(r.quiet > 0.002)) bad.push(`silent for 2 s (rms ${r.quiet.toFixed(5)})`);
+    if (!still && !(r.quiet > 0.002)) bad.push(`silent for 2 s (rms ${r.quiet.toFixed(5)})`); // (a Stop is meant to be: the score is time's, docs/SOUND.md The score)
     if (bad.length) fail(name, bad.join('; '));
     return !bad.length;
   };
@@ -152,7 +153,13 @@ function wav(pcm, rate) {
   for (const [name, states, secs] of [['story-first-frame', Object.assign({ theme: 0 }, sb), 44], ['story-last-frame', Object.assign({}, sb, { slot: 'night', theme: 6, rain: 0.8 }), 44],
     ['story-stop', [Object.assign({ at: 0, theme: 3 }, sb), { at: 14, held: true }, { at: 44, held: false }], 62],
     ['story-stings', Object.assign({ theme: 3, stings: ['note', 'turn', 'doubt', 'meet', 'found'].map((k, i) => [3 + i * 9, k]) }, sb), 56]]) {
-    const r = await render(name, states, secs), ok = judge(name, r);
+    const r = await render(name, states, secs), stop = name === 'story-stop';
+    let ok = judge(name, r, stop);
+    if (stop) { // time held from 14 s to 44 s: the score out within a bar of it and back after it
+      const held = await p.evaluate(([n, rate]) => window.__rms(n, 26, 43, rate), [name, RATE]), after = await p.evaluate(([n, rate]) => window.__rms(n, 50, 60, rate), [name, RATE]);
+      if (!(held < 0.0003)) { ok = false; fail(name, `the score still sounds while time is held (rms ${db(held)} dB, wants under -70)`); }
+      if (!(after > 0.002)) { ok = false; fail(name, `the score did not come back after time ran (rms ${db(after)} dB)`); }
+    }
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(24)} peak ${db(r.peak)} dB  rms ${db(r.rms)} dB  above 4 kHz ${(r.high * 100).toFixed(3)}%  quietest 2 s ${db(r.quiet)} dB`);
   }
   for (const [x, y] of [['story-first-frame', 'story-stop'], ['story-first-frame', 'story-stings']]) { const d = await p.evaluate(([a, c]) => window.__diff(a, c), [x, y]); if (!(d > 0.002)) fail(y, `no different from ${x}`); }
