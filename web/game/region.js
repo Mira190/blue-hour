@@ -808,7 +808,7 @@ window.OEGameRegion = function (g) {
     const b = e.target.closest('button');
     if (!b) return;
     g.settings.density = b.dataset.d;
-    g.applyDensity(); g.cars.active = Math.round(g.cars.slots * g.density[b.dataset.d]);
+    g.applyDensity(); g.cars.fresh = 1; // (the traffic's count at once: game.js trafficWant)
     g.$$('#gm-density button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   });
   // the frame-rate cap (the governor's): the display's own rate, 60 or 30 a second; kept for the next visit

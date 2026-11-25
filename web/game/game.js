@@ -1361,7 +1361,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const sw = crowd.plazas.reduce((a, p) => a + p.weight, 0);
       crowd.hot = crowd.plazas.map(p => ({ x: p.x, y: p.y, r: 90, share: (p.weight > 1 ? 0.3 : 0.16) * p.weight / sw, pull: 0.5 }));
     } }
-  const cars = OEActors.traffic(world, roadNet, U, CR.cars || 120, (CR.radius_m || 450) + 100, { lib: vlib, cfg: Object.assign({ parked: CITY.country === 'Japan' ? 0.05 : 0.16 }, (G.vehicles || {}).cars), eye: camera, keep: KEEP, ground: lineGround, crowd, nav, posts, junctions, stops: G.props.bus_stop || null });
+  // (the traffic's slots: its peak count, CR.cars, a phone's a share of it, CARS_PHONE: what its budget beats hold. How many of
+  // them are on the streets goes with the hour, trafficWant, and where they are with the ring round you, trafficRing: #204)
+  const CARS_PHONE = 0.65;
+  const cars = OEActors.traffic(world, roadNet, U, Math.round((CR.cars || 120) * (QC.lean ? CARS_PHONE : 1)), (CR.radius_m || 450) + 100, { lib: vlib, cfg: Object.assign({ parked: CITY.country === 'Japan' ? 0.05 : 0.16 }, (G.vehicles || {}).cars), eye: camera, keep: KEEP, ground: lineGround, crowd, nav, posts, junctions, stops: G.props.bus_stop || null });
   const density = { low: 0.35, normal: 1, high: 1 };
   const playerLook = () => Object.assign({ shirt: '#2f4858', pants: '#2b3440', skin: '#e0ac85', hair: '#3b2a20' }, PLAYER_LOOKS[playerChar]);
   const player = { rig: makeRig(playerLook()),
@@ -3482,7 +3485,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (the owner's iPhone, the walk's opening, 22 November 2026). The crowd is now as large as LOW_CAST faces would fill
   // and no larger: half on the usual set, a quarter on the lightest; any other device keeps all of it)
   const faceShare = QC.lean && QC.budget && QC.budget.cast ? Math.min(1, QC.budget.cast / LOW_CAST) : 1;
-  function applyDensity() { if (crowdAuto) crowd.want = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); }
+  function applyDensity() { if (crowdAuto) crowd.want = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); trafficWant(); }
+  // The traffic by the hour (#204): CR.cars_hours, the share of the peak hour's vehicles on the streets (an evening peak,
+  // a morning one a little under it, the small hours a quarter of it), its slots times that and the density setting and
+  // the governor's share. Asked of the traffic only when it changes, so a harness that sets cars.active itself keeps it
+  let carsWas = -1;
+  function trafficWant() {
+    const H = CR.cars_hours, h = clock.min / 60;
+    let v = 1;
+    if (H && H.length) {
+      v = H[H.length - 1][1];
+      for (let i = 0; i < H.length; i++) {
+        const [h1, v1] = H[i];
+        if (h < h1) { const [h0, v0] = i ? H[i - 1] : [H[H.length - 1][0] - 24, H[H.length - 1][1]]; v = v0 + (v1 - v0) * (h - h0) / Math.max(1e-6, h1 - h0); break; }
+      }
+    }
+    const w = Math.round(cars.slots * Math.max(0.1, Math.min(1, v)) * density[settings.density] * govCrowd);
+    if (w !== carsWas) { carsWas = w; cars.want = w; }
+  }
+  // The ring the traffic is held in round you (#204, #220): on foot the arms you see and hear, CR.cars_ring_m; at the
+  // wheel a third wider, for the streets ahead come at you faster; from the helicopter, whose eye takes in the map, the
+  // whole of its radius
+  function trafficRing() {
+    const r = CR.cars_ring_m || 0;
+    if (!r || player.mode === 'heli' || cam.mode === 'bird') return 0;
+    return player.mode === 'car' || ride ? r * 1.3 : r;
+  }
   // mode: 'chase', 'bird' (the helicopter's bird's-eye view) or 'cockpit' (the pilot's eyes, looking lookYaw left and lookPitch up)
   // distTo and yawTo, when set, ease the chase camera somewhere (out to the helicopter's view, round to its door)
   // on foot the chase camera rests 5.5 m behind the head at 0.17 rad (issue 71): its eye about 2.5 m over the street, at
@@ -5536,6 +5564,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the weather as drivers meet it (cars.js setWeather): the traffic, the rides and your own tyres read it from there;
     // headlamps on by day in rain, snow or fog
     (U.uLamps || (U.uLamps = { value: 0 })).value = OECars.setWeather(weather ? (window.OEWeather && OEWeather.S) || weather.state : null).lamps; // (the weather's one state, weather.js S: grip, wet, visibility)
+    cars.ring = trafficRing();
     cars.update(dt, cx, cy, clockT, blockers);
     // on a wet road the cars near you throw up spray behind their wheels (cars.js sprayStep: nothing made until it first rains)
     if (OECars.weather.spray >= 0.25 || OECars.sprayState()) {
