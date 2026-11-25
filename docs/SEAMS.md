@@ -53,6 +53,15 @@ says where one part may touch another, and the count says how far a change insid
 these seams, a section at a time (issue 131), so that a change's reach can be read from the files it touches and
 fifteen sessions stop meeting in one file.
 
+## A local name
+
+A script may give a global a short local name (`const A = window.OEAudio` in `web/game/game.js`), and `tools/seams.py`
+reads every `A.name` in that script as `OEAudio.name`: it does not resolve names by scope. So a local variable or a
+parameter called `A` in another function of the same script (a head's vector, `A.y`) is read as the sound's `y`, and the
+static checks fail with `asks the sound for OEAudio.y, read as A.y`. Give that variable another name. Where the global's
+name is meant, add it to the contract as for any name (`python3 tools/seams.py --write`). In `game.js`, `A` is the
+sound's.
+
 ## A new avatar set
 
 The owner's example: "if I change the people's models next time, it should not touch the story at all, and the

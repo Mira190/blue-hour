@@ -70,7 +70,7 @@ const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at
 const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), phone = w < 500;
-  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+  const args = process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--disable-gpu-watchdog'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-watchdog'];
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args, logger: browserLog() });
   const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, hasTouch: phone, isMobile: phone });
   const p = await ctx.newPage();
@@ -86,6 +86,18 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // they fail as before, at once; nothing they check is changed)
   let stuck = '';
   const wf0 = p.waitForFunction.bind(p);
+  // (the page loaded again by itself, a software renderer's GPU process lost and the page reloaded (glcare): what reads
+  // the game first waits for it to be back, and says so, instead of reading window.__game before the page has made it.
+  // A walk2 of the #220 session's threw on __game.walkLine there, a TypeError that failed the play, 25 November)
+  const ev0 = p.evaluate.bind(p);
+  p.evaluate = async (fn, arg) => {
+    if (p.__unasked) {
+      p.__unasked = false;
+      const back = await wf0(() => !!(window.__game && window.__game.player), null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
+      console.log(back ? '(the page loaded again by itself, a GPU process lost: the game back before it was read again)' : '(the page loaded again by itself, and the game never came back in fifteen minutes)');
+    }
+    return ev0(fn, arg);
+  };
   p.waitForFunction = (f, a, o = {}) => wf0(f, a, stuck ? { ...o, timeout: Math.min(o.timeout || 30000, 20000) } : o);
   const fail = m => {
     m = lost.tag() + m; errors.push(m); console.log(`FAIL ${m}`);
@@ -775,7 +787,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         await p.evaluate(() => { const g = window.__game, n = g.npcs.find(q => q.id === 'mei'); g.cam.yaw = Math.atan2(n.x - g.player.x, n.y - g.player.y); for (let i = 0; i < 8; i++) g.frame(0.05); });
         await p.waitForFunction(() => [...document.querySelectorAll('.g-walk-mark')].some(e => +e.style.opacity > 0.3 && e.dataset.k === 'story'), null, { timeout: 90000, polling: 500 }).catch(() => {}); // (the mark that is judged, not any mark: a seat's may be up already)
         const mk = await p.evaluate(() => [...document.querySelectorAll('.g-walk-mark')].filter(e => +e.style.opacity > 0.3).map(e => e.dataset.k));
-        if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (${JSON.stringify(mk)}; ${JSON.stringify(await p.evaluate(() => { const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'mei'); return { want: t.want('mei'), dlg: g.dlg.open, photo: g.photo.on, mode: g.player.mode, d: Math.hypot(n.x - g.player.x, n.y - g.player.y).toFixed(1), seen: !!n.rig.root.visible, stage: document.getElementById('game-stage').className }; }))})`);
+        if (!mk.includes('story')) fail(`fourteen metres from Mei, no amber speech mark over anyone (kept off the words: ${await p.evaluate(() => window.__marksWords || 'none')}; ${JSON.stringify(mk)}; ${JSON.stringify(await p.evaluate(() => { const g = window.__game, t = g.walkTalk(), n = g.npcs.find(q => q.id === 'mei'); return { want: t.want('mei'), dlg: g.dlg.open, photo: g.photo.on, mode: g.player.mode, d: Math.hypot(n.x - g.player.x, n.y - g.player.y).toFixed(1), seen: !!n.rig.root.visible, stage: document.getElementById('game-stage').className }; }))})`);
         else ok(`speech marks from fourteen metres: ${mk.join(', ')}`);
         await shot('4b-marks');
         await talk('mei', 1.6);

@@ -41,18 +41,25 @@ def _sibling(name):
 streets = _sibling("streets")
 
 MATERIALS = {
+    # (a coated metal is its coat: powder-coated or PVDF-finished aluminium (fins, bands, cladding, frames) and painted
+    # steel (gates, fences, girders) are paint, a dielectric with a colour of its own that lamps and shop light fall on.
+    # Drawn as bare metal they mirrored the only environment the game has, the sky, and at dusk and night read as flat
+    # navy slabs (issue 13, the M3's play). Metalness 0.1 for a silver finish's flake, 0 for a painted colour; bare
+    # metal (a stainless rail, the rails of a track, glass's coating) keeps its own. What stands at a walker's height
+    # (the gate's posts, the fences, an entrance's panels and frame) takes the street lights (lamp_lit); a facade does not,
+    # the street lights reaching up a tower's whole height as if it were floodlit)
     # the junction's asphalt, laid over the ground (dark, a little worn; the game's street texture under it)
     "x_asphalt": {"color": "#4b4e52", "roughness": 0.93, "metalness": 0.0, "pattern": "granite", "joints_m": [0, 0], "decal": True, "street_lit": True},
     # road paint: thermoplastic, a little glass bead in it (paler and rougher than a sign)
     "x_paint": {"color": "#e4e2da", "roughness": 0.62, "metalness": 0.0, "decal": True, "street_lit": True},
     # the entrances: aluminium panels, the steel frame, the glass, the stairs' granite and the well's tiles
     # (panels 0.9 m wide with their joints: a plain pale box read as a model with no texture on it)
-    "x_panel": {"color": "#a9aeb3", "roughness": 0.46, "metalness": 0.5, "pattern": "granite", "joints_m": [0.9, 0.0]},
-    "x_frame": {"color": "#55595e", "roughness": 0.45, "metalness": 0.6},
+    "x_panel": {"color": "#a9aeb3", "roughness": 0.5, "metalness": 0.1, "pattern": "granite", "joints_m": [0.9, 0.0], "lamp_lit": True},
+    "x_frame": {"color": "#55595e", "roughness": 0.5, "metalness": 0.05, "lamp_lit": True},
     "x_glass": {"color": "#1c2529", "roughness": 0.04, "metalness": 0.2, "opacity": 0.16},
-    "x_tread": {"color": "#8e8a84", "roughness": 0.85, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.0], "stair": "tread"},
-    "x_riser": {"color": "#7d7a75", "roughness": 0.85, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.0], "stair": "riser"},
-    "x_tile": {"color": "#d9d6cf", "roughness": 0.5, "metalness": 0.0, "pattern": "granite", "joints_m": [0.3, 0.15]},
+    "x_tread": {"color": "#8e8a84", "roughness": 0.85, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.0], "stair": "tread", "emissive": "#e6e7e3", "glow": 0.3, "glow_day": 0.12},
+    "x_riser": {"color": "#7d7a75", "roughness": 0.85, "metalness": 0.0, "pattern": "granite", "joints_m": [0.6, 0.0], "stair": "riser", "emissive": "#e6e7e3", "glow": 0.24, "glow_day": 0.1},
+    "x_tile": {"color": "#d9d6cf", "roughness": 0.5, "metalness": 0.0, "pattern": "granite", "joints_m": [0.3, 0.15], "emissive": "#eef0ec", "glow": 0.5, "glow_day": 0.2},
     "x_dark": {"color": "#1d1e20", "roughness": 0.9, "metalness": 0.0},
     "x_tactile": {"color": "#e1b20f", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.3, 0.1], "decal": True},
     "x_tactile_dot": {"color": "#e8b711", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.075, 0.075], "decal": True},
@@ -63,15 +70,15 @@ MATERIALS = {
     # the JR lines' bed: retaining walls of concrete, the girder bridge's steel (painted grey), ballast, rails
     "x_jr_wall": {"color": "#a7a39a", "roughness": 0.9, "metalness": 0.0, "pattern": "granite", "joints_m": [5.0, 0.0]},
     "x_jr_concrete": {"color": "#bab6ad", "roughness": 0.9, "metalness": 0.0},
-    "x_jr_steel": {"color": "#727a80", "roughness": 0.55, "metalness": 0.45},
+    "x_jr_steel": {"color": "#727a80", "roughness": 0.6, "metalness": 0.0},
     "x_ballast": {"color": "#6f6a63", "roughness": 1.0, "metalness": 0.0, "pattern": "granite", "joints_m": [0, 0]},
     "x_sleeper": {"color": "#9a968e", "roughness": 0.9, "metalness": 0.0},
     "x_rail_steel": {"color": "#8a8580", "roughness": 0.35, "metalness": 0.85},
     "x_wire": {"color": "#26292c", "roughness": 0.6, "metalness": 0.4},
     # QFRONT: its silver fins and panels, the shopfronts lit from inside, the crown's roof
-    "x_fin": {"color": "#a9afb5", "roughness": 0.35, "metalness": 0.7},
+    "x_fin": {"color": "#a9afb5", "roughness": 0.45, "metalness": 0.1},
     "x_qf_glass": {"color": "#4a565e", "roughness": 0.04, "metalness": 0.85, "opacity": 0.5},
-    "x_qf_panel": {"color": "#cfd2d5", "roughness": 0.45, "metalness": 0.5},
+    "x_qf_panel": {"color": "#cfd2d5", "roughness": 0.5, "metalness": 0.1},
     "x_qf_roof": {"color": "#6d7176", "roughness": 0.8, "metalness": 0.2},
     "x_shop": {"color": "#59616a", "roughness": 0.12, "metalness": 0.3, "pattern": "curtain_wall", "bay_m": 2.4, "storey_m": 4.8, "spandrel": 0.04,
                "mullion_m": 0.08, "frame": "#30343a", "lit_share": 0.9, "lit_k": 0.8, "warm_share": 0.8},
@@ -79,7 +86,7 @@ MATERIALS = {
     "qfront_glass": {"color": "#2b3741", "roughness": 0.12, "metalness": 0.35, "pattern": "curtain_wall", "bay_m": 1.8, "storey_m": 4.6,
                      "spandrel": 0.1, "mullion_m": 0.09, "frame": "#a9b3bb", "lit_share": 0.55, "lit_k": 0.6},
     # SHIBUYA109's aluminium panels: horizontal joints every 0.9 m, vertical every 1.8 m (photographs)
-    "x_alu": {"color": "#b9bdc1", "roughness": 0.38, "metalness": 0.6, "pattern": "granite", "joints_m": [1.8, 0.9]},
+    "x_alu": {"color": "#b9bdc1", "roughness": 0.45, "metalness": 0.1, "pattern": "granite", "joints_m": [1.8, 0.9]},
     # printed adverts lit from outside by lamps: dimmer after dark than a lit box
     "x_print": {"color": "#ffffff", "roughness": 0.7, "metalness": 0.0, "map": ATLAS_FILE, "emissive_map": True, "glow": 0.5},
     "x_station": {"color": "#c9ccce", "roughness": 0.6, "metalness": 0.2, "pattern": "granite", "joints_m": [1.5, 3.6]},
@@ -88,8 +95,8 @@ MATERIALS = {
     # a white grid of mullions and floor bands over a building's glass (city windows lit behind it after dark)
     "x_skin": {"color": "#3a4650", "roughness": 0.15, "metalness": 0.3, "pattern": "curtain_wall", "bay_m": 1.7, "storey_m": 3.4, "spandrel": 0.3,
                "mullion_m": 0.22, "frame": "#ecebe6", "lit_share": 0.6, "lit_k": 0.9, "warm_share": 0.5},
-    "x_gate": {"color": "#7c8086", "roughness": 0.5, "metalness": 0.55},
-    "x_fence": {"color": "#6f757b", "roughness": 0.5, "metalness": 0.6, "pattern": "railing", "bar_m": 0.1, "rails_m": [0.05, 1.75]},
+    "x_gate": {"color": "#7c8086", "roughness": 0.55, "metalness": 0.0, "lamp_lit": True},
+    "x_fence": {"color": "#6f757b", "roughness": 0.55, "metalness": 0.0, "pattern": "railing", "bar_m": 0.1, "rails_m": [0.05, 1.75], "lamp_lit": True},
     "x_tyre": {"color": "#1b1b1c", "roughness": 0.8, "metalness": 0.0},
     "x_bike_silver": {"color": "#b4b8bc", "roughness": 0.35, "metalness": 0.7},
     "x_bike_black": {"color": "#26282b", "roughness": 0.5, "metalness": 0.3},
@@ -125,7 +132,7 @@ MATERIALS = {
     "x_pass_tactile_dot": {"color": "#e8b711", "roughness": 0.7, "metalness": 0.0, "pattern": "granite", "joints_m": [0.075, 0.075], "emissive": "#f0c43a", "glow": 0.3, "glow_day": 0.14},
 }
 MATERIALS.update(streets.MATERIALS)
-LIT = {"x_light", "x_atlas", "x_print", "x_red_lamp", "x_bk_sign", "x_pass_wall", "x_pass_ceil", "x_pass_floor", "x_pass_lamp", "x_pass_sign", "x_pass_tactile", "x_pass_tactile_dot", "x_pass_gate"}
+LIT = {"x_tile", "x_tread", "x_riser", "x_light", "x_atlas", "x_print", "x_red_lamp", "x_bk_sign", "x_pass_wall", "x_pass_ceil", "x_pass_floor", "x_pass_lamp", "x_pass_sign", "x_pass_tactile", "x_pass_tactile_dot", "x_pass_gate"}
 
 
 # ---------------------------------------------------------------- data

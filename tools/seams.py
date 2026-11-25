@@ -44,6 +44,9 @@ def part_of(parts, f):
     return None
 
 
+VIA = {}   # (global, name, script) -> the local name it was read through (const A = window.OEAudio), where it was
+
+
 def survey():
     """(defs, uses): the script that defines each global; and for each global, name -> the scripts that ask for it
     (as Global.name, or through a local name it was given: const A = window.OEAudio)."""
@@ -69,6 +72,8 @@ def survey():
                     if n != g and not re.search(r'(?<![\w$])' + re.escape(m.group(1)) + r'(?![\w$])', body):
                         continue
                     uses.setdefault(g, {}).setdefault(m.group(1), set()).add(f)
+                    if n != g:
+                        VIA.setdefault((g, m.group(1), f), n)
     return defs, uses
 
 
@@ -136,7 +141,13 @@ def main(a):
                 continue
             asked += 1
             if n not in offer:
-                fails.append(f'{out[0]} asks the {home[g]} for {g}.{n}, which its contract does not offer: add it to contracts/parts.json (python3 tools/seams.py --write), so that the seam is seen to widen')
+                al = VIA.get((g, n, out[0]))
+                if al and all(VIA.get((g, n, x)) for x in out):
+                    # (read through a local name alone: a name the same script also gives something else, in another
+                    # function, is read as the global's too; docs/SEAMS.md, "A local name")
+                    fails.append(f'{out[0]} asks the {home[g]} for {g}.{n}, read as {al}.{n}: in {os.path.basename(out[0])} {al} is {g}\'s local name (const {al} = window.{g}), and any other {al} in that script, a local variable or a parameter, is read as it too. Give that one another name, or if {g}.{n} is meant, add it to contracts/parts.json (python3 tools/seams.py --write)')
+                else:
+                    fails.append(f'{out[0]} asks the {home[g]} for {g}.{n}, which its contract does not offer: add it to contracts/parts.json (python3 tools/seams.py --write), so that the seam is seen to widen')
     for name, p in parts.items():
         for g, offer in p.get('offers', {}).items():
             body = ''.join(read(f) for f in defs.get(g, ()))
