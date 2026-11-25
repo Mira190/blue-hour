@@ -615,7 +615,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // (and shown after WARM_CAP seconds however far the warm-up has come: its pictures go up a frame at a time behind the
       // crowd's and the levels', and on a slow machine Nagi waited minutes in that queue, never drawn, the walk's check failing
       // "not drawn ten minutes after setting out". A frame's hitch as the rest go up on its first draw, not someone missing)
-      const warmCap = p => Promise.race([p, new Promise(r => setTimeout(r, WARM_CAP * 1000))]);
+      const warmCap = p => (lib.hurried[name] ? Promise.race([p, new Promise(r => setTimeout(r, WARM_CAP * 1000))]) : p); // (someone named you are near, lib.hurry; the rest wait their turn)
       lib.warming[name] = tpl; // (lib.hurry: its pictures to the head of the queue, if someone named is waiting on it)
       const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => Promise.all([w(tpl.scene, lib.hurried[name] ? { first: true } : undefined), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {})) : Promise.resolve(); };
       // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not

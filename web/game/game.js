@@ -1524,9 +1524,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // "Nagi is not drawn ten minutes after setting out" and "Ren is not drawn"; and on a phone, whose loads go one at a time,
   // everyone after them waited too: tools/npc_stall.js)
   const NPC_WAIT = 45;
+  // (hurried: someone named within NPC_HURRY m of you once you are out in the game, not the title's; asked again by
+  // npcStream as you come near. All of them hurried put the title's pictures 113 MB over its budget, story1)
+  const NPC_HURRY = 30;
+  const inGame = () => { try { return !preTitle && hud('#g-title').hidden; } catch (e) { return false; } }; // (false while the load is still before them)
+  const npcHurry = n => { if (lib.hurry && inGame() && Math.hypot(n.x - player.x, n.y - player.y) < NPC_HURRY) lib.hurry(n.look.character); };
   const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : (() => {
     const name = n.look.character;
-    if (lib.hurry) lib.hurry(name);
+    npcHurry(n);
     const real = npcPut(n, lib.require(name).catch(e => console.warn(`${name} unavailable:`, e)).then(() => npcLook(n)));
     return Promise.race([real.then(() => 'in'), new Promise(r => setTimeout(() => r('late'), NPC_WAIT * 1000))]).then(w => {
       if (w !== 'late' || !n.rig.pending) return;
@@ -1571,6 +1576,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return;
     }
     for (const n of npcs) if (n.rig.pending && !n.loading && !n.away && Math.hypot(n.x - cx, n.y - cy) < NPC_LOAD_M) npcLoad(n);
+    for (const n of npcs) if (n.rig.pending && n.loading && !n.away) npcHurry(n); // (on its way, and you near now)
   }
   let npcBusy = false;
   const npcsReady = () => Promise.all(npcs.filter(n => !n.away).map(npcLoad)); // every NPC in place (for the tools that look at them; not the walk's own until it is the walk: a phone's memory check loaded them where play never does)
