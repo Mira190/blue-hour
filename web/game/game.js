@@ -797,6 +797,56 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     h.rail = (x, y) => { const ci = Math.floor((x - x0) / HC), cj = Math.floor((y - y0) / HC); return ci >= 0 && cj >= 0 && ci < n && cj < n && rail.has(cj * n + ci); };
     h.railCells = rail.size;
     h.ceilCells = h.ceilOver ? h.ceilOver.cells : 0; h.ceilMs = Math.round(performance.now() - t0); // (for tools/cam_ceiling.js)
+    heroFence(h, root);
+  }
+  // A hero level's guard rails are solid on foot, as drawn (issue 157): the white pipes along Miyamasuzaka's kerbs were
+  // drawn and stood in nothing, and on the owner's iPhone the player and the guide stood with one through the waist at
+  // frame 5's foot of Scramble Square and frame 6's kerb under the station's deck (the Scramble's own were solid only as
+  // far as its landmark lays them, 62 m from the junction). Each FC m cell a rail's body crosses, 0.1 m over the ground
+  // under it to its top, is a box, a row of cells one box, in nav's walkers' own world (addFences): what nav.slide
+  // stops you at, the guide's step and his planner's stand too (nav.walk), and no car, lens or sound. Made once, as the
+  // level first comes; tools/rail_walk.js walks into them
+  const FC = 0.25;
+  function heroFence(h, root) {
+    if (h.fenced || !h.at || !h.r) return;
+    h.fenced = true;
+    const n = Math.ceil(2 * h.r / FC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, cells = new Map(), v = new THREE.Vector3(), P = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    root.traverse(o => {
+      if (!o.isMesh || !o.geometry || !/(^|_)metal_guard/.test(`${o.name} ${(o.material && o.material.name) || ''}`)) return;
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
+      for (let t = 0; t + 2 < m; t += 3) {
+        for (let k = 0; k < 3; k++) P[k].fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld);
+        for (let k = 0; k < 3; k++) {
+          const a = P[k], b = P[(k + 1) % 3], c = Math.max(1, Math.ceil(a.distanceTo(b) / (FC / 2)));
+          for (let i = 0; i <= c; i++) {
+            v.lerpVectors(a, b, i / c);
+            const x = v.x, y = -v.z, gz = Math.max(h.z || 0, nav.terrain(x, y));
+            if (v.y < gz + 0.15 || v.y > gz + 1.3) continue;
+            const ci = Math.floor((x - x0) / FC), cj = Math.floor((y - y0) / FC);
+            if (ci < 0 || cj < 0 || ci >= n || cj >= n) continue;
+            const q = cells.get(cj * n + ci);
+            if (q) { q[0] = Math.min(q[0], gz); q[1] = Math.max(q[1], v.y); } else cells.set(cj * n + ci, [gz, v.y]);
+          }
+        }
+      }
+    });
+    // (a row's cells side by side, their feet and tops within 0.1 m, one box)
+    const keys = [...cells.keys()].sort((a, b) => a - b);
+    const B = [];
+    for (let k = 0; k < keys.length;) {
+      const j = Math.floor(keys[k] / n), i0 = keys[k] % n;
+      let lo = cells.get(keys[k])[0], hi = cells.get(keys[k])[1], e = k + 1;
+      while (e < keys.length && keys[e] === keys[e - 1] + 1 && Math.floor(keys[e] / n) === j) {
+        const q = cells.get(keys[e]);
+        if (Math.abs(q[0] - lo) > 0.1 || Math.abs(q[1] - hi) > 0.1) break;
+        lo = Math.min(lo, q[0]); hi = Math.max(hi, q[1]); e++;
+      }
+      const xa = x0 + i0 * FC, xb = x0 + (i0 + e - k) * FC, ya = y0 + j * FC, yb = ya + FC;
+      B.push([xa, ya, xb, yb, lo + 0.1, hi + 0.02]);
+      k = e;
+    }
+    nav.addFences(B);
+    h.fenceBoxes = B.length; // (for tools/rail_walk.js)
   }
   // the lowest drawn ceiling over (x, y) above the height z, of the landmarks and every hero level, or null
   const heroCeil = (x, y, z) => {

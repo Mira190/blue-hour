@@ -1,0 +1,9 @@
+{
+ "_": "Issue 230: Shibuchika's A8 pavilion on Hachiko Square (397.2,-1044.4, open toward the crossing), its stair a stair's width and the rest of it a floor behind glass; seen as frame 3's Stop sees it and from in front of its open end (tools/scramble_shot.js).",
+ "date": [11, 14],
+ "times": {"day": "13:00", "dusk": "sunset+20", "night": "21:00"},
+ "views": [
+  {"name": "a8_front", "eye": [389.5, -1033.0, 1.6], "look": [397.2, -1044.4, 0.5], "fov": 60},
+  {"name": "a8_stop", "eye": [384.0, -1046.0, 4.0], "look": [395.0, -1041.0, 0.8], "fov": 55}
+ ]
+}
