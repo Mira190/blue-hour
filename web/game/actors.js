@@ -1872,6 +1872,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return false;
     }
+    // how far a scramble's walker feels its neighbours (m): the spacing, an umbrella's room and the step to the left all
+    // within it; PZ_REACH2 its square, a hair over, for the quick reject before Math.hypot (issue 220)
+    const PZ_REACH = 2.4, PZ_REACH2 = PZ_REACH * PZ_REACH + 0.01;
     function plazaStep(i, q, dt, player) {
       const pz = q.pz, g = q.g;
       // (inside the player or one of those not of the crowd, put down there: out at once, to shoulders brushing)
@@ -1985,9 +1988,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
           if (k === i) continue;
           const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e2 = ex * ex + ey * ey;
-          if (e2 > 5.77) continue; // (past 2.4 m on the square first: most of the 9 m square of cells asked is)
+          if (e2 > PZ_REACH2) continue; // (past PZ_REACH on the square first: most of the 9 m square of cells asked is)
           const e = Math.hypot(ex, ey);
-          if (e > 2.4 || e < 1e-4) continue;
+          if (e > PZ_REACH || e < 1e-4) continue; // (every force below, an umbrella's room among them, reaches no farther)
           const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
           if ((q.umbR > 0 || o.umbR > 0) && ((o.lead >= 0 ? o.lead : o.id) !== gq || (q.umbR > 0 && o.umbR > 0))) { // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
