@@ -28,7 +28,7 @@ const [,, lines = '781', secs = '300'] = process.argv;
     g.crowd.why = true; // (each turn's reason, actors.js turn(): q.turnWhy)
     me.x = at[0]; me.y = at[1]; g.advance(1);
     for (let f = 0; f < 30 * 20; f++) { if (every) for (const q of P) q.inPic = true; g.advance(dt); }
-    const T = new Map(), why = {}; let paced = 0, followed = 0, turns = 0; const cases = [];
+    const T = new Map(), why = {}; let paced = 0, followed = 0, turns = 0, carAgain = 0; const cases = [];
     for (let f = 0; f < secs * 30; f++) {
       if (every) for (const q of P) q.inPic = true;
       g.advance(dt);
@@ -41,14 +41,14 @@ const [,, lines = '781', secs = '300'] = process.argv;
         if (o.line !== q.line) { T.set(i, { line: q.line, dir: q.dir, turns: [], x: q.x, y: q.y, walked: 0, px: q.x, py: q.y, t0: t, pts: [[t, q.x, q.y]] }); continue; }
         const st = Math.hypot(q.x - o.px, q.y - o.py); if (st < 2) o.walked += st; o.px = q.x; o.py = q.y;
         if (f % 15 === 0) o.pts.push([t, q.x, q.y]);
-        if (q.dir !== o.dir) { o.dir = q.dir; o.turns.push(t); turns++; why[q.turnWhy || '?'] = (why[q.turnWhy || '?'] || 0) + 1;
+        if (q.dir !== o.dir) { const w = q.turnWhy || '?'; if (o.lastW === 'a car waited on them' && w !== 'the leader turned' && w !== 'restore' && t - o.lastT < 20) carAgain++; o.lastW = w; o.lastT = t; o.dir = q.dir; o.turns.push(t); turns++; why[q.turnWhy || '?'] = (why[q.turnWhy || '?'] || 0) + 1;
           const win = o.turns.filter(s => t - s <= 30);
           if (win.length >= 2) { const s0 = win[0] - 0.5, start = o.pts.find(pt => pt[0] >= s0 - 30) || o.pts[0], d = Math.hypot(q.x - start[1], q.y - start[2]);
             if (d < 3 && !o.counted) { o.counted = true; paced++; cases.push({ i, x: +q.x.toFixed(1), y: +q.y.toFixed(1), turns: win.length, why: q.turnWhy || null, inPic: q.inPic, d: +d.toFixed(1) }); } } }
       }
     }
-    return { followed, turns, paced, why, cases: cases.slice(0, 8) };
+    return { followed, turns, paced, carAgain, why, cases: cases.slice(0, 8) };
   }, [lines.split(',').map(Number), +secs, at, !!process.env.EVERY]);
-  console.log(`lines ${lines}, ${secs} s${process.env.EVERY ? ', every walker stepped every frame' : ''}: ${out.followed} walkers followed, ${out.turns} turns ${JSON.stringify(out.why)}, ${out.paced} paced${out.cases.length ? ': ' + JSON.stringify(out.cases) : ''}`);
+  console.log(`lines ${lines}, ${secs} s${process.env.EVERY ? ', every walker stepped every frame' : ''}: ${out.followed} walkers followed, ${out.turns} turns ${JSON.stringify(out.why)}, ${out.paced} paced, ${out.carAgain} turned again within 20 s of a car's wait${out.cases.length ? ': ' + JSON.stringify(out.cases) : ''}`);
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });

@@ -1090,6 +1090,7 @@
      "shown",
      "upload",
      "uploadBuffers",
+     "uploadFrom",
      "uploadRest",
      "uploadSliced",
      "warmPasses"
