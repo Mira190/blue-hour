@@ -528,7 +528,7 @@ window.OEAtmos = (function () {
       // full-size targets for a tail longer than the lens, made when one first is: one for the camera's effect before the
       // lens, a second for any other tail. They are let go eight seconds after the last frame that needed them: they stayed
       // for good after the first conversation (19 MB on a phone at 760 x 1644, 59 MB at 2560 x 1440: issue 130)
-      let pingA = null, pingB = null, pingAt = 0;
+      let pingA = null, pingB = null, pingAt = 0, keepP = false;
       const ping = () => new THREE.WebGLRenderTarget(rt.width, rt.height, { type: THREE.HalfFloatType, depthBuffer: false });
       // The scene's share of the canvas's resolution (the governor's, quality.js; api.setScale): the scene, and
       // with it the occlusion and the bloom, are drawn at scale times the canvas's size, and the lens, which
@@ -544,6 +544,11 @@ window.OEAtmos = (function () {
         renderer, passes, renderTarget1: rt, renderTarget2: rt,
         get camFxPasses() { return oneFx ? 1 : 2; }, set camFxPasses(n) { oneFx = n !== 2; },
         get pings() { return (pingA ? 1 : 0) + (pingB ? 1 : 0); },
+        // (kept: the camera effect's target held, and made now if it is not there, for as long as the game says (a Stop: its beats
+        // turn the effect off and on, and the target, let go after eight seconds, was made again at its still, its talk and its
+        // shown, 9.5 MB each time on a phone, issue 118))
+        get keepPings() { return keepP; },
+        set keepPings(on) { on = !!on; if (on === keepP) return; keepP = on; if (on && !pingA) { pingA = ping(); pingAt = performance.now(); try { if (renderer.initRenderTarget) renderer.initRenderTarget(pingA); } catch (e) { /* made on its first draw */ } } },
         addPass(p) { passes.push(p); if (p.setSize) p.setSize(rt.width, rt.height); },
         removePass(p) { const i = passes.indexOf(p); if (i >= 0) passes.splice(i, 1); },
         setSize(W, H) {
@@ -573,7 +578,7 @@ window.OEAtmos = (function () {
           const tail = passes.filter(p => p !== scenePass && p !== bloom && !(ao && p === ao.pass) && p.enabled !== false);
           if (tail.length === 1 && tail[0] === lens) {
             draw(lens.merged, null, false);
-            if (pingA && performance.now() - pingAt > 8000) { pingA.dispose(); pingA = null; if (pingB) { pingB.dispose(); pingB = null; } }
+            if (pingA && !keepP && performance.now() - pingAt > 8000) { pingA.dispose(); pingA = null; if (pingB) { pingB.dispose(); pingB = null; } }
           } else if (tail.length === 2 && tail[0] === camFx && tail[1] === lens && camFx.merged && camFx.merged.isMaterial && !(lens.uniforms.uShadeShow.value > 0.5) && oneFx) {
             // the camera's effect reading the scene itself, then the lens (above: camFx.merged)
             if (!pingA) pingA = ping();
