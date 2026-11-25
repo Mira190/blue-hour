@@ -62,16 +62,32 @@ def rail_over(q, rail):
     return max(rail(x, y) for g in getattr(q, "geoms", [q]) if g.geom_type == "Polygon" for x, y in g.exterior.coords)
 
 
+def not_drawn(city):
+    """The solids a landmark draws instead or that are gone (landmarks.json "hidden" and "demolished", scene.json
+    "hidden_solids"): not the city's walls, and not this check's."""
+    d = os.path.join(ROOT, "web", "data", city)
+    out = set()
+    for f, keys in (("landmarks.json", ("hidden", "demolished")), ("scene.json", ("hidden_solids",))):
+        if os.path.exists(os.path.join(d, f)):
+            J = json.load(open(os.path.join(d, f), encoding="utf8"))
+            for k in keys:
+                out |= set(J.get(k) or [])
+    return out
+
+
 def in_the_way(city, B=None, game=None):
     """[(solid index, building index, m² in the envelope, the rail's height there, the solid's bottom and top)]"""
     game = game or json.load(open(os.path.join(ROOT, "web", "data", city, "game.json"), encoding="utf8"))
     B = B or json.load(open(os.path.join(ROOT, "web", "data", city, "buildings.json"), encoding="utf8"))
+    skip = not_drawn(city)
     E = envelope(game)
     if not E:
         return []
     tree = shapely.STRtree([e[1] for e in E])
     out = []
     for si, s in enumerate(B["s"]):
+        if si in skip:
+            continue
         rings = s[4:]
         if not rings or len(rings[0]) < 6:
             continue
