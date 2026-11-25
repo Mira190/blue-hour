@@ -1996,8 +1996,8 @@ What is the owner's to decide, with the default taken until then:
   only round number left is the fifty years the two stood on opposite kerbs.
 - **Kanbara's afterimage is on SHIBUYA SKY's roof**, 200 m from where he was left (the planetarium's roof, on Hikarie's
   site), and rule 4 says an afterimage stays within a few steps of where it was left. Default: keep him there, and let
-  the words say what the frame shows: the roof he fell from is gone (frame 3's last line: *the only place it can still
-  be seen from is above*), so he is met over it, *looking down at where his roof was*, and speaks of the dome's roof as
+  the words say what the frame shows: the roof he fell from is gone (frame 3's last lines: *the dome is gone;
+  Hikarie stands where it stood* and *the highest roof east of the station* looks down on it), so he is met over it, *looking down at where his roof was*, and speaks of the dome's roof as
   *that roof*, down there. Until November 2026 his lines had him on his own roof (*from this roof*) while the player
   looked down 200 m at where it stood. Rule 2 now says it for every afterimage: where its place has been pulled down,
   it stands where the place can still be seen.
