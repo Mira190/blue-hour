@@ -190,6 +190,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     s = await state();
     if (s.phase !== 'dressed' || s.goal || s.lights.story) fail(`set out at once on the walk, and the story has begun (phase ${s.phase})`);
     else ok(`the second half: out on the walk at once, ${s.clock.hm}, ${s.wx.mode}`);
+    // (from your car on, WALK_PART=3: the helicopter's model is asked for once you are within 800 m of it, as you are at
+    // Hachiko, and in the walk played whole it came in during the people's quarter of an hour before the roof. Here the
+    // roof comes four minutes on: its model is waited for first, as that time gave it, and on the roof it must still stand
+    // on its pad. Two plays on one machine, it had not come in the roof's four minutes)
+    if (PART === 3) { const t0h = Date.now(), came = await until(() => window.__game.heli.loaded(), null, 600000); console.log(`(the helicopter's model ${came ? 'in' : 'not in'} after ${Math.round((Date.now() - t0h) / 1000)} s of setting out)`); }
   } else {
     await title();
     s = await state();
