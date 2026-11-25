@@ -145,7 +145,7 @@ window.OECars = (function () {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 color;\nvarying float vAO;\nvarying vec3 vObjP;\nvarying vec3 vObjN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAO = color.r; vObjP = position; vObjN = normal;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAO;\nuniform vec3 uLining;\nuniform float uLiningOn;\nuniform vec3 uFlip;\nuniform float uFlipOn;\nuniform float uWeave;\nuniform float uSky;\nvarying vec3 vObjP;\nvarying vec3 vObjN;')
-        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( (uLiningOn > 0.5 && !gl_FrontFacing ? uLining : mix(diffuse, uFlip, uFlipOn * pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 3.0))) * mix(1.0, vAO, 0.45), opacity );')
+        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( (uLiningOn > 0.5 && !gl_FrontFacing ? uLining : mix(diffuse, uFlip, uFlipOn * pow(max(0.0, 1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition)))), 3.0))) * mix(1.0, vAO, 0.45), opacity );')
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 if (uWeave > 0.0 && gl_FrontFacing) {
   vec3 wn = abs(normalize(vObjN));

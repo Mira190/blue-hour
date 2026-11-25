@@ -77,7 +77,7 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
  if (uOver > 0.5 && diffuseColor.a < 0.02) discard; // (where a place goes out into tonight, it hides nothing)
  totalEmissiveRadiance += diffuseColor.rgb * (0.36 + 0.72 * pastKey + 0.2 * pastFill);
  diffuseColor.rgb *= 1.0 - 0.85 * uOver;
- float pastRim = pow(1.0 - abs(dot(pastN, normalize(vViewPosition))), 2.5);`)
+ float pastRim = pow(max(0.0, 1.0 - abs(dot(pastN, normalize(vViewPosition)))), 2.5);`)
           // a silver print's tones: most of the colour gone to a warm grey, the blacks lifted to the paper's, a light round
           // the edges, a grain that moves; and while it forms, a glow it comes out of
           .replace('#include <dithering_fragment>', `#include <dithering_fragment>
