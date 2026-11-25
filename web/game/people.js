@@ -439,7 +439,11 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // the far crowd's copies of the scanned cast (pipeline/crowd_cast.py, issue 475): none, and the far crowd is the dolls
     const CC = info.crowd_cast, castFile = CC && !/[?&]farcast=off/.test(location.search) ? get(CC.file).catch(e => { console.warn('crowd_cast', e); return null; }) : null;
     const [aM, aW, cr, fc] = await Promise.all([get(info.anims.M), get(info.anims.W), get(info.crowd), castFile]);
-    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: {}, loading: {} };
+    // (tpl and loading, by a character's name, grow one name at a time as the cast streams in: made without a prototype
+    // they are a dictionary from the start, one shape however many names come. As plain objects each name was a new
+    // shape, and the renderer's begin, which asks lib.tpl for the loaded stand-ins, was thrown out of its optimised code
+    // 51 times a minute on a desktop's walk: tools/deopt_survey.js, issue 220)
+    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: Object.create(null), loading: Object.create(null) };
     // (lib.setWarm(fn): the game's warm-up, given once its loader has compiled what the first frame shows; lib.warmed
     // resolves with it, for an NPC's character that came before it to wait on: below, ready)
     // (warmLater: the game says it will give one; a page that never does, tools/people_lineup.js, shows them as they come)
@@ -2280,7 +2284,17 @@ transformed = crowdPose(transformed, false);`);
     const bySex = { f: cast.filter(n => lib.npcs[n].sex === 'f'), m: cast.filter(n => lib.npcs[n].sex === 'm') };
     // a loaded cast member of rn's sex, to stand in until rn itself comes (begin, above)
     // (any of those loaded, by the walker's own number: the first loaded for everyone was a crossing of one man)
-    const realStandIn = (rn, i) => { const l = bySex[lib.npcs[rn].sex].filter(n => lib.tpl[n]); return l.length ? l[(Math.imul(i + 3, 2246822519) >>> 17) % l.length] : null; };
+    // (the same pick as from the list of those loaded, without the list: an empty one is an array of another kind, and the
+    // renderer's begin, which asks this of each near walker still waiting for its own, was thrown out of its optimised
+    // code each time it met one: tools/deopt_survey.js, issue 220)
+    const realStandIn = (rn, i) => {
+      const S = bySex[lib.npcs[rn].sex];
+      let n = 0; for (let k = 0; k < S.length; k++) if (lib.tpl[S[k]]) n++;
+      if (!n) return null;
+      let at = (Math.imul(i + 3, 2246822519) >>> 17) % n;
+      for (let k = 0; k < S.length; k++) if (lib.tpl[S[k]] && at-- === 0) return S[k];
+      return null;
+    };
     // load a few of the cast up front so the first near people are real, nearest the camera first as they stream
     // (and then the rest of it, a dozen at most: a walker whose character has not come is someone else's double until it does)
     if (cast.length) { bySex.f.slice(0, 2).concat(bySex.m.slice(0, 2)).forEach(n => lib.require(n)); cast.forEach(n => lib.require(n)); }
