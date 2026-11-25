@@ -1201,14 +1201,16 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       if (!off && !f.formed) { teachNudge(); goal(G.forming || 'Hold it there: it is coming up in the lines.'); st.miss = 1.5; return; } // (the release before the thing has come up in the lines: it is waited for, not taken without it)
       // (the frame without the goal's marks on it: the beacon is a guide, not a thing in the street)
       light(null);
-      let print = null;
-      try { print = ctx.snap({ ghosts: !!T.both, plain: spend }); } catch (e) { print = null; } // (the frame of the two of them: they come up in it as it develops; spent: only tonight in it, whatever was in the lines)
+      let print = null, late = null; // (late: the print develops a few frames on, read back without waiting on the GPU: game.js snap, issue 118)
+      try { print = ctx.snap({ ghosts: !!T.both, plain: spend, done: (src, base) => { if (late) late(src, base); } }); } catch (e) { print = null; } // (the frame of the two of them: they come up in it as it develops; spent: only tonight in it, whatever was in the lines)
       if (spend) { st.prints.push({ src: print, stamp: fr.stamp || '', cap: 'Only tonight. Nothing of 1964 came up in it.', note: fr.lost ? `Spent. Not on the roll: ${fr.lost}` : 'Spent.', plain: true }); st.flags[`lost${st.fi + 1}`] = true; }
       else st.prints.push({ src: print, stamp: fr.stamp || '', cap: fr.caption || (T.relic && T.relic.cap) || '', note: fr.note || '' }); // (note: what the frame settled, written under it in the roll)
       st.spendT = 0;
       { const p = st.prints[st.prints.length - 1]; filed(`Frame ${st.prints.length}. ${p.note || p.cap}`, { kind: p.plain ? 'spent' : 'print' }); for (const e of fr.file || []) if ((!e.if || st.flags[e.if]) && (!e.not || !st.flags[e.not])) filed(e.say, { key: e.key || '', strikes: e.strikes || '', kind: 'said' }); } // (fr.file: what the frame makes of something the player said before)
       if (spend) later(700, () => say('Spent: only tonight'));
-showPrint(st.prints[st.prints.length - 1], st.prints.length, ctx.snapBase ? ctx.snapBase() : null);
+      { const p = st.prints[st.prints.length - 1], n = st.prints.length, fi = st.fi;
+        if (print) showPrint(p, n, ctx.snapBase ? ctx.snapBase() : null);
+        else late = (src, base) => { if (!src) return; p.src = src; keep(); show(); if (st.fi === fi && st.phase === 'stop' && st.beat === 'shown') showPrint(p, n, base); }; } // (it comes up as it arrives, and goes into the roll and the save)
       frames.classList.remove('kept'); void frames.offsetWidth; frames.classList.add('kept'); // (the strip says the print is kept, and where the roll is)
       pulse(); sfx('shutter'); sfx('wind');
       st.left = Math.max(0, st.left - 1); show();

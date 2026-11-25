@@ -2327,6 +2327,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
+  // A rectangle of the picture just drawn, read back without waiting (issue 118): copied on the GPU into a buffer of its
+  // own, and taken from it once a fence says the GPU is past it, polled from later tasks; null if the context goes or the
+  // GPU has not got there in ten seconds. Resolves to { px (rows from the bottom), w, h }.
+  function readLater(gl, x, y, w, h) {
+    let buf = null, sync = null;
+    try {
+      renderer.setRenderTarget(null);
+      buf = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.bufferData(gl.PIXEL_PACK_BUFFER, w * h * 4, gl.STREAM_READ);
+      gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    } catch (e) { try { gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); if (buf) gl.deleteBuffer(buf); } catch (e2) { /* gone */ } return Promise.resolve(null); }
+    const t0 = performance.now();
+    return new Promise(res => {
+      const poll = () => {
+        if (gl.isContextLost()) { res(null); return; }
+        const s = gl.clientWaitSync(sync, 0, 0);
+        if (s === gl.TIMEOUT_EXPIRED && performance.now() - t0 < 10000) { setTimeout(poll, 16); return; }
+        gl.deleteSync(sync);
+        if (s === gl.TIMEOUT_EXPIRED || s === gl.WAIT_FAILED) { gl.deleteBuffer(buf); res(null); return; }
+        const px = new Uint8Array(w * h * 4);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, px); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); gl.deleteBuffer(buf);
+        res({ px, w, h });
+      };
+      setTimeout(poll, 0);
+    });
+  }
   // the print: the middle of the picture, three by two, as fractions of it from its top left. The story's photograph is
   // cut from it (snap), and its finder's lines are kept inside it (story.js fitFinder), so that what stands in the lines is
   // in the print. On a phone held upright the lines stood twice as tall as the print, and a thing framed in their lower
@@ -3042,7 +3068,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (ghosts: the afterimages come up in the print as the thing of 1964 does, not in tonight's first image: the last
     // frame is of them, and the print develops the crossing first and then the two of them in the middle of it)
     // (plain: a frame spent from the wrong place, only tonight in it, whatever was in the finder's lines)
-    snap: ({ ghosts = false, plain = false } = {}) => {
+    snap: ({ ghosts = false, plain = false, done = null } = {}) => {
       // (what the camera in your hands sees: not yourself, and not the goal's light, nor the light you stand in)
       const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible, gl = gold.mesh.visible, hc = storyHere && storyHere.visible;
       player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false; gold.mesh.visible = false; if (storyHere) storyHere.visible = false; // (nor the way's band on the ground)
@@ -3050,7 +3076,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const out = document.createElement('canvas'), h = Math.min(480, canvas.height);
       out.height = h; out.width = Math.round(h * 1.5);
       const P = printRect(), sx = P[0] * canvas.width, sy = P[1] * canvas.height, sw = (P[2] - P[0]) * canvas.width, sh = (P[3] - P[1]) * canvas.height;
-      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
+      // (done given: the frame is read back without waiting on the GPU, and the print develops a few frames on. A canvas
+      // drawn into a 2D one, twice in the tap's task, waits for the GPU to finish everything queued: on an iPhone a GPU
+      // process held past WebKit's time loses the context, issue 118)
+      const ctx2 = renderer.getContext(), lag = !!done && typeof WebGL2RenderingContext !== 'undefined' && ctx2 instanceof WebGL2RenderingContext;
+      const rx = Math.max(0, Math.round(sx)), ty = Math.max(0, Math.round(sy)), rw = Math.max(1, Math.min(canvas.width - rx, Math.round(sw))), rh = Math.max(1, Math.min(canvas.height - ty, Math.round(sh)));
+      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); if (lag) return readLater(ctx2, rx, canvas.height - ty - rh, rw, rh); out.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
+      const develop = (r, q) => { if (!r) return null; const c = document.createElement('canvas'); c.width = r.w; c.height = r.h; const x = c.getContext('2d'), im = x.createImageData(r.w, r.h), row = r.w * 4; for (let i = 0; i < r.h; i++) im.data.set(r.px.subarray((r.h - 1 - i) * row, (r.h - i) * row), i * row); for (let i = 3; i < im.data.length; i += 4) im.data[i] = 255; x.putImageData(im, 0, 0); out.getContext('2d').drawImage(c, 0, 0, r.w, r.h, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
       // (tonight alone first, smaller: the print comes up as tonight, and the other year comes up in it, story.js showPrint)
       let base = null;
       const later = ghosts ? [...storyFigs].filter(f => f.ghost && f.rig && f.rig.root.visible) : [];
@@ -3059,8 +3091,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const src = take(0.86);
       if (past) past.whole(false);
       player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc; gold.mesh.visible = gl; if (storyHere) storyHere.visible = hc;
-      storySnapBase = base;
-      return src;
+      if (!lag) { storySnapBase = base; return src; }
+      storySnapBase = null;
+      Promise.all([base, src]).then(([b, r]) => { let bs = null, ss = null; try { bs = develop(b, 0.7); ss = develop(r, 0.86); } catch (e) { /* the context went: no print */ } storySnapBase = bs; done(ss, bs); }, () => done(null, null));
+      return null;
     },
     snapBase: () => storySnapBase,
     printRect, // (the print's rectangle in the picture: story.js keeps the finder's lines inside it)
