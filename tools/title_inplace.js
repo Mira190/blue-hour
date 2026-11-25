@@ -105,6 +105,30 @@ const [,, out = '/tmp/title-inplace', size = '390x844', N = '10'] = process.argv
   };
   await p.goto(URL0, { waitUntil: 'domcontentloaded', timeout: 120000 }); expect = loads;
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 250 }); await p.evaluate(() => window.__game.titleScreen('menu')); await p.waitForTimeout(1500);
+  // LOSE=1: WebGL's context lost and not given back, with the case parked under the title and again with it running,
+  // the page left to open itself again (glcare.js); no page error on the way (the owner's iPhone did this on 24 Nov)
+  const lose = async label => {
+    const l0 = loads, e0 = errors.length;
+    await p.evaluate(() => { const x = window.__game.renderer.getContext().getExtension('WEBGL_lose_context'); window.__lost = x; x.loseContext(); });
+    const t0 = Date.now(); while (loads === l0 && Date.now() - t0 < 90000) await p.waitForTimeout(500);
+    if (loads === l0) { console.log(`  ${label}: no page load in 90 s; the context given back`); await p.evaluate(() => window.__lost && window.__lost.restoreContext()).catch(() => {}); }
+    await p.waitForFunction(() => { const t = document.getElementById('g-title'); return !!window.__game && (!t.hidden || document.getElementById('game-stage').classList.contains('story-on')); }, null, { timeout: 900000, polling: 500 }).catch(() => fail(`${label}: the page never came back`));
+    await p.waitForTimeout(3000);
+    if (errors.length === e0) ok(`${label}: the context lost, ${loads - l0} page load(s), no page error`);
+    expect = loads;
+  };
+  if (process.env.LOSE) {
+    const inCase0 = () => { const s = window.__game.story.state, t = document.getElementById('g-title'); return t.hidden && s.fi === 2 && s.phase !== 'idle' && s.phase !== 'dressed'; };
+    await tap('#gt-cont-go'); await p.waitForFunction(inCase0, null, { timeout: 900000, polling: 250 }); await p.waitForTimeout(5000);
+    await openMenu('story'); await tap('#gm-title'); await titleUp(); await p.waitForTimeout(1000);
+    await lose('the case parked under the title');
+    // (a page opened again after a loss takes the case up by itself, game.js takeResume; else Continue does)
+    if (!(await p.evaluate(inCase0).catch(() => false))) { await p.evaluate(() => window.__game.titleScreen('menu')).catch(() => {}); await p.waitForTimeout(1000); await tap('#gt-cont-go'); } await p.waitForFunction(inCase0, null, { timeout: 900000, polling: 250 }).catch(() => fail('after the loss, Continue did not take the case up'));
+    await p.waitForTimeout(5000);
+    await lose('the case running');
+    console.log(errors.length ? `FAIL ${errors.length}` : 'ok   title in place, a lost context: all passed');
+    await b.close(); process.exit(errors.length ? 1 : 0);
+  }
   // the case
   await tap('#gt-cont-go');
   const inCase = () => { const s = window.__game.story.state, t = document.getElementById('g-title'); return t.hidden && s.fi === 2 && s.phase !== 'idle' && s.phase !== 'dressed'; };

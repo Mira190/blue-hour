@@ -2871,21 +2871,30 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // its own for each of their materials, and each Stop's afterimage, made under the flash, linked three to five of them in
   // the Stop's first frames, with the halation's when it first came up: a frame of 0.2 to 2.9 s on a session's machine,
   // and taps that waited 3.7 s on an iPhone, issue 206. One rig of each, never shown, the exposure laid on, compiled)
+  // the camera of 1964 (people.js oldCamera): hung on you at the shot, its programs were linked in the frame the camera came
+  // up (issue 118). A copy, its materials the ones every copy shares, kept hidden in the world and compiled with the Stop's things
+  let oldCamSpare = null;
+  const warmOldCam = () => {
+    if (oldCamSpare || !OEPeople.oldCamera) return null;
+    oldCamSpare = OEPeople.oldCamera().clone(); oldCamSpare.name = 'camera1964-spare'; oldCamSpare.visible = false;
+    world.add(oldCamSpare);
+    return warmFor(oldCamSpare).catch(() => null);
+  };
   const warmGhosts = () => {
     if (!lib || !G.story || !OEPeople.exposure) return Promise.resolve();
     // (the frame the case is at first: a story taken up again at its Stop finds its afterimage made; the rest in order)
     const who = new Set(), at = story && story.state ? story.state.fi || 0 : 0;
-    for (const ep of G.story.episodes || []) { const F = ep.frames || []; for (const fr of [...F.slice(at), ...F.slice(0, at)]) for (const a of [fr.afterimage, fr.afterimage2]) if (a && a.character && !a.alive) who.add(a.character); }
+    for (const ep of G.story.episodes || []) { const F = ep.frames || []; for (const fr of [...F.slice(at), ...F.slice(0, at)]) for (const a of [fr.afterimage, fr.afterimage2]) if (a && a.character) who.add(`${a.alive ? 'alive' : 'ghost'}:${a.character}`); for (const c of ep.cast || []) if (c && c.character) who.add(`alive:${c.character}`); } // (and the episode's cast, whose faces move as they speak: a talk's) // (and those of tonight, a.alive: as they are, without the exposure, Sumiko's programs linked in the Stop's talk, issue 118)
     let p = Promise.resolve(), halo = true;
-    for (const c of who) p = p.then(() => lib.require(c)).then(() => {
+    for (const k of who) { const alive = k.startsWith('alive:'), c = k.slice(k.indexOf(':') + 1); p = p.then(() => lib.require(c)).then(() => {
       if (!lib.tpl[c]) return null;
       // (two of them: one still, one with its face's shapes live, as it is while it speaks, face.js: a program of its own)
       const g = new THREE.Group(), r = makeRig({ character: c }), q = makeRig({ character: c });
-      for (const x of [r, q]) { OEPeople.exposure(x.root); x.animate(0, 0, 'ground', 0); g.add(x.root); }
+      for (const x of [r, q]) { if (!alive) OEPeople.exposure(x.root); x.animate(0, 0, 'ground', 0); g.add(x.root); }
       if (q.face) q.face.after(0, {});
       if (halo) { halo = false; g.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: haloMap(), color: 0xd6e4ff, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }))); }
       return warmFor(g).then(() => { if (q.face) q.face.rest(); });
-    }).catch(() => null);
+    }).catch(() => null); }
     return p;
   };
   const storyFigure = (a, at) => {
@@ -3024,7 +3033,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (f && f.kind === 'landmark' && f.z > z + GUIDE_STEP) { const l = nav.floorAt(x, y, z + GUIDE_STEP - nav.STEP); if (l && l.z > z - 1) return l.z; }
     return f ? f.z : Math.max(0, nav.terrain(x, y));
   };
-  const makeGuide = g => (guideMade = window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, lean: QC.lean, eye: camera, ground: guideGround, player, height: g.scale || 1,
+  const guideNew = g => (window.OECompanion && g.model ? OECompanion.create({ url: g.model, world, W, lean: QC.lean, eye: camera, ground: guideGround, player, height: g.scale || 1, warm: r => compileFor(r),
     route: (x, y, z, tx, ty) => { const r = ways.walk({ x, y, z }, { x: tx, y: ty }); return r ? r.pts : null; },
     edge: (x, y, z, fx, fy) => ways.edge(x, y, z, fx, fy),
     wall: (x, y, z, r) => { const w = nav.push(x, y, z, r); return w && Math.hypot(w.x - x, w.y - y) > 0.01 ? w : null; }, // (each end of him off a wall, issue 157)
@@ -3041,35 +3050,61 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // no footway line, and he walked into the waiters at Sumiko's kerb as if nobody stood there, issue 65)
     people: (x, y, r) => { const out = []; if (crowd && crowd.P) for (let i = 0, n = Math.min(crowd.active, crowd.P.length); i < n; i++) { const q = crowd.P[i], qx = q.rx ?? q.x, qy = q.ry ?? q.y; if ((q.line >= 0 || q.pz) && Math.abs(qx - x) < r && Math.abs(qy - y) < r) out.push([qx, qy]); } return out; },
     held: () => !!(story && story.stopped && story.scale === 0) }) : null); // (the world held still: its people are planned round, not pushed off)
+  // (the first of him made ahead, with the Stop's things (warmGuide), loaded and compiled while nobody sees him, and handed to
+  // the story when it asks: made at the Stop's still, his programs were linked in its frames, issue 118)
+  let guideSpare = null;
+  const makeGuide = g => { if (guideSpare && guideSpare.model === g.model && guideSpare.scale === g.scale) { const d = guideSpare.d; guideSpare = null; return (guideMade = d); } return (guideMade = guideNew(g)); };
+  const warmGuide = () => { const gd = G.story && (G.story.episodes || []).map(e => e.guide).find(x => x && x.model); if (!gd || guideSpare || guideMade) return null; const d = guideNew(gd); if (d) guideSpare = { model: gd.model, scale: gd.scale, d }; return null; };
   // the story's people, asked for as the game opens, so that each is themselves when they are first seen
   if (lib && G.story && !new URLSearchParams(location.search).has('walk')) {
     const want = new Set();
     for (const ep of G.story.episodes || []) for (const c of [...(ep.cast || []), ...(ep.frames || []).flatMap(fr => [fr.afterimage, fr.afterimage2])]) if (c && c.character) want.add(c.character);
     for (const c of want) if (!lib.tpl[c] && (lib.npcs[c] || lib.heroes[c] || lib.info.characters[c])) Promise.resolve(lib.require(c)).catch(() => {});
   }
+  // the place's light (story here): made at the first shot, its program was linked in that beat (issue 118); made ahead,
+  // hidden, with the Stop's things (warmHere)
+  // the goal's light (story beacon), made ahead and compiled hidden with the Stop's things too (warmHere): first shown at frame 2's shot
+  function beaconMake() {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.5, 26, 20, 1, true), new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: new THREE.Color(0.62, 0.78, 1.0) } },
+      vertexShader: 'varying float vH; void main() { vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform float uT; uniform vec3 uC; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(uC * a * 2.2, a); }' }));
+    col.position.y = 13 + 2.6; // (from over a head upward: whoever stands under it is seen, not lost in it)
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
+    // (and round a standpoint, the edge of where the picture can be taken from: a fine line at task.within_m, so that
+    // the light is a place with a size, and the player sees when they are inside it)
+    // (laid on the ground round the place, storyDrape, made again when the place or its size changes)
+    const edge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+    edge.visible = false;
+    storyBeacon = new THREE.Group(); storyBeacon.add(col, ring, edge); storyBeacon.userData = { col, ring, edge };
+    storyBeacon.traverse(o => { o.frustumCulled = false; o.renderOrder = 20; });
+    world.add(storyBeacon);
+  }
+  function hereMake() {
+    const amber = new THREE.Color(1.0, 0.8, 0.52), wave = new THREE.Color(0xffcf8a).convertSRGBToLinear();
+    // one mesh, the place's light and the ring that goes out to its edge (uWave: the ring's radius, a share of the
+    // place's; uWaveA its strength), laid on the ground as it is (storyDrape), the ring with it
+    // Its edge is a fine line, 8 cm in metres (uR: the place's radius) whatever the place's size: a third of the radius
+    // as before was a 30 cm cream stroke at a 4 m place, which at night read as a band of light of its own
+    const disc = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+      uniforms: { uT: { value: 0 }, uC: { value: amber }, uW: { value: wave }, uWave: { value: 1 }, uWaveA: { value: 0 }, uR: { value: 4 } },
+      vertexShader: 'attribute vec2 aP; varying vec2 vP; void main() { vP = aP; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform float uT, uWave, uWaveA, uR; uniform vec3 uC, uW; varying vec2 vP; void main() { float r = length(vP), e = (1.0 - r) * uR; float a = 0.11 * smoothstep(1.0, 0.2, r) * (0.85 + 0.15 * sin(uT * 2.2)) + 0.22 * smoothstep(0.7, 0.94, r) * smoothstep(1.0, 0.94, r) + 0.62 * smoothstep(0.0, 0.015, e) * (1.0 - smoothstep(0.05, 0.085, e)); float w = uWaveA * step(0.94 * uWave, r) * step(r, uWave); gl_FragColor = vec4(uC * a * a + uW * w, 1.0); }' }));
+    // (additive at alpha 1: the light as its alpha times itself, as the disc was, and the ring at its strength, as its own mesh was)
+    disc.frustumCulled = false; disc.renderOrder = 20;
+    storyHere = new THREE.Group(); storyHere.add(disc); storyHere.userData = { disc, t0: 0, key: '' };
+    world.add(storyHere);
+  }
+  const warmHere = () => { if (!storyBeacon) { beaconMake(); storyBeacon.visible = false; const E = storyBeacon.userData.edge; E.geometry.dispose(); E.geometry = storyDrape(player.x, player.y, Math.max(0, nav.terrain(player.x, player.y)), 2, 0.96); E.userData.key = ''; compileFor(storyBeacon).catch(() => null); } if (storyHere) return null; hereMake(); storyHere.visible = false; const U = storyHere.userData; U.disc.geometry.dispose(); U.disc.geometry = storyDrape(player.x, player.y, Math.max(0, nav.terrain(player.x, player.y)), 1); U.key = ''; return compileFor(storyHere).catch(() => null); }; // (laid as the real one is: a drape's normals are a variant of their own)
   const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
     story: G.story, stage, player, touch, reduced, log: storyLog, toast: t => { if (storyLog) storyLog.aside(t); H.toast(t); },
     menu: () => toggleMenu(), // (the story's own menu button: a phone has no Esc, issue 48)
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
     // (kind 'stand', where a picture is taken from: the camera's amber, so that it is not taken for someone to go to)
     beacon: (at, kind, r) => {
-      if (!storyBeacon) {
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.5, 26, 20, 1, true), new THREE.ShaderMaterial({
-          transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uT: { value: 0 }, uC: { value: new THREE.Color(0.62, 0.78, 1.0) } },
-          vertexShader: 'varying float vH; void main() { vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: 'uniform float uT; uniform vec3 uC; varying float vH; void main() { float a = (1.0 - vH) * (1.0 - vH) * (0.5 + 0.12 * sin(uT * 2.6 - vH * 9.0)); gl_FragColor = vec4(uC * a * 2.2, a); }' }));
-        col.position.y = 13 + 2.6; // (from over a head upward: whoever stands under it is seen, not lost in it)
-        const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.05, 48), new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-        ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06;
-        // (and round a standpoint, the edge of where the picture can be taken from: a fine line at task.within_m, so that
-        // the light is a place with a size, and the player sees when they are inside it)
-        // (laid on the ground round the place, storyDrape, made again when the place or its size changes)
-        const edge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xffcf8a, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
-        edge.visible = false;
-        storyBeacon = new THREE.Group(); storyBeacon.add(col, ring, edge); storyBeacon.userData = { col, ring, edge };
-        storyBeacon.traverse(o => { o.frustumCulled = false; o.renderOrder = 20; });
-        world.add(storyBeacon);
-      }
+      if (!storyBeacon) beaconMake();
       storyBeacon.visible = !!at;
       const E = storyBeacon.userData.edge, z0 = at ? (at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1]))) : 0, eKey = at ? `${at[0].toFixed(1)},${at[1].toFixed(1)},${r}` : '';
       E.visible = !!(at && kind === 'stand' && r > 1.2);
@@ -3082,22 +3117,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // sees from here is the other year; the light says, in the street, that this is where it is seen from
     here: (at, r = 2.5) => {
       if (!at) { if (storyHere) storyHere.visible = false; return; }
-      if (!storyHere) {
-        const amber = new THREE.Color(1.0, 0.8, 0.52), wave = new THREE.Color(0xffcf8a).convertSRGBToLinear();
-        // one mesh, the place's light and the ring that goes out to its edge (uWave: the ring's radius, a share of the
-        // place's; uWaveA its strength), laid on the ground as it is (storyDrape), the ring with it
-        // Its edge is a fine line, 8 cm in metres (uR: the place's radius) whatever the place's size: a third of the radius
-        // as before was a 30 cm cream stroke at a 4 m place, which at night read as a band of light of its own
-        const disc = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-          polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
-          uniforms: { uT: { value: 0 }, uC: { value: amber }, uW: { value: wave }, uWave: { value: 1 }, uWaveA: { value: 0 }, uR: { value: 4 } },
-          vertexShader: 'attribute vec2 aP; varying vec2 vP; void main() { vP = aP; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: 'uniform float uT, uWave, uWaveA, uR; uniform vec3 uC, uW; varying vec2 vP; void main() { float r = length(vP), e = (1.0 - r) * uR; float a = 0.11 * smoothstep(1.0, 0.2, r) * (0.85 + 0.15 * sin(uT * 2.2)) + 0.22 * smoothstep(0.7, 0.94, r) * smoothstep(1.0, 0.94, r) + 0.62 * smoothstep(0.0, 0.015, e) * (1.0 - smoothstep(0.05, 0.085, e)); float w = uWaveA * step(0.94 * uWave, r) * step(r, uWave); gl_FragColor = vec4(uC * a * a + uW * w, 1.0); }' }));
-        // (additive at alpha 1: the light as its alpha times itself, as the disc was, and the ring at its strength, as its own mesh was)
-        disc.frustumCulled = false; disc.renderOrder = 20;
-        storyHere = new THREE.Group(); storyHere.add(disc); storyHere.userData = { disc, t0: 0, key: '' };
-        world.add(storyHere);
-      }
+      if (!storyHere) hereMake();
       const U = storyHere.userData, key = `${at[0].toFixed(1)},${at[1].toFixed(1)}`, z0 = at[3] != null ? at[3] : Math.max(0, nav.terrain(at[0], at[1]));
       if (!storyHere.visible || U.key !== key) U.t0 = performance.now(); // (stepped in: the ring goes out)
       if (U.key !== key || U.r !== r) { U.disc.geometry.dispose(); U.disc.geometry = storyDrape(at[0], at[1], z0, r); U.disc.material.uniforms.uR.value = r; } // (laid on the ground there: storyDrape)
@@ -4629,6 +4649,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const P = parked;
     if (!P) return;
     parked = null;
+    try { unparkIn(P); } catch (e) { try { console.warn('the mode could not be taken up in place, opening the page again', e); } catch (e2) { /* none */ } location.reload(); } // (the page load is the fallback here too)
+  }
+  function unparkIn(P) {
     setClock(P.clock.y, P.clock.m, P.clock.d, P.clock.min); clock.scale = P.clock.scale;
     if (weather && P.sky && weather.state.kind !== P.sky) weather.set(P.sky, { now: true });
     Object.assign(cam, P.cam); camSmooth.set(0, 0, 0);
@@ -4942,7 +4965,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
     if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
     // and the story's stopped air: its leaves, birds and motes, made at the first beat after the tap (stopfx.js warm)
-    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => Promise.all([stopFx.warm(warmFor), warmGhosts()])), reduced ? 0 : 1000); // (and the afterimages' look, warmGhosts)
+    if (story && stopFx && stopFx.warm) setTimeout(() => afterLevel().then(() => Promise.all([stopFx.warm(warmFor), warmGhosts(), past && past.warm ? past.warm(warmFor) : null, warmOldCam(), warmGuide(), warmHere()])), reduced ? 0 : 1000); // (and the afterimages' look, warmGhosts)
     setTimeout(() => { if (QC.lean) afterPlayable().then(heliIn); else heliIn(); }, reduced ? 0 : 900);
   });
   // What the first frame doesn't need, fetched once the game can be played, as the helicopter's model is (issue 335):
@@ -5198,6 +5221,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
     npcMarks(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
+    if (atmos && atmos.composer && 'keepPings' in atmos.composer) atmos.composer.keepPings = !!(story && story.on && story.state && story.state.phase === 'stop'); // (the camera effect's target kept through a Stop: atmosphere.js)
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
     // afterimage has spoken and its photograph is to be taken: the frame's words say you put your own away) until the
@@ -6296,7 +6320,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   }
   // (a fit takes about 11 ms for the one you play on a session's machine: the one you play and the guide are fitted while the
   // page is idle, ahead of the first camera to come near them, not in that camera's frame)
-  const guardWarm = () => { for (const r of [player.rig && player.rig.root, guideMade && guideMade.root]) if (r && r.parent) { guardCapsOf(r); fadeWarm(r); } };
+  // (the guide's ghosts before he is first placed too, issue 118; his own programs, whole and fading, companion.js warm)
+  const guardWarm = () => {
+    const G = guideMade;
+    for (const r of [player.rig && player.rig.root, G && G.root]) if (r && (r.parent || r === (G && G.root))) { guardCapsOf(r); fadeWarm(r); }
+    for (const f of storyFigs) if (f.rig && f.rig.root && f.rig.root.parent) { fadeWarm(f.rig.root); if (f.warmedRig !== f.rig) { f.warmedRig = f.rig; compileFor(f.rig.root).catch(() => {}); } } // (and the story's people standing in the world, themselves and their ghosts: the cast stands from the episode's start, and was first linked in the beat it was first seen, the Stop's talk)
+  };
   function guardBody(root, base) {
     guardS.deep = -Infinity;
     const e = root.matrixWorld.elements, P = camera.position;
@@ -6612,6 +6641,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // landmarks, the decks), and one between that is away from the lens is looked past, as a post is; but within 1.5 m of
     // it a trunk filled half a phone's frame and hid you (the planters' trees round Hachiko, since the camera came down
     // to the shoulder in issue 71): the camera comes in to stand in front of it, eased as for a wall
+    // (how far from the lens a trunk or a post is still in front of you, not looked past: 1.5 m on a desktop's wide frame, 3 m
+    // on a phone's tall one, where a planter tree's trunk 2 to 3 m off filled a third of the screen in frame 3's Stop, #233)
+    const trunkReach = camera.aspect < 1 ? 3 : 1.5;
     const postAtLens = (a, b) => {
       if (!close || player.mode !== 'foot' || fpOn) return 1;
       const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
@@ -6621,7 +6653,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue; // (a planter's low rail and a queue belt are under the lens; a level's wall is wallCut's)
         if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
         const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
-        if (d2 > R * R || (1 - s) * L > 1.5) continue;
+        if (d2 > R * R || (1 - s) * L > trunkReach) continue;
         t = Math.min(t, Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L));
       }
       return t;

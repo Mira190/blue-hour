@@ -1080,7 +1080,8 @@ vec3 steepRock(vec3 c, float k) {
     const QUAY = Q && { mask: { value: Q.maskTexture() }, dist: { value: shoreTex }, box: { value: new THREE.Vector4(...Q.box) },
       bed: { value: lin(((scene.water || {}).seawall || {}).bed || '#3a3b33') } }; // (the bottom's colour, as quayBed's)
     const HOLE = IN && IN.holeMask();
-    if (HOLE && LEAN) HOLE.tex.onUpdate = () => { HOLE.tex.onUpdate = null; HOLE.tex.image.data = null; }; // (a phone: the mask is the GPU's alone once sent, 11 MB in Shibuya)
+    if (HOLE && LEAN) HOLE.tex.onUpdate = () => { HOLE.tex.onUpdate = null; HOLE.tex.image.data = null; }; // (a phone: the mask is the GPU's alone once sent, 2.9 MB in Shibuya)
+    if (HOLE) sendTex(renderer, HOLE.tex, { cls: 0 }); // (sent ahead, with the hero level: not by the draw that first shows a channel, issue 118)
     const clipGround = sh => {
       if (HOLE) { // over a walled channel the ground is cut away: its walls and bed are drawn instead (inland.js)
         Object.assign(sh.uniforms, { uHole: { value: HOLE.tex }, uHoleBox: { value: new THREE.Vector4(...HOLE.box) } });
@@ -2585,16 +2586,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // photograph leans a raised deck off its plan); on land the terrain covers the water either way.
     // The game adds its own decks (game.js: waterCover(runs)). Where to look: water.js uCover
     let coverBase = null;
+    const SEA_ABOVE = 3; // (the sea is drawn at level 0, water.js: ground higher than this has none under it to show)
     function waterCover(runs = []) {
       if (!sea || !sea.setCover) return;
-      const fr = scene.frame, x0 = fr.x[0], x1 = fr.x[1], y0 = fr.y[0], y1 = fr.y[1];
-      const res = Math.max(1, Math.max(x1 - x0, y1 - y0) / Math.min(4096, renderer.capabilities.maxTextureSize)), W = Math.ceil((x1 - x0) / res), H = Math.ceil((y1 - y0) / res);
-      const cv = document.createElement('canvas');
-      cv.width = W; cv.height = H;
-      const g = cv.getContext('2d');
-      g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-      g.fillStyle = g.strokeStyle = '#fff'; g.lineCap = g.lineJoin = 'round';
-      let any = false;
       if (!coverBase) { // [x0, y0, x1, y1, x2, y2, pad] in metres, once
         coverBase = [];
         for (const m of (LM && LM.meshes) || []) {
@@ -2608,10 +2602,30 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
             const ax = p[a], ay = p[a + 1], bx = p[b], by = p[b + 1], cx = p[c], cy = p[c + 1];
             const zt = Math.max(p[a + 2], p[b + 2], p[c + 2]), zg = D.ground((ax + bx + cx) / 3, (ay + by + cy) / 3);
             if (zt - zg < 1 || zt - zg > 40) continue; // over the water, low enough to lean into the photo of the bottom
+            if (zg > SEA_ABOVE) continue; // (on ground above the sea's level the terrain hides the sea under it: nothing to cover there)
             coverBase.push(ax, ay, bx, by, cx, cy, Math.max(2.5, 0.25 * (zt - zg)));
           }
         }
       }
+      // (the mask covers the box round what it draws, not the map's frame: in Shibuya a few decks over a narrow river, where
+      // the frame's mask was 4096 x 2849, 11 MB sent to the GPU in a draw, the Stop's on a phone, issue 118. A metre a texel
+      // or finer, at most 2048 a side, 1024 on a phone)
+      let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+      const grow = (x, y, pad) => { bx0 = Math.min(bx0, x - pad); bx1 = Math.max(bx1, x + pad); by0 = Math.min(by0, y - pad); by1 = Math.max(by1, y + pad); };
+      for (let i = 0; i < coverBase.length; i += 7) for (let k = 0; k < 6; k += 2) grow(coverBase[i + k], coverBase[i + k + 1], coverBase[i + 6] + 4);
+      for (const ring of (LM && LM.water_cover) || []) for (const [x, y] of ring) grow(x, y, 4);
+      runs = runs.filter(r => r.pts.some(q => D.ground(q[0], q[1]) <= SEA_ABOVE)); // (an inland channel's deck is over its own water, drawn at its level: inland.js)
+      for (const r of runs) { const pad = r.w / 2 + Math.max(2.5, 0.25 * Math.max(...r.pts.map(q => q[2]))) + 4; for (const q of r.pts) grow(q[0], q[1], pad); }
+      const fr = scene.frame, x0 = Math.max(fr.x[0], bx0), x1 = Math.min(fr.x[1], bx1), y0 = Math.max(fr.y[0], by0), y1 = Math.min(fr.y[1], by1);
+      if (!(x1 > x0 && y1 > y0)) return;
+      const cap = Math.min(LEAN ? 1024 : 2048, renderer.capabilities.maxTextureSize);
+      const res = Math.max(1, Math.max(x1 - x0, y1 - y0) / cap), W = Math.max(1, Math.ceil((x1 - x0) / res)), H = Math.max(1, Math.ceil((y1 - y0) / res));
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+      g.fillStyle = g.strokeStyle = '#fff'; g.lineCap = g.lineJoin = 'round';
+      let any = false;
       const X = x => (x - x0) / res, Y = y => (y1 - y) / res;
       for (const ring of (LM && LM.water_cover) || []) { // a deck the photograph shows wider than it is drawn (landmarks.json)
         g.beginPath(); ring.forEach(([x, y], k) => g[k ? 'lineTo' : 'moveTo'](X(x), Y(y))); g.closePath(); g.fill(); any = true;
@@ -2634,10 +2648,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       const tex = new THREE.CanvasTexture(cv);
       tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.colorSpace = THREE.NoColorSpace;
       if (LEAN) tex.onUpdate = () => { tex.onUpdate = null; cv.width = cv.height = 0; }; // (a phone: the canvas goes once the GPU has the mask)
-      tex.format = THREE.RedFormat; // a mask the water reads one channel of: a byte a texel, not four (40 MB to 10 at 2560 x 4096; at most 2048 a side on the low tier)
+      tex.format = THREE.RedFormat; // a mask the water reads one channel of: a byte a texel, not four
       if (sea.uniforms && sea.uniforms.uCover.value) sea.uniforms.uCover.value.dispose();
       sea.setCover(tex, x0, y1, x1 - x0, y1 - y0);
       if (LEAN) idle().then(() => { try { renderer.initTexture(tex); } catch (e) { /* sent on its first draw */ } }); // (sent now, seen or not, so that its canvas goes)
+      else sendTex(renderer, tex); // (and on a desktop ahead of the water's first draw too, in the shared queue: not by the draw that first shows the river)
     }
     if (!game) try { waterCover(); } catch (e) { console.warn('water cover:', e); }
     // The map round the player (issue 443; docs/PERFORMANCE.md, "A map built round the player"): what is built,

@@ -2806,5 +2806,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, opts: OPT };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, oldCamera, opts: OPT }; // (oldCamera: the camera of 1964, its materials shared by every copy hung on a rig, warmed ahead: game.js)
 })();
