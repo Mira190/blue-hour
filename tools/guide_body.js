@@ -17,7 +17,7 @@ const { startPlay } = require('./start_play');
 const [,, out = '/tmp/guide-body', size = '1440x900'] = process.argv;
 (async () => {
   const [w, h] = size.split('x').map(Number), phone = w < 600;
-  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox', '--disable-gpu-watchdog'] });
   const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
   watchPage(p);
   const errors = [];
