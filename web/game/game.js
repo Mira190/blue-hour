@@ -1140,10 +1140,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const tRoad = performance.now(), footNet = OEActors.network(G.paths.foot), roadNet = OEActors.network(bakeIn('roads', () => nav.withoutFine(() => onGround(cutAtWalls(G.paths.road, 0.5, true)))));
   const roadMs = performance.now() - tRoad;
   // the planned area's edge (bounds.js, docs/BOUNDS.md): the story and the walk keep to it, on foot, by car and in the
-  // air; the streets across it shut to cars, with road works on them. ?walk=1 (the builder's map) and ?bounds=off are open
+  // air; the streets across it left out of your routes and open to the traffic, nothing drawn on them. ?walk=1 (the
+  // builder's map) and ?bounds=off are open
   const bounds = window.OEBounds && G.bounds && !new URLSearchParams(location.search).has('walk') && new URLSearchParams(location.search).get('bounds') !== 'off'
     ? OEBounds.create({ data: G.bounds, toast: s => H.toast(s), floor: (x, y, z) => { const f = nav.floorAt(x, y, z + 1.5); return f ? f.z : null; }, reg: ((G.vehicles || {}).helicopter || {}).registration, clock: () => clockT }) : null;
-  if (bounds) { bounds.closeRoads(roadNet); const works = bounds.build(THREE, G.paths, world); if (works && window.OEVis) OEVis.gateAll(works); } // (the works hidden while the street wall hides every one of them: 12 of a phone's draws at the Scramble, issue 192)
+  if (bounds) { bounds.closeRoads(roadNet); bounds.mark(G.paths); }
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
@@ -1303,7 +1304,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // on the low tier its usual number, so a phone draws no more people than it did
   const crowdPool = QC.name === 'low' ? CR.pedestrians || 300 : CR.pedestrians_peak || CR.pedestrians || 300;
   const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, stillNear: touch ? 24 : 40, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
-    { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) || (bounds && Math.abs(bounds.sd(x, y).s) < 0.8), posts,
+    { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) /* (none at the planned area's edge: the crowd walks on past it, as the traffic drives on: bounds.js) */, posts,
       clear: wellAt ? (x, y, z) => nav.room(x, y, z, 0.3) && !wellAt(x, y) : (x, y, z) => nav.room(x, y, z, 0.3), eye: camera, shut: wellAt, sight: (x, y, z) => nav.solid(x, y, z, 0.2) }); // (a shut well is a wall to the crowd: nobody cuts across its mouth)
   // the side of the road the city keeps to: game.keep, its trams', or the country's rule
   const KEEP = G.keep || ((G.rail || {}).tram || {}).keep || (/^(Australia|Japan|United Kingdom|Ireland|New Zealand|Singapore|Malaysia|Indonesia|Thailand|India|South Africa)$/.test(CITY.country)
@@ -2256,7 +2257,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (auto && auto !== true) { fwd = auto.fwd; side = auto.turn; }
     else if (!pilot && (assist.lane || assist.cruise)) { const a = assistStep(fwd, side); fwd = a.fwd; side = a.turn; }
     else assist.on.lane = assist.on.cruise = false;
-    if (bounds && playing && auto !== true) { const b = bounds.drive(st, fwd, side, myCar.C.half); if (b) { fwd = b.fwd; side = b.side; } } // (braked short of the road works: bounds.js)
+    if (bounds && playing && auto !== true) { const b = bounds.drive(st, fwd, side, myCar.C.half); if (b) { fwd = b.fwd; side = b.side; } } // (braked short of the edge: bounds.js)
     if (auto !== true) D.step(dt, { fwd: Math.max(-1, Math.min(1, fwd)), turn: Math.max(-1, Math.min(1, side)), handbrake: k('Space') },
       { boxes: carBoxes(st.x, st.y, 14, myCar), people: peopleNear(st.x, st.y, 12), posts: postsNear(st.x, st.y, 10) }, ev);
     for (const e of ev) {
@@ -2888,11 +2889,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let haloTex = null;
   const haloMap = () => {
     if (haloTex) return haloTex;
-    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-    const x = c.getContext('2d'), g = x.createRadialGradient(32, 64, 0, 32, 64, 32);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.setTransform(1, 0, 0, 2, 0, -64); x.fillStyle = g; x.fillRect(0, 0, 64, 128); // (an ellipse twice as tall as it is wide: a standing figure's)
-    haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    // (worked out here, not drawn on a 2D canvas: a canvas keeps its pixels premultiplied, and handed to WebGL unpremultiplied
+    // the faint texels' white came back as dark and coloured ones, and iOS Safari dithers the gradient besides. On the owner's
+    // iPhone at a render scale of 0.65 each such texel was a speck a few pixels wide, a cloud of them round Sumiko from
+    // across the crossing, gone as one came near and the halation faded, issue 206. White throughout, only alpha falls off)
+    const W = 64, H = 128, d = new Uint8Array(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const r = Math.hypot((x + 0.5 - 32) / 32, (y + 0.5 - 64) / 64); // (an ellipse twice as tall as it is wide: a standing figure's)
+      const a = r < 0.35 ? 1 - 0.45 * r / 0.35 : r < 1 ? 0.55 * (1 - r) / 0.65 : 0;
+      const i = (y * W + x) * 4; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(a * 255);
+    }
+    haloTex = new THREE.DataTexture(d, W, H, THREE.RGBAFormat);
+    haloTex.magFilter = THREE.LinearFilter; haloTex.minFilter = THREE.LinearMipmapLinearFilter; haloTex.generateMipmaps = true; // (a DataTexture is nearest-sampled unless told)
+    if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    haloTex.needsUpdate = true;
     return haloTex;
   };
   // (an afterimage's look compiled before the Stop it stands in, as the title waits: people.js exposure makes a program of
@@ -5535,7 +5545,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (story && story.stopped && story.scale === 0) dt = 0; // the Stop: you have moved; from here on the world is given no time
     if (fish) fishTick(dt, held ? 0 : Math.max(-1, Math.min(1, side)));
     if (coachHeli) coachHeli.update(dt); // (on into the step out, once landed)
-    if (bounds && bounds.tick) bounds.tick(clockT, !sun || sun.altitude < 3); // (the road works' lamps blink)
     if (player.mode !== 'heli') { heli.update(dt, {}, []); A.rotor(heli.st.rotor * Math.max(0, 1 - Math.hypot(heli.st.x - player.x, heli.st.y - player.y) / 300)); }
     if (player.mode !== 'heli') { heliHomeStep(dt); heliToPad(); }
     if (waitFerry && (player.mode !== 'foot' || !nearWharf(player.x, player.y, 40))) waitFerry = null;

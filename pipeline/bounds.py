@@ -138,19 +138,18 @@ def compute(game, roads=None):
     a = hull([q for x, y, r in P for q in circle(x, y, r + AIR_ROOM - GROUND_ROOM)] + [q for m in marks for q in circle(m[0], m[1], MARK_ROOM)])
     rnd = lambda poly: [[round(x, 1), round(y, 1)] for x, y in poly]
     return {
-        "note": "The planned area (pipeline/bounds.py, docs/BOUNDS.md): the ground's edge, where a walker and a car are eased to a stop at the road works and turned back in, and the air's, where the helicopter is turned back in an arc. Local metres, counter-clockwise. Written by the pipeline; the lines are by hand.",
+        "note": "The planned area (pipeline/bounds.py, docs/BOUNDS.md): the ground's edge, where a walker and a car are eased to a stop and turned back in (nothing drawn there: the roads and their traffic run on past it), and the air's, where the helicopter is turned back in an arc. Local metres, counter-clockwise. Written by the pipeline; the lines are by hand.",
         "ground": {"poly": rnd(simplify(g, 12)), "soft": GROUND_SOFT},
         "air": {"poly": rnd(simplify(a, 12)), "soft": AIR_SOFT, "ceiling": CEILING},
     }
 
 
 LINES = {
-    "foot": "<b>Road works · closed ahead.</b> The streets past here are still being built; tonight Shibuya is open round the Scramble.",
-    "car": "<b>Road closed ahead.</b> The streets past the works are still being built. Turn round at the barriers.",
+    "foot": "<b>Tonight is round the Scramble.</b> The story is back towards the crossing.",
+    "car": "<b>Tonight's drive is round the Scramble.</b> Turn back towards the crossing.",
     "air": "<b>Tower:</b> “{reg}, the city past here isn't open yet. Bring her round, back over the Scramble.”",
     "ceiling": "<b>Tower:</b> “{reg}, that's Haneda's approach above you. Down to four hundred, please.”",
-    "closed": "Not open yet: the streets past the road works are still being built.",
-    "sign": ["工事中", "この先 通行止め", "ROAD WORKS · CLOSED AHEAD"],
+    "closed": "Tonight is round the Scramble: somewhere nearer the crossing.",
 }
 
 

@@ -662,7 +662,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         const beside = near => p.evaluate(near => { const g = window.__game, n = g.npcById('nagi'); g.spawn([n.x + near * 0.55, n.y - near * 0.83]); const a = Math.atan2(n.x - g.player.x, n.y - g.player.y); g.player.h = a; g.cam.yaw = a; for (let i = 0; i < 6; i++) g.frame(0.05); }, near);
         const drawnN = await p.waitForFunction(() => { const n = window.__game.npcById('nagi'); return n && !n.rig.pending; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
         await p.evaluate(() => window.__game.walkTalk().lineAgain()); // (the checks before this one began the stories again, and with them took the incident away)
-        if (!drawnN) fail('Nagi is not drawn ten minutes after setting out');
+        if (!drawnN) fail(`Nagi is not drawn ten minutes after setting out: ${JSON.stringify(await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return n ? { at: [Math.round(n.x), Math.round(n.y)], away: !!n.away, pending: !!n.rig.pending, loading: !!n.loading, you: [Math.round(g.player.x), Math.round(g.player.y)], mode: g.player.mode } : 'none'; }))}`);
         else {
           await beside(4);
           // (the man's character comes too, then the page's own frames set him off and carry him to her)
