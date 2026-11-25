@@ -3734,6 +3734,20 @@ path, the old checks gave exactly that position and pace every time. The neighbo
 switch, taken out before it landed): phone frame 1, the crowd's update 3.28 to 2.94 ms a call (−0.32 ± 0.09); phone
 frame 7 −0.15 ± 0.21; desktop frame 1 +0.30 ± 0.37 (no change measured: its plazas' crowd moves more).
 
+**The arms' clearance, optimised again** (25 November, #130's item 1). Switched off in blocks (`tools/crowd_cost.js`
+`AB=` on a temporary switch), `people.js` `armsClear` was 4.5 to 4.9 ms of a desktop's crowd update (some 30 near
+people, 1,060 points asked, 4,000 slice frames read and 345 made a call), not the 8 its profile said: on this machine
+the sampler is starved and books its long gaps to whatever runs. Timed in the page, a slice's frame cost 3.8 µs to
+make, and V8's trace (`--trace-opt --trace-deopt`) said why: `sliceAt` was thrown out of its optimised code 35 times in
+a minute, "wrong map", and ran unoptimised. A new `THREE.Matrix4`'s sixteen numbers are small integers; the first
+fraction written into them changes the array's kind, and every rig loaded as the crowd moved past brought new ones.
+The slices' and the bones' matrices now hold doubles from the start (`Float64Array`, the same numbers): no deopt of
+`sliceAt` in the same minute, a slice's frame 1.1 µs, and the arms' clearance a desktop's 2.9 ± 0.6 ms a call (from 4.5
+to 4.9) and a phone's 0.69 ± 0.09 (from 0.84). Its look is the same: the near crowd's arms over twenty seconds, 828
+readings, none deeper than 2 cm in its own body, the deepest 1.2 cm (main the same run: 858 readings, the deepest 2.3
+cm); stills of the crowd at the kerb before and after show nothing changed. The same trace names other functions of
+the crowd thrown out of their optimised code while it plays (`actors.js` `carDepth`, `blocked`): next to look at.
+
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.
 

@@ -1527,6 +1527,10 @@ ${PAT_GLSL}`)
     // off before the next frame (keepArm, armBack).
     const CLEAR = 0.02, EASE = 0.02, NEAR = 0.04, SLICE = 0.03, RAYS = 24;
     let clr;
+    // (a matrix whose sixteen numbers are doubles from the start: a new Matrix4's are small integers, and the first fraction
+    // written into them changes the array's kind, so that each rig loaded as the crowd moved threw sliceAt's optimised
+    // code away, every two or three seconds, and it ran unoptimised: issue 220. The same numbers either way)
+    const f64 = m => { m.elements = Float64Array.from(m.elements); return m; };
     function clearBuild() {
       const body = [];
       model.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && o.skeleton.bones.some(b => /Bip01_Spine2$/.test(b.name))) body.push(o); });
@@ -1554,7 +1558,9 @@ ${PAT_GLSL}`)
       }
       if (!tv.length) return null;
       const n = Math.ceil((h1 - h0) / sl) + 1, S = [], at = h => Math.floor((h - h0) / sl);
-      for (let j = 0; j < n; j++) S.push({ x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, r: new Float32Array(RAYS), votes: new Map() });
+      // (every field a slice is ever given, named here in one shape, as the walkers' are (issue 130): sliceAt, asked some
+      // 4,000 times a frame on a desktop, reads them all. cx, cz, k doubles from the start)
+      for (let j = 0; j < n; j++) S.push({ x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, r: new Float32Array(RAYS), votes: new Map(), cx: NaN, cz: NaN, w: null, F: null, I: null, k: NaN, at: -1 });
       // the middle of each slice from the box of the two slices either side as well (a slice of a few vertices had its middle
       // off to one side, and a hand at the chest read 18 cm deep); the bones that carry a quarter of it or more (where the
       // spine bends, a point between two bones' slices was in neither)
@@ -1570,7 +1576,7 @@ ${PAT_GLSL}`)
         const w = new Map(); let all = 0;
         for (let dj = -1; dj <= 1; dj++) { const t = S[j + dj]; if (t) for (const [b, c] of t.votes) { w.set(b, (w.get(b) || 0) + c); all += c; } }
         S[j].w = all ? [...w].map(([b, c]) => [b, c / all]) : null;
-        S[j].F = new THREE.Matrix4(); S[j].I = new THREE.Matrix4(); S[j].k = 1;
+        S[j].F = f64(new THREE.Matrix4()); S[j].I = f64(new THREE.Matrix4()); S[j].k = 1;
       }
       for (let j = 0; j < n; j++) if (!S[j].w) { for (let d = 1; d < n; d++) { const t = S[j - d] || S[j + d]; if (t && t.w) { S[j].w = t.w; break; } } }
       // each ray's radius, the farthest vertex of its slice in that way; a ray without one takes it from the slices over and
@@ -1612,7 +1618,7 @@ ${PAT_GLSL}`)
         const up = []; for (let q = nd; q && q !== root; q = q.parent) up.unshift(q);
         for (const q of up) if (!chain.includes(q)) chain.push(q);
       }
-      return { o, bones, S, h0, sl, upG, rtG, fwG, owners, chain, M: new Map(owners.map(b => [b, new THREE.Matrix4()])), arm, bm: new THREE.Matrix4(), q: new THREE.Vector3(), w: new THREE.Vector3(), mid: n >> 1, frame: 0 };
+      return { o, bones, S, h0, sl, upG, rtG, fwG, owners, chain, M: new Map(owners.map(b => [b, f64(new THREE.Matrix4())])), arm, bm: new THREE.Matrix4(), q: new THREE.Vector3(), w: new THREE.Vector3(), mid: n >> 1, frame: 0 };
     }
     // a vertex's place in the world as its bone carries it now (the skinning matrix of that one bone)
     const skinM = (c, b, out) => out.multiplyMatrices(c.o.matrixWorld, c.o.bindMatrixInverse).multiply(c.bm.multiplyMatrices(c.bones[b].matrixWorld, c.o.skeleton.boneInverses[b])).multiply(c.o.bindMatrix);
