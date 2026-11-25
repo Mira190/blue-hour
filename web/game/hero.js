@@ -165,7 +165,13 @@ window.OEHero = (function () {
       // alone. And the reflection is laid over the pane at full strength: the pane is 0.2 opaque, and with ordinary
       // blending its reflection was drawn at a fifth. Premultiplied, the pane's own colour goes in at its opacity and what
       // it mirrors on top, as glass does
-      if (h.probe && /^glass/.test(name)) {
+      // Not on a phone (the owner's iPhone, 25 November: "the orange fog on the glass"): its cube is 64 a side, and a warm
+      // lamp of the roof's, held in so few texels and prefiltered, spread over degrees of it: four percent of that over the
+      // whole pane read as an orange fog over the city behind. Real glass at night is near clear face on, and mirrors a lamp
+      // as a point. A phone's glass mirrors the scene's own environment, the sky, dark at night, as any glass does without a
+      // probe; and no cube is made or taken for its level (six faces and a conversion each time it is shown, issue 192). A
+      // desktop's cube is 256 a side and its lamps stay points (tools/views/shibuya-skyroof.json, glass-bench at night)
+      if (h.probe && /^glass/.test(name) && tier !== 'low') {
         m.envMap = probeOf(h).texture; m.premultipliedAlpha = true; m.userData.probeGlass = true;
         const prev = m.onBeforeCompile;
         m.onBeforeCompile = (sh, r) => {

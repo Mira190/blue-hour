@@ -1381,15 +1381,20 @@ first principles:
   the date, hour and sky chosen over it in amber, the crossing's coordinates under it.
 - *One flight.* The camera's way is one curve (`fly`: the points it passes, what it looks at from each, the lens at
   each) and the shots are only windows on it for the type and the score, so nothing jumps at a cut. It is flown at a
-  pace set by its height over the ground: each metre counts as one over the height to the power 0.6, so 600 m up it
+  pace set by its height over the ground: each metre counts as one over the height to the power 0.45, so 600 m up it
   drifts as a held reveal does, lower down the city streams past at a steady rate, and it slows into the hand-over. This
   is the fly-to of web maps and globes (J. J. van Wijk and W. A. A. Nuij, *Smooth and efficient zooming and panning*,
   2003, which Mapbox GL JS's and CesiumJS's flights follow: speed over the ground in proportion to what is seen),
-  softened, since at the full rate the high part was a rush.
-- *The beats.* `over` (8.5 s): from 600 m over Omotesando, the whole district to the horizon and the title. `glide`
-  (8 s): down towards the station's towers. `edge` (5 s): at the deck's height to the north edge of SHIBUYA SKY's roof,
-  its lit parapet ahead, and over it. `dive` (8.5 s): down the tower's face and out over the crossing to
-  above where you stand, the crowd gathered at every kerb, and the walk turns green under you. `land` (6 s): straight
+  softened, since at the full rate the high part was a rush. Softened again on 25 November, at the owner's word (issue
+  229: "far too fast; there's no time to enjoy the night view"): the same way flown in 40 s where it was 30, at 0.45
+  where it was 0.6, so the city high up passes at under half the speed it did (some 40 m/s at 400 m, not 90), each
+  shot at least 6.5 s, 40 s from the air before the land shot. Timed by the game's clock, in seconds, never by frames: a
+  120 Hz display sees the length a 60 Hz one does. A first visit and a later one see the same film; a key, a tap or
+  the skip button is the way to pass it (`tools/walk_play.js` measures both: `WALK_ONLY=film`).
+- *The beats.* `over` (12.4 s): from 600 m over Omotesando, the whole district to the horizon and the title. `glide`
+  (11.5 s): down towards the station's towers. `edge` (6.5 s): at the deck's height to the north edge of SHIBUYA SKY's roof,
+  its lit parapet ahead, and over it. `dive` (9.6 s): down the tower's face and out over the crossing to
+  above where you stand, the crowd gathered at every kerb, and the walk turns green under you. `land` (6.5 s): straight
   down into the surge onto your shoulder, still looking across the crossing until the last second (`lookHold`), never
   tipped onto the tops of heads. Its way keeps clear of the roofs and of the trees' crowns: a first way down from the
   station's side passed through the twenty-metre zelkova on that corner.
