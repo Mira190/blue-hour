@@ -1389,6 +1389,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
     }
     else if (s.phase === 'after') await mark(s, 'after');
+    // (and nobody of the crowd in front of the lens at an after, the finder's picture: frame 7's closing one had a passer-by 2 m in
+    // front of it, a third of the frame, #232. A drawn walker within 5 m along the view and within its width there fails)
+    if (s.phase === 'after' && !seen.has(`lensfront-${s.fi}`) && await p.evaluate(() => !!window.__game.story.finder)) { seen.add(`lensfront-${s.fi}`);
+      const f = await p.evaluate(() => { const g = window.__game, c = g.camera, T = window.THREE, d = c.getWorldDirection(new T.Vector3()), out = [], R = g.crowdDraw && g.crowdDraw();
+        if (R && R.active) for (const [i, r] of R.active) { if (!r.root.visible) continue; const v = r.root.position.clone().add(new T.Vector3(0, 1.2, 0)).sub(c.position), t = v.dot(d), side = v.clone().addScaledVector(d, -t).length();
+          if (t > 0.3 && t < 5 && side < 0.5 + 0.35 * t) out.push(`walker ${i} ${t.toFixed(1)} m ahead, ${side.toFixed(2)} m off the axis`); }
+        return out; });
+      if (f.length) { errors.push(`frame ${s.fi + 1}'s after: someone of the crowd in front of the lens (${f.join('; ')})`); console.log(errors[errors.length - 1]); }
+      else console.log(`frame ${s.fi + 1}'s after: nobody of the crowd within 5 m in front of the lens`);
+    }
     await p.waitForTimeout(500);
   }
   };
