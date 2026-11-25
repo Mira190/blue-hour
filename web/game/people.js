@@ -501,6 +501,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // on a phone (quality.js lean) an NPC's pictures go up at LEAN_PX a side: a 1024 one is 5.3 MB of the GPU with its
     // mipmaps, two or three a character and twenty-odd characters a map (130 MB in Tokyo, issue 406), for someone who
     // stands a few hundred pixels tall at most on a phone's canvas. The characters you play keep theirs
+    const WARM_CAP = 20; // (s: the longest a character that has come waits on its warm-up before it is shown, below)
     const QC = window.OEQuality ? OEQuality.city() : null, LEAN_PX = 512 >> ((QC && QC.lighter) ? 1 : 0), lean = !!(QC && QC.lean); // (256 after the map's page died here: quality.js died)
     const smaller = (tpl, only, PX = LEAN_PX) => {
       const jobs = [];
@@ -611,7 +612,11 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // the crowd's cast came between the loader's compile and the title, and the title's first frames linked their
       // programs in a draw, issue 31. Until then the far crowd's copy of each stands in. A main character is wanted by
       // the load itself, and does not wait)
-      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {}) : Promise.resolve(); };
+      // (and shown after WARM_CAP seconds however far the warm-up has come: its pictures go up a frame at a time behind the
+      // crowd's and the levels', and on a slow machine Nagi waited minutes in that queue, never drawn, the walk's check failing
+      // "not drawn ten minutes after setting out". A frame's hitch as the rest go up on its first draw, not someone missing)
+      const warmCap = p => Promise.race([p, new Promise(r => setTimeout(r, WARM_CAP * 1000))]);
+      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {})) : Promise.resolve(); };
       // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not
       // its head's and its hair's at 1024: a phone's canvas is 760 pixels wide and shows that face 300 across at its nearest, in a talk's
       // two-shot, and a texel finer than a pixel is not seen. At 512 a side whatever the phone's level (the cast's go to 256 on the lighter ones): 8 MB of the GPU less: issue 130. ?herotex=full: as they come, to set beside, tools/hero_face_shot.js)
@@ -622,6 +627,9 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       });
     };
     const clipsOf = sex => lib.loading[`clips:${sex}`] || (lib.loading[`clips:${sex}`] = get(NP.clips[sex].file).then(g => g.animations));
+    // (a load asked for again: one that never answered (a request dropped, a server that went quiet) is fetched afresh,
+    // game.js npcLoad; one that came is kept)
+    lib.forget = name => { if (!lib.tpl[name]) delete lib.loading[name]; };
     lib.require = name => {
       const h = lib.heroes[name], c = lib.npcs[name];
       if (c) {
