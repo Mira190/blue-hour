@@ -3734,6 +3734,42 @@ path, the old checks gave exactly that position and pace every time. The neighbo
 switch, taken out before it landed): phone frame 1, the crowd's update 3.28 to 2.94 ms a call (−0.32 ± 0.09); phone
 frame 7 −0.15 ± 0.21; desktop frame 1 +0.30 ± 0.37 (no change measured: its plazas' crowd moves more).
 
+**The arms' clearance, optimised again** (25 November, #130's item 1). Switched off in blocks (`tools/crowd_cost.js`
+`AB=` on a temporary switch), `people.js` `armsClear` was 4.5 to 4.9 ms of a desktop's crowd update (some 30 near
+people, 1,060 points asked, 4,000 slice frames read and 345 made a call), not the 8 its profile said: on this machine
+the sampler is starved and books its long gaps to whatever runs. Timed in the page, a slice's frame cost 3.8 µs to
+make, and V8's trace (`--trace-opt --trace-deopt`) said why: `sliceAt` was thrown out of its optimised code 35 times in
+a minute, "wrong map", and ran unoptimised. A new `THREE.Matrix4`'s sixteen numbers are small integers; the first
+fraction written into them changes the array's kind, and every rig loaded as the crowd moved past brought new ones.
+The slices' and the bones' matrices now hold doubles from the start (`Float64Array`, the same numbers): no deopt of
+`sliceAt` in the same minute, a slice's frame 1.1 µs, and the arms' clearance a desktop's 2.9 ± 0.6 ms a call (from 4.5
+to 4.9) and a phone's 0.69 ± 0.09 (from 0.84). Its look is the same: the near crowd's arms over twenty seconds, 828
+readings, none deeper than 2 cm in its own body, the deepest 1.2 cm (main the same run: 858 readings, the deepest 2.3
+cm); stills of the crowd at the kerb before and after show nothing changed. The same trace names other functions of
+the crowd thrown out of their optimised code while it plays (`actors.js` `carDepth`, `blocked`): next to look at.
+
+**Functions thrown out of their optimised code while the player plays** (25 November). `tools/deopt_survey.js` reads
+V8's own trace (`--trace-deopt-verbose`) over a minute of play after the page has settled, and counts every deopt by
+function, place and reason (the loops' on-stack exits left out). A function thrown out again and again runs unoptimised
+in between, as `sliceAt` did. On main at 0e6c3fa9, a session's machine:
+
+| a minute of | deopts | the repeated ones |
+|---|---|---|
+| desktop, frame 1 | 213 | `verts.js` `unorm8` 48 (packing a streamed cell's colours: insufficient feedback at its range test), `trees.js` `sort` 15 |
+| phone, frame 1 | 290 | `unorm8` 44, `junctions.js` `update` and `light` 2 to 5 each, `actors.js` `twin`, `twinOf`, `slotAt` 2 each |
+| desktop, frame 7 | 198 | `unorm8` 48, `unorm16` 5, `people.js` `begin` 7 |
+| phone, frame 7 | 117 | none more than 3 |
+| desktop, the walk | 98 | **`people.js` `begin` 57** (the renderer's, every frame) |
+| phone, the walk | 26 | `game.js` `crowdKeep` 3 |
+
+The rest are once each: a function meeting a new kind of object as the evening goes on, which costs one recompile.
+`begin`'s were two: `lib.tpl`, the loaded cast by name, grew one name at a time and each name was a new shape of it; and
+the stand-in for a near walker whose own model has not come was picked from a list filtered fresh, an empty one an
+array of another kind. `lib.tpl` and `lib.loading` are now made without a prototype (a dictionary from the start, one
+shape), and the stand-in is picked by counting, the same pick: the walk's minute 98 deopts to 58, `begin` none.
+`unorm8` is the cells' streaming's (#192). `carDepth` and `blocked`, thrown out in the first trace, were not in these
+windows.
+
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.
 
