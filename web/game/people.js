@@ -1275,6 +1275,7 @@ ${PAT_GLSL}`)
       mesh.frustumCulled = false;
     }
     const root = new THREE.Group();
+    root.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
     root.add(model);
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);

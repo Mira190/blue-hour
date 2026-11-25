@@ -97,6 +97,7 @@ window.OECompanion = (function () {
   function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1, lean = false, eye = null, warm = null }) {
     const RUN = speeds.run || speeds.trot * 2.6;
     const root = new THREE.Group();
+    root.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
     root.visible = false;
     world.add(root);
     // a pale ring on the ground under it while it leads: where the guide is, seen over a crowd's heads from behind

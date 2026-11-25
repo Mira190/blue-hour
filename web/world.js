@@ -3066,8 +3066,46 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       }
       renderer.setRenderTarget(was[0]); renderer.clippingPlanes = was[1];
     };
+    // A model drawn whole or not at all (issue 241). A person is several meshes (the body, and the head's face, scalp and
+    // hair, materials of their own), and the gate decided each mesh by itself: a woman's head, whose material was linked,
+    // stood on the Scramble's asphalt with no body under it while her body's program was still linking, as the walk was
+    // handed over. So a mesh under a model marked whole (userData.whole: a person's rig, the guide, a car, the helicopter)
+    // that has not been drawn yet is drawn only once every part of that model not yet drawn has its program ready: until
+    // then all of them wait together (and those with no program yet are made after the frame, as one mesh's is below).
+    // A part added to a model already on the screen (an umbrella put up) waits by itself, as before: the model is whole.
+    const wholeOf = new WeakMap(), wholeReady = new Map();
+    const modelOf = o => {
+      let u = wholeOf.get(o);
+      if (u !== undefined) return u;
+      u = null;
+      for (let q = o; q; q = q.parent) if (q.userData && q.userData.whole) { u = q; break; }
+      wholeOf.set(o, u);
+      return u;
+    };
+    const partWaits = (o, camera, sc) => { // (a mesh of a model not yet drawn: is its own material's program not ready?)
+      if (drawn.has(o)) return false;
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) {
+        if (!m) continue;
+        const mp = props.get(m);
+        if (mp.programs && mp.programs.size) { if (linking(mp)) return true; continue; }
+        if (!tried.has(o) && !sc.overrideMaterial) { if (!late.has(o)) { late.set(o, [camera, sc, renderer.getRenderTarget(), renderer.clippingPlanes.slice()]); n.late++; if (!due) { due = true; setTimeout(make, 0); } } return true; }
+      }
+      return false;
+    };
+    const modelWaits = (u, camera, sc) => {
+      const f = renderer.info.render.frame, k = wholeReady.get(u);
+      if (k && k.f === f) return k.wait;
+      let wait = false;
+      u.traverseVisible(o => { if (!wait && o.isMesh && !(o.userData && o.userData.fadeGhost) && partWaits(o, camera, sc)) wait = true; });
+      wholeReady.set(u, { f, wait });
+      if (wholeReady.size > 4096) wholeReady.clear(); // (a frame's answers; the models of earlier frames let go)
+      return wait;
+    };
     renderer.renderBufferDirect = function (camera, sc, geometry, material, object, group) {
       if (sc === scene && material && object && !renderer.__gate.pass && own()) {
+        const u = !drawn.has(object) && modelOf(object);
+        if (u && modelWaits(u, camera, sc)) { n.held++; n.whole = (n.whole || 0) + 1; return; }
         if (!drawn.has(object)) {
           const mp = props.get(material);
           if (mp.programs && mp.programs.size) { if (linking(mp)) { n.held++; return; } }

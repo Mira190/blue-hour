@@ -59,6 +59,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_play.js out_dir [WxH] [hour] [sky]     (390x844: a phone, by touch; hour blue|night|live, sky clear|rain)
 const { chromium } = require('playwright');
+const { wholeWatch, wholeReport } = require('./whole_watch.js');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
@@ -111,6 +112,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 226; off by default, the walk check being near its time cap)
+  await p.addInitScript(wholeWatch); // (nobody drawn in part: tools/whole_watch.js, issue 241)
   if (process.env.LENSGUARD === '0') await p.addInitScript(() => { window.__lensGuardOff = true; }); // (the game's lens guard off, to weigh its cost)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
@@ -338,6 +340,13 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       }
       if (sunk.length) fail(`someone drawn near you with their head at the floor: ${[...new Set(sunk)].slice(0, 4).join('; ')}`);
       else ok('everyone drawn within 40 m stands with their head over the floor');
+    }
+    // (and nobody drawn in part, from the page's start through the handover: a woman's head drew while her body's shader
+    // was still linking and the draw gate held it, issue 241; tools/whole_watch.js)
+    {
+      const R = wholeReport(await p.evaluate(() => window.__whole));
+      if (R.fail) { for (const l of R.lines) console.log(l); fail(R.fail); }
+      else ok(`nobody drawn in part through the walk's handover (${R.lines[0]})`);
     }
     // the walk's way in, the first time from the title (game.js walkIntro): the office rings in its own voice, the corner's
     // Your car lit while the car is spoken of; passed line by line, and kept as heard

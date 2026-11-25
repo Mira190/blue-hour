@@ -61,7 +61,11 @@ The walk's opening (`game.walk.overture`, STORY.md "The walk's opening") is look
 [WxH] [hour] [sky]` sets out as the story's last card does on a fresh page, holds the film on a virtual clock, takes a still at
 a few points of each shot (`K`, `SHOTS`) with the bars, the title and the names, prints the camera's clearance over the
 roofs and from the trees' crowns (failing under 4 m) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
-cameras over the walk for scouting. The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
+cameras over the walk for scouting. Nobody drawn in part (issue 241): `tools/whole_watch.js` watches every draw of the
+scene from the page's start, and a frame that draws one mesh of a person, the guide or a car and holds another (the draw
+gate in `web/world.js`, which lets a mesh whose shader is still linking come late) fails `tools/walk_play.js` through the
+walk's handover; `tools/whole_check.js out [WxH] [hour] [sky]` runs it alone, from the opening's film to `WAIT` seconds
+after the handover. The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
 
 What lights a person (issue 123): `xvfb-run -a node tools/cast_probe.js [HH:MM]` opens the walk at that hour and prints the

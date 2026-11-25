@@ -275,6 +275,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     const I = lib.info.cars, M = I.models[name], node = lib.cars.scene.getObjectByName(name);
     const mats = materials(Object.assign({ paint: '#d8dadc', seat: '#3b3d41', lining: '#3e3c39' }, colours), M.finish);
     const g = new THREE.Group(), body = new THREE.Group(), mirror = keep === 'right' ? -1 : 1;
+    g.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
     g.add(body);
     const half = M.length_m / 2, hw = M.width_m / 2, r = M.wheel_r_m, wb = M.axles_m[0] - M.axles_m[1];
     const hubs = [];

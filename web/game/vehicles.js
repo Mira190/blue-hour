@@ -264,6 +264,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // way (load with heli: 'later'): nothing on the pad until it comes, or the kit-built one if you get in
     // first or it can't be loaded; it takes the kit's place as soon as nobody is aboard
     const g = new THREE.Group();
+    g.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
     let V = null, real = null, warmed = false, ready = null, swap = null;
     const wear = v => { if (V) g.remove(V.group); V = v; g.add(v.group); };
     // the searchlight is in the world from the start, whether or not the model has come (heliModel carries
