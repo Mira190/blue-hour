@@ -87,9 +87,24 @@ window.OEWalkTalk = (function () {
     const faceMe = n => { const me = ctx.here(); if (ctx.shift) ctx.shift(n, n.x, n.y, Math.atan2(me.x - n.x, me.y - n.y)); };
     function gateBegin(n) {
       const W = lineS.wait;
-      gate = { ph: 'walk', n }; n.fixed = true;
+      gate = { ph: 'walk', n, t: 0 }; n.fixed = true;
       bark(n.id, W.up, 3.4);
       after(1.4, () => { if (gate && gate.ph === 'walk') walk(n, W.gate, 1.3, () => { if (!gate) return; gate.ph = 'ask'; faceMe(n); }); });
+    }
+    // (and her walk to the gate ends, whatever came between: on a night of rain a walk's play left her gate at 'walk' for good
+    // after the incident, she never at the station's front, and the walk had nowhere to go, issue 211. Whether the pause
+    // before it was never let run out or her steps were held (a talk, a seat, the way blocked), once the game's clock has
+    // run as long as the walk takes and 8 s more with nothing hiding the walk, she is put at the gate, facing you)
+    function gateGuard(dt, hide) {
+      if (!gate || gate.ph !== 'walk' || hide) return;
+      const n = gate.n, to = lineS && lineS.wait && lineS.wait.gate;
+      if (!n || !to) return;
+      if (n.talking) n.talking = false; // (nothing hides the walk, so no talk of hers is open: a box shut over by another left it set)
+      gate.t += dt;
+      if (gate.t < 1.4 + Math.hypot(to[0] - n.x, to[1] - n.y) / 1.3 + 8) return;
+      moving.delete(n.id);
+      if (ctx.step) ctx.step(n, to[0], to[1], Math.atan2(to[0] - n.x, to[1] - n.y), 0);
+      gate.ph = 'ask'; gate.guarded = true; faceMe(n);
     }
     function gateTalk(n) {
       const W = lineS.wait;
@@ -566,7 +581,7 @@ window.OEWalkTalk = (function () {
       help(n) { if (!inc || inc.ph !== 'down' || busy) return false; getUp(true); return talk(n); },
       line: () => (lineS ? { ph: inc ? inc.ph : '', ctl: inc ? +(inc.ctl || 0).toFixed(1) : 0, startedAt: inc && inc.at != null ? +inc.at.toFixed(1) : null, v: inc ? inc.v || 0 : 0, inc: of(lineS).inc || '', part: of(lineS).part, done: !!of(lineS).done, man: inc && inc.man ? [+inc.man.x.toFixed(1), +inc.man.y.toFixed(1)] : null, at: (n => (n ? [+n.x.toFixed(1), +n.y.toFixed(1), n.rig && n.rig.pending ? 'pending' : n.sit ? 'down' : 'up'] : null))(ctx.npc(lineS.npc)) , gate: gate ? gate.ph : '', wait: waitOn, w: of(lineS).w || '' } : null),
       // each frame on the walk: what was asked met, and the marks drawn (hide: a talk, a menu, the camera up)
-      tick(dt, hide) { if (!on) return; laterTick(dt, hide); incident(dt, hide); check(); street(dt, hide); barkNear(ctx.here(), hide); draw(hide, dt); },
+      tick(dt, hide) { if (!on) return; laterTick(dt, hide); gateGuard(dt, hide); incident(dt, hide); check(); street(dt, hide); barkNear(ctx.here(), hide); draw(hide, dt); },
       // the street moments, for the checks: start one now (by its id, at one of event_spots), and where it stands
       events: { start: (id, i) => { const e = events.find(q => q.id === id); return e ? evBegin(e, spots[i || 0]) : false; }, get now() { return ev ? { id: ev.e.id, phase: ev.phase } : null; }, get done() { return evDone; }, get moving() { return moving.size; } },
       bark, // (someone calls out: the walk's way in ends on the first story's giver calling you over)
