@@ -1,9 +1,9 @@
 // A character's load that never settles (the walk's paired runs: "Nagi is not drawn ten minutes after setting out" and
 // "Ren is not drawn ten minutes after his street moment began", each with {"pending":true,"loading":true}: her npcLoad
 // started and lib.require of her character never resolved; only with a second browser on the machine). Here the stall
-// is made: the request for one NPC's character model is held unanswered (STALL=drop: refused instead), the walk set
-// out, you put beside them, and the page's own frames run until they are drawn as someone (their rig no longer pending)
-// or LATE seconds of the wall clock pass. On a phone's page (PHONE=1 TIER=low 390x844) the loads go one at a time
+// is made: the first request for one NPC's character model is held unanswered (STALL=drop: refused instead) and any
+// later one answered, the walk set out, you put beside them, and the page's own frames run until they are drawn (their
+// rig no longer pending, never as anyone else: they must have been asked for again) or LATE seconds of the wall clock pass. On a phone's page (PHONE=1 TIER=low 390x844) the loads go one at a time
 // (game.js npcStream), so a second NPC beside them is asked of too: a stalled one must not hold the next.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/npc_stall.js [npc=nagi] [WxH=800x500]   (LATE=120 STALL=hold|drop PHONE=1 TIER=low)
@@ -26,7 +26,8 @@ const LATE = +process.env.LATE || 120;
   const ch = npc.look.character, file = ((I.npcs && I.npcs.characters && I.npcs.characters[ch]) || (I.heroes && I.heroes.characters && I.heroes.characters[ch]) || {}).file || `${ch}.glb`;
   console.log(`stalling ${who}'s character ${ch}: ${file} (${process.env.STALL || 'hold'})`);
   const held = [];
-  await p.route(u => u.pathname.endsWith('/' + file.split('/').pop()), route => { if (process.env.STALL === 'drop') route.abort('failed'); else held.push(route); });
+  let asked = 0;
+  await p.route(u => u.pathname.endsWith('/' + file.split('/').pop()), route => { if (asked++ > 0) { route.continue(); return; } if (process.env.STALL === 'drop') route.abort('failed'); else held.push(route); }); // (the first ask stalled; a second goes through)
   await p.goto(`${base}?overture=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 250 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return t && getComputedStyle(t).opacity > 0.9; }, null, { timeout: 900000, polling: 500 });
@@ -42,11 +43,11 @@ const LATE = +process.env.LATE || 120;
   let st = null;
   while (Date.now() - t0 < LATE * 1000) {
     await p.waitForTimeout(2000);
-    st = await p.evaluate(([id, oid]) => { const g = window.__game, n = g.npcById(id), o = oid && g.npcById(oid); return { pending: !!n.rig.pending, loading: !!n.loading, as: n.rig.character || (n.rig.root && n.rig.root.name) || '', other: o ? { id: oid, pending: !!o.rig.pending } : null }; }, [who, other]);
+    st = await p.evaluate(([id, oid]) => { const g = window.__game, n = g.npcById(id), o = oid && g.npcById(oid); let as = ''; if (n.rig.root) n.rig.root.traverse(q => { if (!as && q.isSkinnedMesh && q.parent) as = q.parent.name || ''; }); return { pending: !!n.rig.pending, loading: !!n.loading, as: n.rig.character || as || (n.rig.root && n.rig.root.name) || '', other: o ? { id: oid, pending: !!o.rig.pending } : null }; }, [who, other]);
     if (!st.pending && (!st.other || !st.other.pending)) break;
   }
-  const s = Math.round((Date.now() - t0) / 1000), ok = st && !st.pending && (!st.other || !st.other.pending);
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${who}, her character held unanswered (${held.length} request${held.length === 1 ? '' : 's'} held): ${ok ? `drawn after ${s} s` : `still not drawn after ${s} s`} ${JSON.stringify(st)}`);
+  const s = Math.round((Date.now() - t0) / 1000), ok = st && !st.pending && (!st.other || !st.other.pending) && asked > 1;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${who}: her character's first request held unanswered, asked ${asked} times: ${!st || st.pending ? `still not drawn after ${s} s` : asked > 1 ? `drawn after ${s} s` : `drawn after ${s} s but never asked again (as someone else?)`} ${JSON.stringify(st)}`);
   await b.close();
   process.exit(ok ? 0 : 1);
 })();

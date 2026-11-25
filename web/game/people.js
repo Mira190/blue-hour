@@ -439,7 +439,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // the far crowd's copies of the scanned cast (pipeline/crowd_cast.py, issue 475): none, and the far crowd is the dolls
     const CC = info.crowd_cast, castFile = CC && !/[?&]farcast=off/.test(location.search) ? get(CC.file).catch(e => { console.warn('crowd_cast', e); return null; }) : null;
     const [aM, aW, cr, fc] = await Promise.all([get(info.anims.M), get(info.anims.W), get(info.crowd), castFile]);
-    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: {}, loading: {} };
+    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: {}, loading: {}, warming: {}, hurried: {} };
     // (lib.setWarm(fn): the game's warm-up, given once its loader has compiled what the first frame shows; lib.warmed
     // resolves with it, for an NPC's character that came before it to wait on: below, ready)
     // (warmLater: the game says it will give one; a page that never does, tools/people_lineup.js, shows them as they come)
@@ -616,12 +616,13 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // crowd's and the levels', and on a slow machine Nagi waited minutes in that queue, never drawn, the walk's check failing
       // "not drawn ten minutes after setting out". A frame's hitch as the rest go up on its first draw, not someone missing)
       const warmCap = p => Promise.race([p, new Promise(r => setTimeout(r, WARM_CAP * 1000))]);
-      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {})) : Promise.resolve(); };
+      lib.warming[name] = tpl; // (lib.hurry: its pictures to the head of the queue, if someone named is waiting on it)
+      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => Promise.all([w(tpl.scene, lib.hurried[name] ? { first: true } : undefined), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {})) : Promise.resolve(); };
       // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not
       // its head's and its hair's at 1024: a phone's canvas is 760 pixels wide and shows that face 300 across at its nearest, in a talk's
       // two-shot, and a texel finer than a pixel is not seen. At 512 a side whatever the phone's level (the cast's go to 256 on the lighter ones): 8 MB of the GPU less: issue 130. ?herotex=full: as they come, to set beside, tools/hero_face_shot.js)
       return (lean && (npc || !/[?&]herotex=full\b/.test(location.search)) ? smaller(tpl, npc ? null : /_head$|_opacity$/, npc ? LEAN_PX : 512) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
-        lib.tpl[name] = tpl;
+        lib.tpl[name] = tpl; delete lib.warming[name];
         if (onMsg) onMsg(name);
         return tpl;
       });
@@ -629,15 +630,23 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     const clipsOf = sex => lib.loading[`clips:${sex}`] || (lib.loading[`clips:${sex}`] = get(NP.clips[sex].file).then(g => g.animations));
     // (a load asked for again: one that never answered (a request dropped, a server that went quiet) is fetched afresh,
     // game.js npcLoad; one that came is kept)
-    lib.forget = name => { if (!lib.tpl[name]) delete lib.loading[name]; };
+    // (and fetched as a request of its own: three.js's loader joins a request for a file to one still on its way, and the
+    // second ask waited on the held first)
+    lib.again = {};
+    lib.forget = name => { if (!lib.tpl[name]) { delete lib.loading[name]; lib.again[name] = (lib.again[name] || 0) + 1; } };
+    const fresh = (name, file) => (lib.again[name] ? `${file}?again=${lib.again[name]}` : file);
+    // (someone named waiting on this character, a person of the story or the walk you meet: its pictures sent at the head of
+    // the upload queue (world.js upload, first), ahead of the crowd's and the levels', from now or as soon as it is warming.
+    // Behind them, Nagi waited minutes to be drawn on a slow machine; she is never drawn as anyone else meanwhile)
+    lib.hurry = name => { lib.hurried[name] = true; const t = lib.warming[name]; if (t && lib.warm) lib.warm(t.scene, { first: true }).catch(() => {}); };
     lib.require = name => {
       const h = lib.heroes[name], c = lib.npcs[name];
       if (c) {
-        return lib.loading[name] || (lib.loading[name] = Promise.all([get(c.file), clipsOf(c.sex)]).then(([g, clips]) =>
+        return lib.loading[name] || (lib.loading[name] = Promise.all([get(fresh(name, c.file)), clipsOf(c.sex)]).then(([g, clips]) =>
           ready(name, { scene: g.scene, textured: true, clips, speeds: NP.clips[c.sex].ground_speed, bones: NP.bones || {}, mask: !!c.mask }, true)));
       }
       if (!h) return plain(name);
-      return lib.loading[name] || (lib.loading[name] = get(h.file).then(g =>
+      return lib.loading[name] || (lib.loading[name] = get(fresh(name, h.file)).then(g =>
         ready(name, { scene: g.scene, textured: true, clips: g.animations, speeds: h.ground_speed, bones: H.bones || {} })));
     };
     return lib;

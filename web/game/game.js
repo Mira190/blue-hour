@@ -1518,27 +1518,26 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
-  // (one whose load has not settled in NPC_WAIT seconds, a request dropped or held, is not left pending for good: drawn as
-  // someone of their sex the library already has, the request dropped to be made afresh, and themselves once they come.
-  // Pending, they were never drawn, the walk's check failing "Nagi is not drawn ten minutes after setting out" and "Ren is
-  // not drawn"; and on a phone, whose loads go one at a time, everyone after them waited too: tools/npc_stall.js)
+  // (one whose load has not settled in NPC_WAIT seconds, a request dropped or held, is asked for afresh: they are people you
+  // meet, never drawn as anyone else, and their talk and mark wait until they are drawn. Their pictures go at the head of
+  // the upload queue (people.js hurry): behind the crowd's and the levels' Nagi waited minutes, the walk's check failing
+  // "Nagi is not drawn ten minutes after setting out" and "Ren is not drawn"; and on a phone, whose loads go one at a time,
+  // everyone after them waited too: tools/npc_stall.js)
   const NPC_WAIT = 45;
-  const npcStandIn = name => { const want = lib.npcs && lib.npcs[name] ? lib.npcs[name].sex : null; return Object.keys(lib.tpl).find(k => lib.npcs && lib.npcs[k] && (!want || lib.npcs[k].sex === want)) || null; };
   const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : (() => {
-    const name = n.look.character, real = npcPut(n, lib.require(name).catch(e => console.warn(`${name} unavailable:`, e)).then(() => npcLook(n)));
+    const name = n.look.character;
+    if (lib.hurry) lib.hurry(name);
+    const real = npcPut(n, lib.require(name).catch(e => console.warn(`${name} unavailable:`, e)).then(() => npcLook(n)));
     return Promise.race([real.then(() => 'in'), new Promise(r => setTimeout(() => r('late'), NPC_WAIT * 1000))]).then(w => {
       if (w !== 'late' || !n.rig.pending) return;
-      n.loadLate = (n.loadLate || 0) + 1; console.warn(`${name}: not come in ${NPC_WAIT} s`);
+      n.loadLate = (n.loadLate || 0) + 1; console.warn(`${name}: not come in ${NPC_WAIT} s; asked for again`);
       if (lib.forget) lib.forget(name);
-      const si = npcStandIn(name);
-      if (si) return npcPut(n, Promise.resolve(Object.assign({}, npcLook(n), { character: si, pattern: null })));
-      n.loading = null; // (none to stand in yet: asked again by the stream)
+      n.loading = null; // (asked again by the stream: npcStream)
     });
   })());
-  // (a rig for look, once it comes, put in n's place: their own when their character has come, a stand-in's before)
+  // (a rig for look, once it comes, put in n's place)
   const npcPut = (n, lookP) => lookP.then(look => {
-    if (look.character !== n.look.character && !n.rig.pending) return; // (a stand-in after their own came: not wanted)
-    if (lib && !lib.tpl[look.character] && !n.rig.pending) return; // (their own that never came, after a stand-in: the stand-in stays)
+    if (!n.rig.pending) return; // (put in already, by an earlier ask that came after all)
     const old = n.rig, rig = makeRig(look);
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
     // (posed before it is put in the world, as the next frame will pose it: come in its bind pose while time was held,
