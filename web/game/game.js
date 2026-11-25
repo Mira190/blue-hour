@@ -4649,6 +4649,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const P = parked;
     if (!P) return;
     parked = null;
+    try { unparkIn(P); } catch (e) { try { console.warn('the mode could not be taken up in place, opening the page again', e); } catch (e2) { /* none */ } location.reload(); } // (the page load is the fallback here too)
+  }
+  function unparkIn(P) {
     setClock(P.clock.y, P.clock.m, P.clock.d, P.clock.min); clock.scale = P.clock.scale;
     if (weather && P.sky && weather.state.kind !== P.sky) weather.set(P.sky, { now: true });
     Object.assign(cam, P.cam); camSmooth.set(0, 0, 0);
