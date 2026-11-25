@@ -428,7 +428,24 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const forget = () => { try { localStorage.removeItem(KEY()); } catch (e) { /* storage blocked */ } };
     // the goal: one line, under the Stop's minutes or the frame the case is at
     let goalText = '';
+    // (read, then folded: the frame's words show as it begins, for their reading time, about a quarter second a word and
+    // four seconds at least, longer while the player has not moved; then only the line under them, what to do, stays, and
+    // a tap or a click on what is left opens them again. One thing to read at a time, as a game's objective is: story.css
+    // "read, then folded")
+    let foldT = 0;
+    const foldArm = (text, again = 0) => {
+      clearTimeout(foldT);
+      const at = [ctx.player.x, ctx.player.y], ms = Math.max(4000, 250 * String(text).split(/\s+/).length);
+      foldT = setTimeout(() => {
+        if (goalText !== text) return;
+        const moved = Math.hypot(ctx.player.x - at[0], ctx.player.y - at[1]) > 1.5;
+        if (!moved && again < 2) return foldArm(text, again + 1);
+        goalEl.classList.add('folded');
+      }, ms);
+    };
+    goalEl.addEventListener('click', () => { if (!goalEl.classList.contains('folded')) return; goalEl.classList.remove('folded'); foldArm(goalText, 2); });
     function goal(text) {
+      if ((text || '') !== goalText) { goalEl.classList.remove('folded'); if (text) foldArm(text); }
       const fresh = !goalText && st.beat !== 'shoot'; // (not with the camera up: the middle of the frame is the picture's) // (a goal where there was none is announced: it arrives large in the middle of the frame, then goes up to its line)
       goalText = text || '';
       if (!goalText) { goalEl.classList.remove('on', 'new'); return; }
@@ -437,6 +454,10 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       if (fresh) { goalEl.classList.remove('new'); void goalEl.offsetWidth; goalEl.classList.add('new'); }
       goalEl.classList.add('on');
     }
+    // (the goal's words as they stand on the screen, read once a frame for the marks kept out of them: a box of the words
+    // themselves, not the block's padding)
+    let gbAt = -1, gb = { right: 0, bottom: 0 };
+    const goalBox = () => { const t = performance.now(); if (t - gbAt > 100) { gbAt = t; let r = 0, b = 0; for (const e of goalEl.children) { const q = e.getBoundingClientRect(); if (q.height > 0) { r = Math.max(r, q.right); b = Math.max(b, q.bottom); } } gb = { right: r, bottom: b }; } return gb; };
     const clockOf = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
     // a place as the beacon and the mark want it: [x, y, the height of a head there, the floor]
     const spot = p => { const z = p[2] != null ? p[2] : ctx.floor(p[0], p[1]); return [p[0], p[1], z + 1.2, z]; };
@@ -526,6 +547,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
       const off = up ? !q.front || x < r[0] * W || x > r[2] * W || y < r[1] * H || y > r[3] * H : !q.front || x < m || x > W - m || y < m || y > H - m;
       if (up) { x = Math.max(r[0] * W + 22, Math.min(r[2] * W - 22, x)); y = Math.max(r[1] * H + 22, Math.min(r[3] * H - 40, y)); }
       else { x = Math.max(m, Math.min(W - m, x)); y = Math.max(m + 70, Math.min(H - m, y)); }
+      if (!up && goalEl.classList.contains('on')) { const g = goalBox(); if (x < g.right + 40 && y < g.bottom + 34) y = g.bottom + 34; } // (never drawn into the words: under the goal's box, story.css)
       mark.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       mark.classList.toggle('r', x > W - 120); mark.classList.toggle('l', x < 120); // (at a side of the frame its words are set inward, not cut by the edge)
       const lens = !!up && k === 'frame', side = off ? (q.front ? '' : ' · behind you') : ''; // (the lift's door is a place to walk to, whatever waits at the top)

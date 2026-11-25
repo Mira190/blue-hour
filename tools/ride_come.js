@@ -64,7 +64,7 @@ const [,, trials = '12', size = '800x500'] = process.argv;
       if (st.v < 0.3) { still++; run++; worst = Math.max(worst, run); const k = st.intent || st.why || '?'; stood[k] = (stood[k] || 0) + 1; } else run = 0;
       if (g.inView && g.inView(st.x, st.y, st.z)) seen++;
     }
-    const st = r.drv.st, out = { n, from, eta, took: t, still, worst, phase: g.ride() === r ? r.phase : 'gone', far: +Math.hypot(st.x - g.player.x, st.y - g.player.y).toFixed(0), stood, short: r.short || '', stucks: r.stucks || 0, stuckWhy: r.stuckWhy || '', forced, story: { beat: g.story.state.beat, goal: (document.querySelector('#g-story-goal') || {}).textContent || '' } };
+    const st = r.drv.st, out = { n, from, eta, took: t, still, worst, phase: g.ride() === r ? r.phase : 'gone', at: [+st.x.toFixed(1), +st.y.toFixed(1)], far: +Math.hypot(st.x - g.player.x, st.y - g.player.y).toFixed(0), stood, short: r.short || '', stucks: r.stucks || 0, stuckWhy: r.stuckWhy || '', forced, story: { beat: g.story.state.beat, goal: (document.querySelector('#g-story-goal') || {}).textContent || '' } };
     if (g.ride() === r && r.phase === 'coming') {
       const d = o => ({ at: [+(+o.x).toFixed(1), +(+o.y).toFixed(1)], v: +(o.v || 0).toFixed(1), why: o.why || '', intent: o.intent || '', heldBy: o.heldBy || '', q: !!o.q, mv: o.mv ? o.mv.j.id : null, line: o.line, toLine: o.toLine != null ? +(+o.toLine).toFixed(1) : null, still: +(o.still || o.held || 0).toFixed(0), walker: !!o.walker });
       const chain = [d(st)], seenC = new Set();

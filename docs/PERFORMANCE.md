@@ -2661,6 +2661,18 @@ pictures that need it. What is left in the first minute is the warm-up's own com
 people's programs, compiled in slices by `world.js compile` and waited on by a draw that came first: `alu_fin`,
 `ginza_joint`, seconds each on a software renderer); a follow-up.
 
+The queue's order (issue 194, November 2026): a class, then the distance to the player. The hero level first (`first`),
+then what a caller waits on to show it (a person's body, a train, a picture swapped in, a ground tile), then the
+background `uploadRest` sends ahead of its first draw; within a class the job nearest the camera, and those with no place
+(a character's template, not yet stood anywhere) in the order they came, which the game already makes nearest first
+(`afterPlayable` `near()`, the crowd's `need`). `?wq=fifo` keeps the old order, and `OEWorld.uploadStats()` gives each
+class's count and waits. Measured with `tools/warm_queue.js` on llvmpipe, both orders alike: on a phone's tier 81 bodies'
+and models' pictures sent within 30 s of the title (waits p50 13 s, max 22 to 25 s, the old order and the new); on a
+desktop about 150 wait behind the title, sent one an idle frame of 1 to 4 s, and `uploadRest` found nothing undrawn once
+they were in, so a body asked for then waited only for the frames (10 to 13 s, `BODY=1`). The order has nothing to
+reorder on this map today; it keeps a body asked for while a background drains from waiting behind it. What a body
+waits for is the rate, a picture an idle frame, which on a real GPU's frames is 150 pictures in two or three seconds.
+
 ### Safari
 
 Safari's WebGL crosses to the GPU process on every call, and its ANGLE on Metal resolves a multisampled half-float
@@ -3166,6 +3178,30 @@ emulated phone. They are compiled with it by the warm-up, which reaches hidden m
 on and off. From 34 m in, at day, dusk and night, the copies read as the car: the same outline, wheels and lamps. The
 one difference is the clear coat's highlight along the roof by day, which a vertex-coloured copy does not have, a few
 pixels at 34 m.
+
+### A phone's three spikes (issue 192)
+
+Measured on a phone's tier, each beat's draws put down to what drew them and to the target they went to (`tools/draw_who.js`,
+`PROBE=<still>,<still>` in `tools/story_play.js`). On main of 24 November: 3-afterimage 272 (the earlier batching had
+already taken it from 647), 5-flight-lift 420, 7-hint-place 490. What the player could not see at those beats:
+
+- **The rain's cover map** (frame 7). It is drawn every half second in heavy rain, and its moving pass drew 50 draws of
+  things that stand: the trees' sets (they were counted still only by their shadow's order, which is written while the sun
+  is up, so after dark they went with what moves), the road works at the map's edge and the canal. The far trees'
+  impostors, 200 m and more away, were drawn into a map 80 m across. Now the trees are still by what they are
+  (`oeTree`), the impostors are left out (`oeNoOcc`), and the moving pass is 12 to 15 draws. The still map (120 to 145
+  draws) was drawn in the same frame as the moving pass; now it is drawn 48 things a frame, into its own target, while the
+  cover map before it is kept, and the moving pass follows in the frame after its last part. No cover frame is more than
+  about 50 draws.
+- **The light show's beams** (frame 5, SKY's CROSSING LIGHT). 36 beams, each a mesh and a material of its own: now one
+  `InstancedMesh`, each beam's colour times its opacity in its instance colour (the beams are added light, so it is the
+  same light), its turn in its instance matrix.
+- **The trains' pools.** Each pool (a material's cars, `OEBatch.pool`) was drawn wherever any train in the city ran:
+  18 draws with nothing in view by the Scramble. A pool is now culled whole by a sphere round the cars put in it this frame.
+
+After, the same beats: 7-hint-place 328 (the worst of frame 7, 346), 5-flight-lift 385. What is left over 250 is what is
+seen: the trees' sets (43, a species and a part each), the traffic's kinds (18), the people (issue 130), the hero level's
+materials (the atlas, issue 227).
 
 ### What is left
 

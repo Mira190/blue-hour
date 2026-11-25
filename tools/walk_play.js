@@ -304,6 +304,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
     if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
     await shot('4-out');
+    // (nobody drawn near you with only a head over the floor: a woman's head and neck stood on the carriageway by the
+    // zebra as control was handed over, her body under the road, issue 241. Each whole person within 40 m, the crowd's near
+    // people and the map's, their head's height over the walk's floor where they stand, for three seconds)
+    {
+      const sunk = [];
+      for (let k = 0; k < 6; k++) {
+        sunk.push(...await p.evaluate(() => { const g = window.__game, me = g.player, R = g.crowdDraw && g.crowdDraw(), V = new THREE.Vector3(), out = [];
+          const test = (who, root) => { if (!root || !root.visible) return; let h = root.userData.headBone; if (h === undefined) { h = null; root.traverse(o => { if (!h && o.isBone && /Head$/.test(o.name)) h = o; }); root.userData.headBone = h; }
+            if (!h) return; root.updateMatrixWorld(true); h.getWorldPosition(V); const x = V.x, y = -V.z; if (Math.hypot(x - me.x, y - me.y) > 40) return;
+            const f = g.nav.floorAt(x, y, V.y); if (f && V.y - f.z < 0.9) out.push(`${who} at (${x.toFixed(1)}, ${y.toFixed(1)}): head ${(V.y - f.z).toFixed(2)} m over the floor`); };
+          if (R && R.active) for (const [i, r] of R.active) test('crowd ' + i, r.root);
+          for (const n of g.npcs) if (!n.away && !n.sit && n.rig) test(n.id, n.rig.root);
+          return out; }));
+        await p.waitForTimeout(500);
+      }
+      if (sunk.length) fail(`someone drawn near you with their head at the floor: ${[...new Set(sunk)].slice(0, 4).join('; ')}`);
+      else ok('everyone drawn within 40 m stands with their head over the floor');
+    }
     // the walk's way in, the first time from the title (game.js walkIntro): the office rings in its own voice, the corner's
     // Your car lit while the car is spoken of; passed line by line, and kept as heard
     {
@@ -508,7 +526,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         // (and if their body is still coming, a software renderer behind another browser: the seat must be offered by its mark
         // meanwhile, never an empty wall with nothing on it, visitors.js seated)
         const waiting = !sitter || sitter === 'none';
-        if (waiting && !(pm && pm.o > 0.05)) fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place, and no mark offers it`);
+        // (said with what was there: the one who sits by it, drawn or not, and the mark's state, so a failure says which half failed)
+        const why = waiting && !(pm && pm.o > 0.05) ? await p.evaluate(() => { const g = window.__game, s = g.perch.list[0], V = g.visitors, me = g.player; const q = V ? V.groups.flatMap(G => G.people).filter(v => v.p.sit != null && Math.hypot(v.x - s.at[0], v.y - s.at[1]) < 2.5) : []; const e = document.querySelector('.g-walk-mark[data-k="place"]'); return `sitters ${JSON.stringify(q.map(v => ({ shown: !!v.shown, rig: !!v.rig, ch: v.p.look && v.p.look.character })))}; mark ${e ? `opacity ${e.style.opacity}` : 'none'}; you ${Math.hypot(me.x - s.at[0], me.y - s.at[1]).toFixed(1)} m off, mode ${me.mode || '?'}; queue ${JSON.stringify(window.OEWorld.uploadStats ? window.OEWorld.uploadStats() : null)}`; }).catch(e => String(e)) : '';
+        if (waiting && !(pm && pm.o > 0.05)) fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place, and no mark offers it (${why})`);
         else if (waiting) ok(`nine metres from ${seat.name}: the one who sits beside it has not come yet (their body still loading), and the mark offers the place meanwhile ("${pm.name}")`);
         else ok(`nine metres from ${seat.name}: someone sits ${sitter.d} m from the free place (${sitter.who})`);
         // (sat on the stone drawn, not on the walking grid's wider block: a ray down through the meshes, tools/drawn_seat.js)
