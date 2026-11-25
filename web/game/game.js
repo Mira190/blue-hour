@@ -855,7 +855,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return best;
   };
   // a hero level's programs are not compiled while the world is stopped: on a phone each is a hitch of its own, and a
-  // Stop is where the player stands looking. Its compile waits, a frame at a time, and goes on once the world runs (the
+  // Stop is where the player stands looking. Its compile, in slices, waits a frame at a time while a Stop is on and goes
+  // on once the world runs (the
   // levels a Stop will see are fetched a frame ahead instead, stopAnchor). Not behind the way in's veil, which waits for
   // the level (holdForLevel)
   const stopHeld = () => { try { return !!(story && story.stopped) && !levelHold; } catch (e) { return false; } }; // (the story not made yet)
