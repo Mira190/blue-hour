@@ -1754,7 +1754,10 @@ html.bh-leave #g-menu { pointer-events: none; }
 #g-story-goal span { max-height: 14em; overflow: hidden; transition: max-height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s ease; }
 #g-story-goal.folded:has(em:not(:empty)) span { max-height: 0; opacity: 0; }
 #g-story-goal.folded:has(em:not(:empty)) em { margin-top: 0; }
-#g-story-goal.folded:has(em:not(:empty)) { pointer-events: auto; cursor: pointer; padding-bottom: 20px; }
+#g-story-goal.folded:has(em:not(:empty)) { padding-bottom: 20px; }
+/* (only the words left take the tap that opens them again, each as wide as its words: the block itself is the width of a
+   phone's screen, and took the tap meant for the story's menu at its right, budget1's "the menu did not open") */
+#g-story-goal.folded:has(em:not(:empty)) :is(small, em) { pointer-events: auto; cursor: pointer; width: fit-content; }
 /* (a notice is one short line at the foot of the frame, small and brief, never a box in the middle of the play; during a
    talk it keeps its place over the words, above) */
 .game-stage.story .g-toasts { top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); width: min(560px, calc(100% - 48px)); }
