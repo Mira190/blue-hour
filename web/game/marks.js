@@ -62,12 +62,12 @@ window.OEMarks = (function () {
     }
     const cover = { top: 0 };
     // the blocks of words on the screen, read every 150 ms (a layout read, not one a mark)
-    let wordsAt = -1, words = [];
+    let wordsAt = -1, words = []; const rg = document.createRange(); // (the lines of words themselves, not their elements' boxes: the walk's corner is as wide as the frame)
     const WORDS = '#g-story-goal > :not(:empty), #g-walk-where, #g-walk-told.on, .g-toasts .g-toast:not(.out)';
     const overWords = (x, y, pad) => {
       const t = performance.now();
-      if (t - wordsAt > 150) { wordsAt = t; words = []; for (const e of document.querySelectorAll(WORDS)) { const r = e.getBoundingClientRect(), c = getComputedStyle(e); if (r.width > 2 && r.height > 2 && c.visibility !== 'hidden' && +c.opacity > 0.1) words.push(r); } }
-      for (const r of words) if (x + pad > r.left && x - pad < r.right && y + pad > r.top && y - pad < r.bottom) return true;
+      if (t - wordsAt > 150) { wordsAt = t; words = []; for (const e of document.querySelectorAll(WORDS)) { const c = getComputedStyle(e); if (c.visibility === 'hidden' || +c.opacity <= 0.1) continue; rg.selectNodeContents(e); for (const r of rg.getClientRects()) if (r.width > 2 && r.height > 2) words.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, who: e.id || e.className || e.tagName }); } }
+      for (const r of words) if (x + pad > r.left && x - pad < r.right && y + pad > r.top && y - pad < r.bottom) { window.__marksWords = `${r.who} at ${Math.round(x)},${Math.round(y)} pad ${pad}`; return true; } // (the last mark kept off the words, and by what: a check reads it)
       return false;
     };
     return {
