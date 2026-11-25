@@ -34,8 +34,8 @@ story cues, dialogue ticks ─► storyBus ────────────�
 ```
 
 - **The street** (screens, walk calls, footsteps, rain, wind, horns, trains) is braked by
-  the Stop. **The score** is not: it is not the street's. **The story's own sound** is never braked or
-  ducked: it is what is heard in a stopped street.
+  the Stop. **The score** is not braked but goes silent in a Stop (The score, below). **The story's own sound** is never
+  braked or ducked: it is what is heard in a stopped street, and in a Stop the player's footsteps join it.
 - **Off** (the Sound switch) suspends the context after the fade, so a muted phone computes nothing.
 - **The street's beds** (the rotor, an engine, the wind, a car, its tyres, the rain) are made the first time each is
   asked to be heard, not with the context: made with it, a dozen sources and filters ran silent on a phone's audio
@@ -56,10 +56,34 @@ lets it go. The tape keeps the last five seconds of the world's bus in a ring an
    closing from 11 kHz to 150 Hz, at a gain of √k;
 2. **holds**: under the brake, as k falls, grains of the ring round where it stopped (80 to 300 ms,
    at the pitch, a fifth, an octave and a twelfth over, high-passed at 900 Hz) rise into a shimmer made
-   of nothing but the last sound the street made, for as long as time is held, about 11 dB under the
-   live street;
+   of nothing but the last sound the street made, about 11 dB under the live street, and die away once the
+   tape has stopped (a time constant of 0.8 s: 29 dB down in 2.7 s, gone in 5.5), an afterimage of the street and
+   not a bed under the Stop;
 3. **spins up** on release over 0.6 s (k from 0 to 1) from where it stopped, and crosses into the
    live street in 0.25 s.
+
+**What is heard in a Stop.** The owner, 25 November 2026: "after time stops there is still sound; should the music stop
+too? How would a AAA game do it?" Four layers were sounding in a held street: the score (the pad on one chord and the
+theme, about 20 dB over the braked street), the choir, the tape's shimmer for as long as time was held, and on a phone
+whose frames had fallen under 18 fps for eight seconds the loading cue's piano (`cue-phone.mp3`, a media element outside
+the graph, so never braked); and the player's own steps were braked with the street, so walking through a Stop was
+silent. What games do (Quantum Break's stutters, Superhot, Returnal; film's "subjective silence") is take the world's
+sound away and leave the protagonist's. So now:
+
+- the score is out within half a second (`music.js`: every layer to nothing, no note written while held) and comes
+  back on the bar line after;
+- the shimmer dies away (above); the choir is the one bed left, 6 dB under what it was;
+- the player's steps go to the story's bus while time is held, past the tape, in the long room on a desktop, dry on a
+  phone;
+- on a desktop only, the player's breath (a looped breath of shaped noise, close and dry, from 2.6 s in) and the
+  afterimage's voice while she is to be found (`ghost()`: a soft bell of her theme's G sharp, now and then the C sharp
+  over it, every 2.2 to 3.1 s, panned to her side as the camera sees her and louder as she nears; game.js gives her
+  side and distance from the story's tick), so a player can find her by ear;
+- a phone's loading-cue bed is never begun in a Stop and stopped under the Stop's cue if it is playing.
+
+**A phone only loses sound in a Stop** (the owner: phones get subtraction only): no breath, no afterimage's voice, no
+send of the steps to the long room. `DESKTOP=1 tools/sound_render.js out stop-long` renders a 13 s Stop walked
+through towards her as a mouse's page hears it; unset, as a phone's.
 
 **On a touch screen, the deck.** The owner played the episode on an iPhone (iOS 27, November 2026) and heard, from
 the opening on, a noise "as if the phone were broken". The tape was the one thing in the mix a phone does not do
@@ -789,7 +813,7 @@ again; it played on unchanged through a Stop; and nothing in it knew when the ca
 |---|---|---|
 | A theme that is assembled by the player's progress | *Outer Wilds* (A. Prahlow): each traveller found adds an instrument to one tune | The theme is five notes. The score knows two of them before the first frame and one more for each frame taken; a print's sting (`note`) is the note just earned |
 | Leitmotif, and a second theme derived from the first | Film practice since Wagner; J. Williams; *The Last of Us* (G. Santaolalla): very few notes, one instrument | Hers: G♯ E D♯ C♯ E in C♯ minor (the overture's motif, and the five syllables of 遅かったね). His is hers upside down. Played together they move in contrary motion and end on one note: two people who mirrored each other for sixty years |
-| Spotting: silence and stillness are scored | W. Murch on film sound; *Return of the Obra Dinn* (L. Pope): music only at the memory, cut dead after | No percussion anywhere. In a Stop the beat and the bass go inside a third of a second and the harmony stops moving: pulse and chord change are time's. The pad and the theme, slower, are what is left |
+| Spotting: silence and stillness are scored | W. Murch on film sound; *Return of the Obra Dinn* (L. Pope): music only at the memory, cut dead after | No percussion anywhere. In a Stop the whole score goes inside half a second: pulse, chord and theme are time's. The story's own sound (the choir, the glass, the player's steps) is what is left |
 | Vertical layers switched by game state, changes on the bar line | iMUSE (LucasArts, 1991); Wwise and FMOD interactive music | Already how `music.js` works (a bus a layer, changes on the bar line); the Stop alone does not wait for the bar |
 | Stingers at story beats, in key and made of the theme | *Ace Attorney* (the turn of a cross-examination), *Disco Elysium* | `turn` (a print settles a question; the world runs on after a reversal), `doubt` (frame 3's false solution: her first three notes with two of them a semitone flat), `meet`, `found` |
 | One major chord, kept for the end | T. Newman, J. Hisaishi: a minor score that earns one resolution | `meet` ends on E major, the chord on the note the two lines meet on. Nothing else in the score is major |
@@ -801,7 +825,7 @@ Nothing was copied from any of these: the notes, the voices and the code are our
 | When | What plays |
 |---|---|
 | Walking to a frame | Felt piano, rolled chords two bars each, a low pad, a long bass. Once in eight bars the theme on a soft bell, as far as the roll has got |
-| A Stop | Pad on one chord; the theme alone at the first bar and every eight, three beats a note |
+| A Stop | Nothing: the score is out within half a second and back on the bar line after (The Stop, "What is heard in a Stop") |
 | A print taken | `note`, 1.5 s after the shutter, under the postmark |
 | A print that answers a question (frames 5, 6) | `turn` |
 | Time runs on after frames 2, 4, 5 | `turn`; after frame 3, `doubt` |
@@ -841,7 +865,8 @@ the touch: the lower bar says so where it can be read (on screen, clear of the r
 touch and still there on the title, and the loop's join is smoother than the steps inside it.
 
 **Checked.** `tools/music_check.js` renders `story-first-frame`, `story-last-frame`, `story-stop` and
-`story-stings` with the rest (peak under −8 dBFS, never silent for two seconds, dark above 4 kHz) and
+`story-stings` with the rest (peak under −8 dBFS, never silent for two seconds but in `story-stop`'s held span, where it
+must be under −70 dB and back after, dark above 4 kHz) and
 writes them as WAV files to listen to. Not checked by ear on a device's speaker; levels against the street
 are those of the map's score, which the story played before.
 

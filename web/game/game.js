@@ -46,6 +46,7 @@ window.OpenEarthGame = async function game(cityId) {
   // frame's score takes it over. A browser gives a page no sound before it is touched: where it does, the cue starts
   // with the page; where it does not, the loading screen says so and the first key or touch starts it.
   let cue = null;
+  const ghostF = new THREE.Vector3(); // (story ctx ghostVoice's)
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
     // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
     const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', A.tunes ? !!A.needsTouch : !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
@@ -3220,6 +3221,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the story's own sound (audio.js): a cue by name, and the still chord of time held
     sfx: name => { if (name === 'wrong' || (name === 'right' && talkPrint)) talkPrint = true; else if (name === 'right') talkPrint = false; if (A.sfx) A.sfx(name); if (gamepad && (name === 'stop' || name === 'shutter')) gamepad.rumble(name); }, // (an answer judged: the line after it is a closer single; and the pad's rumble, where it has one)
     held: on => { if (A.held) A.held(on); },
+    // the afterimage's voice in a Stop (audio.js ghost): where she stands as the camera sees her, its side and distance; null, off
+    ghostVoice: at => {
+      if (!A.ghost) return;
+      if (!at) { A.ghost(null); return; }
+      const v = W(at[0], at[1], at[2] + 1.4).sub(camera.position), f = camera.getWorldDirection(ghostF), d = v.length();
+      v.y = 0; f.y = 0; v.normalize(); f.normalize();
+      A.ghost({ d, pan: v.x * -f.z + v.z * f.x, behind: v.dot(f) < -0.2 }); // (right = forward × up: (−f.z, 0, f.x))
+    },
     // time held and let go: what was falling or flying hangs where it was (stopfx.js)
     // a flight between two places (a frame's `flight`: an overture's spec, its shots, captions and where you stand at the end):
     // the helicopter is the film's guide, the camera flies with it, and a key sets you down at once
@@ -5240,11 +5249,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       if (sndBed && sndBed.dead) sndBed = null; // (let go for a film's score: one tune at a time, audio.js tune; begun again after it)
       if (cue && cue.dead) cue = false;
+      const stopNow = !!(story && story.on && story.state && story.state.phase === 'stop');
       if (playing && !film) {
         const street = !!A.ctx && A.ctx.state === 'running' && !A.holding && !A.gaveUp;
         if (sndCueOut && street) { sndCueOut = false; cueOut(); }
         if (sndBed && street) { sndBed.stop(3); sndBed = null; }
-        else if (!sndBed && !cue && (A.gaveUp || A.streetOff || (sndHeldAt && now - sndHeldAt > 8000)) && now - sndFilmAt > 2500) sndBed = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); // (or held for long: a phone at its limit hears music, not nothing)
+        else if (sndBed && stopNow) { sndBed.stop(0); sndBed = null; } // (time held: the music is time's, and a bed of it is the walk's tune, out of the graph and so never braked; it stops under the Stop's cue)
+        else if (!sndBed && !cue && !stopNow && (A.gaveUp || A.streetOff || (sndHeldAt && now - sndHeldAt > 8000)) && now - sndFilmAt > 2500) sndBed = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); // (or held for long: a phone at its limit hears music, not nothing; never in a Stop, where silence is meant)
       }
     } else if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
       const film = !!(overture && overture.active); if (film) sndQuiet = 2;
