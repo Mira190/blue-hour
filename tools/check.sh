@@ -233,7 +233,9 @@ else
       web/quality.js|web/onboard.js) static=1; page; add walk2 ;;   # (what a phone alone runs: its tier, the tour's touch words)
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|tools/el_stall_check.js|tools/score_files.js|web/assets/story/late/cue-phone.mp3|web/assets/story/late/scores.json|web/assets/story/late/score-*.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
-      web/game/cars.js|web/game/actors.js) static=1; page; add ride roads ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
+      web/game/cars.js|web/game/actors.js) static=1; page; add ride roads walk2 ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
+      # (and the phone's walk for the crowd: there it found what the desktop's did not, a walker pacing on line 2334, #236,
+      # and a head in a neighbour's canopy, #238, and a fix to the crowd on the fast tier was not played against it)
       web/game/game.js) static=1; page; add ride ;;
       web/game/junctions.js|web/game/trips.js|web/game/rides.js|web/game/pilot.js|web/game/autopilot.js|cities/$MAP/road_plan.json|cities/$MAP/road_measured.json|cities/$MAP/roads_osm.json|pipeline/road_plan.py|cities/$MAP/rail.py|cities/$MAP/road_surface.json|cities/$MAP/bus_lines.json|pipeline/road_width.py|pipeline/road_survey.py|pipeline/bus_lines.py|pipeline/road_routes.py) static=1; [ "${f#web}" != "$f" ] && page; add roads ;;   # (the road plan and what drives by it)
       web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_own.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
