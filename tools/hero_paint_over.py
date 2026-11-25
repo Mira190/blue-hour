@@ -23,7 +23,7 @@ spec = importlib.util.spec_from_file_location("hero_level", os.path.join(ROOT, "
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 geo, atlas, materials, meta = mod.build(K)
-g = geo.part("ground_paint")
+g = geo.part(os.environ.get("PART", "ground_paint"))   # (PART=ground_bed: another of its ground parts)
 P = np.asarray(g["p"], float)
 pic = Image.open(photo).convert("RGB")
 W, H = pic.size

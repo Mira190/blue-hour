@@ -61,6 +61,7 @@ TEX = {
     "paint": ("OEPaint002", 2.4),       # thermoplastic road paint (drawn here)
     "tact_bar": ("OETactileBar", 0.3),  # a 30 cm guide block: four bars (drawn here, JIS T 9251's pattern)
     "tact_dot": ("OETactileDot", 0.3),  # a 30 cm warning block: five by five domes
+    "grass": ("Grass004", 2.6),         # a bed's clipped lawn (issue 213)
 }
 
 
@@ -71,6 +72,7 @@ def materials():
         "ground_kerb": {"tex": "granite", "tint": (0.7, 0.69, 0.68), "maps": "cn"},
         "ground_paint": {"tex": "paint", "tint": (0.92, 0.92, 0.9)},
         "ground_paver": {"tex": "paver", "tint": (0.7, 0.7, 0.7)},
+        "ground_bed": {"tex": "grass"},  # (its tone below: the 2023 orthophoto's, issue 213)  # a bed's clipped lawn (issue 213: OpenStreetMap's landuse=grass)
         "ground_sett": {"tex": "plaza"},                 # Hachiko Square's blocks, drawn in their own colour (scramble_tex.plaza)
         "ground_tact_bar": {"tex": "tact_bar", "maps": "cn", "rough": 0.7},
         "ground_tact_dot": {"tex": "tact_dot", "maps": "cn", "rough": 0.7},
@@ -577,11 +579,56 @@ class Level:
                 c += 1.5 * np.sqrt(2)
 
     # -- the pavements
+    def beds(self):
+        """The planted beds OpenStreetMap maps in the paving (landuse=grass: beside A5a and along Dogenzaka-shita's
+        footways; their outlines confirmed on Tokyo's 2023 orthophoto, issue 213): each cut from the paving, a granite
+        edge 0.12 m wide and 0.14 m high round a clipped lawn 4 cm under it, and its edge a fence to a walker
+        (meta rounds, every 0.35 m). What grows in them waits on a photograph."""
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
+        out = []
+        # (not on Hachiko Square, whose landmark builds its own planters and bed: city.py; OpenStreetMap's are traced from
+        # the air and lie off them)
+        square = Polygon(_city().HACHIKO_SQUARE).buffer(1.0)
+        for w in self.D.ways:
+            if w["tags"].get("landuse") not in ("grass", "flowerbed", "planter") or len(w["xy"]) < 4:
+                continue
+            g = Polygon(w["xy"]).buffer(0)
+            if g.intersects(square):
+                continue
+            g = g.intersection(self.pave).intersection(self.disc)
+            for q in getattr(g, "geoms", [g]):
+                if q.geom_type == "Polygon" and q.area > 0.8:
+                    out.append(q)
+        self.bed_polys = out
+        self.bed_rounds = []
+        if not out:
+            return None
+        X, top, E = self.X, LIFT + 0.14, 0.12
+        for q in out:
+            inner = q.buffer(-E)
+            X.cover("ground_kerb", q.difference(inner).buffer(0), top, cell=1.0, uvk=1.0 / TEX["granite"][1])
+            if not inner.is_empty:
+                X.cover("ground_bed", inner, top - 0.04, cell=1.0, uvk=1.0 / TEX["grass"][1])
+            co = np.asarray(q.exterior.coords)
+            if Polygon(co).exterior.is_ccw is False:
+                co = co[::-1]
+            for a, b in zip(co[:-1], co[1:]):       # the edge's outer face, from the paving up to its top
+                if np.linalg.norm(b - a) < 0.02:
+                    continue
+                self.geo.quad("ground_kerb", self.Gp(*b, LIFT), self.Gp(*a, LIFT), self.Gp(*a, top), self.Gp(*b, top))
+            L = q.exterior.length
+            n = max(3, int(L / 0.35))
+            self.bed_rounds += [[round(p.x, 2), round(p.y, 2), 0.2] for p in (q.exterior.interpolate(i * L / n) for i in range(n))]
+        return unary_union(out)
+
     def pavements(self):
         X, A = self.X, self.A
         plaza = self.box(PLAZA[0], PLAZA[1], PLAZA[2], PLAZA[3])
-        X.cover("ground_sett", self.pave.intersection(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / self.K.TEXTURES["plaza"][1])
-        X.cover("ground_paver", self.pave.difference(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / TEX["paver"][1])
+        bed = self.beds()
+        pave = self.pave.difference(bed).buffer(0) if bed is not None else self.pave
+        X.cover("ground_sett", pave.intersection(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / self.K.TEXTURES["plaza"][1])
+        X.cover("ground_paver", pave.difference(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / TEX["paver"][1])
         self.geo.walls += [(np.asarray(a), np.asarray(b), self.T(*a), self.T(*a) + 4.0) for poly in getattr(self.solids, "geoms", [self.solids])
                            for a, b in zip(list(poly.exterior.coords)[:-1], list(poly.exterior.coords)[1:]) if np.linalg.norm(np.subtract(a, b)) > 1.0]
         # a cast-iron grate round each tree that stands in the paving (OpenStreetMap's trees)
@@ -1058,7 +1105,9 @@ def build(K):
     M = materials()
     # the pavements, the square, kerbs and gutters in close tones of one grey family (AGENTS.md, "The bar"): each
     # texture brought to its tone by its own mean, so that a yellowish block ends as a grey
-    for mat, key, srgb in (("ground_paver", "paver", (150, 150, 148)),
+    # (the beds' lawn: the median of their pixels in Tokyo's 2023 orthophoto against the paving round them, in linear
+    # light, 1.04 / 1.06 / 0.83 of the paving's: as bright as it, a little yellow-green; issue 213)
+    for mat, key, srgb in (("ground_paver", "paver", (150, 150, 148)), ("ground_bed", "grass", (153, 154, 136)),
                            ("ground_kerb", "granite", (160, 160, 158)), ("ground_gutter", "conc", (152, 152, 150)),
                            ("wall_white", "tile", (192, 192, 188)), ("wall_cream", "tile", (190, 180, 164)), ("wall_grey", "clad", (158, 160, 162)),
                            ("wall_clad", "clad", (176, 180, 184)), ("wall_char", "clad", (62, 64, 68))):
@@ -1069,5 +1118,6 @@ def build(K):
     # (web/game/nav.js lift), and the lamp posts, which are solid (game.js)
     meta["lift"] = LIFT + 0.01
     meta["posts"] = [[round(float(q[0]), 1), round(float(q[1]), 1)] for q in L.lamp_at]
+    meta["bed_rounds"] = L.bed_rounds          # (into city.json's rounds beside the planters: blender/build_hero.py)
     print("game.hero:", json.dumps({"lift": meta["lift"], "posts": meta["posts"]}))
     return geo, atlas, M, meta
