@@ -3191,6 +3191,18 @@ After, the same beats: 7-hint-place 328 (the worst of frame 7, 346), 5-flight-li
 seen: the trees' sets (43, a species and a part each), the traffic's kinds (18), the people (issue 130), the hero level's
 materials (the atlas, issue 227).
 
+Then frames 1 to 3, where every player starts (phone, `PROBE=` lists of 2-find and 3-cam-down):
+
+- **The 1964 camera on the player's chest**: 18 parts in five materials, a draw each, in every beat it is worn. Now
+  merged a material each at its build (`people.js` `oldCamera`), its 3,300 triangles as they were: 18 draws to 5.
+- **The road works and the canal** stood out of the visibility sweep: drawn wherever the player was. Both are now
+  gated (`OEVis.gateAll`), and the sweep reads a `BatchedMesh` instance by instance (a merged level's shapes each in
+  their own space). At the Scramble the canal's water went from 4 draws to 1; its walls and the works are still seen
+  from 2-find, down a street.
+
+Worst beats, before and after: frame 1 286 to 285 (the people's share moves from run to run), frame 2 318 to 298,
+frame 3 296 to 288. What is left is seen: trees, the traffic's kinds, the people, the hero level's materials.
+
 ### What is left
 
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
