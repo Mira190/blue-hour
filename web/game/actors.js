@@ -2003,7 +2003,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (!(q.squeeze > 0)) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
           if (k === i) continue;
-          const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey);
+          const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e2 = ex * ex + ey * ey;
+          if (e2 > 5.77) continue; // (past 2.4 m on the square first: most of the 9 m square of cells asked is)
+          const e = Math.hypot(ex, ey);
           if (e > 2.4 || e < 1e-4) continue;
           const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
@@ -2091,6 +2093,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (ul > 1e-6) { q.x += ux / ul * 1.2 * dt; q.y += uy / ul * 1.2 * dt; q.vx = ux / ul * 1.2; q.vy = uy / ul * 1.2; q.ejected = true; }
       } else if (carDepth(nx, ny, M) > was + 1e-4) { q.vx *= 0.3; q.vy *= 0.3; }
+      // (a step under a micrometre, one of a kerb's waiting crowd eased to rest: where it stands, its room is its room, so
+      // the asks below (its neighbours twice, the whole rigs twice, the road) would only let it take it: in 141,070 such
+      // steps of a phone's frame 1 they let it take exactly that, every one. Asked every frame for everyone waiting, they
+      // were a third of a phone's plazaStep; a phone's crowd update 3.28 to 2.94 ms a call there: issue 220)
+      else if (Math.abs(q.vx) + Math.abs(q.vy) < 1e-5) { q.x = nx; q.y = ny; q.kerbT = 0; }
       else {
         // and never a step inside anyone: shoulder to shoulder at the kerb (0.45 m apart, centre to
         // centre), shoulders brushing out on the crossing or squeezing through (0.32 m); a step that

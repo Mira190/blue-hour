@@ -104,7 +104,7 @@ function watch(p, { timeout = 180000 } = {}) {
     if (f !== p.mainFrame()) return;
     if (++loads < 2) return;
     if (p.__reloadWhy) { console.log(`(the page loaded again at ${at()}, as the play asked: ${p.__reloadWhy})`); p.__reloadWhy = null; } // (expectReload)
-    else console.log(`page: loaded again at ${at()}: ${f.url().replace(/^https?:\/\/[^/]+/, '')}`);
+    else { console.log(`page: loaded again at ${at()}: ${f.url().replace(/^https?:\/\/[^/]+/, '')}`); p.__unasked = true; } // (unasked: a play that reads the game waits for it to be back, walk_play.js)
   });
   p.on('crash', () => console.log(`page: the renderer crashed at ${at()}`));
   p.exposeFunction('__glNote', t => console.log(`page: glcare's note at ${at()}: ${t}`)).catch(() => {});
