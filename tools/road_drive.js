@@ -162,6 +162,10 @@ function driveFor({ secs, mark, crawl }) {
         for (const [t, x, y, v, why, j] of S.tr || []) { if (v < 0.3) { if (!run) run = { t, x, y, n: 0, why, j }; run.n++; run.why1 = why; run.j1 = j; } else { put(run); run = null; } }
         put(run);
         for (const l of S.detail || []) console.log(l);
+        // (the backings out begun round the drive's way while it drove: what asked each, how the car and the one in front of
+        // it stood, #198)
+        const revs = await p.evaluate(() => (window.__game.cars.revLog || []).splice(0));
+        for (const r of revs) console.log(`   backing out: car ${r.i} on piece ${r.line} (${r.tag}), it ${r.why}${r.q ? ' queued' : ''} stuck ${r.stuck} s; in front ${r.front ? `car ${r.front.i} ${r.front.why}${r.front.q ? ' queued' : ''}${r.front.rev ? ' backing' : ''} on ${r.front.line}` : 'none'}`);
       }
       console.log(`${ok ? 'ok  ' : 'FAIL'} start ${k + 1}: from ${leg.from} by road ${Math.round(leg.len)} m with ${leg.turns} turn${leg.turns === 1 ? '' : 's'}, ${r.t.toFixed(0)} s${process.env.TIMED ? ` (${slow ? 'over' : 'within'} ${limit.toFixed(0)} s)` : ''}; ended ${d.toFixed(0)} m from ${TO} (${r.done || 'still driving'}${r.why ? ', ' + r.why : ''})${S.bad.length ? ' ' + JSON.stringify(S.bad.slice(0, 4)) : ''}`);
       if (!ok) bad++;

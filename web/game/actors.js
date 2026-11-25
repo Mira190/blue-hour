@@ -3580,7 +3580,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // leaves the traffic and comes back elsewhere, as does one asked a second time
     api.unjam = (c, hard) => { // (hard: asked before, and it stands there yet)
       if (!c || c.line < 0 || c.park || !C.includes(c)) return '';
-      if (!hard && reverse(c)) return 'backs out';
+      if (!hard && reverse(c, 'unjam')) return 'backs out';
       respawn(c, centreAt[0], centreAt[1], radius * 0.6);
       return 'gone';
     };
@@ -3675,8 +3675,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return false;
     }
-    function reverse(c) {
+    // (revLog: the last backings out begun, what asked each and how the car stood then: tools/road_drive.js TRACE, #198)
+    const revLog = [];
+    function reverse(c, tag = '') {
       if (!canReverse(c)) return false;
+      { const f = c.front; revLog.push({ t: +tick, i: C.indexOf(c), tag, line: c.line, why: c.why, q: !!c.q, stuck: +(c.stuck || 0).toFixed(1), front: f ? { i: C.indexOf(f), why: f.why, q: !!f.q, line: f.line, rev: !!f.rev } : null }); if (revLog.length > 60) revLog.shift(); }
       JN.forget(c);
       c.rev = { v: 0, d: 0, wait: 0 }; c.nx = undefined; c.plan = c.ex = c.ex2 = c.exA = null; c.stuck = 0; c.q = false;
       revs++;
@@ -3744,7 +3747,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // behind three cars backing out towards it, one after another, in Fushimi Inari)
         if (bk && !bk.rev && bk.stuck === undefined && R.wait > 1) { c.revBan = 60; c.revEnd = 'a ride or your car behind it'; c.rev = null; }
         // the car behind, stopped on this street and going its way: it backs out first
-        else if (bk && bk.line === c.line && bk.dir === c.dir && !bk.rev && bk.v < 0.5 && (c.s - bk.s) * c.dir > 0) reverse(bk);
+        else if (bk && bk.line === c.line && bk.dir === c.dir && !bk.rev && bk.v < 0.5 && (c.s - bk.s) * c.dir > 0) reverse(bk, 'behind');
         // (one stopped across its way back, at the junction behind or on the piece beyond: after 3 s it is asked to back off
         // a metre or two, as one of two of the traffic is; else the car gave up after 20 s, held by one waiting at a line
         // there that could have made it room, Fushimi Inari's piece 99)
@@ -4612,7 +4615,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // a car in 90's box waiting to cross into 91 behind one held at 90's light, #355. It backs out if it can, else it
         // leaves the traffic, in sight or not)
         c.boxHold = c.mv && c.v < 0.1 ? (c.boxHold || 0) + dt : 0;
-        if (c.boxHold > 90) { c.boxHold = 0; if (!reverse(c)) { respawn(c, cx, cy, radius * 0.6); continue; } }
+        if (c.boxHold > 90) { c.boxHold = 0; if (!reverse(c, 'box')) { respawn(c, cx, cy, radius * 0.6); continue; } }
         c.q = atLine || (why === 'person' && walker >= 0 && c.v < 0.5 && lineGap < gap + 4) || (byCar && c.v < 0.5 && (front != null ? !!front.q && !(front.line === c.line && front.dir !== c.dir) : why === 'you' && youQ)); // (not behind one coming the other way, queued at its own line: a wait on that is a narrow street's, turned round in the end, #283) // queueing at a junction (behind a car, or a ride, queueing there; or held by the crowd crossing at its line, not by you, who may stand there for good)
         // counted at its arm for the signals' max-pressure (junctions.js): queued, and whether the head of the queue waits for room beyond
         if (c.q && c.lineArm && c.lineArm.j.sig && c.toLine < 80) { const a = c.lineArm; a.qn1 = (a.qn1 || 0) + 1; if (why === 'room' && c.toLine - c.half < 3) a.full1 = true; if (why === 'cross' && c.toLine - c.half < 3) a.lost1 = true; }
@@ -4672,7 +4675,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           // and cost ten seconds more nose to nose: Shibuya's car 136 stood 31 s at the mouth of piece 1988 for car 182, which
           // waited on it in turn, #454)
           const room = c.dir > 0 ? c.s : l.len - c.s, gained = c.narrowRevS == null || Math.abs(c.s - c.narrowRevS) >= 1;
-          if (!away && room > 2 && gained && reverse(c)) { c.narrowRevS = c.s; reverseStep(c, i, dt, cx, cy); continue; }
+          if (!away && room > 2 && gained && reverse(c, 'narrow')) { c.narrowRevS = c.s; reverseStep(c, i, dt, cx, cy); continue; }
           // (over 90 m off, on its second try, it comes back elsewhere, as a car stuck on a one-way street does there: in sight
           // that far off, it neither backed out nor, out of view, came back elsewhere, and stood 114 s nose to nose at the
           // mouth of Higashiyama's piece 126)
@@ -4686,7 +4689,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           // counted from nothing, round and round; Shibuya's car 101 stood 73 s at the start of piece 1709 so, while car 84,
           // facing it, could have backed out all along, #454)
           const o = (c.narrowTries > 1 || room <= 2) && front && front.line === c.line && front.dir !== c.dir && !front.rev && front.v < 0.3 ? front : null;
-          if (o && reverse(o)) { c.narrowTries = 0; /* it backs out of the way */ }
+          if (o && reverse(o, 'facing')) { c.narrowTries = 0; /* it backs out of the way */ }
           // (the third time, with neither able to back out and no room to turn round in: it comes back elsewhere, in view
           // too. Shibuya's car 84 stood 60 s nose to nose with car 93 on piece 1709, 4 m apart, neither with a way back:
           // 93 not asked again for a minute after it gave up backing out, 84 turned round every 6 s into 93 and held so)
@@ -4695,10 +4698,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (c.stuck > (tangled > 0 ? 2 : why === 'narrow' ? 10 : STUCK)) { // a jam that won't clear: turn round, or out of sight on a one-way street, come back elsewhere
           c.stuck = 0;
-          if (!l.ow && !away && why !== 'you' && (why === 'narrow' || c.narrowF > 0.2) && reverse(c)) { reverseStep(c, i, dt, cx, cy); continue; } // (a street with no room to turn round in: backed out to the junction behind, as on a one-way street)
+          if (!l.ow && !away && why !== 'you' && (why === 'narrow' || c.narrowF > 0.2) && reverse(c, 'stuck-narrow')) { reverseStep(c, i, dt, cx, cy); continue; } // (a street with no room to turn round in: backed out to the junction behind, as on a one-way street)
           if (!l.ow) dir = -dir;
           else if (away) { respawn(c, cx, cy, radius * 0.6); continue; }
-          else if (why !== 'you' && reverse(c)) { reverseStep(c, i, dt, cx, cy); continue; } // (in sight on a one-way street: back out to the junction behind, #283; not one held by a ride, or you, which will move on: backing out, it went into a ride's own way back, Sydney)
+          else if (why !== 'you' && reverse(c, 'stuck-oneway')) { reverseStep(c, i, dt, cx, cy); continue; } // (in sight on a one-way street: back out to the junction behind, #283; not one held by a ride, or you, which will move on: backing out, it went into a ride's own way back, Sydney)
         }
         if (s < 0 || s > l.len) {
           if (dir === c.dir && c.nx) { line = nl; dir = nd; s = nd > 0 ? 0 : net.L[line].len; }
@@ -4988,7 +4991,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return added;
     }
-    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
+    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, revLog, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
   }
 
   // ------------------------------------------------------------ text sprites (names, markers)
