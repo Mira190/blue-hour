@@ -31,7 +31,7 @@ window.OELights = (function () {
     // a beam is light scattered by the air inside a cone: most where the eye looks through the cone's middle and none
     // at its edge, where the way through it is nothing. The cone's faces take that from the angle they are seen at
     sh.vertexShader = sh.vertexShader.replace('varying float vBeamZ;', 'varying float vBeamZ; varying float vBeamSoft;')
-      .replace('vBeamZ = -mvPosition.z;', 'vBeamZ = -mvPosition.z;\n  vBeamSoft = pow(abs(dot(normalize(normalMatrix * normal), normalize(mvPosition.xyz))), 1.6);');
+      .replace('vBeamZ = -mvPosition.z;', 'vBeamZ = -mvPosition.z;\n  vec3 beamN = normal;\n  #ifdef USE_INSTANCING\n  beamN = mat3(instanceMatrix) * beamN;\n  #endif\n  vBeamSoft = pow(abs(dot(normalize(normalMatrix * beamN), normalize(mvPosition.xyz))), 1.6);');
     sh.fragmentShader = sh.fragmentShader.replace('varying float vBeamZ;', 'varying float vBeamZ; varying float vBeamSoft;');
   }
 
@@ -59,15 +59,25 @@ window.OELights = (function () {
     const geo = new THREE.CylinderGeometry(0.6, L * (cfg.spread || 0.035), L, 16, 1, true).translate(0, L / 2, 0);
     (cfg.beams || []).flatMap(lamps).forEach(([p, n], i) => {
       for (let j = 0; j < n; j++) {
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: colours[(i * 2 + j) % colours.length], alphaMap: fade(), transparent: true,
-          opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-        m.material.onBeforeCompile = nearFade;
+        const m = new THREE.Object3D();
         m.position.copy(W(p[0], p[1], p[2] - 4));
-        m.renderOrder = 30;
-        group.add(m);
-        beams.push({ m, phase: i * 1.7 + j * Math.PI, speed: 0.22 + 0.05 * ((i + j) % 3) });
+        m.rotation.order = 'YXZ';
+        beams.push({ m, colour: colours[(i * 2 + j) % colours.length], phase: i * 1.7 + j * Math.PI, speed: 0.22 + 0.05 * ((i + j) % 3) });
       }
     });
+    // (issue 192: the beams in one draw, not one each: 36 of a phone's draws over the Scramble while the show is on. Added
+    // light, so each beam's colour times its opacity is the same light as its colour at that opacity)
+    const beamMesh = beams.length ? new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, alphaMap: fade(), transparent: true,
+      opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }), beams.length) : null;
+    if (beamMesh) {
+      beamMesh.material.onBeforeCompile = nearFade;
+      beamMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      beamMesh.setColorAt(0, new THREE.Color(0, 0, 0));
+      beamMesh.frustumCulled = false; // (each beam turns, 1600 m long: one of them is nearly always in view)
+      beamMesh.renderOrder = 30;
+      group.add(beamMesh);
+    }
+    const lit = new THREE.Color();
     const lasers = [];
     for (const [a, b] of cfg.lasers || []) {
       const pa = top(a), pb = top(b);
@@ -99,14 +109,15 @@ window.OELights = (function () {
       tick(t) {
         if (!on) return;
         const s = t / 1000, ramp = forced ? 1 : Math.min(1, (minute - s0) * 2, (s0 + len - minute) * 2);
+        let k = 0;
         for (const b of beams) {
           const az = b.phase + Math.sin(s * b.speed + b.phase) * 0.9, el = 1.05 + 0.32 * Math.sin(s * b.speed * 1.7 + b.phase);
-          b.m.rotation.set(0, 0, 0);
-          b.m.rotation.order = 'YXZ';
-          b.m.rotation.y = az;
-          b.m.rotation.x = Math.PI / 2 - el;
-          b.m.material.opacity = (cfg.opacity || 0.22) * ramp * (0.75 + 0.25 * Math.sin(s * 3 + b.phase));
+          b.m.rotation.set(Math.PI / 2 - el, az, 0);
+          b.m.updateMatrix();
+          beamMesh.setMatrixAt(k, b.m.matrix);
+          beamMesh.setColorAt(k++, lit.copy(b.colour).multiplyScalar((cfg.opacity || 0.22) * ramp * (0.75 + 0.25 * Math.sin(s * 3 + b.phase))));
         }
+        if (beamMesh) { beamMesh.instanceMatrix.needsUpdate = true; beamMesh.instanceColor.needsUpdate = true; }
         lasers.forEach((l, i) => { l.material.opacity = ramp * (Math.sin(s * 2.2 + i * 1.3) > 0.2 ? 0.9 : 0.0); });
         if (cfg.recolour !== false) flood.forEach((m, i) => { m.emissive.setHSL((s * 0.06 + i * 0.17) % 1, 0.85, 0.55); m.emissiveIntensity = 0.75 * ramp; });
       },
