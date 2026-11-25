@@ -6879,7 +6879,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // face to the place the story is played (the lift's own `view`, else where the map starts), which falls away
         // under the frame as the floors go by, and comes round to where you step out over the last third. The turn is
         // of the view's direction, not of a point looked at: a point 400 m off mixed with one 15 m off turns in a snap.
-        const w = city ? OECine.ease.smooth(OECine.span(k, Math.max(0.06, h0 * 0.7), Math.max(0.3, h0 + 0.12))) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
+        // (and from the start, issue 231, while it rises out of a well too: turned only from the hold's end, the first half of SKY GATE's
+        // climb looked up a blank façade at arm's length)
+        const w = city ? OECine.ease.smooth(OECine.span(k, 0.02, 0.12)) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
         if (w > 0) {
           d1.subVectors(lk, pos).normalize(); d2.subVectors(city, pos).normalize();
           lk.copy(pos).addScaledVector(d1.lerp(d2, w).normalize(), 60);
@@ -6892,7 +6894,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // pale panel edge to edge), or was put on the roofline by the shot's clamp, a jump. So the way across can be held back
     // while the camera rises where it stands (h0, for a ride up) or brought to its end early (h1, for one down): the first
     // of these, on either side, that is clear all the way is taken, else the clearest.
-    const open = f => { const q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
+    // (and room round the lens, issue 231: a way that never crossed a wall but ran a metre along a neighbour's face was clear,
+    // and the climb's first half was that face filling the frame. Each pose within 3 m of a wall takes 0.02 off the way's
+    // score, after its first sixth, where it leaves your shoulder: nav.push at 3 m round it, from its height down 2 m)
+    const open = f => { const q = f(0).pos.clone(); let c = 1, near = 0; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); if (i > 4) { const w = nav.push(r.x, -r.z, r.y - 2, 3, 2); if (Math.hypot(w.x - r.x, w.y + r.z) > 0.05) near++; } q.copy(r); } return c - 0.02 * near; };
     const n1 = n0.clone().negate();
     let climb = null, best = -1;
     for (const s of [1, 0.6, 0.3]) {
