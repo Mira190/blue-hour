@@ -75,6 +75,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
+  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:')) console.log(t.slice(0, 600)); });
   fs.mkdirSync(out, { recursive: true });
   // FPS=1: the page's frames a second beat by beat (issues 8 and 206), counted in the page from its animation frames
   // and named as the telemetry names a beat ("frame 3: stop seek"): for each, the frames, the median and the 95th
@@ -116,7 +117,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.PHONE) await p.addInitScript(() => { const M = window.__music = { els: [], offline: 0 }, Au = window.Audio, O = window.OfflineAudioContext;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
-  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
+  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; }); // (game.js trunksCheck: a trunk filling the chase view, #233; bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
@@ -286,6 +287,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
     });
   }
+  // BIGUP=mb: every texture upload of mb MB or more (8 if 1) said as it happens, with its size, its format, the story's beat
+  // and the page's code that asked for it: what a phone's GPU is handed inside a beat (the Stop's 5 s hold, issue 118)
+  if (process.env.BIGUP) await p.addInitScript(mb => {
+    const P = WebGL2RenderingContext.prototype, min = mb * 1048576, FMT = { 0x1903: 'R8', 0x8229: 'R8', 0x1908: 'RGBA', 0x8058: 'RGBA8', 0x881A: 'RGBA16F', 0x8C43: 'SRGB8_A8', 0x1907: 'RGB', 0x822B: 'RG8', 0x8227: 'RG' };
+    const beat = () => { try { const s = window.__game && window.__game.story && window.__game.story.state; return s ? `frame ${s.fi + 1} ${s.phase}/${s.beat}` : 'title'; } catch (e) { return '?'; } };
+    const where = () => (new Error().stack || '').split('\n').slice(2).filter(l => !/three\.module|vendor/.test(l)).slice(0, 4).map(l => l.trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, '')).join(' < ');
+    const bpp = f => (/^R8$/.test(FMT[f]) ? 1 : /RG8|RG$/.test(FMT[f]) ? 2 : /16F/.test(FMT[f]) ? 8 : 4);
+    const ti = P.texImage2D; P.texImage2D = function (...a) { if (a.length >= 8 || (a.length === 6 && a[5] && a[5].width)) { const w = a.length >= 8 ? a[3] : a[5].width, h = a.length >= 8 ? a[4] : a[5].height, f = a[2]; if (w * h * bpp(f) >= min) console.log(`bigup: ${w}x${h} ${FMT[f] || f}, ${(w * h * bpp(f) / 1048576).toFixed(1)} MB, at ${beat()}: ${where()}`); } return ti.apply(this, a); };
+    const ts = P.texStorage2D; P.texStorage2D = function (t, l, f, w, h) { if (w * h * bpp(f) >= min) console.log(`bigup: ${w}x${h} storage ${FMT[f] || f} x${l} levels, ${(w * h * bpp(f) / 1048576).toFixed(1)} MB, at ${beat()}: ${where()}`); return ts.apply(this, arguments); };
+    const tsi = P.texSubImage2D; P.texSubImage2D = function (...a) { const img = a.find(v => v && v.width && v.height && !v.byteLength), w = img ? img.width : a[4], h = img ? img.height : a[5]; if (w * h >= min) console.log(`bigup: sub ${w}x${h}, at ${beat()}: ${where()}`); return tsi.apply(this, a); };
+    // (and every program linked, by three.js's name and its variant's defines, with the beat: what a phone compiles inside a beat)
+    { const src = new WeakMap(), nm = new WeakMap(), ss = P.shaderSource, as = P.attachShader, lk = P.linkProgram;
+      P.shaderSource = function (sh, t) { src.set(sh, t); return ss.call(this, sh, t); };
+      P.attachShader = function (pr, sh) { const t = src.get(sh) || ''; if (/gl_Position/.test(t)) { const m = /#define SHADER_NAME (.+)/.exec(t), d = [...t.matchAll(/#define (USE_\w+|DOUBLE_SIDED|FLIP_SIDED|DEPTH_PACKING \d+)/g)].map(x => x[1].replace(/^USE_/, '').toLowerCase()); nm.set(pr, `${m ? m[1].trim() : '?'}(${d.join(' ')})`); } return as.call(this, pr, sh); };
+      P.linkProgram = function (pr) { const n = nm.get(pr) || '?', at = beat(), r = lk.call(this, pr); Promise.resolve().then(() => { let x = ''; try { const L = window.__game.renderer.info.programs, q = L[L.length - 1]; x = q ? ` [${q.name || ''} ${String(q.cacheKey).split(',').slice(0, 3).join(',').slice(0, 120)}]` : '';
+            // (and how it differs from the nearest program already made of the same shader: which parameter made it new)
+            if (q && at !== 'title') { const R = window.__game.renderer, own = []; window.__game.world.traverse(o => { for (const m of [].concat(o.material || [])) { const pp = R.properties.get(m); if (pp && pp.programs && [...pp.programs.values()].includes(q) && own.length < 2) { const path = []; for (let u = o; u && path.length < 3; u = u.parent) path.push(u.name || u.type); own.push(`${m.type}:${m.name || ''} on ${path.join('<')}`); } } }); if (own.length) x += ` {${own.join('; ')}}`; if (n.startsWith('?')) try { x += ` uniforms ${q.getUniforms().seq.map(u => u.id).filter(u => /^u[A-Z]|^t[A-Z]/.test(u)).slice(0, 8).join(' ')}`; } catch (e) { /* none */ } }
+            if (q && at !== 'title') { const k = String(q.cacheKey).split(','); let best = null, bd = 1e9; for (const o of L) { if (o === q) continue; const ko = String(o.cacheKey).split(','); if (ko[0] !== k[0] || ko.length !== k.length) continue; const d = k.reduce((n, v, i) => n + (v !== ko[i]), 0); if (d < bd) { bd = d; best = ko; } } if (best) x += ` differs from one made at ${bd} of ${k.length}: ${k.map((v, i) => (v !== best[i] ? `#${i} ${best[i]}->${v}` : '')).filter(Boolean).slice(0, 6).join(' ')}`; } } catch (e) { /* none */ } console.log(`bigup: link ${n}${x}, at ${at}`); }); return r; }; }
+    // (and the code that made it: a texture sent by a draw is three.js's upload, named by whoever set its needsUpdate)
+    const made = () => { const T = window.THREE; if (!T || !T.Texture) return; const d = Object.getOwnPropertyDescriptor(T.Texture.prototype, 'needsUpdate'); if (!d || !d.set) return;
+      Object.defineProperty(T.Texture.prototype, 'needsUpdate', { configurable: true, get: d.get, set(v) { const im = this.image; if (v && im && im.width * im.height >= min && !this.__bigSaid) { this.__bigSaid = 1; console.log(`bigup: made ${im.width}x${im.height} ${this.format === T.RedFormat ? 'R8' : this.format}, at ${beat()}: ${where()}`); } d.set.call(this, v); } }); };
+    if (window.THREE) made(); else window.addEventListener('three-ready', made, { once: true });
+  }, +process.env.BIGUP === 1 ? 8 : +process.env.BIGUP);
   // FROM=n: as a case left at frame n (counted from 0) and opened again
   if (process.env.FROM) await p.addInitScript(n => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: n, left: 7 - n, prints: Array.from({ length: n }, (_, i) => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } }, +process.env.FROM);
   // BACK=n: the menu's Title screen in the middle of frame n (menus.js #gm-title): a case kept at frame n, seeded once (not
@@ -1474,6 +1498,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const hard = B.filter(r => !r.who.startsWith('npc '));
     if (hard.length) errors.push(`bodies: ${hard.length} times one of the crowd was drawn inside someone not of it (${[...new Set(hard.map(r => r.who))].join(', ')})`);
     else console.log(`bodies: nobody of the crowd drawn within 0.45 m of the story's people, the player or the guide${B.length ? ` (${B.length} near a map's NPC)` : ''}`);
+  }
+  { // a trunk or a lamp post between the chase lens and you, over 30% of the frame's width, for a second or more (#233)
+    const T = await p.evaluate(() => window.__trunks || []).catch(() => []);
+    for (const r of T.slice(0, 12)) console.log(`FAIL trunk: a ${r.kind} at (${r.x}, ${r.y}) ${r.m} m from the lens hid you, ${Math.round(r.share * 100)}% of the frame's width (aspect ${r.aspect}), at ${r.at}`);
+    if (T.length) errors.push(`trunk: ${T.length} times a trunk or a post between the chase lens and you filled the frame for a second or more (${[...new Set(T.map(r => r.at))].slice(0, 6).join('; ')})`);
+    else console.log('trunk: no trunk or post between the chase lens and you filled the frame for a second');
   }
   { // one body in another, a limb in a body, a foot off its floor, a body in a thing: every frame of the play (issue 126)
     const R = await clipProbe.report(p);

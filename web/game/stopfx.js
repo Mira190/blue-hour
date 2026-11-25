@@ -222,6 +222,7 @@ window.OEStopFX = (function () {
         if (!k || spare) return null;
         spare = new THREE.Group(); spare.name = 'stopfx-spare'; spare.visible = false;
         const ringM = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 8), ringMat()); ringM.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(ringM.geometry.attributes.position.count * 3).fill(1), 3));
+        ringM.geometry.deleteAttribute('normal'); ringM.geometry.deleteAttribute('uv'); // (as the Stop's ring has them, laid(): a normal is a variant of its own, vertexNormals, and the ring's program was linked at each Stop's still, issue 118)
         spare.add(points(4, 1, 1, 0.05, 0xfff1d6, true), points(4, 1, 1, 0.05, 0xcfe0ff, false), cards(3), flock(1), ringM);
         world.add(spare);
         return fn(spare);

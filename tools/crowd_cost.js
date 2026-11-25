@@ -3,6 +3,7 @@
 // renderer's frame is the script and not the rasteriser. The same view before and after a change compares the two.
 //   node tools/crowd_cost.js [WxH] [seconds]     (FROM=4: the fifth frame; a width under 500 is an iPhone's page)
 //   HZ=60: the crowd's update alone, called `seconds` of its time at sixty a second (a player's pace: see below)
+//   GAP=1: each of those calls let go to the event loop after it (for work the page does elsewhere between frames, a Worker's)
 //   THROTTLE=4: the main thread's CPU slowed four times (a phone's), the times then divided by it
 //   WARM=seconds the page is left before the sampling (25); DRAW=n (240); OUT=file: the profile kept (.cpuprofile)
 //   LAYOUTS=n: only the count of the walkers' and the cars' hidden layouts, failing over n (the check)
@@ -127,9 +128,16 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
     await p.evaluate(() => { const c = window.__game.crowd, u = c.update; window.__cu = null; c.update = function (...a) { window.__cu = a; return u.apply(this, a); }; window.__cuRaw = u; });
     await p.waitForFunction(() => !!window.__cu, null, { timeout: 120000 });
     await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start');
-    const r = await p.evaluate(([hz, secs]) => { const g = window.__game, c = g.crowd, a = window.__cu.slice(), dt = 1 / hz, n = Math.round(hz * secs), T = new Float64Array(n);
-      for (let k = 0; k < n; k++) { a[0] = dt; a[3] += dt; const t0 = performance.now(); window.__cuRaw.apply(c, a); T[k] = performance.now() - t0; }
-      const S = Array.from(T).sort((x, y) => x - y); return { n, mean: S.reduce((x, y) => x + y, 0) / n, med: S[n >> 1], p90: S[Math.floor(n * 0.9)] }; }, [+process.env.HZ, +secs]);
+    // (GAP: each call is let go to the event loop after it, so that a Worker's reply (issue 220's prototype, branch
+    // simworker-220) arrives between calls as it does between a player's frames: the time between is not counted. The
+    // page's own frames are held meanwhile, or the game runs between the calls, the story moves on and its frames are
+    // profiled with them)
+    const r = await p.evaluate(async ([hz, secs, gap]) => { const g = window.__game, c = g.crowd, a = window.__cu.slice(), dt = 1 / hz, n = Math.round(hz * secs), T = new Float64Array(n);
+      const raf = window.requestAnimationFrame, held = [];
+      if (gap) { window.requestAnimationFrame = f => { held.push(f); return 0; }; for (let k = 0; k < 3; k++) await new Promise(f => raf(f)); }
+      for (let k = 0; k < n; k++) { a[0] = dt; a[3] += dt; const t0 = performance.now(); window.__cuRaw.apply(c, a); T[k] = performance.now() - t0; if (gap) await new Promise(f => setTimeout(f, 1)); }
+      if (gap) { window.requestAnimationFrame = raf; for (const f of held) raf(f); }
+      const S = Array.from(T).sort((x, y) => x - y); return { n, mean: S.reduce((x, y) => x + y, 0) / n, med: S[n >> 1], p90: S[Math.floor(n * 0.9)] }; }, [+process.env.HZ, +secs, !!process.env.GAP]);
     const { profile } = await cdp.send('Profiler.stop');
     if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(profile));
     const by = new Map(profile.nodes.map(x => [x.id, x.callFrame])), fn = new Map(), file = new Map();

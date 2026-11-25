@@ -1760,3 +1760,12 @@ html.bh-leave #g-menu { pointer-events: none; }
 .game-stage.story .g-toasts { top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); width: min(560px, calc(100% - 48px)); }
 .game-stage.story .g-toast { font-size: 12px; line-height: 1.45; padding: 6px 16px; }
 #g-menu .gm-snd-why { display: block; margin: -2px 0 6px 26px; font: 400 11px/1.5 var(--f-body); color: var(--ink-2); }
+/* (the story's own word at the foot, "Time runs again", has the same place as a notice: while it is up the notice stands
+   above it, never drawn into it) */
+.game-stage.story:has(#g-story-chip.on) .g-toasts { bottom: max(206px, calc(env(safe-area-inset-bottom) + 206px)); }
+/* (on a phone the keys' lines stand from 170 px up while they are shown (#g-walk-keys, #g-story-keys: up to three lines of
+   capitals): a notice at 150 px was drawn into them where the edge turned you back, on foot and at the wheel. At the foot
+   still, as the owner asked, but over the keys while they are up) */
+@media (pointer: coarse), (max-width: 640px) {
+  .game-stage.story:has(:where(#g-walk-keys.on, #g-story-keys.on)) .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); }
+}
