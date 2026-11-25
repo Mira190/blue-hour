@@ -3577,6 +3577,17 @@ of the guide's film 529 to 90 ms, of his sitting 477 to 77, of the step back int
 598 to 53; the warm-up's links moved before it (frame 1's order). The film waits for the guide to be drawable (`d.ready`,
 up to 8 s, else the Stop goes on without it: issue 237).
 
+A level the Stop sees, fetched in it (frame 3, November 2026). Frame 3's police box is 131 m from SKY GATE's lobby, whose
+level (`load_m` 140) was fetched only once the camera reached the box: on a phone's tier its 21 programs linked in the Stop's
+still. The level a frame's Stop will see is now fetched from the frame's start, round its `stop_at` or afterimage
+(`game.js stopAnchor`, passed to `hero.update` as an anchor beside the camera), and a hero level's compile waits while the
+world is stopped (`stopHeld`: sliced, held a frame at a time, not behind the way in's veil, which itself waits for a level
+the frame's Stop is fetching). A story taken up at a frame whose Stop comes at once gets the level after its Stop, not in
+it. Not the next frame's spot as well: Miyamasu's level, kept to frame 4 (`load_m` 60), was then drawn in frame 3's Stop.
+On a phone's tier (llvmpipe, frames 1 to 4 from the title): programs linked in the Stops' beats 21 to 0 (frame 3); on a
+desktop's page none in frames 1 and 3 to 7, and 15 in frame 2's `shown` (the crowd's and the cast's bodies, below).
+`story_play.js BIGUP=1` also prints each hero level's ready line with its steps.
+
 What is left, on the medium tier (a desktop's page on llvmpipe, whose frames there are 7 to 10 s): the late crowd's and
 the helicopter's programs and shadow variants are compiled in the Stop's seek because they arrive in it; the afterimages'
 faded variants at its still. A real device's late models come minutes earlier. Not measured: a real GPU, Safari, an iPhone.
