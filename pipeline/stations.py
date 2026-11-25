@@ -275,6 +275,40 @@ def road_bodies(B, game):
     return [si for si, s in enumerate(B["s"]) if s[0] in whole]
 
 
+STRAY_M2 = 15.0     # (a bit of a roof no bigger than this)
+STRAY_DROP_M = 5.0  # (and this far under the rest of its building)
+
+
+def stray_bits(B):
+    """The scraps of a roof left far under it: a small thin solid off the ground whose underside is STRAY_DROP_M or
+    more under its building's largest solid, touching none of them. South of Shibuya Station four
+    strips of the new south exit's platform roof hung at head height over the plaza, 10 m under the roof, drawn as
+    brown boards on posts (the owner's report, 25 November 2026). Not drawn: the solids' indices."""
+    from collections import defaultdict
+    by = defaultdict(list)
+    for si, s in enumerate(B["s"]):
+        by[s[0]].append(si)
+    def plan(s):
+        return Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0)
+    out = []
+    for bi, ss in by.items():
+        if len(ss) < 2:
+            continue
+        for si in ss:
+            s = B["s"][si]
+            if s[2] <= 0 or s[3] - s[2] > 15:
+                continue
+            F = plan(s)
+            if F.area > STRAY_M2:
+                continue
+            rest = [B["s"][j] for j in ss if j != si]
+            main = max(rest, key=lambda r: plan(r).area)   # (the building's body: its largest solid)
+            if main[1] + main[2] - (s[1] + s[2]) < STRAY_DROP_M * 10 or any(plan(r).buffer(0.2).intersects(F) for r in rest if r[2] < s[3]):
+                continue
+            out.append(si)
+    return out
+
+
 def ways_of(game):
     """The roads' carriageways and the footways, widened by a pier's side: where no pier stands."""
     ways = []
@@ -364,10 +398,11 @@ def main():
     else:
         B.pop("piers", None)
     bodies = road_bodies(B, game)
+    strays = stray_bits(B)
     sp = os.path.join(d, "scene.json")
     if os.path.exists(sp):
         scene = json.load(open(sp, encoding="utf8"))
-        hidden = sorted(set(scene.get("hidden_solids") or []) | set(bodies))
+        hidden = sorted(set(scene.get("hidden_solids") or []) | set(bodies) | set(strays))
         if hidden != scene.get("hidden_solids"):
             scene["hidden_solids"] = hidden
             json.dump(scene, open(sp, "w"), separators=(",", ":"))
@@ -375,7 +410,7 @@ def main():
     if changed:
         with open(path, "w") as f:
             json.dump(B, f, separators=(",", ":"))
-    print(f"{a.city}: {n} stations restyled, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs, {len(bodies)} an expressway's own body, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
+    print(f"{a.city}: {n} stations restyled, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs, {len(bodies)} an expressway's own body, {len(strays)} scraps of a roof under it, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
 
 
 if __name__ == "__main__":
