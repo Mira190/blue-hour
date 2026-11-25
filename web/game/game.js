@@ -2684,8 +2684,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // circle across the line from the lens to your chest, its share the trunk's width over the frame's width at its depth
   const trunksOn = new Map(), trunkC = new THREE.Vector3();
   const trunksCheck = () => {
-    const T = window.__trunks, now = new Set();
-    if (T.length < 100 && player.mode === 'foot' && !fpOn && !talkShot && !cine.active && !photo.on && !(overture && overture.active)) {
+    const TK = window.__trunks, now = new Set();
+    if (TK.length < 100 && player.mode === 'foot' && !fpOn && !talkShot && !cine.active && !photo.on && !(overture && overture.active)) {
       const P = camera.position, C = trunkC.copy(W(player.x, player.y, player.z + 1.2));
       const ax = P.x, ay = -P.z, dx = C.x - ax, dy = -C.z - ay, L = Math.hypot(dx, dy);
       const halfW = Math.tan(camera.fov * Math.PI / 360) * (camera.aspect || 1.6);
@@ -2699,7 +2699,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if (share < TRUNK_SHARE) continue;
         const key = `${q.x.toFixed(1)},${q.y.toFixed(1)}`; now.add(key);
         const e = trunksOn.get(key);
-        if (e) { e.n++; if (share > e.share) e.share = +share.toFixed(2); if (e.n === 45) T.push(e); }
+        if (e) { e.n++; if (share > e.share) e.share = +share.toFixed(2); if (e.n === 45) TK.push(e); }
         else trunksOn.set(key, { kind: q.kind, at: bodiesAt(), x: +q.x.toFixed(1), y: +q.y.toFixed(1), m: +(s * L).toFixed(2), share: +share.toFixed(2), aspect: +(camera.aspect || 0).toFixed(2), n: 1 });
       }
     }
