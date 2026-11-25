@@ -44,6 +44,12 @@ async function install(page) {
           return f.apply(this, a);
         }
         add(T.calls, k); add(T.who, who);
+        if (T.big && /^(bufferData|texImage2D|texImage3D|texStorage2D|texStorage3D|compressedTexImage2D|renderbufferStorage)/.test(k)) { const ub0 = T.ub; setTimeout(() => {}, 0); T.bigAt = { k, a: a.map(v => typeof v === 'number' ? v : v && v.constructor && v.constructor.name + (v.byteLength ? ' ' + v.byteLength : v.width ? ' ' + v.width + 'x' + v.height : '')).join(','), stack: (new Error().stack || '').split('\n').slice(2, 9).map(l => l.trim().replace(/https?:\/\/[^/]+\//, '')).join(' < ') }; }
+        if (k === 'linkProgram') T.link++; else if (k === 'bufferData') T.ub += typeof a[1] === 'number' ? a[1] : a[1] && a[1].byteLength || 0; else if (k === 'bufferSubData') T.ub += a[4] ? a[4] * (a[2].BYTES_PER_ELEMENT || 1) : a[2] && a[2].byteLength || 0;
+        else if (k === 'texImage2D' || k === 'texSubImage2D') { const w = typeof a[3] === 'number' ? (k === 'texImage2D' ? a[3] * a[4] : a[4] * a[5]) : a[a.length - 1] && a[a.length - 1].width * a[a.length - 1].height || 0; T.ub += w * 4; }
+        else if (k === 'texStorage2D' || k === 'texStorage3D') T.ub += a[3] * a[4] * 4 * (k === 'texStorage3D' ? a[5] : 1) * 1.33;
+        else if (k === 'compressedTexImage2D' || k === 'compressedTexSubImage2D') { const d = a[a.length - 1]; T.ub += d && d.byteLength || 0; }
+        if (T.big && T.bigAt && T.ub - (T.ubLast || 0) > 3e7) { T.bigs.push({ k: T.bigAt.k, mb: Math.round((T.ub - (T.ubLast || 0)) / 1e6), a: T.bigAt.a, stack: T.bigAt.stack }); if (T.bigs.length > 60) T.bigs.shift(); } T.ubLast = T.ub; T.bigAt = null;
         if (!T.beatsOn && /^(createBuffer|deleteBuffer|createVertexArray|deleteVertexArray)$/.test(k)) { const at = (new Error().stack || '').split('\n').slice(2).filter(l => !/three\.module|three\.core|gl_calls|<anonymous>/.test(l)).slice(0, 3).map(l => l.replace(/^\s*at\s*/, '').replace(/https?:\/\/[^/]+\//, '')).join(' < '); add(T.by[k + ' at'] || (T.by[k + ' at'] = {}), at || '?'); }
         if (k === 'texSubImage2D' || k === 'texImage2D' || k === 'compressedTexSubImage2D') { const tx = st.tex[st.unit + ':' + a[0]]; if (tx) { if (!tx.__gc) tx.__gc = ++T.texN; add(T.by['upload textures'] || (T.by['upload textures'] = {}), `#${tx.__gc} ${a[3] !== undefined && typeof a[3] === 'number' ? (k === 'texImage2D' ? a[3] + 'x' + a[4] : a[4] + 'x' + a[5]) : ''} by ${who.slice(0, 50)}`); } }
         if (BY.test(k)) { const m = /^(draw|multiDraw)/.test(k) ? 'draw' : k; add(T.by[m] || (T.by[m] = {}), who); }
@@ -94,6 +100,9 @@ async function install(page) {
       const now = snap();
       if (beat && mark && now.draws > mark.draws) { for (const q in now) beat[q] += now[q] - mark[q]; beat.frames++; } // (frames drawn only: a play's DRAW=n leaves most undrawn)
       mark = now;
+      const R = window.__game && window.__game.renderer, PR = R && R.info && R.info.programs || [], fresh = []; if (!T.seen) T.seen = new Set(); for (const q of PR) if (!T.seen.has(q)) { T.seen.add(q); fresh.push(q.name || '?'); }
+      if (k && (T.link > T.link0 || T.ub - T.ub0 > 2e6)) { T.spikes.push({ k, link: T.link - T.link0, mb: Math.round((T.ub - T.ub0) / 1e5) / 10, gap: Math.round(performance.now() - T.tPrev), names: fresh.join(', ').slice(0, 300) }); if (T.spikes.length > 400) T.spikes.splice(0, 200); } // (a frame that linked a program or sent more than 2 MB: the GPU's work arrives at once, issue 118)
+      T.link0 = T.link; T.ub0 = T.ub; T.tPrev = performance.now();
       if (k && (!beat || beat.k !== k)) { beat = T.beats.find(b => b.k === k) || (T.beats.push({ k, frames: 0, calls: 0, draws: 0, uni: 0, lights: 0, up: 0, same: 0 }), T.beats[T.beats.length - 1]); }
     };
     window.requestAnimationFrame = cb => raf(t => { if (t !== last) { last = t; if (T.on) T.frames++; if (T.want && T.frames >= T.want) T.on = false; try { hook(); if (T.beatsOn) beatTick(); } catch (e) { T.err = String(e && e.stack || e).slice(0, 300); } } const t0 = performance.now(); try { cb(t); } finally { if (T.on) T.js.push(performance.now() - t0); } }); // (never in the page's way: a throw here would stop its frames)
@@ -102,12 +111,15 @@ async function install(page) {
 // a play's beats: every frame counted from the start, a frame's calls by beat (tools/story_play.js GLCALLS=1)
 async function installBeats(page) {
   await install(page);
-  await page.addInitScript(() => { const T = window.__glCalls; T.beats = []; T.beatsOn = true; T.on = true; });
+  await page.addInitScript(() => { const T = window.__glCalls; T.beats = []; T.beatsOn = true; T.on = true; Object.assign(T, { link: 0, link0: 0, ub: 0, ub0: 0, tPrev: 0, spikes: [], big: true, bigs: [] }); });
 }
-const beats = page => page.evaluate(() => (window.__glCalls ? window.__glCalls.beats : []).filter(b => b.frames >= 5));
-function printBeats(bs) {
+const beats = page => page.evaluate(() => { const T = window.__glCalls; if (!T) return { beats: [], spikes: [] }; return { beats: T.beats.filter(b => b.frames >= 5), spikes: T.spikes || [], bigs: T.bigs || [] }; });
+function printBeats(r) {
+  const bs = Array.isArray(r) ? r : r.beats, sp = Array.isArray(r) ? [] : r.spikes || [];
   console.log('\nWebGL calls a frame by beat (tools/gl_calls.js): calls, draws, uniforms (of them the lights\' and shadow matrices\'), textures uploaded, calls that set what was set (not compared in a play: 0)');
   for (const b of bs) { const f = b.frames; console.log(`  ${b.k.padEnd(28)} ${String(f).padStart(5)} frames  ${String(Math.round(b.calls / f)).padStart(6)} calls  ${String(Math.round(b.draws / f)).padStart(4)} draws  ${String(Math.round(b.uni / f)).padStart(5)} uniforms (${Math.round(b.lights / f)})  ${String(Math.round(b.up / f)).padStart(4)} uploads  ${Math.round(b.same / f)} same`); }
+  for (const x of (r.bigs || [])) console.log(`  big: ${x.k} ${x.mb} MB (${x.a}) at ${x.stack}`);
+  if (sp.length) { console.log('\nFrames that linked a program or sent more than 2 MB (issue 118): beat, programs linked, MB sent, ms since the frame before'); for (const x of sp) console.log(`  ${x.k.padEnd(28)} ${String(x.link).padStart(3)} linked ${String(x.mb).padStart(6)} MB ${String(x.gap).padStart(6)} ms  ${x.names || ''}`); }
 }
 // count n frames from the next one; returns the tally a frame
 async function sample(page, n = 30, label = '') {
