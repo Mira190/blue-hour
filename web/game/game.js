@@ -7098,13 +7098,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // of these, on either side, that is clear all the way is taken, else the clearest.
     // (and room round the lens, issue 231: a way that never crossed a wall but ran a metre along a neighbour's face was clear,
     // and the climb's first half was that face filling the frame. Each pose within 3 m of a wall takes 0.02 off the way's
-    // score, after its first sixth, where it leaves your shoulder: nav.push at 3 m round it, from its height down 2 m)
-    const open = f => { const q = f(0).pos.clone(); let c = 1, near = 0; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); if (i > 4) { const w = nav.push(r.x, -r.z, r.y - 2, 3, 2); if (Math.hypot(w.x - r.x, w.y + r.z) > 0.05) near++; } q.copy(r); } return c - 0.02 * near; };
+    // score, from its second pose (the way out to a start in the open air included): nav.push at 3 m round it, from its height down 2 m)
+    const open = f => { const q = f(0).pos.clone(); let c = 1, near = 0; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); if (i > 1) { const w = nav.push(r.x, -r.z, r.y - 2, 3, 2); if (Math.hypot(w.x - r.x, w.y + r.z) > 0.05) near++; } q.copy(r); } return c - 0.02 * near; };
     const n1 = n0.clone().negate();
     let climb = null, best = -1;
-    for (const s of [1, 0.6, 0.3]) {
-      const S1 = s === 1 ? S0 : A.clone().lerp(S0, s);
-      if (s < 1 && nav.clearFraction(A, S1) < 0.99) continue; // (a start in toward you only where the chase camera itself could stand)
+    // (and, where no start between the chase camera and you has room, a start out in the open air first: 6 to 14 m from you on
+    // eight bearings, with 3 m of room round it and clear lines to you and to the camera's place. At SKY GATE every start
+    // between rose through the gap beside the station's curved face, which filled half the ride's second still from 2 m, #231)
+    const starts = [1, 0.6, 0.3].map(s => (s === 1 ? S0 : A.clone().lerp(S0, s)));
+    const outs = () => { const o = []; for (const d of [6, 10, 14]) for (let j = 0; j < 8; j++) { const P = new THREE.Vector3(A.x + Math.sin(j * Math.PI / 4) * d, A.y, A.z + Math.cos(j * Math.PI / 4) * d), w = nav.push(P.x, -P.z, P.y - 1.5, 3, 2);
+      if (Math.hypot(w.x - P.x, w.y + P.z) < 0.05 && nav.clearFraction(A, P) >= 0.99 && nav.clearFraction(S0, P) >= 0.99) o.push(P); } return o; };
+    for (let si = 0; si < starts.length; si++) {
+      if (si === 3) { if (best >= 0.99) break; } // (the open air asked for only when the starts between found no way with room)
+      const S1 = starts[si];
+      if (si === 2 && best < 0.99) starts.push(...outs());
+      if (si > 0 && si < 3 && nav.clearFraction(A, S1) < 0.99) continue; // (a start in toward you only where the chase camera itself could stand)
       for (const h of [0, 0.15, 0.3, 0.4]) {
         for (const n of [n0, n1]) { const f = dz >= 0 ? way(n, h, 0, S1) : way(n, 0, h, S1), c = open(f); if (c > best + 1e-6) { best = c; climb = f; } }
         if (best >= 0.99) break;
