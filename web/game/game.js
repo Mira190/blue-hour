@@ -6492,6 +6492,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // landmarks, the decks), and one between that is away from the lens is looked past, as a post is; but within 1.5 m of
     // it a trunk filled half a phone's frame and hid you (the planters' trees round Hachiko, since the camera came down
     // to the shoulder in issue 71): the camera comes in to stand in front of it, eased as for a wall
+    // (how far from the lens a trunk or a post is still in front of you, not looked past: 1.5 m on a desktop's wide frame, 3 m
+    // on a phone's tall one, where a planter tree's trunk 2 to 3 m off filled a third of the screen in frame 3's Stop, #233)
+    const trunkReach = camera.aspect < 1 ? 3 : 1.5;
     const postAtLens = (a, b) => {
       if (!close || player.mode !== 'foot' || fpOn) return 1;
       const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
@@ -6501,7 +6504,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue; // (a planter's low rail and a queue belt are under the lens; a level's wall is wallCut's)
         if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
         const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
-        if (d2 > R * R || (1 - s) * L > 1.5) continue;
+        if (d2 > R * R || (1 - s) * L > trunkReach) continue;
         t = Math.min(t, Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L));
       }
       return t;
