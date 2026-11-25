@@ -3577,6 +3577,17 @@ of the guide's film 529 to 90 ms, of his sitting 477 to 77, of the step back int
 598 to 53; the warm-up's links moved before it (frame 1's order). The film waits for the guide to be drawable (`d.ready`,
 up to 8 s, else the Stop goes on without it: issue 237).
 
+A level the Stop sees, fetched in it (frame 3, November 2026). Frame 3's police box is 131 m from SKY GATE's lobby, whose
+level (`load_m` 140) was fetched only once the camera reached the box: on a phone's tier its 21 programs linked in the Stop's
+still. The level a frame's Stop will see is now fetched from the frame's start, round its `stop_at` or afterimage
+(`game.js stopAnchor`, passed to `hero.update` as an anchor beside the camera), and a hero level's compile waits while the
+world is stopped (`stopHeld`: sliced, held a frame at a time, not behind the way in's veil, which itself waits for a level
+the frame's Stop is fetching). A story taken up at a frame whose Stop comes at once gets the level after its Stop, not in
+it. Not the next frame's spot as well: Miyamasu's level, kept to frame 4 (`load_m` 60), was then drawn in frame 3's Stop.
+On a phone's tier (llvmpipe, frames 1 to 4 from the title): programs linked in the Stops' beats 21 to 0 (frame 3); on a
+desktop's page none in frames 1 and 3 to 7, and 15 in frame 2's `shown` (the crowd's and the cast's bodies, below).
+`story_play.js BIGUP=1` also prints each hero level's ready line with its steps.
+
 What is left, on the medium tier (a desktop's page on llvmpipe, whose frames there are 7 to 10 s): the late crowd's and
 the helicopter's programs and shadow variants are compiled in the Stop's seek because they arrive in it; the afterimages'
 faded variants at its still. A real device's late models come minutes earlier. Not measured: a real GPU, Safari, an iPhone.
@@ -3713,6 +3724,15 @@ keeps its offset where the footway narrows, and `walk()` moves them out from the
 3. **Cheaper first** (taken next: `plazaStep`, on the main thread), by what this measured: `plazaStep`'s own body (1.2 ms of a desktop's call, 0.8 of a phone's
    with its spacing) is the largest single piece of the phone's simulation and is arithmetic, not world queries; and
    the drawing's `armsClear` (#130's) is the desktop's largest.
+
+**`plazaStep` on the main thread** (taken next, 25 November). At a phone's frame 1, 157 of the Scramble's 183 plaza
+walkers were a kerb's crowd waiting, their pace eased to under 10 µm a second, and each still asked, every frame,
+whether its step of a ten-millionth of a metre kept its room: its neighbours twice (`nearest1`), the whole rigs twice
+(`nearWhole`) and the road. A step that small now lands where it would: in 141,070 such steps checked under the old
+path, the old checks gave exactly that position and pace every time. The neighbour forces also reject a neighbour past
+2.4 m on the square before `Math.hypot`. Measured in one page with `tools/crowd_cost.js` `AB=` (the change under a
+switch, taken out before it landed): phone frame 1, the crowd's update 3.28 to 2.94 ms a call (−0.32 ± 0.09); phone
+frame 7 −0.15 ± 0.21; desktop frame 1 +0.30 ± 0.37 (no change measured: its plazas' crowd moves more).
 
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.

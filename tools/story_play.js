@@ -75,7 +75,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
-  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:')) console.log(t.slice(0, 600)); });
+  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:') || /^hero \w+: /.test(t)) console.log(t.slice(0, 600)); }); // (and each hero level made ready, with its steps' times: hero.js)
   fs.mkdirSync(out, { recursive: true });
   // FPS=1: the page's frames a second beat by beat (issues 8 and 206), counted in the page from its animation frames
   // and named as the telemetry names a beat ("frame 3: stop seek"): for each, the frames, the median and the 95th
@@ -1154,7 +1154,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
         // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
         // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
-        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
+        // (lowered and raised with no frame of the game's between, as a phone's 30 a second let happen: the raise is an event the
+        // game reads, story.state.raised, not a state it must see change)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) await raise(false);
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);
@@ -1289,10 +1291,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         seen.add('menu');
         const tap = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return false; const x = r.x + r.width / 2, y = r.y + r.height / 2; if (w < 500) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); return true; };
         await p.waitForFunction(() => { const e = document.getElementById('g-story-menu'); return e && getComputedStyle(e).display !== 'none'; }, null, { timeout: 8000, polling: 200 }).catch(() => {});
+        // (what lies at the button's middle as it is tapped: a card, a folded goal or a note over it is a phone player's tap
+        // lost, and said so; #248)
+        const over = await p.evaluate(() => { const e = document.getElementById('g-story-menu'); if (!e) return ''; const r = e.getBoundingClientRect(), t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !t || t === e || e.contains(t) ? '' : `${t.tagName.toLowerCase()}${t.id ? '#' + t.id : ''}${t.className && typeof t.className === 'string' ? '.' + t.className.trim().split(/\s+/).join('.') : ''}`; });
+        if (over) { errors.push(`the story's menu button: under ${over} where it is tapped (#248)`); console.log(errors[errors.length - 1]); }
         if (!(await tap('#g-story-menu'))) { errors.push('the story has no menu button to press (issue 48)'); console.log(errors[errors.length - 1]); }
         else {
-          await p.waitForTimeout(600);
-          const open = await p.evaluate(() => !document.getElementById('g-menu').hidden);
+          // (the menu waited for, ten seconds of the wall, not read 600 ms on: on a phone's page at 30 frames a second of a
+          // software renderer's the pause came up after it, #248)
+          const open = await p.waitForFunction(() => !document.getElementById('g-menu').hidden, null, { timeout: 10000, polling: 100 }).then(() => true, () => false);
           if (open) await snap('1-menu');
           // (issue 114: the story's pause is a player's, not the builder's: no hour, date, weather, clock speed or route
           // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
@@ -1302,8 +1309,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
             if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
             else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
           }
-          await tap('#g-menu-close'); await p.waitForTimeout(600);
-          const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
+          await tap('#g-menu-close');
+          const shut = await p.waitForFunction(() => document.getElementById('g-menu').hidden, null, { timeout: 10000, polling: 100 }).then(() => true, () => false);
           if (!open || !shut) { errors.push(`the story's menu button: ${open ? 'the menu opened and its close button did not shut it' : 'the menu did not open'}`); console.log(errors[errors.length - 1]); }
           else console.log(`the menu: opened from the story's own button by ${w < 500 ? 'touch' : 'the mouse'}, and shut again`);
         }

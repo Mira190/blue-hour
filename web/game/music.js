@@ -145,10 +145,11 @@ window.OEMusic = (function () {
     // indoors: drier and closer
     p.indoors = s.indoors;
     if (s.indoors) { p.wet *= 0.4; p.lv.drums *= 0.6; p.lv.drops *= 0.5; p.lv.keys *= 1.1; }
-    // time held (a story's Stop): the beat is time's, so it goes with it. The pad stays on the chord it has, the piano
-    // and the bass are let ring out, and what is left is the theme alone, slower
+    // time held (a story's Stop): the score is time's, so all of it goes with it, in half a second. Only the story's own
+    // sound is left in a stopped street (its choir, its glass, the player's steps): a score under them was a fourth layer
+    // the owner heard as "still sound" (25 Nov 2026). The stings are not layers and still sound (the meeting's chord)
     p.held = !!s.held && !!p.her; p.theme = s.theme;
-    if (p.held) { p.lv.keys = 0; p.lv.bass = 0; p.lv.felt = 0; p.lv.pulse = 0; p.lv.drops = 0; p.lv.pad *= 0.8; p.wet += 0.5; }
+    if (p.held) for (const k in p.lv) p.lv[k] = 0;
     p.duck = s.talking ? 0.562 : 1; // 5 dB under speech
     p.event = s.event;
     if (s.event) p.bpm += 1;
@@ -408,7 +409,7 @@ window.OEMusic = (function () {
       const T = resolve(st), first = !P;
       let restart = first;
       rest = false;
-      if (!first && T.held !== P.held) phraseBar = 0; // (time held or let go: the phrase begins again, so the theme is the first thing heard in a Stop)
+      if (!first && T.held !== P.held) phraseBar = 0; // (time held or let go: the phrase begins again when time runs)
       if (!first && T.id !== P.id) {
         const moved = T.key !== P.key;
         xf = moved ? 4 : 3; restart = moved; rest = moved;
@@ -423,6 +424,7 @@ window.OEMusic = (function () {
       N.bus.pad.lp.frequency.setTargetAtTime(clamp(P.bright * 0.16, 520, 900), t0, tc);
       N.wet.gain.setTargetAtTime(P.wet, t0, first ? 0.05 : Math.min(tc, 0.5));
       N.duck.gain.setTargetAtTime(P.duck, t0, 0.12);
+      if (P.held) { barNo++; nextBar = t0 + barDur; return; } // (time held: nothing is written, so a silent score costs a phone nothing)
       // the phrase: four chords, a new progression each time round
       if (restart) { phraseBar = 0; M.pos = P.mel.length; M.harp = P.mel.length; M.motif = null; }
       if (phraseBar % (P.bars * 4) === 0) { phraseBar = 0; prog = P.progs[(P.dseed + progNo + (rng() < 0.3 ? 1 : 0)) % P.progs.length]; progNo++; }
@@ -480,8 +482,8 @@ window.OEMusic = (function () {
       // a story's theme, once in each phrase of eight bars, from its fifth: hers on a soft bell, as many of its notes as
       // the roll has frames (two before the first, all five from the third on); from the sixth frame his answer under
       // it on the piano, a bar behind until the last frame, where they are played together and end on one note
-      if (P.her && phraseBar === (P.held ? 0 : 4) && !rest) {
-        const deg = (d, oct) => lb + 12 * oct + P.mel[d], k = clamp(2 + P.theme, 2, 5), step = (P.held ? 3 : 2) * spb;
+      if (P.her && !P.held && phraseBar === 4 && !rest) {
+        const deg = (d, oct) => lb + 12 * oct + P.mel[d], k = clamp(2 + P.theme, 2, 5), step = 2 * spb;
         for (let j = 0; j < k; j++) q('glow', 'lead', t0 + j * step + human(), deg(P.her[j], 1), 3, (j === k - 1 ? 0.16 : 0.14) * soft());
         if (P.theme >= 5) { const lag = P.theme >= 6 ? 0 : 4 * spb; for (let j = 0; j < 5; j++) q('felt', 'lead', t0 + lag + j * step + human(), deg(P.his[j], 0), 3, 0.13 * soft()); }
       }
@@ -576,7 +578,7 @@ window.OEMusic = (function () {
         const T = resolve(st), now = ctx.currentTime;
         N.duck.gain.setTargetAtTime(T.duck, now, 0.12);
         N.wet.gain.setTargetAtTime(T.wet, now, 0.4);
-        if (T.held) for (const k of ['keys', 'bass', 'felt', 'pulse', 'drops']) N.bus[k].in.gain.setTargetAtTime(0, now, 0.3); // (time is braked in under a second: so is the beat)
+        if (T.held) for (const k in T.lv) N.bus[k].in.gain.setTargetAtTime(0, now, 0.15); // (time is braked in under a second: the score is out in half of one, 29 dB down)
       }
     }
     function sting(kind, at) {
