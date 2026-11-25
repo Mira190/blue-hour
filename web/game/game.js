@@ -260,6 +260,7 @@ window.OpenEarthGame = async function game(cityId) {
   // a model that comes once the game is open: its textures sent in idle time, a texture a frame, then its
   // shaders compiled, before it is shown (issue 201; world.js upload)
   const uploadFor = (obj, o) => (OEWorld.upload ? OEWorld.upload(renderer, obj, o) : Promise.resolve());
+  if (OEWorld.uploadFrom) OEWorld.uploadFrom(() => camera.position); // (the queue's order: what is nearest what you see from first, world.js)
   const warmFor = (obj, o) => uploadFor(obj, o).then(() => compileFor(obj));
   // the first frame drawn (issue 27): what the loader need not wait for is compiled after it, not queued beside the loader's
   // own programs, where a device that compiles one at a time (an iPhone) finished it before the first frame all the same
