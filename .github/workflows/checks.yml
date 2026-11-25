@@ -263,11 +263,14 @@ jobs:
             if [ -n "$open" ]; then gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file body.md
             else gh issue create --repo "$GITHUB_REPOSITORY" --label main-red --title "Main is red: the full checks fail" --body-file body.md; fi
           fi
-          # the unsteady steps of this run, on the one issue that collects them
+          # the unsteady steps of this run, on the one issue that collects them: found by its title, not as the newest
+          # issue labelled check-flaky, which is whichever cause was filed last (#198's tally went to #238, a canopy, once
+          # #236 and #238 were filed for causes of their own, and read there as that cause's)
           if cat flaky/*/flaky.txt >flaky.txt 2>/dev/null && [ -s flaky.txt ]; then
             { echo "At ${GITHUB_SHA:0:8} ([run]($run), logs in its flaky artifacts):"; echo; sed 's/^FLAKY */- /' flaky.txt; } >flaky.md
             gh label create check-flaky --repo "$GITHUB_REPOSITORY" --color FBCA04 --description "Steps of the checks that fail one run and pass the next" 2>/dev/null || true
-            n=$(gh issue list --repo "$GITHUB_REPOSITORY" --label check-flaky --state open --json number --jq '.[0].number // empty' || true)
+            n=$(gh issue list --repo "$GITHUB_REPOSITORY" --label check-flaky --state open --json number,title \
+              --jq '[.[] | select(.title == "Checks: steps that fail one run and pass the next")][0].number // empty' || true)
             if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file flaky.md
             else gh issue create --repo "$GITHUB_REPOSITORY" --label check-flaky --title "Checks: steps that fail one run and pass the next" --body-file flaky.md; fi
           fi
