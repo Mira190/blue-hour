@@ -6,13 +6,12 @@
 //   - on foot: inside the last metres before the edge, the part of a step that goes out is taken away (the walker goes
 //     along the edge, never into it); kept pressed out against it, the camera eases round to face back in, and the
 //     walker walks back in on the same key;
-//   - by car: braked to a stop short of the road works at a comfortable rate, the throttle outward let go; it turns
-//     and drives away of itself, as at any closed road;
+//   - by car: braked to a stop short of the edge at a comfortable rate, the throttle outward let go; it turns and
+//     drives away of itself;
 //   - in the helicopter: turned back in a banked arc towards the Scramble, over the band inside the air's edge, the
 //     tower's line on the radio; and held under a ceiling (Haneda's approach), eased down;
-//   - the streets that cross the ground's edge are shut to cars (the traffic keeps off them, as off a street shut at
-//     an hour: junctions.js shutNow), and road works stand across each: cones with their bars, two barricades with
-//     their amber lamps, and the sign;
+//   - the streets that cross the ground's edge are open to the traffic, which drives on past it, and nothing is drawn
+//     across them: no works, no sign (the owner, 25 November 2026); they are left out of your routes only (l.edge);
 //   - and nothing offers a place outside it: inside(x, y) for the rides, the autopilot, the map's places.
 //
 // opts: { data: game.bounds, toast(html), floor(x, y, z) -> z of the floor there or null, reg: the helicopter's
@@ -229,7 +228,6 @@ window.OEBounds = (function () {
     // shut the streets that cross the edge to cars, both ways, all day (the traffic and the rides keep off them)
     api.closeRoads = net => {
       if (!net || !net.L) return 0;
-      const ALL = [[127, 0, 1441]];
       let n = 0;
       for (const l of net.L) {
         const P = l.pts;
@@ -237,105 +235,19 @@ window.OEBounds = (function () {
         let inS = null, cross = false;
         for (let i = 0; i + 1 < P.length; i += 3) { const s = G.sd(P[i], P[i + 1]).s > 0; if (inS === null) inS = s; else if (s !== inS) { cross = true; break; } }
         if (!cross) continue;
-        l.tb = (l.tb || []).concat([[0, true, ALL]]);
-        l.edge = 1; // (and never on a route, not even the search along any street that a street shut at an hour allows: cars.js)
+        l.edge = 1; // (never on a route of yours, a ride's or the autopilot's: cars.js. Open to the traffic, which drives on past the edge)
         n++;
       }
       api.closed = n;
       return n;
     };
 
-    // ---------------------------------------------------------------- the road works
-    // drawn at each crossing, on the outer side of the edge, facing in: a line of cones with their striped bars, two
-    // barricades with an amber lamp each (blinking at night), and the sign. All of it instanced: a few draws.
-    api.build = (THREE, paths, root) => {
-      const C = crossings(paths);
-      api.works = C;
-      if (!C.length) return null;
-      const group = new THREE.Group();
-      group.name = 'bounds-works';
-      const V = (x, y, z) => new THREE.Vector3(x, z, -y);
-      const cones = [], bars = [], rails = [], legs = [], lamps = [], signs = [];
-      for (const c of C) {
-        const z0 = opts.floor ? (opts.floor(c.x, c.y, c.z) ?? c.z) : c.z;
-        const tx = c.e.tx, ty = c.e.ty, nx = c.e.nx, ny = c.e.ny;
-        const yaw = Math.atan2(-nx, ny); // facing in (a model's +z turned by yaw faces (sin yaw, -cos yaw) on the map)
-        const along = Math.atan2(ty, tx); // (and its +x along the edge)
-        const n = Math.max(2, Math.round(c.w / 1.5)), step = c.w / n;
-        for (let k = 0; k <= n; k++) {
-          const u = -c.w / 2 + k * step, x = c.x + tx * u + nx * 0.6, y = c.y + ty * u + ny * 0.6;
-          const z = opts.floor ? (opts.floor(x, y, z0) ?? z0) : z0;
-          cones.push([x, y, z, yaw]);
-          if (k < n) bars.push([x + tx * step / 2, y + ty * step / 2, z, along, step]);
-        }
-        if (!c.foot) for (const u of [-1.6, 1.6]) {
-          const x = c.x + tx * u - nx * 0.9, y = c.y + ty * u - ny * 0.9, z = opts.floor ? (opts.floor(x, y, z0) ?? z0) : z0;
-          rails.push([x, y, z, along]);
-          legs.push([x, y, z, along]);
-          lamps.push([x + tx * 0.5, y + ty * 0.5, z + 1.16, 0]);
-        }
-        { const u = c.foot ? 0 : 0, x = c.x + tx * u - nx * 2.2, y = c.y + ty * u - ny * 2.2, z = opts.floor ? (opts.floor(x, y, z0) ?? z0) : z0; signs.push([x, y, z, yaw]); }
-      }
-      // the pictures: the cone's red and its white band, the bar's yellow and black, the sign's face
-      const tex = (w, h, draw) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h); const t = new THREE.CanvasTexture(cv); t.anisotropy = 4; if ('colorSpace' in t) t.colorSpace = THREE.SRGBColorSpace; else t.encoding = THREE.sRGBEncoding; return t; };
-      const stripes = tex(128, 16, (g, w, h) => { g.fillStyle = '#e8b711'; g.fillRect(0, 0, w, h); g.fillStyle = '#1a1a1a'; for (let x = -h; x < w + h; x += 32) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 16, h); g.lineTo(x + 16 + h, 0); g.lineTo(x + h, 0); g.fill(); } });
-      const coneT = tex(16, 64, (g, w, h) => { g.fillStyle = '#c8261c'; g.fillRect(0, 0, w, h); g.fillStyle = '#eceae4'; g.fillRect(0, h * 0.28, w, h * 0.16); g.fillRect(0, h * 0.56, w, h * 0.1); });
-      const signT = tex(256, 384, (g, w, h) => {
-        g.fillStyle = '#f4f3ee'; g.fillRect(0, 0, w, h);
-        g.fillStyle = '#1d4f9c'; g.fillRect(0, 0, w, h * 0.3); g.fillRect(8, h - 14, w - 16, 6);
-        g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        const S = L.sign || ['工事中', 'この先 通行止め', 'ROAD WORKS · CLOSED AHEAD'];
-        g.font = 'bold 72px "Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif'; g.fillText(S[0], w / 2, h * 0.15);
-        g.fillStyle = '#c41e1e'; g.font = 'bold 40px "Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif'; g.fillText(S[1], w / 2, h * 0.46);
-        g.fillStyle = '#222'; g.font = 'bold 19px "Inter","Helvetica Neue",Arial,sans-serif'; g.fillText(S[2], w / 2, h * 0.62);
-        g.strokeStyle = '#c41e1e'; g.lineWidth = 10; g.beginPath(); g.arc(w / 2, h * 0.8, 34, 0, Math.PI * 2); g.stroke();
-        g.beginPath(); g.moveTo(w / 2 - 24, h * 0.8 + 24); g.lineTo(w / 2 + 24, h * 0.8 - 24); g.stroke();
-      });
-      const M = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.6, metalness: 0 }, o));
-      const inst = (geo, mat, list, place) => {
-        if (!list.length) return null;
-        const m = new THREE.InstancedMesh(geo, mat, list.length), o = new THREE.Object3D();
-        list.forEach((q, i) => { o.position.copy(V(q[0], q[1], q[2])); o.rotation.set(0, q[3], 0); o.scale.set(1, 1, 1); if (place) place(o, q); o.updateMatrix(); m.setMatrixAt(i, o.matrix); });
-        m.instanceMatrix.needsUpdate = true; m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
-        group.add(m); return m;
-      };
-      // a cone 0.7 m on a square foot, its bar at 0.55 m between two
-      const coneG = new THREE.CylinderGeometry(0.035, 0.16, 0.68, 14, 1, true); coneG.translate(0, 0.38, 0);
-      const footG = new THREE.BoxGeometry(0.38, 0.04, 0.38); footG.translate(0, 0.02, 0);
-      inst(coneG, M({ map: coneT, roughness: 0.45, side: THREE.DoubleSide }), cones);
-      inst(footG, M({ color: 0x1b1b1b, roughness: 0.85 }), cones);
-      const barG = new THREE.CylinderGeometry(0.024, 0.024, 1, 8); barG.rotateZ(Math.PI / 2); barG.translate(0, 0.56, 0);
-      const barM = M({ map: stripes, roughness: 0.5 });
-      inst(barG, barM, bars, (o, q) => o.scale.set(q[4], 1, 1));
-      // a barricade: the striped rail at a metre, a lower one, two legs
-      const railG = new THREE.BoxGeometry(1.2, 0.2, 0.04); railG.translate(0, 0.98, 0);
-      const rail2G = new THREE.BoxGeometry(1.2, 0.12, 0.04); rail2G.translate(0, 0.55, 0);
-      inst(railG, M({ map: stripes, roughness: 0.5 }), rails);
-      inst(rail2G, M({ map: stripes, roughness: 0.5 }), rails);
-      const legG = new THREE.BoxGeometry(0.05, 1.08, 0.5);
-      { const a = legG.clone(); a.translate(-0.56, 0.54, 0); const b = legG.clone(); b.translate(0.56, 0.54, 0); legs.geo = [a, b]; }
-      for (const g of legs.geo) inst(g, M({ color: 0xd9d6cf, roughness: 0.55 }), legs);
-      // the lamps: amber, lit, blinking at night by two groups out of step
-      const lampG = new THREE.SphereGeometry(0.075, 12, 8);
-      const lampA = M({ color: 0x3a2400, emissive: 0xffa21f, emissiveIntensity: 1.2, roughness: 0.3 });
-      const lampB = lampA.clone();
-      inst(lampG, lampA, lamps.filter((_, i) => i % 2 === 0));
-      inst(lampG, lampB, lamps.filter((_, i) => i % 2 === 1));
-      // the sign on its stand, facing in
-      const signG = new THREE.PlaneGeometry(0.8, 1.2); signG.translate(0, 1.15, 0.02);
-      const standG = new THREE.BoxGeometry(0.84, 1.28, 0.03); standG.translate(0, 1.15, 0);
-      const postG = new THREE.BoxGeometry(0.04, 0.55, 0.45); postG.translate(0, 0.27, -0.12);
-      inst(signG, M({ map: signT, roughness: 0.4 }), signs);
-      inst(standG, M({ color: 0xcfcdc6, roughness: 0.6 }), signs);
-      inst(postG, M({ color: 0x777777, roughness: 0.7 }), signs);
-      root.add(group);
-      api.group = group;
-      api.tick = (t, night) => {
-        const on = night ? 1 : 0.6, k = (Math.sin(t * Math.PI * 2 * 0.9) > 0 ? 1 : 0.08);
-        lampA.emissiveIntensity = (night ? 1.5 : 0.7) * k * on; lampB.emissiveIntensity = (night ? 1.5 : 0.7) * (1.08 - k) * on; // (a lamp, not a flare: the bloom takes it further)
-      };
-      return group;
-    };
+    // ---------------------------------------------------------------- where streets and footways cross the edge
+    // (the owner, 25 November 2026: no road works drawn at the edge. An open world does not sign off where you cannot
+    // go: its roads run on and its traffic with them, and only you are turned back, softly. Works drawn across a street
+    // the traffic still drove up to read as a closed road with cars coming through it. The crossings are kept, unseen,
+    // for the checks that meet the edge there: tools/bounds_check.js)
+    api.mark = paths => { api.works = crossings(paths); return api.works; };
     return api;
   }
   return { create, shape };
