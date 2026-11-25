@@ -3714,6 +3714,15 @@ keeps its offset where the footway narrows, and `walk()` moves them out from the
    with its spacing) is the largest single piece of the phone's simulation and is arithmetic, not world queries; and
    the drawing's `armsClear` (#130's) is the desktop's largest.
 
+**`plazaStep` on the main thread** (taken next, 25 November). At a phone's frame 1, 157 of the Scramble's 183 plaza
+walkers were a kerb's crowd waiting, their pace eased to under 10 µm a second, and each still asked, every frame,
+whether its step of a ten-millionth of a metre kept its room: its neighbours twice (`nearest1`), the whole rigs twice
+(`nearWhole`) and the road. A step that small now lands where it would: in 141,070 such steps checked under the old
+path, the old checks gave exactly that position and pace every time. The neighbour forces also reject a neighbour past
+2.4 m on the square before `Math.hypot`. Measured in one page with `tools/crowd_cost.js` `AB=` (the change under a
+switch, taken out before it landed): phone frame 1, the crowd's update 3.28 to 2.94 ms a call (−0.32 ± 0.09); phone
+frame 7 −0.15 ± 0.21; desktop frame 1 +0.30 ± 0.37 (no change measured: its plazas' crowd moves more).
+
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.
 

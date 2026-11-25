@@ -4,6 +4,8 @@
 //   node tools/crowd_cost.js [WxH] [seconds]     (FROM=4: the fifth frame; a width under 500 is an iPhone's page)
 //   HZ=60: the crowd's update alone, called `seconds` of its time at sixty a second (a player's pace: see below)
 //   GAP=1: each of those calls let go to the event loop after it (for work the page does elsewhere between frames, a Worker's)
+//   AB=field: in one page, blocks of ABN (30) calls with the crowd's field set true (the way before a change) and false
+//     in turn, timed apart (a change measured against itself under its switch, the switch taken out before it lands)
 //   THROTTLE=4: the main thread's CPU slowed four times (a phone's), the times then divided by it
 //   WARM=seconds the page is left before the sampling (25); DRAW=n (240); OUT=file: the profile kept (.cpuprofile)
 //   LAYOUTS=n: only the count of the walkers' and the cars' hidden layouts, failing over n (the check)
@@ -132,12 +134,20 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
     // simworker-220) arrives between calls as it does between a player's frames: the time between is not counted. The
     // page's own frames are held meanwhile, or the game runs between the calls, the story moves on and its frames are
     // profiled with them)
-    const r = await p.evaluate(async ([hz, secs, gap]) => { const g = window.__game, c = g.crowd, a = window.__cu.slice(), dt = 1 / hz, n = Math.round(hz * secs), T = new Float64Array(n);
+    const r = await p.evaluate(async ([hz, secs, gap, ab, abn]) => { const g = window.__game, c = g.crowd, a = window.__cu.slice(), dt = 1 / hz, n = Math.round(hz * secs), T = new Float64Array(n);
       const raf = window.requestAnimationFrame, held = [];
       if (gap) { window.requestAnimationFrame = f => { held.push(f); return 0; }; for (let k = 0; k < 3; k++) await new Promise(f => raf(f)); }
-      for (let k = 0; k < n; k++) { a[0] = dt; a[3] += dt; const t0 = performance.now(); window.__cuRaw.apply(c, a); T[k] = performance.now() - t0; if (gap) await new Promise(f => setTimeout(f, 1)); }
+      // (AB: in blocks of ABN calls, the crowd's field AB set true (the way before a change) and false in turn, each block's
+      // median against the blocks either side of it: one page, one crowd, one moment of this machine for both)
+      const T2 = ab ? [] : null;
+      for (let k = 0; k < n; k++) { if (ab) c[ab] = Math.floor(k / abn) % 2 === 0; a[0] = dt; a[3] += dt; const t0 = performance.now(); window.__cuRaw.apply(c, a); T[k] = performance.now() - t0; if (gap) await new Promise(f => setTimeout(f, 1)); }
+      let abr = null;
+      if (ab) { c[ab] = false; const BM = []; for (let k0 = 0; k0 + abn <= n; k0 += abn) { const B = Array.from(T.subarray(k0 + 3, k0 + abn)).sort((x, y) => x - y); BM.push(B[B.length >> 1]); }
+        const D = [], on = [], off = []; BM.forEach((m, k) => (k % 2 ? on : off).push(m)); for (let k = 1; k < BM.length; k += 2) D.push(BM[k] - (k + 1 < BM.length ? (BM[k - 1] + BM[k + 1]) / 2 : BM[k - 1]));
+        const mean = A => A.reduce((x, y) => x + y, 0) / A.length, dm = mean(D), se = Math.sqrt(D.reduce((x, y) => x + (y - dm) ** 2, 0) / Math.max(1, D.length - 1) / D.length);
+        abr = { field: ab, before: +mean(off).toFixed(3), after: +mean(on).toFixed(3), diff: +dm.toFixed(3), se: +se.toFixed(3), blocks: D.length }; }
       if (gap) { window.requestAnimationFrame = raf; for (const f of held) raf(f); }
-      const S = Array.from(T).sort((x, y) => x - y); return { n, mean: S.reduce((x, y) => x + y, 0) / n, med: S[n >> 1], p90: S[Math.floor(n * 0.9)] }; }, [+process.env.HZ, +secs, !!process.env.GAP]);
+      const S = Array.from(T).sort((x, y) => x - y); return { abr, n, mean: S.reduce((x, y) => x + y, 0) / n, med: S[n >> 1], p90: S[Math.floor(n * 0.9)] }; }, [+process.env.HZ, +secs, !!process.env.GAP, process.env.AB || '', +process.env.ABN || 30]);
     const { profile } = await cdp.send('Profiler.stop');
     if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(profile));
     const by = new Map(profile.nodes.map(x => [x.id, x.callFrame])), fn = new Map(), file = new Map();
@@ -145,6 +155,7 @@ const [,, size = '1440x900', secs = '30'] = process.argv;
       file.set(u, (file.get(u) || 0) + ms); const k = `${f.functionName || '(anon)'} ${u}:${f.lineNumber + 1}`; fn.set(k, (fn.get(k) || 0) + ms); });
     const top = (m, k) => [...m].sort((x, z) => z[1] - x[1]).slice(0, k).map(([name, v]) => `  ${(v / r.n).toFixed(3).padStart(7)}  ${name}`).join('\n');
     console.log(`${size}${phone ? ' (a phone)' : ''}, frame ${(+process.env.FROM || 0) + 1}: the crowd's update at ${process.env.HZ} a second, ${r.n} calls: mean ${(r.mean / RATE).toFixed(2)} ms, median ${(r.med / RATE).toFixed(2)}, slowest tenth from ${(r.p90 / RATE).toFixed(2)}${RATE > 1 ? ` (the CPU slowed ${RATE} times, the times divided by it)` : ''}`);
+    if (r.abr) console.log(`A/B in one page, blocks of calls with crowd.${r.abr.field} true (before) and false (after) in turn: before ${r.abr.before} ms, after ${r.abr.after} ms (block medians), after less before ${r.abr.diff} ± ${r.abr.se} ms (${r.abr.blocks} blocks)`);
     console.log(`by file, ms a call:\n${top(file, 8)}\nby function, ms a call:\n${top(fn, +process.env.TOP || 24)}`);
     console.log(`after: ${JSON.stringify(await state())}`);
     if (errors.length) console.log(`page errors: ${errors.slice(0, 5).join(' | ')}`);
