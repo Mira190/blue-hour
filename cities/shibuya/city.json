@@ -647,6 +647,9 @@
       "weekend": 1.15,
       "note": "hours: the share of the peak crowd out, by the hour: the morning commute, lunch, and the evening, busiest from 18:00 to 21:00 and busier still on Friday and Saturday nights and at the weekend (Shibuya Redevelopment Association, 2014: 260,000 people a day on weekdays, 390,000 on holidays); few after the last trains (about 00:30)",
       "cars": 200,
+      "cars_ring_m": 280,
+      "cars_hours": [[0, 0.42], [2, 0.3], [4, 0.24], [6, 0.45], [8, 0.92], [10, 0.85], [12, 0.82], [14, 0.84], [16, 0.9], [18, 1.0], [19, 1.0], [21, 0.8], [23, 0.55]],
+      "cars_note": "cars: the traffic's peak count (a phone's 0.65 of it), held within cars_ring_m of the player on foot (a third wider at the wheel, all of radius_m from the helicopter: game.js trafficRing). cars_hours: the share of the peak on the streets by the hour, an estimate in the shape of a weekday on central Tokyo's arterials (morning and evening peaks, the small hours about a quarter of the evening's; Shibuya's night taxis keep it from falling lower). The peak it is set against: the Scramble's weekday count, about 1,900 vehicles an hour, 50 to 65 a signal cycle (Shibuya ward, 2017; issue 204)",
       "radius_m": 450,
       "style": "tokyo", "real_from": ["tokyo"]
     },
