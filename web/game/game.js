@@ -6704,8 +6704,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camPos.addVectors(camTarget, camOff);
     // (and where the swing's easing leaves it, on foot: the offset eased round as you turn cuts a wall's corner on its way, the
     // lens a few decimetres behind the station passage's walls for up to 10 frames of a turn on the spot. On the line it is on,
-    // in front of whatever solid stands there, in this frame: issue 217)
-    if (close && !jumped) { const fs = solidCut(camTarget, camPos); if (fs < 0.97) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
+    // in front of whatever solid stands there, in this frame: issue 217. By distance, not a share of the line: 3% of a 5.5 m arm
+    // left the lens 0.10 m behind the free passage's wall after frame 6's set-down)
+    if (close && !jumped) { const fs = solidCut(camTarget, camPos), fl = camTarget.distanceTo(camPos); if ((1 - fs) * fl > 0.03) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
     // decks below the player's head eased in, so walking onto a stair or a deck lifts the view smoothly
