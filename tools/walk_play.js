@@ -508,7 +508,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         // (and if their body is still coming, a software renderer behind another browser: the seat must be offered by its mark
         // meanwhile, never an empty wall with nothing on it, visitors.js seated)
         const waiting = !sitter || sitter === 'none';
-        if (waiting && !(pm && pm.o > 0.05)) fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place, and no mark offers it`);
+        // (said with what was there: the one who sits by it, drawn or not, and the mark's state, so a failure says which half failed)
+        const why = waiting && !(pm && pm.o > 0.05) ? await p.evaluate(() => { const g = window.__game, s = g.perch.list[0], V = g.visitors, me = g.player; const q = V ? V.groups.flatMap(G => G.people).filter(v => v.p.sit != null && Math.hypot(v.x - s.at[0], v.y - s.at[1]) < 2.5) : []; const e = document.querySelector('.g-walk-mark[data-k="place"]'); return `sitters ${JSON.stringify(q.map(v => ({ shown: !!v.shown, rig: !!v.rig, ch: v.p.look && v.p.look.character })))}; mark ${e ? `opacity ${e.style.opacity}` : 'none'}; you ${Math.hypot(me.x - s.at[0], me.y - s.at[1]).toFixed(1)} m off, mode ${me.mode || '?'}; queue ${JSON.stringify(window.OEWorld.uploadStats ? window.OEWorld.uploadStats() : null)}`; }).catch(e => String(e)) : '';
+        if (waiting && !(pm && pm.o > 0.05)) fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place, and no mark offers it (${why})`);
         else if (waiting) ok(`nine metres from ${seat.name}: the one who sits beside it has not come yet (their body still loading), and the mark offers the place meanwhile ("${pm.name}")`);
         else ok(`nine metres from ${seat.name}: someone sits ${sitter.d} m from the free place (${sitter.who})`);
         // (sat on the stone drawn, not on the walking grid's wider block: a ray down through the meshes, tools/drawn_seat.js)
