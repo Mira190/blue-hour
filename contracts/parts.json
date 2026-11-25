@@ -281,6 +281,7 @@
    "for": "Who walks where: the crowd, the NPCs, the walking grid, the ways, the guide.",
    "files": [
     "web/game/actors.js",
+    "web/game/simworker.js",
     "web/game/nav.js",
     "web/game/navcells.js",
     "web/game/route.js",

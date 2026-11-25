@@ -736,7 +736,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
       yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
       off: undefined, pBack: undefined, reg0: undefined,
-      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, turnAt: undefined, turnAt0: undefined, umbUpT: undefined });
+      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, turnAt: undefined, turnAt0: undefined, umbUpT: undefined, sim: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -848,6 +848,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     let opened = false, stepNo = 0; // (stepNo: the update under way, for the neighbours' hash) // (has the crowd taken its first step: update)
     const api = { R, P, active: n, want: null, benches: BN, cars: null, sitChance: () => 0, crossings: null, kerbWait: 0, kerbWaits: [], fresh: 0, hot: null, plazas: null, muster, bodies: null };
+    // ?simworker=1 (issue 220, a prototype, off by default): a walker out of the picture, alone on a stretch of its footway
+    // where nothing waits for it, is stepped along it by web/game/simworker.js (a Worker; ?simworker=main: the same step
+    // on this thread) and given back to walk() as soon as anything about it changes. p.sim: the epoch it was handed over
+    // in (0: walk() steps it); SL: the line it was handed over on; api.sim: the bridge's counts, for tools/crowd_cost.js
+    const SIMQ = typeof location !== 'undefined' && /[?&]simworker=(1|main)\b/.exec(location.search);
+    const SIM = SIMQ && window.OESimWorker ? OESimWorker.create(net.L, { mode: SIMQ[1] === 'main' ? 'main' : 'worker' }) : null;
+    const SL = SIM ? new Int32Array(n).fill(-1) : null, simSpans = new Map(), SIM_END = 3;
+    let simEpoch = 0;
+    api.sim = SIM ? SIM.stats : null; api.simPause = false; // (simPause: every walker walk()'s again, for a measure of the two in one page: tools/crowd_cost.js AB)
     // where footway li steps off the kerb onto a road with no crossing marked there, each way along it
     // ({ s, dir, x, y }): found the first time a walker is on it, a metre at a time (crossings.road, from
     // game.js, says what is carriageway; crossings.zebra, a zebra's stripes, where the cars give way instead)
@@ -2267,6 +2276,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function update(dt, cx, cy, t, player) {
       ucx = cx; ucy = cy; uT = t; api.t = t; // (api.t: the crowd's own time, for the checks' windows)
       waysStep();
+      if (SIM) simTake();
       R.begin(dt, cx, cy, t, api.active);
       frame++;
       if (api.plazas && (frame % 15 === 1 || t < 1)) plazas(t, cx, cy);
@@ -2334,7 +2344,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           // they step OUT_S apart, twice that past NEAR, each with the time it was owed, no two on the same beat. Within
           // OUT_M of the crowd's centre every frame all the same: whoever turns round sees them at once. One drawn steps
           // exactly as before)
-          if (p.inPic === false && d > OUT_M && p.lat != null) {
+          if (SIM && (p.sim > 0 ? simKeep(i, p, d) : !api.simPause && simGive(i, p, d))) { /* (?simworker: stepped along its footway by simworker.js) */ }
+          else if (p.inPic === false && d > OUT_M && p.lat != null) {
             p.owed = (p.owed || 0) + dt;
             if (p.owed >= (d < NEAR ? OUT_S : 2 * OUT_S) * (p.beat || (p.beat = 0.85 + 0.3 * h01(i, 5)))) { const w = Math.min(0.2, p.owed); p.owed = 0; walk(i, w, player, pvx, pvy); gait(p, w); }
           } else {
@@ -2372,7 +2383,69 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (p.state !== 'walk') gait(p, dt);
         R.place(i, p, p.state !== 'sit' && p.moving);
       }
+      if (SIM) SIM.post(dt);
       R.end();
+    }
+    // ?simworker (issue 220): the stretches of footway li where a walker out of sight may be stepped as a flow, as
+    // [from, to, from, to, ...] along it: not within SIM_END of an end (where walk() picks the way on, or waits at a
+    // kerb), nor by a crossing on it, a step into a road or a bench; none on a footway that leads nowhere or is shut.
+    // Kept per line once the crossings are known (null before)
+    function simSpan(li, s) {
+      if (!api.crossings) return null;
+      let F = simSpans.get(li);
+      if (!F) {
+        const l = net.L[li], cut = [[-1e9, SIM_END], [l.len - SIM_END, 1e9]], C = api.crossings;
+        const X = C.byLine && C.byLine.get(li); if (X) for (const x of X) cut.push([x.s - x.kerb - 4, x.s + x.kerb + 4]);
+        if (C.road) for (const e of roadEntries(li)) cut.push([e.s - 4, e.s + 4]);
+        const B = BN && BN.byLine.get(li); if (B) for (const b of B) cut.push([b.s - 2, b.s + 2]);
+        F = [];
+        if (!inPocket(li) && !shutLine(li)) {
+          cut.sort((a, b) => a[0] - b[0]);
+          let at = -1e9;
+          for (const [a, b] of cut) { if (a > at && a - at > 2) F.push(at, a); at = Math.max(at, b); }
+        }
+        simSpans.set(li, F);
+      }
+      for (let k = 0; k < F.length; k += 2) if (s > F[k] + 0.5 && s < F[k + 1] - 0.5) return [F[k], F[k + 1]];
+      return null;
+    }
+    // handed over: one out of the picture and away from the centre, walking alone, nothing it waits on or turns from
+    function simGive(i, p, d) {
+      if (!(p.inPic === false && d > OUT_M + 2 && p.lat != null) || p.state !== 'walk' || p.pz || p.lead >= 0 || p.mates || p.stop || p.reg || p.seat || p.pause > 0
+        || p.arrived || p.kerbNext || p.kerbBack || p.give || p.ghost > 0 || p.detourT > 0 || p.squeeze > 0) return false;
+      const sp = simSpan(p.line, p.s);
+      if (!sp) return false;
+      p.sim = ++simEpoch; SL[i] = p.line; p.owed = 0;
+      p.v = p.av = p.speed; p.moving = true;
+      SIM.add(i, p.sim, p.line, p.s, p.dir, p.lat, p.speed, sp[0], sp[1]);
+      return true;
+    }
+    // still the bridge's while nothing about it has changed; otherwise back to walk(), from where it was last laid
+    function simKeep(i, p, d) {
+      if (!api.simPause && p.inPic === false && d > OUT_M && p.line === SL[i] && p.lat != null && p.state === 'walk' && !p.pz && p.lead < 0 && !p.mates && !p.reg && !p.seat) return true;
+      p.sim = 0; SL[i] = -1; p.owed = 0; SIM.drop(i);
+      // (how it was given back: in a wall, or within 0.4 m of someone, as a flow along the line can leave it: counted for
+      // the note, docs/PERFORMANCE.md; walk() moves it out from there as it does anyone)
+      const st = SIM.stats; st.back = (st.back || 0) + 1;
+      if (p.inPic !== false) { // (given back because it came into the picture: what a player could see of a flow's step)
+        st.backSeen = (st.backSeen || 0) + 1;
+        if (wall && wall(p.x, p.y, p.z)) st.backWall = (st.backWall || 0) + 1;
+        if (crowded(p.x, p.y, p, 0.4)) st.backClose = (st.backClose || 0) + 1;
+      }
+      return false;
+    }
+    // the last step's results laid on, each only while its walker is still the one handed over
+    function simTake() {
+      const r = SIM.results();
+      if (!r) return;
+      for (let k = 0, o = 1, m = r[0]; k < m; k++, o += 9) {
+        const i = r[o], q = P[i];
+        if (!q || q.sim !== r[o + 1] || q.line !== SL[i]) continue;
+        q.s = r[o + 2]; q.x = r[o + 3]; q.y = r[o + 4]; q.z = r[o + 5]; q.hx = r[o + 6]; q.hy = r[o + 7];
+        q.vx = q.hx * q.v; q.vy = q.hy * q.v; q.fx = q.vx; q.fy = q.vy; q.h = Math.atan2(q.hx, q.hy); q.gx = q.x; q.gy = q.y;
+        if (r[o + 8]) { q.sim = 0; SL[i] = -1; } // (its stretch ended: walk() takes it on from there)
+      }
+      SIM.done(r);
     }
     // One of the street's own people (web/game/regulars.js, issue 168): a walker of the crowd lent to a routine. While
     // it is lent (state 'reg') the crowd does not walk it: it goes straight to p.reg.goal ({ x, y, face, pace }) at its

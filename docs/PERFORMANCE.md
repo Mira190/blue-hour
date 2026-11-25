@@ -3580,3 +3580,157 @@ up to 8 s, else the Stop goes on without it: issue 237).
 What is left, on the medium tier (a desktop's page on llvmpipe, whose frames there are 7 to 10 s): the late crowd's and
 the helicopter's programs and shadow variants are compiled in the Stop's seek because they arrive in it; the afterimages'
 faded variants at its still. A real device's late models come minutes earlier. Not measured: a real GPU, Safari, an iPhone.
+
+## The crowd's step off the main thread (issue 220, November 2026)
+
+The ask: the crowd's and the traffic's simulation in a Worker, the main thread only reading where everyone is, because
+on a phone and in Safari the binding cost is script. A design and a measured prototype behind `?simworker=1` (off by
+default, branch `simworker-220`); nothing lands without the owner's word. **The finding, first:** a Worker can take at
+most the simulation's share of the crowd's update (two fifths of a desktop's call, two thirds of a phone's), and the
+part of it that can move without the world moving too (the walkers nobody sees) saves at most 1.5 ms of a desktop's
+17 and nothing measurable on a phone. And that saving comes from stepping the unseen walkers more simply, not from
+the Worker: the same simple step on the main thread saves as much. The phone's cost is the people in view (the
+Scramble's kerbs and crossings, `plazaStep`, and `walk` near the lens), and moving them means moving the world they read.
+
+### Where the crowd's update goes
+
+`tools/crowd_cost.js` in HZ mode (the crowd's update alone at a device's pace, frame 1 at Hachiko's kerb, main at
+544e54a9, a session's machine), its profile split by `tools/prof_split.js`: each sample booked to the nearest of the
+crowd's named steps on its stack, so a wall test asked by `walk` is `walk`'s.
+
+| a call of the crowd's update | desktop (1,567 walkers, 60 a second) | phone (313, 30 a second) |
+|---|---|---|
+| all | 16.4 ms | 6.1 ms |
+| simulation: `walk` / `plazaStep` / `update`'s own loop / the rest | 3.1 / 2.5 / 0.8 / 0.3 | 1.6 / 1.6 / 0.7 / 0.2 |
+| drawing: `people.js` `armsClear` / `place`, `begin`, `end` | 8.0 / 1.4 | 1.1 / 0.7 |
+| the simulation's share: what a Worker could take at most | 6.7 ms (41%) | 4.1 ms (67%) |
+
+Plus the traffic's step, not measured again here: 2.8 ms a frame on a desktop, 1.8 on a phone ("The crowd's script").
+One run to the next this machine reads the update up to half apart (desktop 14 to 19 ms a call, `armsClear` 3.5 to
+8 ms as the near people change), which is why the prototype is measured below in one page, in alternating blocks.
+
+`walk`'s own 3.1 ms on a desktop is spread: its own body 0.65, the walls and floors it asks (`collision.js`, `nav.js`
+`solid`, `lift`, `floorAt`, `bounds.js` `sd`) about 1.2, its neighbours (`closest`, `see`) 0.45, the cars near it
+(`gather`, `blocked`) 0.2. `plazaStep`'s 2.5: its own body 1.2, the near-body spacing (`nearest1`, `nearWhole`) 0.5,
+the road (`nearD`) 0.1. There is no one hot spot to hand to another thread: the step reads the world everywhere.
+
+### What could run in a Worker, and what stays
+
+**Stays on the main thread**, whatever is moved: what draws (`people.js` `place`, `begin`, `end`, the rigs' mixers,
+`armsClear`, the umbrellas), what reads the camera (`seen()`, the renderer's `p.inPic` and `p.whole`), what the story
+sets each frame (`api.bodies`, the lens's room, `enlist`, `dismiss`, `board`, `muster`, `keep`, `want`, `fresh`), and
+the player's input. These are the same frame's or they are wrong.
+
+**Could move**: `walk`, `plazaStep`, `regStep`, `waysStep`, `plazas`, `update`'s loop, and the traffic's step: but they
+read, every step, things the main thread owns.
+
+- The walking model: `wall`, `clear` and `ground` (`nav.js`, `collision.js`, `bounds.js`, the wells), a crossing's road
+  (`roadNet.nearD`), the benches and the posts (which the story moves). In a Worker that is a second copy of the
+  walking model (built again there from the packs, or sent over), or the one copy in shared memory.
+- The cars, for the crowd (`gather`, `blocked`, `carComing`), and the crowd, for the cars (`peopleIn`, the blockers):
+  the two step against each other, so the traffic goes with the crowd or a frame behind it.
+- The junctions' signals (`pz.walk()`, `pz.j.busy` counted each step): the traffic's and the crowd's both.
+- The game's own reads and writes of the walkers: `crowd.P` is used 59 times outside `actors.js`, mostly in `game.js`,
+  and some of them write (a talk's framing clears its walkers, `q.line = -1`; a bump pauses one; the ride and the pilot
+  test for people in the way). In a Worker each read is a frame-behind mirror and each write a message.
+
+### How state crosses
+
+- **Two buffers handed back and forth** (`postMessage` with the buffer transferred, nothing copied): the main thread
+  sends the frame's changes and its time, the Worker steps and hands back one buffer of results, laid on at the start
+  of the next step. The results are a frame behind. Works everywhere, GitHub Pages included. The prototype does this;
+  the reply's handler costs the main thread 0.03 ms a frame for 400 walkers (the results laid on are inside the update's loop, measured with it).
+- **Shared memory** (`SharedArrayBuffer`): the walking model and the walkers' positions in one place both threads
+  read, nothing sent. It needs the page cross-origin isolated (`Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Embedder-Policy: require-corp`). **Vercel** can set both in `vercel.json`'s `headers`; everything the
+  page loads is its own (three.js and the fonts are in `web/`) except the weather and the telemetry, which are CORS
+  fetches and pass under `require-corp`. **GitHub Pages** cannot set headers; there the page would take the transfer
+  path, or the main thread's (below). The service-worker shim that adds the headers (coi-serviceworker) reloads the
+  page on a first visit and puts a worker in front of every request: not proposed for the title's first seconds.
+- **The fallback**: no Worker (or `?simworker=main`), the same step on the main thread. The prototype has it.
+
+### Determinism, the checks, and a frame behind
+
+- With the flag off nothing changes: the checks (`tools/story_play.js`, `tools/walk_play.js`, `tools/crowd_cost.js`,
+  `tools/umbrella_*.js`) play as before. With it on, the crowd's own random draws are made in a different order as
+  walkers are handed over, and whose results come back in which frame depends on the threads' timing, so two runs
+  differ: a check that holds a walker's path to a number cannot hold it under the flag. Every check reads the walkers
+  through the page (`g.crowd.P`), and those stay the main thread's objects, so they still see everyone, the handed-over
+  ones as of a frame before.
+- A frame behind is 2 to 5 cm for a walker at 1.4 m/s at 30 to 60 frames a second, and a car at 10 m/s 17 to 33 cm. In
+  the prototype nobody handed over is in the picture, so nothing a frame old is ever seen. For the people in view
+  (a second stage) the renderer would draw them where the last results put them, eased on to the frame's time, as
+  every networked game does; the risk is not a lag the eye sees but a story beat that sets someone and reads them back
+  in the same frame, which is a write to turn into a message.
+
+### The prototype: the unseen crowd as a flow
+
+`web/game/simworker.js` (part `crowd`), and in `actors.js` `crowd()` one field (`sim`) and the out-of-picture branch of
+`update()`. A walker out of the picture (not drawn last frame), more than 14 m from the crowd's centre, walking alone
+on a stretch of its footway where nothing waits for it (not within 3 m of an end, nor by a crossing, a step into a
+road or a bench: `simSpan`) is handed to the Worker, which carries it along its line at its pace and offset each frame.
+It is given back to `walk()` the moment it comes into the picture or near, leaves its stretch, or the game changes it
+(its line, its state, a group, a seat). A result is laid on only while the walker is still the one handed over (its
+epoch and line), so the game's writes win. The footways go over once (490 KB on a desktop, 162 KB on a phone).
+
+Measured in one page with `tools/simworker_cost.sh` (`tools/crowd_cost.js` `HZ`, `GAP`, `?ab=30`: blocks of 30 calls
+with the hand-over on and off in turn, each block's median against the blocks either side, ± the standard error; the
+page's own frames held meanwhile):
+
+| a call of the crowd's update | handed over | off | on | on less off |
+|---|---|---|---|---|
+| desktop, frame 1, the Worker (40 s) | ~390 of 1,567 | 15.7 ms | 15.0 ms | **−0.55 ± 0.26 ms** |
+| desktop, frame 1, the same step on the main thread (40 s) | ~400 | 19.0 ms | 17.4 ms | −1.5 ± 0.6 ms |
+| desktop, frame 7, the Worker (40 s) | ~390 | 16.0 ms | 16.0 ms | −0.14 ± 0.34 ms |
+| phone, frame 1, the Worker (60 s) | ~44 of 313 | 4.27 ms | 4.26 ms | +0.02 ± 0.19 ms |
+| phone, frame 1, the main thread (60 s) | ~25 | 4.18 ms | 4.24 ms | +0.06 ± 0.11 ms |
+| phone, frame 7, the Worker (60 s) | ~40 | 4.46 ms | 4.03 ms | **−0.17 ± 0.06 ms** |
+
+The Worker's own step: 0.06 to 0.16 ms a frame for 40 to 400 walkers (the same on the main thread: 0.02 to 0.09). A
+phone's crowd is small and gathered where the player is (179 of 313 in the Scramble's plazas at frame 1, half the
+rest in the picture), so few are out of sight to hand over. Frame 7 is played as the story sets it; whether it was
+raining in these plays was not checked.
+
+**What a player could see.** Of 1,860 walkers given back because they came into the picture (desktop, frame 1, a
+minute of the crowd's time), 8 were in a wall and 8 within 0.4 m of another walker (each 0.4%): a flow along the line
+keeps its offset where the footway narrows, and `walk()` moves them out from there over the next steps. How often
+`walk()`'s own ten-a-second step out of sight leaves someone so was not counted, so this is not yet a comparison.
+
+### What is proposed
+
+1. **Not the Worker for the unseen crowd.** It buys 0.5 to 1.5 ms of a desktop's 15 to 19 and nothing measurable on a
+   phone, and the same simpler step on the main thread buys as much without a second thread. If a desktop's half
+   millisecond is wanted, the flow step can stay on the main thread (`?simworker=main`'s path) once its returns into
+   the picture are compared with `walk()`'s own; the owner's call, not urgent.
+2. **The phone's 4 ms is the people in view**: `plazaStep` (the kerbs and the crossings at the Scramble) and `walk`
+   near the lens. Moving them is the second stage: the walking model, the junctions' signals and the traffic in the
+   Worker, the walkers mirrored on the main thread for drawing and the story, the game's writes to `crowd.P` as
+   messages, shared memory on Vercel and the transfer path or the main thread on GitHub Pages. It is a port of most
+   of `actors.js`'s simulation and of `game.js`'s world queries, and a second copy of the walking model in a phone's
+   memory where shared memory is not there. Before it: a profile of frame 1 in Safari on the mac and on the owner's
+   iPhone (is the crowd's simulation there the share it is here?), and the size of the walking model in memory.
+3. **Cheaper first**, by what this measured: `plazaStep`'s own body (1.2 ms of a desktop's call, 0.8 of a phone's
+   with its spacing) is the largest single piece of the phone's simulation and is arithmetic, not world queries; and
+   the drawing's `armsClear` (#130's) is the desktop's largest.
+
+Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
+machine's cores with the software renderer), the second stage.
+
+### What browser games and three.js projects do here
+
+Surveyed 25 November 2026; the design is learned, nothing is copied.
+
+| Work (licence) | What it does | Here |
+|---|---|---|
+| pmndrs `@react-three/cannon` and `@pmndrs/cannon-worker-api` (MIT) | The whole physics world lives in a Worker; the main thread keeps positions and quaternions as Float32Arrays and swaps in the ones each frame's message brings; three.js draws the last state received | **Adopted**: two buffers going round, results a frame behind, the main thread drawing what came last |
+| `use-ammojs` (MIT) | ammo.js in a Worker with SharedArrayBuffer between the threads, under cross-origin isolation | The design's shared-memory path, for Vercel; not built |
+| coi-serviceworker (MIT) | COOP and COEP added by a service worker where the host sets no headers (GitHub Pages); reloads the page on a first visit | **Not adopted**: a reload under the title, and a worker in front of every request |
+| Vercel, cross-origin isolation (docs) | COOP and COEP as `headers` in `vercel.json` | How the shared-memory path would be switched on |
+| Unreal Engine's Mass (engine docs) | Simulation LOD: High, Medium, Low and Off by distance and visibility, each with its own update rate; far agents drawn as animated static meshes | **Adopted**: the prototype is a simulation LOD; the finding is that the LOD, not the thread, is where the saving was |
+
+Sources: [use-cannon](https://github.com/pmndrs/use-cannon), [@react-three/cannon](https://www.npmjs.com/package/@react-three/cannon),
+[use-ammojs](https://www.npmjs.com/package/use-ammojs), [coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker),
+[GitHub Pages and COOP/COEP](https://github.com/orgs/community/discussions/13309),
+[Vercel, cross-origin isolation](https://vercel.com/docs/cdn-security/cross-origin-isolation),
+[web.dev, a guide to cross-origin isolation](https://web.dev/cross-origin-isolation-guide/),
+[Unreal Engine, Mass Gameplay](https://dev.epicgames.com/documentation/unreal-engine/overview-of-mass-gameplay-in-unreal-engine).
