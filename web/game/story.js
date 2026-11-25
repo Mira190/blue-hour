@@ -929,11 +929,22 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // (the guide's model asked for now, while the view turns: he is seen first close to, and must be there at the cut)
       const gd0 = ep.guide, film = first && gd0 && gd0.meet !== false && ctx.guide && !st.dog && !ctx.reduced;
       if (film) st.dogNext = ctx.guide(gd0);
-      later((first ? 4300 : 2500) + HOLD, () => {
+      // (the film only once he can be drawn, d.ready: his model loaded and compiled. Begun at a fixed time, it played with
+      // no dog in it once in two on a phone, issue 237; not ready in 8 s more, the Stop goes on without the film, and he
+      // comes in the seek as in any other Stop)
+      let dogWait = 0;
+      const meetOrSeek = () => {
         if (st.phase !== 'stop' || st.beat !== 'still') return;
-        if (film && st.dogNext) { const d = st.dogNext; st.dogNext = null; return meetGuide(gd0, d, seek); }
+        if (film && st.dogNext) {
+          const d = st.dogNext;
+          if (!d.ready && dogWait < 8000) { dogWait += 250; return later(250, meetOrSeek); }
+          st.dogNext = null;
+          if (d.ready) return meetGuide(gd0, d, seek);
+          if (d.remove) d.remove();
+        }
         seek();
-      });
+      };
+      later((first ? 4300 : 2500) + HOLD, meetOrSeek);
       const seek = () => {
         if (st.phase !== 'stop') return;
         show(); frames.classList.add('on');
