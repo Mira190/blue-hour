@@ -186,6 +186,11 @@ const FPS = +(process.env.FPS || 24);
         await p.evaluate(k => window.__game.cine.seek(k), t / info.total);
         await step(1);
         console.log(await shoot(`${s.id}-${Math.round(k * 100)}`));
+        if (s.type === 'land') { // (never tipped onto the tops of heads, issue 239: the land shot's look at most 25 degrees under the horizon, or the chase camera's own)
+          const dn = await p.evaluate(() => { const c = window.__game.camera, T = window.THREE, d = c.getWorldDirection(new T.Vector3()); return { pitch: Math.asin(d.y) * 180 / Math.PI, y: c.position.y }; });
+          if (dn.pitch < -25) errors.push(`${s.id} at k ${k}: the camera looks ${(-dn.pitch).toFixed(0)} degrees down from ${dn.y.toFixed(1)} m, onto the tops of heads`);
+          else console.log(`ok   ${s.id} at k ${k}: the look ${(-dn.pitch).toFixed(0)} degrees under the horizon from ${dn.y.toFixed(1)} m`);
+        }
       }
     }
   }

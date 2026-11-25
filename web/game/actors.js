@@ -2451,7 +2451,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // for ten to twenty-five seconds (arrive's standing: gone once nobody is looking). Not held back: a turn put
       // back in the step it was made, a mate following its leader, and a walker getting out of a car's way)
       if (why === 'restore') q.turnedT = q.turnedT0;
-      else if (why === 'a car waited on them') { if (uT - (q.carT ?? -1e9) < 8) return; q.carT = uT; } // (out of a car's way once: turned again a second later it walked back into it, four turns in thirty seconds)
+      else if (why === 'a car waited on them') { if (uT - (q.carT ?? -1e9) < 8) return; q.carT = uT; q.turnedT0 = q.turnedT; q.turnedT = uT; } // (out of a car's way once: turned again a second later it walked back into it, four turns in thirty seconds. Made whatever the last turn, it counts for the next: refused a step on after it, a walker turned back again, to and fro on footway 2334)
       else if (why !== 'the leader turned' && why !== 'a car waited on them' && why !== 'held in the road') {
         if (uT - (q.turnedT ?? -1e9) < AGAIN) { q.v = 0; q.pause = Math.max(q.pause, 10 + rnd() * 15); q.arrived = 1; api.thought = (api.thought || 0) + 1; return; }
         q.turnedT0 = q.turnedT; q.turnedT = uT;
@@ -3308,6 +3308,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return c.trip ?? -1;
     };
     const parkedN = () => { let k = 0; for (let j = 0; j < api.active; j++) if (C[j].park && C[j].line >= 0) k++; return k; };
+    // (never nearer you than MADE_NEAR, however small the ring: tools/road_traffic_watch.js, nothing made within 120 m)
+    const MADE_NEAR = 125;
     function respawn(c, cx, cy, rMin) {
       const cand = net.near(cx, cy, rMin, radius), T = JN.trips && JN.trips();
       JN.forget(c);
@@ -3321,7 +3323,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           const line = cand[Math.floor(rnd() * cand.length)], L1 = net.L[line];
           if (!kerbLo(line)) continue;
           const s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (rnd() < 0.5 ? 1 : -1);
-          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8 || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
+          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8) || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
         }
       }
       for (let k = 0; k < 4 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
@@ -3348,7 +3350,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (JN.inScramble && JN.inScramble(tmp.x, tmp.y)) continue;
         // (out of the ring's inside: a long piece with one vertex in the ring has the rest of its length anywhere, and a
         // car put on Meiji-dori 85 m from you appeared in sight, issue 167)
-        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8) continue;
+        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8)) continue;
         // (nor anywhere the camera sees, as a walker is put (the crowd's seen()): by distance alone a car came onto a
         // straight street 280 to 350 m off, in the frame, tools/crowd_vanish.js)
         if (rMin > 0 && crowd && crowd.seen(tmp.x, tmp.y, tmp.z)) continue;
@@ -3793,11 +3795,45 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const h = Math.hypot(look.x, look.z); // (looking down from high up, all round it)
       return d < 12 || (d < 200 && (h < 0.3 ? d < 150 : (dx * look.x - dy * look.z) / (d * h) > 0.3)); // (sim y is -z)
     }
+    // ---- the ring (#204, #220): the traffic is a population held round the player, as an open world keeps a street dense
+    // where it is seen and heard and spends nothing on the far map. api.ring: the ring's radius as game.js asks it (on foot
+    // the arms round you, from the helicopter the whole of `radius`); a car out past it by a seventh leaves the traffic
+    // (and comes back inside it, out of sight: respawn) only where nobody sees it go, and past the widest ring whatever
+    // the eye sees, as before. api.want: how many cars the streets hold (by the hour and the tier: game.js trafficWant);
+    // more come at once, each put out of sight; fewer leave from the list's end one at a time, each only once out of
+    // sight, never in view (a cut to a later hour, api.fresh: all at once)
+    const RMAX = radius;
+    api.ring = radius; api.want = null; api.fresh = 0;
+    const seenCar = c => (crowd && crowd.seen ? crowd.seen(c.x, c.y, c.z) || Math.hypot(c.x - eye.position.x, c.y + eye.position.z) < 30 : inView(c));
+    function ringStep() {
+      radius = Math.max(60, Math.min(RMAX, api.ring || RMAX));
+      if (api.want == null) return;
+      const w = Math.max(0, Math.min(n, Math.round(api.want)));
+      if (w >= api.active || api.fresh > 0 || tick < 90) api.active = w; // (and in the first three seconds, the title card up)
+      else if (tick % 15 === 0) {
+        while (api.active > w) {
+          const c = C[api.active - 1];
+          if (c.line >= 0 && eye && seenCar(c)) break;
+          if (c.line >= 0) take(c);
+          api.active--;
+        }
+      }
+      if (api.active === w) { api.want = null; api.fresh = 0; }
+    }
+    // is car c (the i-th) out of the ring and free to leave it: past it by a seventh and unseen (looked at every eighth
+    // frame), or past the widest ring
+    function outRing(c, i, cx, cy) {
+      const d = Math.hypot(c.x - cx, c.y - cy);
+      if (d <= radius * 1.15) return false;
+      if (d > RMAX * 1.15 || !eye) return true;
+      return (tick + i) % 8 === 0 && !seenCar(c);
+    }
     function update(dt0, cx, cy, t, blockers) {
       centreAt[0] = cx; centreAt[1] = cy;
       const dt = dt0;
       tick++;
       if (eye) eye.getWorldDirection(look);
+      ringStep();
       if (fleet) for (const k in fleet) for (const M of fleet[k]) M.count = 0;
       // the eye's frustum as it was last drawn, to leave out the cars it cannot see; not across a cut
       culling = !!(fleet && eye && eye.isCamera && eye.position.distanceToSquared(eyeAt) < 400);
@@ -3824,7 +3860,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let i = 0; i < n; i++) {
         const c = C[i];
         if (i >= api.active) { if (c.line >= 0) JN.forget(c); c.line = -1; if (mesh) { m4.makeScale(0, 0, 0); mesh.setMatrixAt(i, m4); } continue; }
-        if (c.line < 0 || Math.hypot(c.x - cx, c.y - cy) > radius * 1.15) respawn(c, cx, cy, c.line < 0 && t < 1 ? 0 : radius * 0.6);
+        if (c.line < 0 || outRing(c, i, cx, cy)) respawn(c, cx, cy, c.line < 0 && t < 1 ? 0 : radius * 0.6);
         if (c.line < 0) { if (mesh) { m4.makeScale(0, 0, 0); mesh.setMatrixAt(i, m4); } continue; }
         // at the kerb (parkNow): no step. Its time up and the lane beside it clear, it pulls out, as a lane change from
         // where it stands, on a trip out of town or to another part of it
