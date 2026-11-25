@@ -723,7 +723,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       held: undefined, umbSlot: undefined, umbChk: undefined, lh: undefined, fx: undefined, fy: undefined,
       gzS: undefined, gzT: undefined, gz: undefined, landT: undefined, gx: undefined, gy: undefined, av: undefined,
       moving: undefined, rx: undefined, ry: undefined, rz: undefined, umbW: undefined, umbT: undefined,
-      umbAt: undefined, umbR: undefined, inPic: undefined, wave: undefined, animF: undefined, animO: undefined,
+      umbAt: undefined, umbR: undefined, cHold: undefined, cDir: undefined, inPic: undefined, wave: undefined, animF: undefined, animO: undefined,
       umbMoved: undefined, lt: undefined, lface: undefined, stop: undefined, stopFace: undefined, arrived: undefined,
       reg: undefined, kerbNext: undefined, kerbBack: undefined, gk: undefined, went: undefined, ga: undefined,
       speed0: undefined, owed: undefined, hx: undefined, hy: undefined, limWant: undefined, lim: undefined,
@@ -1811,7 +1811,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       if (Math.abs(d) < 1e-3 && Number.isFinite(sx) && Math.hypot(sx, sy) >= 1e-3) d = Math.hypot(sx, sy) * ((q.lat || 0) < 0 ? -1 : 1);
       if (!(Math.abs(d) >= 1e-3)) return; // (and nothing where the walker has no heading yet: a NaN taken into its place lost it from the street, issue 187)
       d = Math.sign(d) * Math.min(Math.abs(d), 0.6 * dt);
-      const l = net.L[q.line], hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2), lat = (q.lat || 0) + d;
+      // (within the footway, or at a scramble's kerb within the crosswalk's width the crowd is spread across there, walk():
+      // bounded by the footway's half width at the Scramble's kerb, a stood pair could not step apart, issue 238)
+      const l = net.L[q.line], X = api.crossings && api.crossings.byLine.get(q.line), atScr = X && X.some(x => x.scramble && Math.abs(x.s - q.s) < x.kerb + 5);
+      const hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2, atScr ? SCR_HW : 0), lat = (q.lat || 0) + d;
       if (Math.abs(lat) > hw && Math.abs(lat) > Math.abs(q.lat || 0)) return;
       const x = q.x + nx * d, y = q.y + ny * d;
       if ((clear && !clear(x, y, q.z)) || keepRoom(x, y, 0.5) < Math.min(0.35, keepRoom(q.x, q.y, 0.5)) || !bodyClear(i, q.x, q.y, x, y, 0.42)) return;
@@ -1819,6 +1822,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // western arm stood in the lane, and a car waited on them 150 s, tools/check.sh roads, issue 187)
       { const R = api.crossings && api.crossings.road; if (R && R(x, y) && !R(q.x, q.y)) return; }
       q.lat = lat; if (q.lim != null) q.lim += d; q.x = x; q.y = y;
+      q.cHold = 1; q.cDir = Math.sign(d); // (and kept: walk() pulls it no way back that way for a second, issue 238)
     }
     function bodyClear(self, x0, y0, x, y, r) {
       const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
@@ -2560,6 +2564,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const jam = (p.slow || 0) > 0.4 || (p.still || 0) > 0.2 || (G.slow || 0) > 0.4 || (G.still || 0) > 0.2 || p.blkO || G.blkO || p.oncoming || G.oncoming; // (or someone coming the other way, close: into single file before they meet, issue 85)
         const n = 1 + (G.mates ? G.mates.length : 1), dense = jam ? 1 : Math.max(0, Math.min(1, (nn - 8) / 24));
         const sl = mateSlot(G, p.gk || 1, n, hw, dense), along = (G.x - p.x) * hx + (G.y - p.y) * hy;
+        // (and with an open umbrella between them, room for it: abreast at the canopy's radius and a head's clearance from
+        // its holder, or both canopies' and a rim's where both hold one; where the footway has not that room across, a pace
+        // behind instead. At the slot's 0.57 m the one without stood with a head 0.02 m in the other's canopy, main's walk2
+        // and story3, issue 238)
+        { const need = p.umbW > 0 && G.umbW > 0 ? p.umbW + G.umbW + UMB_RIM / 3 + 0.04 : Math.max(p.umbW || 0, G.umbW || 0) > 0 ? Math.max(p.umbW || 0, G.umbW || 0) + HEAD_CLEAR : 0, gl = G.lat ?? G.side;
+          if (need && Math.hypot(sl.lat - gl, sl.back) < need) {
+            const dir = sl.lat - gl < 0 ? -1 : 1, lat = gl + dir * need;
+            if (lat > -hw + 0.3 && lat < Math.max(hw, side) + 0.2) sl.lat = lat; else sl.back = Math.max(sl.back, need);
+          } }
         if (G.line === p.line && G.dir === p.dir) want = Math.max(-hw + 0.3, Math.min(Math.max(hw, side) + 0.2, sl.lat + p.dodge * (jam ? 1 : 0.5)));
         const err = along - sl.back;
         gcap = Math.max(G.line === p.line && !(nn > 8) && !((G.mgT || 0) > 1) ? 0 : 0.3, (G.v || 0) + Math.max(-1, Math.min(0.8, err * 1.5))); // (in a crowd never stood still in its way, nor waiting on a leader that is itself held: issue 85)
@@ -2637,6 +2650,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // a facade beside the line, here or a little ahead: in towards the line (looked at every few steps)
       if (clear && ((p.wallStep = (p.wallStep || 0) + 1) % 3 === 0 || p.lim == null)) { lineAt(p.line, p.s, tmp); p.lim = wallFree(p, want, hw); p.limWant = want; }
       if (clear && p.lim != null && p.lim !== p.limWant) want = p.limWant >= 0 ? Math.min(want, p.lim) : Math.max(want, p.lim); // (no further out on that side)
+      // (just stepped out from under a canopy or out of a body, canopyAcross: not pulled straight back that way to its place
+      // by its friend. Eased back across at 0.9 m/s, faster than the 0.6 it steps out at, two of a group stood 0.37 m apart
+      // with a head 0.02 m in the other's canopy, main's walk2 and story3, issue 238)
+      if (p.cHold > 0) { p.cHold -= dt; if ((want - p.lat) * (p.cDir || 0) < 0) want = p.lat; }
       const lv = p.v < 0.2 && p.kw > 0.5 ? 0.25 : 0.9; // (stood at a kerb a while: a slow shuffle across, not a slide)
       let dl = Math.max(-lv * dt, Math.min(lv * dt, want - p.lat));
       p.lat += dl;
