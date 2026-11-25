@@ -114,7 +114,7 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
+KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
 ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
@@ -153,7 +153,7 @@ eta() {
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
   case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
-    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 3200 ;; budgetm1|budgetm2|budgetm3) echo 1100 ;; game) echo 2700 ;; *) echo 600 ;; esac
+    story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|walk4|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 3200 ;; budgetm1|budgetm2|budgetm3) echo 1100 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 
 static=0 want= base= looks=
@@ -192,7 +192,7 @@ else
   # times beside the desktop's, and found nothing it did not (issue 95). Main's full tier plays both, and touch.
   # (the story in its three parts on the fast tier: side by side where the machine has the cores and the memory, each
   # kept or played by itself, so that a change only frame 7 runs plays frame 7; docs/CHECKS.md, "Checks by reach")
-  page() { if [ "$TIER" = full ]; then add story storyp storyl budget walk mem clip gl touch launch; else add story1 story2 story3 budget1 budget2 budget3 walk1 walk3 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
+  page() { if [ "$TIER" = full ]; then add story storyp storyl budget walk mem clip gl touch launch; else add story1 story2 story3 budget1 budget2 budget3 walk1 walk3 walk4 mem; fi; return 0; }   # (launch on main: a request any script makes without its file's hash)
   # A model, a picture or a sound: on the fast tier it is loaded and set beside itself as it was (look) and weighed on a
   # phone (mem), not played through the story, which it cannot send another way; unless it is gone, or it is a model
   # whose names, flags or attributes changed (tools/model_contract.py, after the loop), when the code may be waiting
@@ -216,7 +216,7 @@ else
     [ -n "$u" ] || return 0
     one=$(echo "$u" | wc -w)
     # (on the fast tier the story in its parts and the walk's desktop page, as for a change to the page)
-    [ "$TIER" = full ] || u=$(echo " $u " | sed 's/ story / story1 story2 story3 /; s/ budget / budget1 budget2 budget3 /; s/ walk / walk1 walk3 /' | xargs)
+    [ "$TIER" = full ] || u=$(echo " $u " | sed 's/ story / story1 story2 story3 /; s/ budget / budget1 budget2 budget3 /; s/ walk / walk1 walk3 walk4 /' | xargs)
     if [ "$TIER" = full ] || [ "$one" -eq 1 ]; then add $u; return 0; fi
     for k in $KINDS; do is_in "$k" "$u" && { add "$k"; return 0; }; done
   }
@@ -268,7 +268,7 @@ else
       echo "$changed" | grep -q '\[ground\]' && add guide1 guide3 guide4 guide5
     elif ! is_in story1 "$want"; then echo "the models changed keep their names, flags, attributes and ground ($OUT/contract.txt): loaded and weighed, not played (CHECK_TIER=full plays them)" >&2; fi
   fi
-  is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2\|walk3' | paste -sd ' ' -)   # (both pages already)
+  is_in walk "$want" && want=$(printf '%s\n' $want | grep -vx 'walk1\|walk2\|walk3\|walk4' | paste -sd ' ' -)   # (both pages already)
   [ "$skipped" -gt 0 ] && echo "$skipped files changed since the last pass are main's, as main has it: the static checks for them, the rest on main (CHECK_FULL=1 plays them here)" >&2
 fi
 
@@ -279,7 +279,7 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
     # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
     # (and the story whole on a runner of its own: a case carried in one page from frame 4 to 5 and from 6 to 7, which the
     # fast tier, playing the parts, no longer plays before landing)
-    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget; echo budgetm1; echo budgetm2; echo budgetm3 ;; budgetm) echo budgetm1; echo budgetm2; echo budgetm3 ;; walk) echo walk1; echo walk3; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget; echo budgetm1; echo budgetm2; echo budgetm3 ;; budgetm) echo budgetm1; echo budgetm2; echo budgetm3 ;; walk) echo walk1; echo walk3; echo walk4; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
   done | awk '!seen[$0]++'   # (each target once: budgetm came both from a change to story_play.js and from the budget's split, two runners played it, and the passes' job read the two files the download joined as one, 19:15 on 24 November)
   exit 0
@@ -464,10 +464,11 @@ run_walk() { walk_on 800x500 390x844; }   # the walk's way in and out on the str
 # (the desktop's page in two halves, a runner each since issue 192 made the whole near its cap: tools/walk_play.js WALK_PART)
 run_walk1() { WALK_PART=1 walk_on 800x500; }   # (a runner each: CHECK_SPLIT=1)
 run_walk3() { WALK_PART=2 walk_on 800x500; }
+run_walk4() { WALK_PART=3 walk_on 800x500; }   # (from your car on: walk3 grew to 35 of its 40 minutes on a runner, 25 November)
 run_walk2() { walk_on 390x844; }
 walk_on() {
   local ok=1 d n said= half=
-  case ${WALK_PART:-} in 1) half=", its first half" ;; 2) half=", its second half" ;; esac
+  case ${WALK_PART:-} in 1) half=", its first part" ;; 2) half=", its second part" ;; 3) half=", its third part" ;; esac
   for d in "$@"; do
     n=$d${WALK_PART:+-$WALK_PART}
     # (one frame in twenty drawn and no still taken, tools/draw_skip.js: the beats read the page's state; STILLS=1 DRAW=0 for its pictures)
