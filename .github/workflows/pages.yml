@@ -91,11 +91,11 @@ jobs:
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
-      # (and Vercel whether or not Pages took the deploy: a refusal on GitHub's side, "try again later", kept `live` back
-      # with it twice on 24 November. Whenever the commit checked passed and its version was written; a re-run finds its
-      # tag there already)
+      # (only where Pages took the deploy, at the first try or the second: on 25 November both were refused for 0e6c3fa9
+      # and this step ran anyway, so Vercel served it while Pages stayed on the commit before for 45 minutes. The two
+      # hosts move together; a deploy refused twice is run again whole, and a re-run finds its tag there already)
       - name: Tag the release, and move live to it
-        if: ${{ !cancelled() && steps.version.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.version.outcome == 'success' && (steps.deployment.outcome == 'success' || steps.deployment2.outcome == 'success') }}
         run: |
           tag="v${{ steps.version.outputs.version }}"
           git tag "$tag" "$SHA" 2>/dev/null || echo "tag $tag is there already"
