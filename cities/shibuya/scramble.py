@@ -1004,9 +1004,21 @@ def entrance(K, A, e):
     # the stair: from the open end down toward the back, under the ground
     rise, tread = 0.165, 0.30
     w0, w1 = -hw + t + 0.02, hw - t - 0.02
+    tr, ri, tile = K["x_tread"], K["x_riser"], K["x_tile"]
+    if e.get("kiosk"):
+        # Shibuchika's pavilion is 13 m across: its stair is a stair's width, 3.2 m, in the middle of its open end, and the
+        # rest of it a floor at the square's level behind glass. Drawn as one stair as wide as the pavilion, its open end
+        # was a black hole 13 m wide in frame 3's Stop, with the ground cut round it in a ragged line (issue 230)
+        w0, w1 = -1.6, 1.6
+        for v0, v1 in ((-hw + t, w0 - 0.04), (w1 + 0.04, hw - t)):
+            box(tile, P, -hl + t, hl, v0, v1, g - 0.3, g + 0.012, uvm=True)
+            box(gl, P, hl - 0.03, hl, v0, v1, g + 0.012, zr)                      # glass across the open end
+            box(fr, P, hl - 0.06, hl, v0, v1, g + 0.012, g + 0.1)                 # its sill
+        for v in (w0 - 0.04, w1 + 0.04):                                          # the stair's side walls up to waist height
+            box(panel, P, -hl + t, hl, v - 0.04, v + 0.04, g, g + 1.05)
+            box(fr, P, -hl + t, hl, v - 0.05, v + 0.05, g + 1.05, g + 1.12)
     u = hl - 0.35
     z = g
-    tr, ri, tile = K["x_tread"], K["x_riser"], K["x_tile"]
     box(tile, P, hl - 0.35, hl, w0, w1, g - 0.3, g + 0.012, uvm=True)            # the landing at the top
     k = 0
     while u - tread > -hl + 0.2 and k < 40:

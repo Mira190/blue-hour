@@ -34,8 +34,14 @@ SKIP_AMENITY = {"restaurant", "cafe", "bar", "pub", "fast_food", "bank", "atm", 
                 "ice_cream", "events_venue", "vacant", "food_court"}
 
 
+# a bed of planting: the street's small green areas a level draws (issue 213), not landuse at large
+PLANTED = {"grass", "flowerbed", "planter"}
+
+
 def keep(e, want):
     t = e.get("tags") or {}
+    if e.get("type") == "way" and t.get("landuse") in PLANTED:
+        return True
     if not any(k in t for k in want):
         return False
     return t.get("amenity") not in SKIP_AMENITY or any(k in t for k in want - {"amenity"})

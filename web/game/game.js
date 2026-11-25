@@ -1142,7 +1142,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // air; the streets across it shut to cars, with road works on them. ?walk=1 (the builder's map) and ?bounds=off are open
   const bounds = window.OEBounds && G.bounds && !new URLSearchParams(location.search).has('walk') && new URLSearchParams(location.search).get('bounds') !== 'off'
     ? OEBounds.create({ data: G.bounds, toast: s => H.toast(s), floor: (x, y, z) => { const f = nav.floorAt(x, y, z + 1.5); return f ? f.z : null; }, reg: ((G.vehicles || {}).helicopter || {}).registration, clock: () => clockT }) : null;
-  if (bounds) { bounds.closeRoads(roadNet); bounds.build(THREE, G.paths, world); }
+  if (bounds) { bounds.closeRoads(roadNet); const works = bounds.build(THREE, G.paths, world); if (works && window.OEVis) OEVis.gateAll(works); } // (the works hidden while the street wall hides every one of them: 12 of a phone's draws at the Scramble, issue 192)
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
@@ -1411,7 +1411,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const sw = crowd.plazas.reduce((a, p) => a + p.weight, 0);
       crowd.hot = crowd.plazas.map(p => ({ x: p.x, y: p.y, r: 90, share: (p.weight > 1 ? 0.3 : 0.16) * p.weight / sw, pull: 0.5 }));
     } }
-  const cars = OEActors.traffic(world, roadNet, U, CR.cars || 120, (CR.radius_m || 450) + 100, { lib: vlib, cfg: Object.assign({ parked: CITY.country === 'Japan' ? 0.05 : 0.16 }, (G.vehicles || {}).cars), eye: camera, keep: KEEP, ground: lineGround, crowd, nav, posts, junctions, stops: G.props.bus_stop || null });
+  // (the traffic's slots: its peak count, CR.cars, a phone's a share of it, CARS_PHONE: what its budget beats hold. How many of
+  // them are on the streets goes with the hour, trafficWant, and where they are with the ring round you, trafficRing: #204)
+  const CARS_PHONE = 0.65;
+  const cars = OEActors.traffic(world, roadNet, U, Math.round((CR.cars || 120) * (QC.lean ? CARS_PHONE : 1)), (CR.radius_m || 450) + 100, { lib: vlib, cfg: Object.assign({ parked: CITY.country === 'Japan' ? 0.05 : 0.16 }, (G.vehicles || {}).cars), eye: camera, keep: KEEP, ground: lineGround, crowd, nav, posts, junctions, stops: G.props.bus_stop || null });
   const density = { low: 0.35, normal: 1, high: 1 };
   const playerLook = () => Object.assign({ shirt: '#2f4858', pants: '#2b3440', skin: '#e0ac85', hair: '#3b2a20' }, PLAYER_LOOKS[playerChar]);
   const player = { rig: makeRig(playerLook()),
@@ -2341,7 +2344,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (sndLoading || sndSlow) sndBusyAt = now;
     return playing && now - sndBusyAt < 3000;
   }
-  if (SND_GUARD && A.onGaveUp) A.onGaveUp(() => H.toast('The street\'s sound is off: this phone needs all it has to draw the street. Music plays on. To try the street again, turn Sound off and on in the menu.'));
+  // (said once, short, at the foot of the frame; the whole of it under the menu's Sound, where it is acted on)
+  if (SND_GUARD && A.onGaveUp) A.onGaveUp(() => {
+    H.toast('Street sound off to keep the frame smooth · Menu › Sound to retry');
+    const row = $('#gm-sound') && $('#gm-sound').closest('label');
+    if (row && !row.querySelector('.gm-snd-why')) { const w = document.createElement('small'); w.className = 'gm-snd-why'; w.textContent = 'The street\'s sound is off: this phone needs all it has to draw the street. Music plays on. Turn Sound off and on to try the street again.'; row.after(w); }
+  });
   const keep = () => { if (playing) save(); };
   on(document, 'visibilitychange', () => { if (document.hidden) keep(); });
   on(window, 'pagehide', keep);
@@ -2369,6 +2377,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ------------------------------------------------------------ the story (story.js): a map's episodes, and the Stop, in which
   // the world is given no time while the player walks on. Asked for with ?story=1 while it is being made.
   let storyBeacon = null, storyHere = null, lensWas = null, lensWide = false, storySnapBase = null;
+  // A rectangle of the picture just drawn, read back without waiting (issue 118): copied on the GPU into a buffer of its
+  // own, and taken from it once a fence says the GPU is past it, polled from later tasks; null if the context goes or the
+  // GPU has not got there in ten seconds. Resolves to { px (rows from the bottom), w, h }.
+  function readLater(gl, x, y, w, h) {
+    let buf = null, sync = null;
+    try {
+      renderer.setRenderTarget(null);
+      buf = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.bufferData(gl.PIXEL_PACK_BUFFER, w * h * 4, gl.STREAM_READ);
+      gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+      sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    } catch (e) { try { gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); if (buf) gl.deleteBuffer(buf); } catch (e2) { /* gone */ } return Promise.resolve(null); }
+    const t0 = performance.now();
+    return new Promise(res => {
+      const poll = () => {
+        if (gl.isContextLost()) { res(null); return; }
+        const s = gl.clientWaitSync(sync, 0, 0);
+        if (s === gl.TIMEOUT_EXPIRED && performance.now() - t0 < 10000) { setTimeout(poll, 16); return; }
+        gl.deleteSync(sync);
+        if (s === gl.TIMEOUT_EXPIRED || s === gl.WAIT_FAILED) { gl.deleteBuffer(buf); res(null); return; }
+        const px = new Uint8Array(w * h * 4);
+        gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buf); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, px); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null); gl.deleteBuffer(buf);
+        res({ px, w, h });
+      };
+      setTimeout(poll, 0);
+    });
+  }
   // the print: the middle of the picture, three by two, as fractions of it from its top left. The story's photograph is
   // cut from it (snap), and its finder's lines are kept inside it (story.js fitFinder), so that what stands in the lines is
   // in the print. On a phone held upright the lines stood twice as tall as the print, and a thing framed in their lower
@@ -2770,7 +2804,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       world.add(m);
       return { remove() { world.remove(m); m.geometry.dispose(); m.material.dispose(); } };
     },
-    shift: (n, x, y, h) => { n.x = x; n.y = y; n.z = Math.max(0, nav.terrain(x, y)); if (h != null) n.h = h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); },
+    // (shift: turned or moved on its own floor, as it was placed (npcMove): the bare terrain is under the paving, and the walk's
+    // woman, turned to the screens as control was handed over, stood in the road with only her head over it, issue 241)
+    shift: (n, x, y, h) => { const f = nav.floorAt(x, y, n.z + 0.3); n.x = x; n.y = y; n.z = f ? f.z : Math.max(0, nav.terrain(x, y)); if (h != null) n.h = h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); },
     put: (n, at, to) => { if (!npcMove(n, at)) return false; if (to) { n.h = Math.atan2(to[0] - n.x, to[1] - n.y); n.rig.root.rotation.y = Math.PI - n.h; } return true; },
     thud: () => { try { if (A.thump) A.thump(); } catch (e) { /* no sound */ } },
     waitWith: (n, plan) => waitWith(n, plan), // (sat beside someone on Hachiko's wall while the night passes: below)
@@ -3082,7 +3118,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (ghosts: the afterimages come up in the print as the thing of 1964 does, not in tonight's first image: the last
     // frame is of them, and the print develops the crossing first and then the two of them in the middle of it)
     // (plain: a frame spent from the wrong place, only tonight in it, whatever was in the finder's lines)
-    snap: ({ ghosts = false, plain = false } = {}) => {
+    snap: ({ ghosts = false, plain = false, done = null } = {}) => {
       // (what the camera in your hands sees: not yourself, and not the goal's light, nor the light you stand in)
       const me = player.rig.root.visible, bc = storyBeacon && storyBeacon.visible, gl = gold.mesh.visible, hc = storyHere && storyHere.visible;
       player.rig.root.visible = false; if (storyBeacon) storyBeacon.visible = false; gold.mesh.visible = false; if (storyHere) storyHere.visible = false; // (nor the way's band on the ground)
@@ -3090,7 +3126,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const out = document.createElement('canvas'), h = Math.min(480, canvas.height);
       out.height = h; out.width = Math.round(h * 1.5);
       const P = printRect(), sx = P[0] * canvas.width, sy = P[1] * canvas.height, sw = (P[2] - P[0]) * canvas.width, sh = (P[3] - P[1]) * canvas.height;
-      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); out.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
+      // (done given: the frame is read back without waiting on the GPU, and the print develops a few frames on. A canvas
+      // drawn into a 2D one, twice in the tap's task, waits for the GPU to finish everything queued: on an iPhone a GPU
+      // process held past WebKit's time loses the context, issue 118)
+      const ctx2 = renderer.getContext(), lag = !!done && typeof WebGL2RenderingContext !== 'undefined' && ctx2 instanceof WebGL2RenderingContext;
+      const rx = Math.max(0, Math.round(sx)), ty = Math.max(0, Math.round(sy)), rw = Math.max(1, Math.min(canvas.width - rx, Math.round(sw))), rh = Math.max(1, Math.min(canvas.height - ty, Math.round(sh)));
+      const take = q => { if (atmos) atmos.render(world, camera); else renderer.render(world, camera); if (lag) return readLater(ctx2, rx, canvas.height - ty - rh, rw, rh); out.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
+      const develop = (r, q) => { if (!r) return null; const c = document.createElement('canvas'); c.width = r.w; c.height = r.h; const x = c.getContext('2d'), im = x.createImageData(r.w, r.h), row = r.w * 4; for (let i = 0; i < r.h; i++) im.data.set(r.px.subarray((r.h - 1 - i) * row, (r.h - i) * row), i * row); for (let i = 3; i < im.data.length; i += 4) im.data[i] = 255; x.putImageData(im, 0, 0); out.getContext('2d').drawImage(c, 0, 0, r.w, r.h, 0, 0, out.width, out.height); return out.toDataURL('image/jpeg', q); };
       // (tonight alone first, smaller: the print comes up as tonight, and the other year comes up in it, story.js showPrint)
       let base = null;
       const later = ghosts ? [...storyFigs].filter(f => f.ghost && f.rig && f.rig.root.visible) : [];
@@ -3099,8 +3141,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const src = take(0.86);
       if (past) past.whole(false);
       player.rig.root.visible = me; if (storyBeacon) storyBeacon.visible = bc; gold.mesh.visible = gl; if (storyHere) storyHere.visible = hc;
-      storySnapBase = base;
-      return src;
+      if (!lag) { storySnapBase = base; return src; }
+      storySnapBase = null;
+      Promise.all([base, src]).then(([b, r]) => { let bs = null, ss = null; try { bs = develop(b, 0.7); ss = develop(r, 0.86); } catch (e) { /* the context went: no print */ } storySnapBase = bs; done(ss, bs); }, () => done(null, null));
+      return null;
     },
     snapBase: () => storySnapBase,
     printRect, // (the print's rectangle in the picture: story.js keeps the finder's lines inside it)
@@ -3532,7 +3576,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // (the owner's iPhone, the walk's opening, 22 November 2026). The crowd is now as large as LOW_CAST faces would fill
   // and no larger: half on the usual set, a quarter on the lightest; any other device keeps all of it)
   const faceShare = QC.lean && QC.budget && QC.budget.cast ? Math.min(1, QC.budget.cast / LOW_CAST) : 1;
-  function applyDensity() { if (crowdAuto) crowd.want = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); }
+  function applyDensity() { if (crowdAuto) crowd.want = Math.round(crowd.P.length * density[settings.density] * busy() * govCrowd * faceShare); trafficWant(); }
+  // The traffic by the hour (#204): CR.cars_hours, the share of the peak hour's vehicles on the streets (an evening peak,
+  // a morning one a little under it, the small hours a quarter of it), its slots times that and the density setting and
+  // the governor's share. Asked of the traffic only when it changes, so a harness that sets cars.active itself keeps it
+  let carsWas = -1;
+  function trafficWant() {
+    const H = CR.cars_hours, h = clock.min / 60;
+    let v = 1;
+    if (H && H.length) {
+      v = H[H.length - 1][1];
+      for (let i = 0; i < H.length; i++) {
+        const [h1, v1] = H[i];
+        if (h < h1) { const [h0, v0] = i ? H[i - 1] : [H[H.length - 1][0] - 24, H[H.length - 1][1]]; v = v0 + (v1 - v0) * (h - h0) / Math.max(1e-6, h1 - h0); break; }
+      }
+    }
+    const w = Math.round(cars.slots * Math.max(0.1, Math.min(1, v)) * density[settings.density] * govCrowd);
+    if (w !== carsWas) { carsWas = w; cars.want = w; }
+  }
+  // The ring the traffic is held in round you (#204, #220): on foot the arms you see and hear, CR.cars_ring_m; at the
+  // wheel a third wider, for the streets ahead come at you faster; from the helicopter, whose eye takes in the map, the
+  // whole of its radius
+  function trafficRing() {
+    const r = CR.cars_ring_m || 0;
+    if (!r || player.mode === 'heli' || cam.mode === 'bird') return 0;
+    return player.mode === 'car' || ride ? r * 1.3 : r;
+  }
   // mode: 'chase', 'bird' (the helicopter's bird's-eye view) or 'cockpit' (the pilot's eyes, looking lookYaw left and lookPitch up)
   // distTo and yawTo, when set, ease the chase camera somewhere (out to the helicopter's view, round to its door)
   // on foot the chase camera rests 5.5 m behind the head at 0.17 rad (issue 71): its eye about 2.5 m over the street, at
@@ -5586,6 +5655,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the weather as drivers meet it (cars.js setWeather): the traffic, the rides and your own tyres read it from there;
     // headlamps on by day in rain, snow or fog
     (U.uLamps || (U.uLamps = { value: 0 })).value = OECars.setWeather(weather ? (window.OEWeather && OEWeather.S) || weather.state : null).lamps; // (the weather's one state, weather.js S: grip, wet, visibility)
+    cars.ring = trafficRing();
     cars.update(dt, cx, cy, clockT, blockers);
     // on a wet road the cars near you throw up spray behind their wheels (cars.js sprayStep: nothing made until it first rains)
     if (OECars.weather.spray >= 0.25 || OECars.sprayState()) {
@@ -6684,8 +6754,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camPos.addVectors(camTarget, camOff);
     // (and where the swing's easing leaves it, on foot: the offset eased round as you turn cuts a wall's corner on its way, the
     // lens a few decimetres behind the station passage's walls for up to 10 frames of a turn on the spot. On the line it is on,
-    // in front of whatever solid stands there, in this frame: issue 217)
-    if (close && !jumped) { const fs = solidCut(camTarget, camPos); if (fs < 0.97) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
+    // in front of whatever solid stands there, in this frame: issue 217. By distance, not a share of the line: 3% of a 5.5 m arm
+    // left the lens 0.10 m behind the free passage's wall after frame 6's set-down)
+    if (close && !jumped) { const fs = solidCut(camTarget, camPos), fl = camTarget.distanceTo(camPos); if ((1 - fs) * fl > 0.03) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
     // decks below the player's head eased in, so walking onto a stair or a deck lifts the view smoothly
@@ -6933,7 +7004,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // face to the place the story is played (the lift's own `view`, else where the map starts), which falls away
         // under the frame as the floors go by, and comes round to where you step out over the last third. The turn is
         // of the view's direction, not of a point looked at: a point 400 m off mixed with one 15 m off turns in a snap.
-        const w = city ? OECine.ease.smooth(OECine.span(k, Math.max(0.06, h0 * 0.7), Math.max(0.3, h0 + 0.12))) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
+        // (and from the start, issue 231, while it rises out of a well too: turned only from the hold's end, the first half of SKY GATE's
+        // climb looked up a blank façade at arm's length)
+        const w = city ? OECine.ease.smooth(OECine.span(k, 0.02, 0.12)) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
         if (w > 0) {
           d1.subVectors(lk, pos).normalize(); d2.subVectors(city, pos).normalize();
           lk.copy(pos).addScaledVector(d1.lerp(d2, w).normalize(), 60);
@@ -6946,7 +7019,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // pale panel edge to edge), or was put on the roofline by the shot's clamp, a jump. So the way across can be held back
     // while the camera rises where it stands (h0, for a ride up) or brought to its end early (h1, for one down): the first
     // of these, on either side, that is clear all the way is taken, else the clearest.
-    const open = f => { const q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
+    // (and room round the lens, issue 231: a way that never crossed a wall but ran a metre along a neighbour's face was clear,
+    // and the climb's first half was that face filling the frame. Each pose within 3 m of a wall takes 0.02 off the way's
+    // score, after its first sixth, where it leaves your shoulder: nav.push at 3 m round it, from its height down 2 m)
+    const open = f => { const q = f(0).pos.clone(); let c = 1, near = 0; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); if (i > 4) { const w = nav.push(r.x, -r.z, r.y - 2, 3, 2); if (Math.hypot(w.x - r.x, w.y + r.z) > 0.05) near++; } q.copy(r); } return c - 0.02 * near; };
     const n1 = n0.clone().negate();
     let climb = null, best = -1;
     for (const s of [1, 0.6, 0.3]) {
