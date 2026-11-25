@@ -3551,3 +3551,32 @@ session's machine, phone tier (390x844, `TIER=low`, `DRAW=60`), main at 2f1b4cb9
 Not measured: an iPhone. The CSS grade the Stop lays on the canvas (`story.css` `.story-stop #game-gl` filter and the
 veil's multiply) is drawn in every beat of the Stop, the still at 42 fps on the owner's phone as well as the seek, so
 it is not what parts them; what it costs a phone's compositor is not known.
+
+### Nothing new inside a Stop (issue 118, November 2026)
+
+The owner's iPhone lost its WebGL context in frame 2's Stop after a 5 s GPU hold. The governor's phone-tier play there showed
+programs linked mid-beat at "stop still" and "stop shoot", and a 4096 x 2849 R8 texture first uploaded at "stop shoot".
+`tools/story_play.js BIGUP=mb` now says every texture upload of mb MB or more with its beat and the code that made it, and
+every program linked with its beat, its material, its owner in the scene and the parameter that made it new (against
+the nearest program of the same shader). What it found, and what was done:
+
+| linked or sent in the Stop | why | now |
+|---|---|---|
+| a 4096 x 2849 R8 (11 MB), at the shot | `inland.js holeMask`, the channels' distance field over their whole box, full size off a phone, sent by the draw that first showed a channel | half size everywhere (a filtered distance loses nothing at a metre), and sent ahead with the hero level (`sendTex` class 0) |
+| a second R8 of the map's frame, drawn on a canvas | `world.js waterCover`: every deck and roof face 1 to 40 m up, for a sea Shibuya does not have (its ground is 15 to 40 m above the sea's level 0) | only shapes on ground within 3 m of the sea's level, in the box round them; none in Shibuya |
+| the Stop's ring (Basic, both sides), at still | the spare `stopfx.js warm` compiled had a RingGeometry's normals; the ring has none, and an attribute is a variant (`vertexNormals`) | the spare's normals and uvs taken off |
+| the past's relic (Lambert), at the shot | never warmed | `past.js warm`, a hidden relic of the kit's own geometry |
+| the camera of 1964, at the shot | built when it is hung on you | `OEPeople.oldCamera`, a hidden copy warmed (its materials are every copy's) |
+| the place's light and the goal's beacon (ShaderMaterials), at the shot | made at their first use; warmed on an empty geometry they were another variant (normals) | `hereMake`, `beaconMake`, made ahead hidden, laid as a drape |
+| the guide, at still and again after | made at the Stop (`makeGuide`), drawn before compiled, and whole, fading and his ghost are three variants | the first of him made with the Stop's things (`warmGuide`) and handed to the story; `companion.js warm` compiles him whole and fading (with the weather's dress) before he is ready |
+| the cast's faces, at the talk | a speaking face is its own program (face.js), and the cast was never warmed | `warmGhosts` warms the cast and living afterimages as they are, without the exposure |
+| a 760 x 1644 RGBA16F (9.5 MB) at still, talk and shown | the camera effect's target, let go eight seconds after the effect last ran, and the Stop's beats turn it off and on | kept through the Stop (`composer.keepPings`), made once at its start |
+
+On a phone's tier (llvmpipe, frames 1 and 2 from the title): programs linked in the Stops' beats 30 to 0; the longest frames
+of the guide's film 529 to 90 ms, of his sitting 477 to 77, of the step back into the light 427 to 38, of the beat after
+598 to 53; the warm-up's links moved before it (frame 1's order). The film waits for the guide to be drawable (`d.ready`,
+up to 8 s, else the Stop goes on without it: issue 237).
+
+What is left, on the medium tier (a desktop's page on llvmpipe, whose frames there are 7 to 10 s): the late crowd's and
+the helicopter's programs and shadow variants are compiled in the Stop's seek because they arrive in it; the afterimages'
+faded variants at its still. A real device's late models come minutes earlier. Not measured: a real GPU, Safari, an iPhone.

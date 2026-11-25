@@ -523,8 +523,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         const here = await p.evaluate(() => [window.__game.player.x, window.__game.player.y]);
         await p.evaluate(() => { const g = window.__game, s = g.perch.list[0]; g.player.x = s.at[0] + s.face[0] * 9; g.player.y = s.at[1] + s.face[1] * 9; { const f = g.nav.floorAt(g.player.x, g.player.y, g.nav.terrain(g.player.x, g.player.y) + 1); if (f) g.player.z = f.z; } g.player.h = Math.atan2(-s.face[0], -s.face[1]); g.cam.yaw = g.player.h; g.cam.pitch = 0.1; g.advance(0.3); });
         await frames(24);
-        // (the sitter's body may still be coming: the crowd's cast loads a few at a time)
-        const sitter = await p.waitForFunction(() => { const g = window.__game, s = g.perch.list[0], V = g.visitors; if (!V) return 'none'; const q = V.shown().find(v => v.sit && Math.hypot(v.x - s.at[0], v.y - s.at[1]) < 2); if (!q) { g.frame(0.05); return false; } return { d: +Math.hypot(q.x - s.at[0], q.y - s.at[1]).toFixed(2), who: q.character }; }, null, { timeout: 90000, polling: 300 }).then(h => h.jsonValue(), () => null);
+        // (the sitter's body may still be coming: the crowd's cast loads a few at a time. Within 2.5 m, as the game's seatMarks asks
+        // visitors.seated: one sat 2.2 m off, the game rightly offered no mark, and a 2 m look found nobody, walk1 on stop-warm)
+        const sitter = await p.waitForFunction(() => { const g = window.__game, s = g.perch.list[0], V = g.visitors; if (!V) return 'none'; const q = V.shown().find(v => v.sit && Math.hypot(v.x - s.at[0], v.y - s.at[1]) < 2.5); if (!q) { g.frame(0.05); return false; } return { d: +Math.hypot(q.x - s.at[0], q.y - s.at[1]).toFixed(2), who: q.character }; }, null, { timeout: 90000, polling: 300 }).then(h => h.jsonValue(), () => null);
         // (once someone sits there, the mark that offered the place while their body came fades: a few frames for it to go)
         let pm = await placeMark();
         for (let i = 0; i < 40 && sitter && sitter !== 'none' && pm && pm.o > 0.05; i++) { await frames(4); pm = await placeMark(); }
