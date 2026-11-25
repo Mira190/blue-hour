@@ -926,6 +926,21 @@ width of the player's head (`UMB_RAISE`, 0.2 m: a second hold pose found once be
 blending towards it, up over 0.3 s and down over 0.5): over 240 s of the walk's rain on a phone the deepest canopy in the
 player read 0.8 cm, against 4.7 and 5.3 cm before. `RAISED=n` takes stills of those moments.
 
+### Through a rail (issue 157)
+
+On the owner's iPhone the player and the guide stood with a white guard rail through the waist, at frame 5's foot of
+Scramble Square and at frame 6's kerb under the station's deck. The hero levels draw their guard rails (`metal_guard`)
+and nothing made Miyamasuzaka's solid: only the Scramble landmark's own, within 62 m of the junction
+(`scramble.py` `GUARD_NEAR`), and the page read the drawn rails for a car's kerb stop alone (#208). Now each 0.25 m cell
+a drawn rail crosses is a box as the level comes (`game.js` `heroFence`), in a collision world for walkers alone
+(`nav.addFences`), which stops you, the guide's step and his planner (`nav.slide`, `nav.walk`) on a desktop and a phone
+alike. A first cut put them in the world everything reads, and the car called to the kerb (`wedged`) read the rail behind
+the kerb as a wall and stopped 72 m off (the walk check).
+`tools/rail_walk.js` meets every drawn rail head on, at each place where both sides are ground at one level: you with W
+held, the guide's step as `game.js` gives it, and a minute of the crowd. On main: at 77 places on Miyamasuzaka you went
+through 154 of 154 tries and the guide 152, and through 3 of the Scramble's beyond the landmark's reach; the crowd touched
+none. After: none, on both pages. `STILLS=dir AT='x,y;...'` takes a still of you walked into the rail nearest each place.
+
 ## Nobody paces (issue 168)
 
 On 21 November 2026 the owner's still of the walk showed two men under the deck east of the Scramble walking to and
