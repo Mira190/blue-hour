@@ -117,7 +117,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.PHONE) await p.addInitScript(() => { const M = window.__music = { els: [], offline: 0 }, Au = window.Audio, O = window.OfflineAudioContext;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
-  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
+  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; }); // (game.js trunksCheck: a trunk filling the chase view, #233; bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
@@ -1154,7 +1154,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
         // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
         // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
-        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
+        // (lowered and raised with no frame of the game's between, as a phone's 30 a second let happen: the raise is an event the
+        // game reads, story.state.raised, not a state it must see change)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) await raise(false);
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);
@@ -1496,6 +1498,12 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     const hard = B.filter(r => !r.who.startsWith('npc '));
     if (hard.length) errors.push(`bodies: ${hard.length} times one of the crowd was drawn inside someone not of it (${[...new Set(hard.map(r => r.who))].join(', ')})`);
     else console.log(`bodies: nobody of the crowd drawn within 0.45 m of the story's people, the player or the guide${B.length ? ` (${B.length} near a map's NPC)` : ''}`);
+  }
+  { // a trunk or a lamp post between the chase lens and you, over 30% of the frame's width, for a second or more (#233)
+    const T = await p.evaluate(() => window.__trunks || []).catch(() => []);
+    for (const r of T.slice(0, 12)) console.log(`FAIL trunk: a ${r.kind} at (${r.x}, ${r.y}) ${r.m} m from the lens hid you, ${Math.round(r.share * 100)}% of the frame's width (aspect ${r.aspect}), at ${r.at}`);
+    if (T.length) errors.push(`trunk: ${T.length} times a trunk or a post between the chase lens and you filled the frame for a second or more (${[...new Set(T.map(r => r.at))].slice(0, 6).join('; ')})`);
+    else console.log('trunk: no trunk or post between the chase lens and you filled the frame for a second');
   }
   { // one body in another, a limb in a body, a foot off its floor, a body in a thing: every frame of the play (issue 126)
     const R = await clipProbe.report(p);

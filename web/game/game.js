@@ -46,6 +46,7 @@ window.OpenEarthGame = async function game(cityId) {
   // frame's score takes it over. A browser gives a page no sound before it is touched: where it does, the cue starts
   // with the page; where it does not, the loading screen says so and the first key or touch starts it.
   let cue = null;
+  const ghostF = new THREE.Vector3(); // (story ctx ghostVoice's)
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
     // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
     const ld = $('#g-loader'), heard = () => ld.classList.toggle('no-sound', A.tunes ? !!A.needsTouch : !A.muted && (!!A.pending || (!!A.ctx && A.ctx.state !== 'running')));
@@ -164,6 +165,7 @@ window.OpenEarthGame = async function game(cityId) {
     if (due && window.OEGLCare && OEGLCare.trace) glLoad = OEGLCare.trace(renderer.getContext());
   } catch (e) { /* storage blocked */ }
   const BASE_FOV = 55, camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.3, 40000);
+  const TRUNK_SHARE = 0.3; // (a trunk or a post between the chase lens and you that would cover more of the frame's width than this is come in front of: #233)
   // The frame-time governor (quality.js): how much of the canvas's resolution the scene is drawn at, and how much
   // of what a frame can do without (governor.extras), both ways as the frame time allows. Its ceiling is the
   // tier's budget of scene pixels on this canvas. The frame-rate cap is the player's (the menu), 60 unless asked, and on
@@ -1145,10 +1147,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const tRoad = performance.now(), footNet = OEActors.network(G.paths.foot), roadNet = OEActors.network(bakeIn('roads', () => nav.withoutFine(() => onGround(cutAtWalls(G.paths.road, 0.5, true)))));
   const roadMs = performance.now() - tRoad;
   // the planned area's edge (bounds.js, docs/BOUNDS.md): the story and the walk keep to it, on foot, by car and in the
-  // air; the streets across it shut to cars, with road works on them. ?walk=1 (the builder's map) and ?bounds=off are open
+  // air; the streets across it left out of your routes and open to the traffic, nothing drawn on them. ?walk=1 (the
+  // builder's map) and ?bounds=off are open
   const bounds = window.OEBounds && G.bounds && !new URLSearchParams(location.search).has('walk') && new URLSearchParams(location.search).get('bounds') !== 'off'
     ? OEBounds.create({ data: G.bounds, toast: s => H.toast(s), floor: (x, y, z) => { const f = nav.floorAt(x, y, z + 1.5); return f ? f.z : null; }, reg: ((G.vehicles || {}).helicopter || {}).registration, clock: () => clockT }) : null;
-  if (bounds) { bounds.closeRoads(roadNet); const works = bounds.build(THREE, G.paths, world); if (works && window.OEVis) OEVis.gateAll(works); } // (the works hidden while the street wall hides every one of them: 12 of a phone's draws at the Scramble, issue 192)
+  if (bounds) { bounds.closeRoads(roadNet); bounds.mark(G.paths); }
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
@@ -1308,7 +1311,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // on the low tier its usual number, so a phone draws no more people than it did
   const crowdPool = QC.name === 'low' ? CR.pedestrians || 300 : CR.pedestrians_peak || CR.pedestrians || 300;
   const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, stillNear: touch ? 24 : 40, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
-    { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) || (bounds && Math.abs(bounds.sd(x, y).s) < 0.8), posts,
+    { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) /* (none at the planned area's edge: the crowd walks on past it, as the traffic drives on: bounds.js) */, posts,
       clear: wellAt ? (x, y, z) => nav.room(x, y, z, 0.3) && !wellAt(x, y) : (x, y, z) => nav.room(x, y, z, 0.3), eye: camera, shut: wellAt, sight: (x, y, z) => nav.solid(x, y, z, 0.2) }); // (a shut well is a wall to the crowd: nobody cuts across its mouth)
   // the side of the road the city keeps to: game.keep, its trams', or the country's rule
   const KEEP = G.keep || ((G.rail || {}).tram || {}).keep || (/^(Australia|Japan|United Kingdom|Ireland|New Zealand|Singapore|Malaysia|Indonesia|Thailand|India|South Africa)$/.test(CITY.country)
@@ -2261,7 +2264,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (auto && auto !== true) { fwd = auto.fwd; side = auto.turn; }
     else if (!pilot && (assist.lane || assist.cruise)) { const a = assistStep(fwd, side); fwd = a.fwd; side = a.turn; }
     else assist.on.lane = assist.on.cruise = false;
-    if (bounds && playing && auto !== true) { const b = bounds.drive(st, fwd, side, myCar.C.half); if (b) { fwd = b.fwd; side = b.side; } } // (braked short of the road works: bounds.js)
+    if (bounds && playing && auto !== true) { const b = bounds.drive(st, fwd, side, myCar.C.half); if (b) { fwd = b.fwd; side = b.side; } } // (braked short of the edge: bounds.js)
     if (auto !== true) D.step(dt, { fwd: Math.max(-1, Math.min(1, fwd)), turn: Math.max(-1, Math.min(1, side)), handbrake: k('Space') },
       { boxes: carBoxes(st.x, st.y, 14, myCar), people: peopleNear(st.x, st.y, 12), posts: postsNear(st.x, st.y, 10) }, ev);
     for (const e of ev) {
@@ -2683,6 +2686,33 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     for (const k of bodiesOn.keys()) if (!now.has(k)) bodiesOn.delete(k);
   };
+  // a trunk or a post between the chase lens and you, covering more than TRUNK_SHARE of the frame's width, for a second or
+  // more (tools/story_play.js, window.__trunks: #233, where a planter tree's trunk filled a third of a phone's frame in frame
+  // 3's Stop and hid you). Measured from the lens as drawn, independent of how the rig decides (postAtLens): the trunk's
+  // circle across the line from the lens to your chest, its share the trunk's width over the frame's width at its depth
+  const trunksOn = new Map(), trunkC = new THREE.Vector3();
+  const trunksCheck = () => {
+    const TK = window.__trunks, now = new Set();
+    if (TK.length < 100 && player.mode === 'foot' && !fpOn && !talkShot && !cine.active && !photo.on && !(overture && overture.active)) {
+      const P = camera.position, C = trunkC.copy(W(player.x, player.y, player.z + 1.2));
+      const ax = P.x, ay = -P.z, dx = C.x - ax, dy = -C.z - ay, L = Math.hypot(dx, dy);
+      const halfW = Math.tan(camera.fov * Math.PI / 360) * (camera.aspect || 1.6);
+      if (L > 0.8 && L < 12) for (const q of postsNear((ax + C.x) / 2, (ay - C.z) / 2, L / 2 + 0.5)) {
+        if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue;
+        const s = ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L);
+        if (s <= 0 || s >= 1) continue;
+        const px = ax + dx * s - q.x, py = ay + dy * s - q.y, z = P.y + (C.y - P.y) * s;
+        if (px * px + py * py > q.r * q.r || z < q.z || z > q.z + (q.kind === 'tree' && q.hb != null ? q.hb : 7)) continue;
+        const share = 2 * q.r / (s * L * 2 * halfW);
+        if (share < TRUNK_SHARE) continue;
+        const key = `${q.x.toFixed(1)},${q.y.toFixed(1)}`; now.add(key);
+        const e = trunksOn.get(key);
+        if (e) { e.n++; if (share > e.share) e.share = +share.toFixed(2); if (e.n === 45) TK.push(e); }
+        else trunksOn.set(key, { kind: q.kind, at: bodiesAt(), x: +q.x.toFixed(1), y: +q.y.toFixed(1), m: +(s * L).toFixed(2), share: +share.toFixed(2), aspect: +(camera.aspect || 0).toFixed(2), n: 1 });
+      }
+    }
+    for (const k of trunksOn.keys()) if (!now.has(k)) trunksOn.delete(k);
+  };
   let talkShot = null, talkPrint = false, talkTyped = '';
   const talkText = document.getElementById('gd-text'), talkBox = document.getElementById('gd');
   // the share of the frame's height the dialogue's words cover, from its foot (issue 76: the talk's shot is composed
@@ -2866,11 +2896,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let haloTex = null;
   const haloMap = () => {
     if (haloTex) return haloTex;
-    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-    const x = c.getContext('2d'), g = x.createRadialGradient(32, 64, 0, 32, 64, 32);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.setTransform(1, 0, 0, 2, 0, -64); x.fillStyle = g; x.fillRect(0, 0, 64, 128); // (an ellipse twice as tall as it is wide: a standing figure's)
-    haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    // (worked out here, not drawn on a 2D canvas: a canvas keeps its pixels premultiplied, and handed to WebGL unpremultiplied
+    // the faint texels' white came back as dark and coloured ones, and iOS Safari dithers the gradient besides. On the owner's
+    // iPhone at a render scale of 0.65 each such texel was a speck a few pixels wide, a cloud of them round Sumiko from
+    // across the crossing, gone as one came near and the halation faded, issue 206. White throughout, only alpha falls off)
+    const W = 64, H = 128, d = new Uint8Array(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const r = Math.hypot((x + 0.5 - 32) / 32, (y + 0.5 - 64) / 64); // (an ellipse twice as tall as it is wide: a standing figure's)
+      const a = r < 0.35 ? 1 - 0.45 * r / 0.35 : r < 1 ? 0.55 * (1 - r) / 0.65 : 0;
+      const i = (y * W + x) * 4; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(a * 255);
+    }
+    haloTex = new THREE.DataTexture(d, W, H, THREE.RGBAFormat);
+    haloTex.magFilter = THREE.LinearFilter; haloTex.minFilter = THREE.LinearMipmapLinearFilter; haloTex.generateMipmaps = true; // (a DataTexture is nearest-sampled unless told)
+    if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    haloTex.needsUpdate = true;
     return haloTex;
   };
   // (an afterimage's look compiled before the Stop it stands in, as the title waits: people.js exposure makes a program of
@@ -3188,6 +3227,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the story's own sound (audio.js): a cue by name, and the still chord of time held
     sfx: name => { if (name === 'wrong' || (name === 'right' && talkPrint)) talkPrint = true; else if (name === 'right') talkPrint = false; if (A.sfx) A.sfx(name); if (gamepad && (name === 'stop' || name === 'shutter')) gamepad.rumble(name); }, // (an answer judged: the line after it is a closer single; and the pad's rumble, where it has one)
     held: on => { if (A.held) A.held(on); },
+    // the afterimage's voice in a Stop (audio.js ghost): where she stands as the camera sees her, its side and distance; null, off
+    ghostVoice: at => {
+      if (!A.ghost) return;
+      if (!at) { A.ghost(null); return; }
+      const v = W(at[0], at[1], at[2] + 1.4).sub(camera.position), f = camera.getWorldDirection(ghostF), d = v.length();
+      v.y = 0; f.y = 0; v.normalize(); f.normalize();
+      A.ghost({ d, pan: v.x * -f.z + v.z * f.x, behind: v.dot(f) < -0.2 }); // (right = forward × up: (−f.z, 0, f.x))
+    },
     // time held and let go: what was falling or flying hangs where it was (stopfx.js)
     // a flight between two places (a frame's `flight`: an overture's spec, its shots, captions and where you stand at the end):
     // the helicopter is the film's guide, the camera flies with it, and a key sets you down at once
@@ -5215,11 +5262,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
       if (sndBed && sndBed.dead) sndBed = null; // (let go for a film's score: one tune at a time, audio.js tune; begun again after it)
       if (cue && cue.dead) cue = false;
+      const stopNow = !!(story && story.on && story.state && story.state.phase === 'stop');
       if (playing && !film) {
         const street = !!A.ctx && A.ctx.state === 'running' && !A.holding && !A.gaveUp;
         if (sndCueOut && street) { sndCueOut = false; cueOut(); }
         if (sndBed && street) { sndBed.stop(3); sndBed = null; }
-        else if (!sndBed && !cue && (A.gaveUp || A.streetOff || (sndHeldAt && now - sndHeldAt > 8000)) && now - sndFilmAt > 2500) sndBed = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); // (or held for long: a phone at its limit hears music, not nothing)
+        else if (sndBed && stopNow) { sndBed.stop(0); sndBed = null; } // (time held: the music is time's, and a bed of it is the walk's tune, out of the graph and so never braked; it stops under the Stop's cue)
+        else if (!sndBed && !cue && !stopNow && (A.gaveUp || A.streetOff || (sndHeldAt && now - sndHeldAt > 8000)) && now - sndFilmAt > 2500) sndBed = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); // (or held for long: a phone at its limit hears music, not nothing; never in a Stop, where silence is meant)
       }
     } else if (sndQuiet) { // (a phone's context is made once the opening's film is over, or two seconds into a start that has none: audio.js quiet)
       const film = !!(overture && overture.active); if (film) sndQuiet = 2;
@@ -5334,6 +5383,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
     bodiesGuard();
     if (window.__bodies) bodiesCheck();
+    if (window.__trunks) trunksCheck();
     // (tools/clip_probe.js, issue 126: what stands inside what, measured every frame of a play from the bones as they are drawn)
     if (window.__probe) window.__probe.frame({ THREE, player, storyFigs, npcs, crowd, crowdDraw, guide: guideMade, guideSeg, nav, posts, carBoxes, heli, car: myCar, story, at: bodiesAt(), talk: !!talkShot, camera });
     mirrorTick();
@@ -5519,7 +5569,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (story && story.stopped && story.scale === 0) dt = 0; // the Stop: you have moved; from here on the world is given no time
     if (fish) fishTick(dt, held ? 0 : Math.max(-1, Math.min(1, side)));
     if (coachHeli) coachHeli.update(dt); // (on into the step out, once landed)
-    if (bounds && bounds.tick) bounds.tick(clockT, !sun || sun.altitude < 3); // (the road works' lamps blink)
     if (player.mode !== 'heli') { heli.update(dt, {}, []); A.rotor(heli.st.rotor * Math.max(0, 1 - Math.hypot(heli.st.x - player.x, heli.st.y - player.y) / 300)); }
     if (player.mode !== 'heli') { heliHomeStep(dt); heliToPad(); }
     if (waitFerry && (player.mode !== 'foot' || !nearWharf(player.x, player.y, 40))) waitFerry = null;
@@ -6126,7 +6175,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // screen; with the finder's lines inside the print, a band across a phone held upright (story.js fitFinder), the
       // board of frame 1 stood taller than the print through 0.7, and frame 6's pillar box, umbrella and board wider
       const lensOf = (v, ring) => camera.aspect >= 1.5 ? v : Math.min(lensWas != null && (ring >= 45 || lensWide) ? 105 : 95, 2 * Math.atan(Math.tan(v * Math.PI / 360) * (lensWas != null && ring < 45 && !lensWide ? 1 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
-      if (!fpOn) {
+      // (and at each raise, not only when the view was last seen lowered: a phone's game runs 30 frames a second, and a camera
+      // lowered and raised between two of its frames kept the lens where it was, 63 degrees off the thing, the finder never
+      // turned onto it: story.state.raised counts the raises)
+      if (!fpOn || fp.raised !== story.state.raised) {
+        fp.raised = story.state.raised;
         // (from the view as it was: where it stood, which way it looked, its lens)
         fp.from = { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
         // (the way the view behind you faces, and its pitch as the eye's: 0.3 of it is level. Not that view's own downward
@@ -6654,19 +6707,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // landmarks, the decks), and one between that is away from the lens is looked past, as a post is; but within 1.5 m of
     // it a trunk filled half a phone's frame and hid you (the planters' trees round Hachiko, since the camera came down
     // to the shoulder in issue 71): the camera comes in to stand in front of it, eased as for a wall
-    // (how far from the lens a trunk or a post is still in front of you, not looked past: 1.5 m on a desktop's wide frame, 3 m
-    // on a phone's tall one, where a planter tree's trunk 2 to 3 m off filled a third of the screen in frame 3's Stop, #233)
-    const trunkReach = camera.aspect < 1 ? 3 : 1.5;
+    // (how far from the lens a trunk or a post is still in front of you, not looked past: as far as it would cover more than
+    // TRUNK_SHARE of the frame's width, and never under 1.5 m. On a phone's tall, narrow frame a planter tree's trunk 2 to 3 m
+    // off filled a third of the screen in frame 3's Stop, #233: there a trunk reaches about 4 m, a lamp post under 2; a
+    // desktop's wide frame keeps 1.5 m. Never nearer you than 1 m: the lens would be in your head, and the post is looked past)
+    const halfW = Math.tan(camera.fov * Math.PI / 360) * (camera.aspect || 1.6);
+    const trunkReach = r => Math.max(1.5, 2 * r / (TRUNK_SHARE * 2 * halfW));
     const postAtLens = (a, b) => {
       if (!close || player.mode !== 'foot' || fpOn) return 1;
       const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
       if (L < 0.8) return 1;
       let t = 1;
-      for (const q of postsNear(b.x, -b.z, 2.5)) {
+      for (const q of postsNear(b.x, -b.z, Math.min(L, trunkReach(0.5)) + 0.5)) {
         if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue; // (a planter's low rail and a queue belt are under the lens; a level's wall is wallCut's)
         if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
         const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
-        if (d2 > R * R || (1 - s) * L > trunkReach) continue;
+        if (d2 > R * R || (1 - s) * L > Math.min(trunkReach(q.r), L - 1)) continue;
         t = Math.min(t, Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L));
       }
       return t;
