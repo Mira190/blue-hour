@@ -639,8 +639,10 @@ sixteen, because it reaches every check and two play at a time. What would bring
 A change that breaks something breaks the same step every time. So when the clip or the game check
 fails, it is run a second time, and the run fails only on a step that failed both times, or on a run
 that ended without naming a step (a crash, a timeout). Two runs with no failed step in common print
-`FLAKY` and pass. On main, each `FLAKY` line is added to the issue labelled `check-flaky`: a step
-that is named there often is the one to make steady.
+`FLAKY` and pass. On main, each `FLAKY` line is added to the one issue that collects them, "Checks: steps that fail one run and
+pass the next" (labelled `check-flaky`; made when none is open): a step that is named there often is the one to
+make steady. A cause found for one gets an issue of its own, also labelled `check-flaky`, and the tally stays where
+it was.
 
 A step that acts and then reads waits for what it reads, not for a fixed time (`tools/walk_play.js` `until`,
 `pressFor`): on a slow runner the desktop walk read Back's state 2.5 s after the press, a frame before Back was
