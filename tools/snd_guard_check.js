@@ -4,6 +4,8 @@
 //   - a break the probe counts while the street plays (the context's clock held back 250 ms, as a starved audio thread's
 //     is) gives the street up: suspended, kept so through a touch, onGaveUp called, the device's note at 1;
 //   - the Sound switch off and on asks again: running (the note stays until three minutes play without a break);
+//   - a break waits three seconds before it gives up, and is kept (snd_kept) when within them either side the context
+//     left running (iOS's interruption) or a WebGL context was lost: the owner's iPhone, 24 November;
 //   - two breaks of 25 ms give it up again, and a third time after asking again; with two give-ups noted the next page
 //     makes no context at all (street off, as telemetry says), until the Sound switch asks again.
 // Not checked: a real iPhone's audio thread, which is what the guard is for.
@@ -29,26 +31,26 @@ const { chromium } = require('playwright');
     A.hold(true); await wait(300); o.heldState = A.ctx.state; touch(); await wait(2300); o.heldAfterTouch = A.ctx.state;
     const hh = A.health(); o.heldTel = [hh.snd_held, hh.snd_holds];
     A.hold(false); await wait(400); o.letGo = A.ctx.state;
-    await wait(1200); A.health();
+    await wait(3200); A.health(); // (a break within three seconds of the context leaving or coming back to running is excused: EXCUSE)
     // the clock held back 250 ms: one break of 100 ms and more, and the street gives up
     const c = A.ctx, proto = Object.getPrototypeOf(Object.getPrototypeOf(c)), d = Object.getOwnPropertyDescriptor(proto, 'currentTime');
     let hold = null;
     Object.defineProperty(c, 'currentTime', { get() { const t = d.get.call(c); return hold !== null ? Math.min(hold, t) : t; } });
     const back = async ms => { hold = d.get.call(c); await wait(ms); hold = null; await wait(350); };
-    await back(250); await wait(300);
+    await back(250); await wait(3300); // (the guard waits three seconds on a break before it gives up)
     o.gave1 = A.gaveUp; o.gave1State = A.ctx.state; o.calls1 = gave; o.note1 = JSON.parse(localStorage.getItem('bh-snd-gave') || 'null');
     touch(); await wait(2300); o.gaveAfterTouch = A.ctx.state;
     o.gaveTel = A.health().snd_gave;
     // the Sound switch off and on: asked again
     A.setMuted(true); await wait(300); A.setMuted(false); await wait(500);
     o.again = [A.gaveUp, A.ctx.state, (JSON.parse(localStorage.getItem('bh-snd-gave') || 'null') || {}).n];
-    await wait(1500); A.health();
+    await wait(3500); A.health();
     // two breaks of 25 ms within half a minute: given up again (the clock held back 60 ms twice)
-    await back(60); o.afterOne = A.gaveUp; await back(60); await wait(200);
+    await back(60); o.afterOne = A.gaveUp; await back(60); await wait(3300);
     o.gave2 = A.gaveUp; o.gave2State = A.ctx.state; o.calls2 = gave;
     // asked again, and given up a second time this page: the note counts two
-    A.setMuted(true); await wait(300); A.setMuted(false); await wait(1500); A.health();
-    await back(250); await wait(300);
+    A.setMuted(true); await wait(300); A.setMuted(false); await wait(3500); A.health();
+    await back(250); await wait(3300);
     o.note2 = JSON.parse(localStorage.getItem('bh-snd-gave') || 'null');
     // (the note as the second give-up left it, for the next page)
     localStorage.setItem('bh-snd-gave', JSON.stringify({ n: 2, t: Date.now() }));
@@ -64,9 +66,29 @@ const { chromium } = require('playwright');
     o.again = [A.streetOff, A.ctx ? A.ctx.state : null, (JSON.parse(localStorage.getItem('bh-snd-gave') || 'null') || {}).n];
     return o;
   });
-  console.log(JSON.stringify(r)); console.log(JSON.stringify(s));
+  // a break the system made is excused (the owner's iPhone, 24 November): one just before the context is interrupted
+  // (here suspended from outside, as iOS does), and one beside a lost WebGL context, keep the street
+  await p.evaluate(() => localStorage.removeItem('bh-snd-gave')); await p.reload(); await p.waitForFunction(() => window.OEAudio);
+  const x = await p.evaluate(async () => {
+    const A = window.OEAudio, wait = ms => new Promise(r => setTimeout(r, ms)), o = {};
+    A.start(); await A.ctx.resume(); await wait(3500); A.health();
+    const c = A.ctx, proto = Object.getPrototypeOf(Object.getPrototypeOf(c)), d = Object.getOwnPropertyDescriptor(proto, 'currentTime');
+    let hold = null;
+    Object.defineProperty(c, 'currentTime', { get() { const t = d.get.call(c); return hold !== null ? Math.min(hold, t) : t; } });
+    const back = async ms => { hold = d.get.call(c); await wait(ms); hold = null; await wait(350); };
+    await back(250); await c.suspend(); await wait(400); await c.resume(); await wait(3500);
+    o.interrupted = [A.gaveUp, c.state]; o.kept1 = (A.health() || {}).snd_kept;
+    await wait(3500); A.health();
+    await back(250); window.dispatchEvent(new Event('webglcontextlost')); await wait(3500);
+    o.lost = [A.gaveUp, c.state]; o.kept2 = (A.health() || {}).snd_kept;
+    o.log = A.probe.log.slice(-3).join(' | ');
+    return o;
+  });
+  console.log(JSON.stringify(r)); console.log(JSON.stringify(s)); console.log(JSON.stringify(x));
   const fails = [], fail = m => fails.push(m);
   if (r.guard !== true) fail('?guard=1 does not turn the guard on');
+  if (x.interrupted[0] || x.interrupted[1] !== 'running' || x.kept1 !== 1) fail(`a break just before the context was interrupted gave the street up or was not kept (${JSON.stringify(x.interrupted)}, kept ${x.kept1})`);
+  if (x.lost[0] || x.kept2 !== 1) fail(`a break beside a lost WebGL context gave the street up or was not kept (${JSON.stringify(x.lost)}, kept ${x.kept2})`);
   if (r.heldState !== 'suspended') fail(`held, the context is ${r.heldState}, not suspended`);
   if (r.heldAfterTouch !== 'suspended') fail(`held, a touch and the two-second wake left the context ${r.heldAfterTouch}`);
   if (!(r.heldTel[1] >= 1 && r.heldTel[0] >= 2)) fail(`telemetry read the hold as ${r.heldTel} (seconds, holds)`);
