@@ -1139,10 +1139,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const tRoad = performance.now(), footNet = OEActors.network(G.paths.foot), roadNet = OEActors.network(bakeIn('roads', () => nav.withoutFine(() => onGround(cutAtWalls(G.paths.road, 0.5, true)))));
   const roadMs = performance.now() - tRoad;
   // the planned area's edge (bounds.js, docs/BOUNDS.md): the story and the walk keep to it, on foot, by car and in the
-  // air; the streets across it shut to cars, with road works on them. ?walk=1 (the builder's map) and ?bounds=off are open
+  // air; the streets across it left out of your routes and open to the traffic, nothing drawn on them. ?walk=1 (the
+  // builder's map) and ?bounds=off are open
   const bounds = window.OEBounds && G.bounds && !new URLSearchParams(location.search).has('walk') && new URLSearchParams(location.search).get('bounds') !== 'off'
     ? OEBounds.create({ data: G.bounds, toast: s => H.toast(s), floor: (x, y, z) => { const f = nav.floorAt(x, y, z + 1.5); return f ? f.z : null; }, reg: ((G.vehicles || {}).helicopter || {}).registration, clock: () => clockT }) : null;
-  if (bounds) { bounds.closeRoads(roadNet); const works = bounds.build(THREE, G.paths, world); if (works && window.OEVis) OEVis.gateAll(works); } // (the works hidden while the street wall hides every one of them: 12 of a phone's draws at the Scramble, issue 192)
+  if (bounds) { bounds.closeRoads(roadNet); bounds.mark(G.paths); }
 
   loadMsg('Footways people can walk', 0.84);
   await idle();
@@ -1302,7 +1303,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // on the low tier its usual number, so a phone draws no more people than it did
   const crowdPool = QC.name === 'low' ? CR.pedestrians || 300 : CR.pedestrians_peak || CR.pedestrians || 300;
   const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, stillNear: touch ? 24 : 40, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
-    { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) || (bounds && Math.abs(bounds.sd(x, y).s) < 0.8), posts,
+    { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) /* (none at the planned area's edge: the crowd walks on past it, as the traffic drives on: bounds.js) */, posts,
       clear: wellAt ? (x, y, z) => nav.room(x, y, z, 0.3) && !wellAt(x, y) : (x, y, z) => nav.room(x, y, z, 0.3), eye: camera, shut: wellAt, sight: (x, y, z) => nav.solid(x, y, z, 0.2) }); // (a shut well is a wall to the crowd: nobody cuts across its mouth)
   // the side of the road the city keeps to: game.keep, its trams', or the country's rule
   const KEEP = G.keep || ((G.rail || {}).tram || {}).keep || (/^(Australia|Japan|United Kingdom|Ireland|New Zealand|Singapore|Malaysia|Indonesia|Thailand|India|South Africa)$/.test(CITY.country)
@@ -2255,7 +2256,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (auto && auto !== true) { fwd = auto.fwd; side = auto.turn; }
     else if (!pilot && (assist.lane || assist.cruise)) { const a = assistStep(fwd, side); fwd = a.fwd; side = a.turn; }
     else assist.on.lane = assist.on.cruise = false;
-    if (bounds && playing && auto !== true) { const b = bounds.drive(st, fwd, side, myCar.C.half); if (b) { fwd = b.fwd; side = b.side; } } // (braked short of the road works: bounds.js)
+    if (bounds && playing && auto !== true) { const b = bounds.drive(st, fwd, side, myCar.C.half); if (b) { fwd = b.fwd; side = b.side; } } // (braked short of the edge: bounds.js)
     if (auto !== true) D.step(dt, { fwd: Math.max(-1, Math.min(1, fwd)), turn: Math.max(-1, Math.min(1, side)), handbrake: k('Space') },
       { boxes: carBoxes(st.x, st.y, 14, myCar), people: peopleNear(st.x, st.y, 12), posts: postsNear(st.x, st.y, 10) }, ev);
     for (const e of ev) {
@@ -4658,6 +4659,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const P = parked;
     if (!P) return;
     parked = null;
+    try { unparkIn(P); } catch (e) { try { console.warn('the mode could not be taken up in place, opening the page again', e); } catch (e2) { /* none */ } location.reload(); } // (the page load is the fallback here too)
+  }
+  function unparkIn(P) {
     setClock(P.clock.y, P.clock.m, P.clock.d, P.clock.min); clock.scale = P.clock.scale;
     if (weather && P.sky && weather.state.kind !== P.sky) weather.set(P.sky, { now: true });
     Object.assign(cam, P.cam); camSmooth.set(0, 0, 0);
@@ -5512,7 +5516,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (story && story.stopped && story.scale === 0) dt = 0; // the Stop: you have moved; from here on the world is given no time
     if (fish) fishTick(dt, held ? 0 : Math.max(-1, Math.min(1, side)));
     if (coachHeli) coachHeli.update(dt); // (on into the step out, once landed)
-    if (bounds && bounds.tick) bounds.tick(clockT, !sun || sun.altitude < 3); // (the road works' lamps blink)
     if (player.mode !== 'heli') { heli.update(dt, {}, []); A.rotor(heli.st.rotor * Math.max(0, 1 - Math.hypot(heli.st.x - player.x, heli.st.y - player.y) / 300)); }
     if (player.mode !== 'heli') { heliHomeStep(dt); heliToPad(); }
     if (waitFerry && (player.mode !== 'foot' || !nearWharf(player.x, player.y, 40))) waitFerry = null;

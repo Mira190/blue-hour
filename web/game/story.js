@@ -458,6 +458,8 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     // themselves, not the block's padding)
     let gbAt = -1, gb = { right: 0, bottom: 0 };
     const goalBox = () => { const t = performance.now(); if (t - gbAt > 100) { gbAt = t; let r = 0, b = 0; for (const e of goalEl.children) { const q = e.getBoundingClientRect(); if (q.height > 0) { r = Math.max(r, q.right); b = Math.max(b, q.bottom); } } gb = { right: r, bottom: b }; } return gb; };
+    // (what is said after a picture, its notices, all said and gone: the queue empty and nothing still up, hud.js toast)
+    const afterSaid = () => { const T = document.getElementById('g-toasts'); return !T || (!T.dataset.next && !T.querySelector('.g-toast:not(.out)')); };
     const clockOf = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
     // a place as the beacon and the mark want it: [x, y, the height of a head there, the floor]
     const spot = p => { const z = p[2] != null ? p[2] : ctx.floor(p[0], p[1]); return [p[0], p[1], z + 1.2, z]; };
@@ -1362,7 +1364,8 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       const P0 = st.ep.prologue || {}, back = !late && st.fi === 0 && st.cutCall ? L(P0.back) : [];
       if (back.length) { st.cutCall = false; later(900, () => ctx.say(officeOf(P0), back, () => {}, { free: true })); }
       said.forEach((line, i) => later(1400 + (back.length ? 3200 : 0) + i * 4200, () => ctx.toast(esc(line))));
-      st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2; // (the next goal as soon as time has run on again; what is said after the picture goes on under it)
+      st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2;
+      if (said.length) st.wait = Math.max(st.wait, 1.4 + (back.length ? 3.2 : 0) + (said.length - 1) * 4.2 + 0.6); // (the next goal once what is said after the picture is said, the last of it due and gone, afterSaid: never two frames' words at once)
       if (!late && fr.finale && st.meet && ctx.walkIn) ctx.walkIn(0); // (the lights went to walk in the Stop: now the street crosses on them)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
       // the next frame goes by helicopter: it starts up on its pad as this is said, and the way to it is given once all of it
@@ -1592,7 +1595,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         }
         markTick(dt);
         if (leftS <= 0 && !st.meet && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true); // (not while they walk to each other, nor once they have met)
-      } else if (st.phase === 'after' && st.t > st.wait) {
+      } else if (st.phase === 'after' && st.t > st.wait && (st.t > st.wait + 20 || afterSaid())) { // (the next frame's words once the last frame's are said: never two frames' words at once)
         if (st.late) { st.phase = 'go'; approach(); }
         else if (st.fi === 0 && rings()) { // the office rings, now that time runs again: who you are, why this kerb, and the one odd thing about the job
           const P = ep.prologue; st.rang = true; st.phase = 'go'; st.beat = 'prologue'; goal('');
