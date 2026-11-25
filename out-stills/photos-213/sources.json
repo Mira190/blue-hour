@@ -85,6 +85,23 @@
   "artist": "Uncrme",
   "date": "2025-02-23",
   "url": "https://commons.wikimedia.org/wiki/File:Statue_of_Hachik%C3%B5_in_Woonsocket,_RI.jpg",
-  "query": "Hachiko statue"
+  "query": "Hachiko statue",
+  "dropped": "another statue (Woonsocket, Rhode Island), not Shibuya"
+ },
+ "File:Gusto Shibuya-Dōgenzaka.jpg": {
+  "file": "Gusto_Shibuya-Dōgenzaka.jpg",
+  "licence": "CC0",
+  "artist": "Syced",
+  "date": "12 December 2024 circa 22:13",
+  "url": "https://commons.wikimedia.org/wiki/File:Gusto_Shibuya-D%C5%8Dgenzaka.jpg",
+  "query": "Dogenzaka Shibuya street"
+ },
+ "File:Dogenzaka 2-26 new buildings, dogenzaka-dori 道玄坂通.jpg": {
+  "file": "Dogenzaka_2-26_new_buildings_dogenzaka-dori_道玄坂通.jpg",
+  "licence": "CC0",
+  "artist": "Syced",
+  "date": "5 August 2023 (according to Exif data)",
+  "url": "https://commons.wikimedia.org/wiki/File:Dogenzaka_2-26_new_buildings,_dogenzaka-dori_%E9%81%93%E7%8E%84%E5%9D%82%E9%80%9A.jpg",
+  "query": "Dogenzaka Shibuya street"
  }
 }
