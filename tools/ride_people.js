@@ -180,6 +180,9 @@ const [,, out = '/tmp/ride-people', size = '1440x900'] = process.argv;
     // which is two minutes at most, but a standstill, and said at once with what holds it, not after the play's limit.
     // Main's ride on f69bd7d8 gave way at (531, -995.8) for 40 minutes of a runner, #235)
     if (s.ride && (s.ride.phase === 'coming' || s.ride.phase === 'waiting') && s.ride.v < 0.1 && s.W) {
+      // (and the world stepped on while it stands, as it is while the car comes: in "waiting" the play stepped nothing, the
+      // game's clock crept at the page's own frames, and five of its minutes took more than the play's forty, #235 again)
+      if (s.ride.phase === 'waiting') await p.evaluate(n => window.__rpStep(n), 150);
       if (stood == null) stood = s.W.frames;
       else if (s.W.frames - stood > 9000) { ended = `not arrived: the car coming to you stood still five minutes of the game's clock ("${s.ride.intent}", ${s.ride.why}${s.ride.jn ? `, junction ${s.ride.jn}` : ''})`; break; }
     } else stood = null;
