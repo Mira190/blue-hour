@@ -111,6 +111,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.PHONE && process.env.ENGINE && process.env.ENGINE !== 'chromium') await require('./engine').phone(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   const lost = await require('./gl_lost').watch(p); // (a lost WebGL context said in the failure after it)
+  // (a phone's music: every element made and every score rendered in the page, read at the flight: a phone plays its
+  // scores from files and renders none, issue 166)
+  if (process.env.PHONE) await p.addInitScript(() => { const M = window.__music = { els: [], offline: 0 }, Au = window.Audio, O = window.OfflineAudioContext;
+    window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
+    if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; }); // (game.js bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
@@ -1327,6 +1332,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     else if (s.phase === 'go' && s.beat === 'flight') { // a frame reached by air: its film plays itself out. A still through each shot; in a flight with a
       // helicopter it is in every shot until you are out of it, and you are not (you are in it)
       await mark(s, 'flight');
+      if (process.env.PHONE && !seen.has(`fl-music-${s.fi}`)) { // (the flight's score from its file, once it has begun: audio.js tune)
+        const m = await p.evaluate(() => { const M = window.__music, o = window.__game.overture(); return M && o && o.t > 4 ? { offline: M.offline, srcs: M.els.filter(e => e.src && !e.paused && e.duration > 0.1).map(e => e.src.replace(/^.*\//, '').replace(/\?.*$/, '')) } : null; });
+        if (m) { seen.add(`fl-music-${s.fi}`); console.log(`frame ${s.fi + 1} flight music: ${m.srcs.join(', ') || 'none playing'}; scores rendered in the page ${m.offline}`);
+          if (m.offline || !m.srcs.some(u => /^score-[0-9a-f]{8}\.mp3$/.test(u))) { errors.push(`frame ${s.fi + 1}: the flight's score on a phone is not its file (${m.srcs.join(', ') || 'none playing'}; ${m.offline} rendered in the page)`); console.log(errors[errors.length - 1]); } }
+      }
       const f = await p.evaluate(() => { const g = window.__game, o = g.overture(); return o && o.active ? { t: o.t, shots: o.shots.map(q => ({ id: q.id, t0: q.t0, dur: q.dur })), heli: g.heli.group.visible, me: g.player.rig.root.visible, craft: g.story.state.fr.flight.craft !== false } : null; });
       const q = f && f.shots.find(q => f.t >= q.t0 + q.dur * 0.35 && !seen.has(`fl-${s.fi}-${q.id}`));
       if (q) {
