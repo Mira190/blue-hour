@@ -797,6 +797,56 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     h.rail = (x, y) => { const ci = Math.floor((x - x0) / HC), cj = Math.floor((y - y0) / HC); return ci >= 0 && cj >= 0 && ci < n && cj < n && rail.has(cj * n + ci); };
     h.railCells = rail.size;
     h.ceilCells = h.ceilOver ? h.ceilOver.cells : 0; h.ceilMs = Math.round(performance.now() - t0); // (for tools/cam_ceiling.js)
+    heroFence(h, root);
+  }
+  // A hero level's guard rails are solid on foot, as drawn (issue 157): the white pipes along Miyamasuzaka's kerbs were
+  // drawn and stood in nothing, and on the owner's iPhone the player and the guide stood with one through the waist at
+  // frame 5's foot of Scramble Square and frame 6's kerb under the station's deck (the Scramble's own were solid only as
+  // far as its landmark lays them, 62 m from the junction). Each FC m cell a rail's body crosses, 0.1 m over the ground
+  // under it to its top, is a box, a row of cells one box, in nav's walkers' own world (addFences): what nav.slide
+  // stops you at, the guide's step and his planner's stand too (nav.walk), and no car, lens or sound. Made once, as the
+  // level first comes; tools/rail_walk.js walks into them
+  const FC = 0.25;
+  function heroFence(h, root) {
+    if (h.fenced || !h.at || !h.r) return;
+    h.fenced = true;
+    const n = Math.ceil(2 * h.r / FC), x0 = h.at[0] - h.r, y0 = h.at[1] - h.r, cells = new Map(), v = new THREE.Vector3(), P = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    root.traverse(o => {
+      if (!o.isMesh || !o.geometry || !/(^|_)metal_guard/.test(`${o.name} ${(o.material && o.material.name) || ''}`)) return;
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, m = idx ? idx.count : pos.count;
+      for (let t = 0; t + 2 < m; t += 3) {
+        for (let k = 0; k < 3; k++) P[k].fromBufferAttribute(pos, idx ? idx.getX(t + k) : t + k).applyMatrix4(o.matrixWorld);
+        for (let k = 0; k < 3; k++) {
+          const a = P[k], b = P[(k + 1) % 3], c = Math.max(1, Math.ceil(a.distanceTo(b) / (FC / 2)));
+          for (let i = 0; i <= c; i++) {
+            v.lerpVectors(a, b, i / c);
+            const x = v.x, y = -v.z, gz = Math.max(h.z || 0, nav.terrain(x, y));
+            if (v.y < gz + 0.15 || v.y > gz + 1.3) continue;
+            const ci = Math.floor((x - x0) / FC), cj = Math.floor((y - y0) / FC);
+            if (ci < 0 || cj < 0 || ci >= n || cj >= n) continue;
+            const q = cells.get(cj * n + ci);
+            if (q) { q[0] = Math.min(q[0], gz); q[1] = Math.max(q[1], v.y); } else cells.set(cj * n + ci, [gz, v.y]);
+          }
+        }
+      }
+    });
+    // (a row's cells side by side, their feet and tops within 0.1 m, one box)
+    const keys = [...cells.keys()].sort((a, b) => a - b);
+    const B = [];
+    for (let k = 0; k < keys.length;) {
+      const j = Math.floor(keys[k] / n), i0 = keys[k] % n;
+      let lo = cells.get(keys[k])[0], hi = cells.get(keys[k])[1], e = k + 1;
+      while (e < keys.length && keys[e] === keys[e - 1] + 1 && Math.floor(keys[e] / n) === j) {
+        const q = cells.get(keys[e]);
+        if (Math.abs(q[0] - lo) > 0.1 || Math.abs(q[1] - hi) > 0.1) break;
+        lo = Math.min(lo, q[0]); hi = Math.max(hi, q[1]); e++;
+      }
+      const xa = x0 + i0 * FC, xb = x0 + (i0 + e - k) * FC, ya = y0 + j * FC, yb = ya + FC;
+      B.push([xa, ya, xb, yb, lo + 0.1, hi + 0.02]);
+      k = e;
+    }
+    nav.addFences(B);
+    h.fenceBoxes = B.length; // (for tools/rail_walk.js)
   }
   // the lowest drawn ceiling over (x, y) above the height z, of the landmarks and every hero level, or null
   const heroCeil = (x, y, z) => {
@@ -6730,8 +6780,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     camPos.addVectors(camTarget, camOff);
     // (and where the swing's easing leaves it, on foot: the offset eased round as you turn cuts a wall's corner on its way, the
     // lens a few decimetres behind the station passage's walls for up to 10 frames of a turn on the spot. On the line it is on,
-    // in front of whatever solid stands there, in this frame: issue 217)
-    if (close && !jumped) { const fs = solidCut(camTarget, camPos); if (fs < 0.97) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
+    // in front of whatever solid stands there, in this frame: issue 217. By distance, not a share of the line: 3% of a 5.5 m arm
+    // left the lens 0.10 m behind the free passage's wall after frame 6's set-down)
+    if (close && !jumped) { const fs = solidCut(camTarget, camPos), fl = camTarget.distanceTo(camPos); if ((1 - fs) * fl > 0.03) camPos.lerpVectors(camTarget, camPos, Math.max(0.06 / Math.max(0.06, camTarget.distanceTo(camPos)), fs - 0.04)); }
     camSmooth.copy(camPos);
     // the floor under the camera: the ground (or the water; under a slab, the floor) at once, steps and
     // decks below the player's head eased in, so walking onto a stair or a deck lifts the view smoothly
@@ -6979,7 +7030,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         // face to the place the story is played (the lift's own `view`, else where the map starts), which falls away
         // under the frame as the floors go by, and comes round to where you step out over the last third. The turn is
         // of the view's direction, not of a point looked at: a point 400 m off mixed with one 15 m off turns in a snap.
-        const w = city ? OECine.ease.smooth(OECine.span(k, Math.max(0.06, h0 * 0.7), Math.max(0.3, h0 + 0.12))) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
+        // (and from the start, issue 231, while it rises out of a well too: turned only from the hold's end, the first half of SKY GATE's
+        // climb looked up a blank façade at arm's length)
+        const w = city ? OECine.ease.smooth(OECine.span(k, 0.02, 0.12)) * (1 - OECine.ease.smooth(OECine.span(k, 0.5, 0.86))) : 0;
         if (w > 0) {
           d1.subVectors(lk, pos).normalize(); d2.subVectors(city, pos).normalize();
           lk.copy(pos).addScaledVector(d1.lerp(d2, w).normalize(), 60);
@@ -6992,7 +7045,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // pale panel edge to edge), or was put on the roofline by the shot's clamp, a jump. So the way across can be held back
     // while the camera rises where it stands (h0, for a ride up) or brought to its end early (h1, for one down): the first
     // of these, on either side, that is clear all the way is taken, else the clearest.
-    const open = f => { const q = f(0).pos.clone(); let c = 1; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); q.copy(r); } return c; };
+    // (and room round the lens, issue 231: a way that never crossed a wall but ran a metre along a neighbour's face was clear,
+    // and the climb's first half was that face filling the frame. Each pose within 3 m of a wall takes 0.02 off the way's
+    // score, after its first sixth, where it leaves your shoulder: nav.push at 3 m round it, from its height down 2 m)
+    const open = f => { const q = f(0).pos.clone(); let c = 1, near = 0; for (let i = 1; i <= 24 && c > 0; i++) { const r = f(i / 24).pos; c = Math.min(c, nav.clearFraction(q, r)); if (i > 4) { const w = nav.push(r.x, -r.z, r.y - 2, 3, 2); if (Math.hypot(w.x - r.x, w.y + r.z) > 0.05) near++; } q.copy(r); } return c - 0.02 * near; };
     const n1 = n0.clone().negate();
     let climb = null, best = -1;
     for (const s of [1, 0.6, 0.3]) {

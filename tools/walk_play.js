@@ -174,14 +174,14 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   // desktop page's 1373 s here against 1016, near CI's cap of 2400). The first is the title's way in to the seat on
   // Hachiko's wall, as the whole plays it; the second sets out at once (the last card's way, at the hour and sky asked)
   // and plays from the walk's line to the end. Every beat is in one or the other; none is played twice.
-  const PART = +process.env.WALK_PART || 0;
+  const PART = +process.env.WALK_PART || 0; // (3: out at once and from your car on, its own runner since the walk's film and its incident's calm grew the second part to CI's cap, 25 November)
   const pace = async () => { // nobody of the crowd paced, wherever the walk went (issue 168: two men under the deck walked to and fro)
     const { hard } = pacing.print(await pacing.report(p), m => console.log(m.replace(/^FAIL /, 'pace ')));
     if (hard.length) fail(`${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y})`).join('; ')})`);
     else ok('nobody of the crowd paced to and fro');
   };
   let s;
-  if (PART === 2) {
+  if (PART >= 2) {
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.evaluate(([t, w]) => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t, w })); }, [hour, sky]);
     expectReload(p, 'out on the walk at once (the second half)'); await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -190,6 +190,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     s = await state();
     if (s.phase !== 'dressed' || s.goal || s.lights.story) fail(`set out at once on the walk, and the story has begun (phase ${s.phase})`);
     else ok(`the second half: out on the walk at once, ${s.clock.hm}, ${s.wx.mode}`);
+    // (from your car on, WALK_PART=3: the helicopter's model is asked for once you are within 800 m of it, as you are at
+    // Hachiko, and in the walk played whole it came in during the people's quarter of an hour before the roof. Here the
+    // roof comes four minutes on: its model is waited for first, as that time gave it, and on the roof it must still stand
+    // on its pad. Two plays on one machine, it had not come in the roof's four minutes)
+    if (PART === 3) { const t0h = Date.now(), came = await until(() => window.__game.heli.loaded(), null, 600000); console.log(`(the helicopter's model ${came ? 'in' : 'not in'} after ${Math.round((Date.now() - t0h) / 1000)} s of setting out)`); }
   } else {
     await title();
     s = await state();
@@ -643,7 +648,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     // part of a story, has an amber speech mark over her head from across the plaza and her name under it close to; E (or a
     // tap) beside her opens her talk in the story's box; what she asks is under the hour with the metres to it; Riko, across
     // the crossing, has her part; back with Mei (Riko there already, never seen going), the story is put away with its name
-    {
+    if (PART !== 3) { // (WALK_PART=3 plays from your car on: the walk's people are the second part's)
       const talk = (id, near = 2) => p.evaluate(([id, near]) => { const g = window.__game, n = g.npcs.find(q => q.id === id); if (!n) return false; const a = Math.atan2(g.player.x - n.x, g.player.y - n.y) || 0; g.player.x = n.x + Math.sin(a) * near; g.player.y = n.y + Math.cos(a) * near; g.player.z = n.z; g.player.h = a + Math.PI; g.player.speed = 0; g.advance(0.3); return true; }, [id, near]);
       const through = () => p.evaluate(() => { const g = window.__game; for (let i = 0; i < 60 && g.dlg.open; i++) g.dlg.next(false); return g.dlg.open; });
       const errandNow = () => p.evaluate(() => { const e = document.querySelector('#g-walk-where .q'); return e && !e.hidden ? e.textContent : ''; });
@@ -874,6 +879,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         }
       }
     }
+    if (PART === 2) { await pace(); await b.close(); console.log(errors.length ? `FAIL ${errors.length}` : 'ok   the walk\'s second part: its line, Nagi\'s wait, Mei and Riko, and Ren asking the way'); process.exit(errors.length ? 1 : 0); }
     const haveCar = await p.waitForFunction(() => !!window.__game.myCar(), null, { timeout: 300000, polling: 1000 }).then(() => true, () => false);
     if (!haveCar) fail('no car of your own on the walk (five minutes after setting out)');
     else {
