@@ -1765,15 +1765,19 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       st.mutT = !dry && across && st.xMutual && st.v < 0.3 ? (st.mutT || 0) + dt : 0;
       if (st.mutT > 3) { st.mutT = -3; if (!backable() && makeWay) makeWay(st.x, st.y, st.z, st.h, C.half, C.hw); else st.backoff = 1.5; }
       // held up near the end for good (by a car that isn't moving off, not a light): stop here
+      // (never inside a junction's box: the car coming for you, held 4 s there by a car crossing within 30 m of the end,
+      // stopped in the box and waited there for you, the car it gave way to 0.6 m off its nose and the junction shut,
+      // and the ride check stood 40 minutes, #235. It waits out there what it would wait out anywhere, and pulls in after)
+      const inBox = !!st.mv && outAt < Infinity && st.s <= outAt;
       st.stall = st.v < 0.2 && room < 0.1 && carGap < line && !waiting ? st.stall + dt : 0; // (not in a queue for the lights)
-      if (end && st.stall > (atSignal(st.block) ? 25 : 8) && left < 45 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; }
+      if (end && !inBox && st.stall > (atSignal(st.block) ? 25 : 8) && left < 45 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; }
       // (held 4 s by people on its way within 30 m of the end, the pavement's edge where it pulls in: it stops there)
-      else if (end && !dry && forPerson && st.v < 0.2 && st.stall > 4 && left < 30) { endAt(st.s); left = 0; }
+      else if (end && !inBox && !dry && forPerson && st.v < 0.2 && st.stall > 4 && left < 30) { endAt(st.s); left = 0; }
       // and queued 8 s behind cars within 45 m of the end (a jam between it and you), it stops where
       // it is, as a driver picking you up does, and you walk the last few metres
       // (a queue held at a signal is waited out, not taken for a jam, unless it stands 25 s: Kyoto's taxi stopped 39 m
       // from you behind a car waiting for its green, #243)
-      else if (end && !dry && st.held > (atSignal(st.block) ? 25 : left < 30 ? 4 : 8) && left < 45 && carGap < line && carGap < 12 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; } // (not for a crowd crossing in front: that is waited out)
+      else if (end && !inBox && !dry && st.held > (atSignal(st.block) ? 25 : left < 30 ? 4 : 8) && left < 45 && carGap < line && carGap < 12 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; } // (not for a crowd crossing in front: that is waited out)
       // (and within 30 m of the end, after 4 s: a driver that close to the fare stops where it is, rather than wait to go
       // round a car standing in the lane, Fushimi-inari's phoned ride 8 s late so, #264)
       // out round something stopped in the lane, and back in after it, at a crawl
