@@ -3072,8 +3072,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     // handed over. So a mesh under a model marked whole (userData.whole: a person's rig, the guide, a car, the helicopter)
     // that has not been drawn yet is drawn only once every part of that model not yet drawn has its program ready: until
     // then all of them wait together (and those with no program yet are made after the frame, as one mesh's is below).
-    // A part added to a model already on the screen (an umbrella put up) waits by itself, as before: the model is whole.
-    const wholeOf = new WeakMap(), wholeReady = new Map();
+    // A part added to a model already on the screen (an umbrella put up, a phone in the hand) is drawn at once, its
+    // program waited for as three.js does: a hitch, never a model on the screen with a part of it missing.
+    const wholeOf = new WeakMap(), wholeReady = new Map(), wholeOn = new WeakSet();
     const modelOf = o => {
       let u = wholeOf.get(o);
       if (u !== undefined) return u;
@@ -3105,7 +3106,11 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     renderer.renderBufferDirect = function (camera, sc, geometry, material, object, group) {
       if (sc === scene && material && object && !renderer.__gate.pass && own()) {
         const u = !drawn.has(object) && modelOf(object);
-        if (u && modelWaits(u, camera, sc)) { n.held++; n.whole = (n.whole || 0) + 1; return; }
+        if (u) {
+          if (!wholeOn.has(u) && modelWaits(u, camera, sc)) { n.held++; n.whole = (n.whole || 0) + 1; return; }
+          wholeOn.add(u); drawn.add(object); // (the model on the screen: each of its parts drawn from now on)
+          return draw.call(this, camera, sc, geometry, material, object, group);
+        }
         if (!drawn.has(object)) {
           const mp = props.get(material);
           if (mp.programs && mp.programs.size) { if (linking(mp)) { n.held++; return; } }
