@@ -38,7 +38,7 @@
 //   - beside the end of Hachiko's wall nothing offers to sit and watch the crossing, or seated the camera does not stand
 //     behind your shoulder framing the scramble, a drag does not turn it (and left alone it does not come back), the
 //     time-lapse held (Space; on a phone its button) does not run the clock fast, or E (or a tap) does not stand you up
-//     (perch.js; WALK_ONLY=sit stops after this);
+//     (perch.js; WALK_ONLY=sit stops after this; WALK_ONLY=film after the walk's opening, its length in seconds and timed by the clock: issue 229);
 //   - on foot the corner has no Your car button, or pressed, the car does not pull in at a kerb near you; the walk's menu
 //     does not list the walk's stories;
 //   - beside your car, E (or a tap on the prompt) does not put you at the wheel, the car's keys are not at the foot of the
@@ -118,7 +118,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     await p.waitForTimeout(2500); // (the card's parts slide in)
   };
   const visible = sel => p.evaluate(s => { const e = document.querySelector(s); if (!e || e.hidden) return false; const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0.05; }, sel);
-  const press = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
+  // (a button seen a moment ago and gone at the press is waited for once more, and said: the corner lays itself out again as
+  // the player gets out of the car, seconds on a software renderer, and the button was seen and then laid out away, walk1 on
+  // the branch routes-yield)
+  const press = async sel => { let r = await p.locator(sel).first().boundingBox(); if (!r && (await shown(sel, 10000))) { console.log(`(${sel} gone at the press and back)`); r = await p.locator(sel).first().boundingBox(); } if (!r) return fail(`${sel}: not on the screen`); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (phone) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); };
   const shot = async n => { if (process.env.STILLS !== '0') await whole(p, () => p.screenshot({ path: `${out}/${phone ? 'phone' : 'desk'}-${n}.png`, timeout: 120000 })).catch(() => console.log(`(no still ${n})`)); if (process.env.UI_DUMP) await uiDump(p, `${process.env.UI_DUMP}/walk-${n}.json`, { ctx: phone ? 'touch' : 'desk' }).catch(() => {}); };
   const state = () => p.evaluate(() => {
     const g = window.__game, c = g.clock, wx = g.weather ? g.weather.state : {};
@@ -260,11 +263,33 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!f.bars || !f.title || f.up < 150) fail(`the walk's opening: ${JSON.stringify(f)}`);
       else ok(`the walk's opening plays: "${f.name}" in the bars, ${f.up} m up at ${f.t} of ${f.total} s`);
       await shot('3-film');
+      // (its length, in seconds (issue 229): a first visit's aerial holds each shot long enough to read the place, at least
+      // 6 s, and at least 20 s in all before the land shot; and the film is timed by the clock, never by frames, so a 120 Hz
+      // display sees the length a 60 Hz one does. Over a few seconds the film's own time is read against the frames drawn
+      // and the time the game's clock was given (each frame's step, capped at 0.05 s): a film counted in frames would move
+      // 1/60 s a frame)
+      const len = await p.evaluate(async () => {
+        const o = window.__game.overture(), sh = o.shots.map(q => ({ id: q.id, dur: q.dur, type: q.type }));
+        let n = 0, given = 0, last = performance.now(), on = true;
+        const tick = now => { if (!on) return; n++; given += Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
+        const t0 = o.t; await new Promise(r => setTimeout(r, 6000)); on = false;
+        return { sh, total: o.total, dt: o.t - t0, n, given, active: o.active };
+      });
+      const air = len.sh.filter(q => q.type !== 'land'), short = air.filter(q => q.dur < 6), airS = air.reduce((a, q) => a + q.dur, 0);
+      if (short.length || airS < 20) fail(`the walk's opening is too short to take in: ${air.map(q => `${q.id} ${q.dur} s`).join(', ')} (${airS.toFixed(1)} s from the air)`);
+      else ok(`the walk's opening: ${air.map(q => `${q.id} ${q.dur} s`).join(', ')}, ${airS.toFixed(1)} s from the air, ${len.total.toFixed(1)} s in all`);
+      if (len.active && len.n > 3) {
+        const byFrames = len.n / 60, r = len.dt / len.given;
+        if (r < 0.6 || r > 1.4) fail(`the walk's opening is not timed by the clock: ${len.dt.toFixed(2)} s of film over ${len.n} frames given ${len.given.toFixed(2)} s (${byFrames.toFixed(2)} s if counted at 60 a second)`);
+        else ok(`the walk's opening is timed by the clock: ${len.dt.toFixed(2)} s of film over ${len.n} frames given ${len.given.toFixed(2)} s`);
+      } else console.log(`(the walk's opening's clock not read: too few frames drawn here (${len.n} frames in 6 s, the film ${len.active ? 'on' : 'over'}))`);
       if (phone) await p.touchscreen.tap(w / 2, h / 2); else await p.keyboard.press('Space');
       const ts = Date.now();
       if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 120000))) fail(`a ${phone ? 'tap' : 'key'} in the walk's opening did not bring the walk to you`);
       else ok(`a ${phone ? 'tap' : 'key'} in the walk's opening: on the street ${((Date.now() - ts) / 1000).toFixed(1)} s later`);
     }
+    if (process.env.WALK_ONLY === 'film') { await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk film: all passed'); process.exit(errors.length ? 1 : 0); } // (WALK_ONLY=film stops after the opening)
     const t0 = Date.now();
     await p.waitForFunction(() => document.getElementById('game-stage').classList.contains('walk-on'), null, { timeout: 600000, polling: 500 }).catch(() => fail('set out, and the walk never came to you (no walk-on in ten minutes)'));
     await p.waitForTimeout(2500);
@@ -279,6 +304,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
     if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
     await shot('4-out');
+    // (nobody drawn near you with only a head over the floor: a woman's head and neck stood on the carriageway by the
+    // zebra as control was handed over, her body under the road, issue 241. Each whole person within 40 m, the crowd's near
+    // people and the map's, their head's height over the walk's floor where they stand, for three seconds)
+    {
+      const sunk = [];
+      for (let k = 0; k < 6; k++) {
+        sunk.push(...await p.evaluate(() => { const g = window.__game, me = g.player, R = g.crowdDraw && g.crowdDraw(), V = new THREE.Vector3(), out = [];
+          const test = (who, root) => { if (!root || !root.visible) return; let h = root.userData.headBone; if (h === undefined) { h = null; root.traverse(o => { if (!h && o.isBone && /Head$/.test(o.name)) h = o; }); root.userData.headBone = h; }
+            if (!h) return; root.updateMatrixWorld(true); h.getWorldPosition(V); const x = V.x, y = -V.z; if (Math.hypot(x - me.x, y - me.y) > 40) return;
+            const f = g.nav.floorAt(x, y, V.y); if (f && V.y - f.z < 0.9) out.push(`${who} at (${x.toFixed(1)}, ${y.toFixed(1)}): head ${(V.y - f.z).toFixed(2)} m over the floor`); };
+          if (R && R.active) for (const [i, r] of R.active) test('crowd ' + i, r.root);
+          for (const n of g.npcs) if (!n.away && !n.sit && n.rig) test(n.id, n.rig.root);
+          return out; }));
+        await p.waitForTimeout(500);
+      }
+      if (sunk.length) fail(`someone drawn near you with their head at the floor: ${[...new Set(sunk)].slice(0, 4).join('; ')}`);
+      else ok('everyone drawn within 40 m stands with their head over the floor');
+    }
     // the walk's way in, the first time from the title (game.js walkIntro): the office rings in its own voice, the corner's
     // Your car lit while the car is spoken of; passed line by line, and kept as heard
     {
@@ -483,7 +526,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         // (and if their body is still coming, a software renderer behind another browser: the seat must be offered by its mark
         // meanwhile, never an empty wall with nothing on it, visitors.js seated)
         const waiting = !sitter || sitter === 'none';
-        if (waiting && !(pm && pm.o > 0.05)) fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place, and no mark offers it`);
+        // (said with what was there: the one who sits by it, drawn or not, and the mark's state, so a failure says which half failed)
+        const why = waiting && !(pm && pm.o > 0.05) ? await p.evaluate(() => { const g = window.__game, s = g.perch.list[0], V = g.visitors, me = g.player; const q = V ? V.groups.flatMap(G => G.people).filter(v => v.p.sit != null && Math.hypot(v.x - s.at[0], v.y - s.at[1]) < 2.5) : []; const e = document.querySelector('.g-walk-mark[data-k="place"]'); return `sitters ${JSON.stringify(q.map(v => ({ shown: !!v.shown, rig: !!v.rig, ch: v.p.look && v.p.look.character })))}; mark ${e ? `opacity ${e.style.opacity}` : 'none'}; you ${Math.hypot(me.x - s.at[0], me.y - s.at[1]).toFixed(1)} m off, mode ${me.mode || '?'}; queue ${JSON.stringify(window.OEWorld.uploadStats ? window.OEWorld.uploadStats() : null)}`; }).catch(e => String(e)) : '';
+        if (waiting && !(pm && pm.o > 0.05)) fail(`nine metres from ${seat.name}, nobody sits on the wall beside the free place, and no mark offers it (${why})`);
         else if (waiting) ok(`nine metres from ${seat.name}: the one who sits beside it has not come yet (their body still loading), and the mark offers the place meanwhile ("${pm.name}")`);
         else ok(`nine metres from ${seat.name}: someone sits ${sitter.d} m from the free place (${sitter.who})`);
         // (sat on the stone drawn, not on the walking grid's wider block: a ray down through the meshes, tools/drawn_seat.js)

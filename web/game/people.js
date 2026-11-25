@@ -116,7 +116,7 @@ uniform float uVinylWet; varying vec2 vVinylUv;
 float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }`)
         .replace('#include <opaque_fragment>', `{
   // the film: clear square on, a sheen at a glancing angle
-  float vnF = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0);
+  float vnF = pow(max(0.0, 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)))), 3.0);
   float vnA = mix(0.1, 0.62, vnF);
   // the ribs along the panels' seams and the hem: white tape, a centimetre wide (never thinner than a pixel is drawn)
   float vnU = vVinylUv.x * 8.0, vnW = max(fwidth(vnU), 1e-4), vnR = abs(fract(vnU + 0.5) - 0.5);
@@ -391,6 +391,22 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       cyl(0.005, 0.005, 0.004, black, [0.048, top + 0.010, 0.0], 'y'));
     // a lug at each end, for its strap
     for (const s of [-1, 1]) g.add(cyl(0.0028, 0.0028, 0.006, chrome, [s * (W / 2 + 0.002), y0 + BODY + 0.004, 0], 'x'));
+    // (issue 192: its thirty parts in a draw a material, five, not one each: 16 of a phone's draws in every beat it is
+    // worn, frames 1 to 7. Each part's place is baked into its copy of the shape; what it looks like is the same)
+    if (THREE.BufferGeometryUtils) {
+      g.updateMatrixWorld(true);
+      const by = new Map();
+      for (const o of g.children) if (o.isMesh) { const l = by.get(o.material) || []; l.push(o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()); l[l.length - 1].applyMatrix4(o.matrixWorld); by.set(o.material, l); }
+      const one = new THREE.Group();
+      for (const [m, list] of by) {
+        for (const x of list) { for (const k of Object.keys(x.attributes)) if (!['position', 'normal', 'uv'].includes(k)) x.deleteAttribute(k); x.clearGroups(); }
+        const merged = THREE.BufferGeometryUtils.mergeGeometries(list, false);
+        if (!merged) return (oldCam = g);
+        one.add(new THREE.Mesh(merged, m));
+      }
+      one.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      return (oldCam = one);
+    }
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     return (oldCam = g);
   };
@@ -710,7 +726,7 @@ float oeCastIsSkin(vec4 c) {
 }`;
   const CAST_END = `
 { vec3 cV = normalize(vViewPosition), cN = normal;
-  vec3 cUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), cR = normalize(cross(cUp, cV));
+  vec3 cUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), cR = normalize(cross(cUp, cV) + vec3(1e-4, 0.0, 0.0)); // (never nought: a view straight down made it NaN, a black pixel)
   vec3 cSky = vec3(0.0);
 #if NUM_HEMI_LIGHTS > 0
   cSky = hemisphereLights[0].skyColor;
@@ -835,7 +851,7 @@ vec3 hairPass(vec3 a) {
 // (env: 1 for the light of the street round the head, which comes from a lit front's or a screen's whole width, not a
 // lamp's point: both lobes broader)
 vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 c2, float env) {
-  vec3 t = normalize(vHairT), h = normalize(v + l);
+  vec3 t = normalize(vHairT), h = normalize(v + l + vec3(0.0, 1e-4, 0.0)); // (never nought: the light straight behind the hair)
   vec3 t1 = normalize(t + n * (-0.07 + 0.1 * hairJ)), t2 = normalize(t + n * (0.12 + 0.1 * hairJ));
   float spark = 0.3 + 1.4 * clamp(0.5 + hairJ, 0.0, 1.0);
   // (HAIR_HEAD: the hair painted on a head's own mesh. Issue 123 took its lobes and the cards' to half, against lobes that
@@ -973,7 +989,7 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
   // colour the pigment lets through)
   { vec3 hT = normalize(vHairT), hFn = normalize(hV - hT * dot(hV, hT));
     reflectedLight.indirectDiffuse += hE * sqrt(hC2) * 0.03 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
-  float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = (1.0 - smoothstep(0.35, 1.0, hairA)) * hRim;
+  float hRim = pow(max(0.0, 1.0 - abs(dot(normal, hV))), 2.0), hThin = (1.0 - smoothstep(0.35, 1.0, hairA)) * hRim;
   // (light comes through thin strands only where nothing but the street is behind them: at the outline of the head of
   // hair. A card's own fringe inside it lies over more hair, and lit there it drew a white lace round every card of a
   // grey or brown head, issue 170)
@@ -1102,7 +1118,7 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
   const EXPOSURE = `
 vec3 xpN = normalize(normal);
 float xpKey = max(dot(xpN, normalize((viewMatrix * vec4(0.35, 0.85, 0.4, 0.0)).xyz)), 0.0);
-float xpRim = pow(1.0 - abs(dot(xpN, normalize(vViewPosition))), 3.0);
+float xpRim = pow(max(0.0, 1.0 - abs(dot(xpN, normalize(vViewPosition)))), 3.0);
 vec3 xpC = gl_FragColor.rgb + diffuseColor.rgb * (0.04 + 0.1 * xpKey) * uXpLift;
 float xpV = sqrt(max(dot(xpC, vec3(0.3, 0.59, 0.11)), 0.0));
 vec3 xpP = mix(vec3(0.26, 0.245, 0.225), vec3(1.0, 0.95, 0.86), smoothstep(-0.02, 0.95, xpV));

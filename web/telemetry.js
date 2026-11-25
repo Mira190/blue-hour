@@ -49,7 +49,8 @@ window.OETelemetry = (function () {
     format: 'posthog',     // 'posthog' or 'jsonl'
     key: 'phc_v8YPULU9RMwSuJD4K3WYDM8KaGck9Z2XeAFdKeVRD95B',   // the project's public capture key (it only writes events)
   };
-  const VERSION = 8;   // 8: which interaction was the slowest (inp_on, inp_type, inp_wait, inp_run, inp_paint, inp_spot) and the
+  const VERSION = 9;   // 9: a lost context's page as it was (frame_ago, progs, progs_10s, progs_new, tex_n, geo_n on "gl_lost")
+                       // 8: which interaction was the slowest (inp_on, inp_type, inp_wait, inp_run, inp_paint, inp_spot) and the
                        //    loader's warm-up on "load" (warm_prog_ms, warm_tex_ms, warm_buf_ms)
                        // 7: the story's wrong answers ("wrong": q, what), hints asked for ("hint": n), the first walk ("walked")
                        // 6: the story's progress ("story" events: begin, frame, print, seen_through, spent, end) and its
@@ -430,7 +431,15 @@ window.OETelemetry = (function () {
   // view's own: the time from here to a task posted from here (which the browser runs once the frame's
   // callbacks, style and layout are done) is the main thread's work for the frame, and whatever the view
   // draws falls between one of these callbacks and the next.
-  let last = 0, fno = 0, cpuAt = 0;
+  let last = 0, fno = 0, cpuAt = 0, lastAt = 0;
+  // (the programs the game made, when and by what material: a phone's lost context says what was new before it, issue 118)
+  const made = []; let madeN = 0;
+  function madeTick() {
+    const r = window.__game && window.__game.renderer, P = r && r.info && r.info.programs;
+    if (!P || P.length === madeN) { if (P) madeN = P.length; return; }
+    if (P.length > madeN) for (let i = madeN; i < P.length; i++) { made.push({ t: now(), name: String(P[i] && (P[i].name || P[i].type) || '?').replace(/^Mesh|Material$/g, '').slice(0, 24) }); if (made.length > 16) made.shift(); }
+    madeN = P.length;
+  }
   const ch = new MessageChannel();
   ch.port1.onmessage = () => { if (cpuAt && activeNow()) put(cur.frames.cpu, now() - cpuAt); cpuAt = 0; };
   function tick(t) {
@@ -442,8 +451,9 @@ window.OETelemetry = (function () {
         const k = cur.dk; if (k) { k.fn++; k.fms += d; if (d > 50) k.fslow++; }
       }
     }
-    fno++;
+    fno++; lastAt = now();
     try { glTick(live); } catch (e) { glDrop(); }
+    if (fno % 15 === 0) { try { madeTick(); } catch (e) { /* no game */ } }
     if (live && fno % 4 === 0) { cpuAt = now(); ch.port2.postMessage(0); }
     last = document.hidden ? 0 : t;
     requestAnimationFrame(tick);
@@ -720,7 +730,20 @@ window.OETelemetry = (function () {
   // a change of view, or once the page is going, is not counted
   let going = false, changed = 0;
   // (how far the view had come: a context lost while loading is a GPU out of memory mid-build, one in play a driver's reset)
-  addEventListener('webglcontextlost', () => { if (going || now() - changed < 4000) return; track('gl_lost', { ready: !!(cur && cur.ready), stage: stage || undefined, up_s: Math.round(now() / 1000), mb: held() }); noteLost(); flush(); }, true);
+  addEventListener('webglcontextlost', () => { if (going || now() - changed < 4000) return; track('gl_lost', Object.assign({ ready: !!(cur && cur.ready), stage: stage || undefined, up_s: Math.round(now() / 1000), mb: held() }, lostWhy())); noteLost(); flush(); }, true);
+  // what a lost context's page was doing: how long since its last frame began (Safari loses a context whose GPU process
+  // has not answered a call in time, and the page is held the while: 5 s before both iPhone losses of 22 and 24 November),
+  // the programs made in the 10 s before and by what, and the textures and geometries the renderer holds
+  function lostWhy() {
+    const o = { frame_ago: lastAt ? Math.round(now() - lastAt) : undefined };
+    try {
+      madeTick();
+      const r = window.__game && window.__game.renderer, t = now(), m = made.filter(x => t - x.t < 10000);
+      if (r && r.info) { o.progs = madeN; o.tex_n = r.info.memory.textures; o.geo_n = r.info.memory.geometries; }
+      if (m.length) { o.progs_10s = m.length; o.progs_new = m.map(x => x.name).join(',').slice(0, 120); }
+    } catch (e) { /* no game */ }
+    return o;
+  }
   function noteLost() {
     try {
       const Q = window.OEQuality;

@@ -1011,7 +1011,8 @@ window.OEGameRides = function (g) {
     // light (two cars each waiting on the other in a junction, one facing it in a street one car wide), with no
     // way to turn round. The head of the jam is asked out of the way (actors.js unjam), and again 20 s on. (Its own
     // light counts only short of its line: inside the junction, a car that waits on it there is a knot, not a queue)
-    if (o.phase === 'driving' && !o.hold && g.cars && g.cars.unjam) {
+    // (and so for the car on its way to you: frame 6's stood 40 minutes giving way to a car crossing that never cleared, #235)
+    if ((o.phase === 'driving' || o.phase === 'coming') && !o.hold && g.cars && g.cars.unjam) {
       let q = st.block && st.block.of ? st.block.of : st.block, head = null;
       if (st.v < 0.3 && q && g.cars.C.includes(q)) { const seen = new Set(); head = q; while (head.front && g.cars.C.includes(head.front) && !seen.has(head.front) && seen.size < 8) { seen.add(head); head = head.front; } }
       const lit = c => c.lineArm && !c.mv && /^[ra]$/.test(g.junctions.light(c.lineArm, c.lineEx) || '');

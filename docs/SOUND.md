@@ -371,7 +371,7 @@ about 0.1 % of each sample to audio a page reads back, too little alone. So a ph
 `tools/score_files.js` renders each score here (the story's opening, the walk's, frame 5's flight under the story's
 music and alone) by the same code from the same plan, and ships it as `web/assets/story/late/score-<key>.mp3`, the key a
 hash of the score's spec and its shots (`scores.json`, with a hash of film-score.js). `overture.js` `prepareScore` plays
-that file on a phone, and renders as before only where no file matches (`tools/score_files.js --check`, in the static
+that file on a phone, and where no file matches plays the film without its score, never a render of its own (`tools/score_files.js --check`, in the static
 checks, fails then). `tools/tune_levels.js` decodes every file a phone plays and fails on broadband noise (the energy of
 the sample-to-sample difference against the signal's over 0.25 in any half second; the files read 0.05 to 0.09) and on
 a peak over −1 dBFS; `tools/opening_audio.js` fails when a phone renders a score in the page or an element plays any file
@@ -418,9 +418,15 @@ is a guest of the page's frames, and gives way to them:
   stopping at the start (`sndCueOut`), so the minutes the late parts take are not silent.
 - *The guard*: a break the probe counts while the street plays and the page is seen, of 100 ms, or two of 25 ms within half
   a minute, or six of any size within four seconds, and the street **gives up** for the page: faded out, suspended, kept so.
-  The player is told once ("The street's sound is off ... To try the street again, turn Sound off and on in the menu"),
+  The player is told once, in one short line at the foot of the frame ("Street sound off to keep the frame smooth · Menu › Sound to retry"), and the whole of it stays under the menu's Sound,
   and the loading cue's loop comes back on its element in the street's place (`sndBed`), so play is never silent. The Sound
   switch turned off and on asks again.
+  A break the system made is not the street's, and is kept (`EXCUSE`, telemetry `snd_kept`): the guard waits three seconds
+  on a break that would give up and lets it go when, within them either side, the context left `running` (iOS's
+  interruption, a suspension it did not ask for) or a WebGL context was lost (the GPU process the output lives in going
+  down). The owner's iPhone on 24 November gave the street up on 262 ms two seconds before its WebGL context was lost,
+  and on the page after on 1016 ms as iOS interrupted the context (states `isrs`): two give-ups, and the street was off on
+  the next page, on a phone that keeps it at 26 to 40 frames a second (`tools/snd_guard_check.js` holds both cases).
   A context's first second and a half, made or let go again, is not read (`SETTLE`): its clock runs ahead of its output
   until the output has begun and then steps back to it for good, 180 to 240 ms in WebKit on a Mac, and read as a break that
   step gave the street up within a second of every start (four runs of four; `tools/opening_audio.js` with `ENGINE=webkit`

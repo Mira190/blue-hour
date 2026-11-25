@@ -1067,6 +1067,7 @@
      "create",
      "dispose",
      "gate",
+     "gateAll",
      "hold",
      "seenNext",
      "shadow",
@@ -1089,6 +1090,7 @@
      "shown",
      "upload",
      "uploadBuffers",
+     "uploadFrom",
      "uploadRest",
      "uploadSliced",
      "warmPasses"

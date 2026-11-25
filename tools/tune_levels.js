@@ -62,6 +62,24 @@ function stats(chs) {
     const plays = !under; // (what a phone plays since issue 166: each score alone, the cue let go)
     console.log(`${name}'s score${under ? ' (rendered under the cue)' : ' (alone)'} at tuneWav's ${GAIN}: peak ${db(s.peak)} dBFS, loudest 400 ms ${db(s.loud)} dBFS RMS, ${clipped} samples clipped, ${(chs[0].length / RATE).toFixed(1)} s; with the cue under it: peak ${db(sum)} dBFS${plays ? '' : '   (not how main plays it)'}`);
     if (!under && (s.peak > Math.pow(10, HEADROOM / 20) || clipped)) fails.push(`${name}'s score alone peaks at ${db(s.peak)} dBFS (${clipped} clipped), over ${HEADROOM}`);
+    // the file a phone plays against this render, which a desktop plays: as long, and as loud half a second at a time
+    // (within 1 dB wherever the score is above -50 dBFS); a phone is to hear what a desktop hears
+    if (!under) {
+      const MAN = JSON.parse(fs.readFileSync(path.join(ROOT, 'web/assets/story/late/scores.json'), 'utf8')), e = Object.values(MAN).find(q => q.for === name);
+      if (!e) { fails.push(`${name}'s score has no file (tools/score_files.js)`); continue; }
+      const env = await p.evaluate(async ([b64, rate]) => {
+        const u = Uint8Array.from(atob(b64), c => c.charCodeAt(0)), buf = await new OfflineAudioContext(2, rate, rate).decodeAudioData(u.buffer), W = rate / 2, out = [];
+        const a = buf.getChannelData(0); for (let i = 0; i + W <= a.length; i += W) { let q = 0; for (let j = i; j < i + W; j++) q += a[j] * a[j]; out.push(Math.sqrt(q / W)); }
+        return { env: out, s: buf.duration };
+      }, [fs.readFileSync(path.join(ROOT, 'web', e.file)).toString('base64'), RATE]);
+      const W = RATE / 2, mine = []; for (let i = 0; i + W <= chs[0].length; i += W) { let q = 0; for (let j = i; j < i + W; j++) q += chs[0][j] * chs[0][j]; mine.push(Math.sqrt(q / W)); }
+      // (an encoder's lead-in moves the file a few ms: each window read against the render's same window and its neighbours)
+      let worst = 0, at = 0;
+      for (let i = 0; i < mine.length; i++) if (mine[i] > 0.00316) { const d = Math.min(...[i - 1, i, i + 1].filter(j => env.env[j] > 0).map(j => Math.abs(20 * Math.log10(env.env[j] / mine[i])))); if (d > worst) { worst = d; at = i / 2; } }
+      const len = env.s - chs[0].length / RATE;
+      console.log(`  its file ${e.file}: ${env.s.toFixed(2)} s (${len >= 0 ? '+' : ''}${(len * 1000).toFixed(0)} ms against the render), loudness within ${worst.toFixed(2)} dB of the render's (most at ${at.toFixed(1)} s)`);
+      if (worst > 1 || Math.abs(len) > 0.1) fails.push(`${name}'s file is not the render a desktop plays: ${worst.toFixed(2)} dB apart at ${at.toFixed(1)} s, ${(len * 1000).toFixed(0)} ms in length`);
+    }
   }
   // the opening scores a phone plays, as shipped (tools/score_files.js): each file decoded as the element would, its peak,
   // and, half a second at a time, how much of it is broadband: the energy of its sample-to-sample difference against its
