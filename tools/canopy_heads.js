@@ -5,8 +5,8 @@
 // (held: two stood people), every head inside a canopy noted: how many seconds had one, and the deepest.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/canopy_heads.js [seconds=120] [x,y=393.7,-1033.9]   (TIME=21:00 SKY=rain TIER=low; PORT)
-// And every two stood near each other, on a footway or in a square, one under an open umbrella and the other without,
-// whose head reaches within 0.15 m of the canopy's rim (from the canopy's middle), each second: how many stood more than 5 cm nearer than the room it asks. Exits 1 when any second had a head inside a canopy.
+// And every two stood near each other, on a footway or in a square, one under an open umbrella and the other, umbrella
+// or none, whose head reaches within 0.15 m of the canopy's rim (from the canopy's middle), each second: how many stood more than 5 cm nearer than the room it asks. Exits 1 when any second had a head inside a canopy.
 const { chromium } = require('playwright');
 const { startPlay } = require('./start_play');
 const { measure } = require('./umbrella_held');
@@ -38,9 +38,9 @@ const [,, secs = '120', at = '393.7,-1033.9'] = process.argv;
     // room it asks, the canopy's radius and 0.25 m, or both canopies' and a rim's)
     const pr = await p.evaluate(([x0, y0]) => { const g = window.__game, P = g.crowd.P, out = [], n = Math.min(g.crowd.active, P.length);
       // (every two stood within 1 m of each other and 15 m of the place, on a footway or in a square, friends or not, one
-      // under an open umbrella and the other without, whose head reaches within 0.15 m of the canopy's rim)
+      // under an open umbrella and the other, umbrella or none, whose head reaches within 0.15 m of the canopy's rim)
       for (let i = 0; i < n; i++) { const q = P[i]; if (!(q.umbR > 0) || (q.v || 0) > 0.3 || !Number.isFinite(q.x) || Math.hypot(q.x - x0, q.y - y0) > 15) continue;
-        for (let k = 0; k < n; k++) { const h = P[k]; if (k === i || h.umbR > 0 || (h.v || 0) > 0.3 || !(h.line >= 0 || h.pz) || !(h.crown > q.umbRim - 0.15)) continue;
+        for (let k = 0; k < n; k++) { const h = P[k]; if (k === i || (h.v || 0) > 0.3 || !(h.line >= 0 || h.pz) || !(h.crown > q.umbRim - 0.15)) continue;
           const d = Math.hypot(h.x - q.x - (q.ucx || 0), h.y - q.y - (q.ucy || 0)); if (!(d < 1)) continue;
           out.push([d, q.umbR + 0.25, { where: h.pz ? 'square' : 'footway', mate: (h.lead >= 0 ? h.lead : k) === (q.lead >= 0 ? q.lead : i), h: [h.state, h.ph || ''], d: +d.toFixed(2) }]); } }
       return out; }, [x, y]);

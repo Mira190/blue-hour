@@ -676,6 +676,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // height, a canopy tilted to the side is that much lower there, to HEAD_CLEAR beyond the rim from its middle, a head's
   // half width and its lean. With 0.03 and 0.12 heads stood 0.02 to 0.04 m inside, on footways and in a square, issue 238)
   const HEAD_UNDER = 0.15, HEAD_CLEAR = 0.25;
+  // (and p's head, umbrella or none, from o's open canopy: two who both hold one keep their canopies' room between the
+  // canopies' middles, and a canopy stands a hand off its holder's head and leans away from the neighbour's (people.js
+  // lean), so a taller holder's head could stay under the shorter one's canopy with the canopies apart, issue 238)
+  const headRoom = (p, o) => (o.umbR > 0 && p.crown > o.umbRim - HEAD_UNDER ? o.umbR + HEAD_CLEAR : 0);
   function umbRoom(p, o) {
     const a = p.umbR || 0, b = o.umbR || 0;
     if (a > 0 && b > 0) return a + b + UMB_RIM / 3;
@@ -1798,6 +1802,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
+            const hu = headRoom(q, o); // (and its own head out from under the other's canopy)
+            if (hu) { const hx = q.x - o.x - (o.ucx || 0), hy = q.y - o.y - (o.ucy || 0), hc = Math.hypot(hx, hy); if (hc < hu && hc > 1e-4) { const f = (hu - hc) / hc; sx += hx * f; sy += hy * f; } }
           } else if (umbRoom(q, o) > 0) { // (no umbrella of its own, its head near the rim's height and under the canopy: out from under it, the whole way)
             const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = umbRoom(q, o);
             if (ec < u && ec > 1e-4) { const f = (u - ec) / ec; sx += ex * f; sy += ey * f; }
@@ -2004,6 +2010,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (q.umbR > 0 || o.umbR > 0) { // (of one group too, one under an umbrella and one without: the head's room as for a stranger; #1120 stood 0.42 m from #833 with a head 0.04 m in, issue 238) // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
             const u = umbRoom(q, o) + 0.04, cx = ex + (q.umbR > 0 ? q.ucx : 0) - (o.umbR > 0 ? o.ucx : 0), cy = ey + (q.umbR > 0 ? q.ucy : 0) - (o.umbR > 0 ? o.ucy : 0), ec = Math.hypot(cx, cy);
             if (u > 0.1 && ec < u && ec > 1e-4) { const f = (u - ec) / ec * 2.2; fx += cx * f; fy += cy * f; q.umbPush = true; }
+            if (q.umbR > 0 && o.umbR > 0) { const hu = headRoom(q, o) + 0.04, hx = ex - o.ucx, hy = ey - o.ucy, hc = Math.hypot(hx, hy); if (hu > 0.1 && hc < hu && hc > 1e-4) { const f = (hu - hc) / hc * 2.2; fx += hx * f; fy += hy * f; q.umbPush = true; } } // (both under one: its head from the other's canopy too)
           }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
