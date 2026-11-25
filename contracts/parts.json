@@ -1068,7 +1068,6 @@
      "create",
      "dispose",
      "gate",
-     "gateAll",
      "hold",
      "seenNext",
      "shadow",

@@ -60,19 +60,22 @@ GTA's radio and soft ceiling, and the turn back rather than a wall.
 
 **How it is met** (`web/game/bounds.js`, a part of the game: docs/SEAMS.md).
 
-- **The road works.** Each street and footway that crosses the ground's edge is closed by road works across it, on the
-  outer side, facing in: a line of red cones (the Japanese pattern, with the white bands) joined by yellow-and-black
-  bars, two A-frame barricades with amber lamps that blink out of step at night, and the sign: 工事中 /
-  この先 通行止め / ROAD WORKS · CLOSED AHEAD. All of it is instanced, about a dozen draw calls for every crossing. The
-  streets that cross are shut to cars all day, both ways (`junctions.js` `shutNow`, the same mechanism as a street
-  closed at an hour), so the traffic and the rides keep off them and the works stand on an empty road. The crowd's
-  footways that cross the edge are closed to it too: a band of 0.8 m along the edge counts as a wall in its `wall`
-  test (`actors.js` `shutLine`), so nobody walks through the cones, and the streets beyond keep their own people.
+- **Nothing drawn at the edge, and the world runs on past it** (the owner, 25 November 2026). The edge was first
+  closed by road works across each street and footway that crosses it (cones, barricades with amber lamps, 工事中 /
+  この先 通行止め), the streets shut to cars. On the walk at 17:42 the owner met them at the foot of Dogenzaka with the
+  traffic still driving up to the barriers from the far side and a car parked inside the works: "This road says it's
+  closed, so why is a pile of cars coming through?". The shut streets kept the cars inside from crossing, but nothing
+  kept the cars beyond from being made there, and a drawn closure that traffic ignores reads as a broken one. The
+  answer the owner chose is the open world's (GTA V's mainland, Forza Horizon, Spider-Man's Manhattan): no sign where
+  you cannot go; the roads and their traffic run on past the edge, and the crowd walks on past it; only you are turned
+  back, softly, as below. The streets that cross it are left out of your routes, a ride's and the autopilot's
+  (`l.edge`, `cars.js` `route`), and are open to the traffic (`bounds.js` `closeRoads`); the crossings are found, unseen,
+  for the checks that meet the edge there (`mark`). The lines say where the evening is, not why the road is closed.
 - **On foot.** In the last 22 m before the edge, the part of each step that goes outward is taken away, more the
   closer the walker is, so they slide along the edge and never into it. Pushed against it, the line is said once.
   After a second of pushing, the camera eases round to face back in (`cam.yawTo`), and the same key walks them back
   in. There is no wall that stops them, and no teleport.
-- **By car.** The car is braked to a stop short of the works at the rate that brings it there (a comfortable stop,
+- **By car.** The car is braked to a stop short of the edge at the rate that brings it there (a comfortable stop,
   never a crash), and the throttle outward is let go in the last 12 m. The line is said. Steering, reversing and
   turning are left to the driver, as at any closed road.
 - **In the helicopter.** In the last 220 m before the air's edge, flying outward, the tower speaks ("JA26SB, the city
@@ -92,12 +95,13 @@ GTA's radio and soft ceiling, and the turn back rather than a wall.
 `tools/bounds_check.js out_dir [WxH] [hour]` opens the walk at the hour it is set (blue hour). From four sides it
 walks, drives and flies at the edge along a street that crosses it, and it fails if:
 
+- anything is drawn across a crossing (`bounds-works`), or a street across the edge is shut to the traffic;
 - the player ends past the edge;
 - a walker is stopped dead (from a run to a stand in one step), or is not turned back in;
-- a car's nose passes the works, it is braked harder than 13 m/s², or it cannot back away;
+- a car's nose passes the edge, it is braked harder than 13 m/s², or it cannot back away;
 - the helicopter crosses the air's edge, is not turned back, or turns on the spot instead of in an arc;
 - it climbs over the ceiling;
 - anything offered lies outside.
 
-It takes stills of the works from the walker, of the car at its stop and of the helicopter mid-turn. `ONLY=foot,car,heli`
+It takes stills of the crossing from the walker, of the car at its stop and of the helicopter mid-turn. `ONLY=foot,car,heli`
 runs part of it.
