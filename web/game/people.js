@@ -2471,6 +2471,9 @@ transformed = crowdPose(transformed, false);`);
           if (o === p || Math.abs((o.rz || 0) - (p.rz || 0)) > 1.5) continue;
           const ou = o.umbR > 0, dx = mx - o.rx - (ou ? o.ucx : 0), dy = my - o.ry - (ou ? o.ucy : 0), D = Math.hypot(dx, dy), reach = ou ? R + o.umbR : o.crown > p.umbRim - 0.03 ? R + 0.12 : 0;
           if (D > 1e-3 && D < reach) { const w = (reach - D) / reach / D; vx += dx * w; vy += dy * w; }
+          // (and from a neighbour's head as high as its rim, umbrella or none: one of their own stands a hand off the head
+          // and leans away from this one, so the canopies' room alone left a far copy's head 2 cm in this canopy, issue 238)
+          if (ou && o.crown > p.umbRim - 0.03) { const ex = mx - o.rx, ey = my - o.ry, E = Math.hypot(ex, ey), rh = R + 0.12; if (E > 1e-3 && E < rh) { const w = (rh - E) / rh / E; vx += ex * w; vy += ey * w; } }
         }
       }
       const m = Math.hypot(vx, vy) * LEAN_K, s = m > LEAN_MAX ? LEAN_MAX / m : 1, k = 1 - Math.exp(-dtNow / 0.35);

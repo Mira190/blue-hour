@@ -1793,7 +1793,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
-          } else if (q.crown > o.umbRim - 0.03) { // (no umbrella of its own, its head as high as the rim and under the canopy: out from under it, the whole way)
+          }
+          // (its head as high as the rim and under the canopy: out from under it, the whole way. With an umbrella of its
+          // own as without one: its canopy stands a hand off its head and leans away from the other's (people.js lean),
+          // so canopies an umbrella's room apart can still leave a tall one's head 2 cm in a shorter one's, a far copy's
+          // on footway 2261 in frame 7's rain, main's story on 4f2d67a, issue 238)
+          if (q.crown > o.umbRim - 0.03) {
             const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = o.umbR + 0.12;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / ec; sx += ex * f; sy += ey * f; }
           }
