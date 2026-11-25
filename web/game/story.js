@@ -1536,6 +1536,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         goalEl.querySelector('small').textContent = st.meet ? S.title || '' : `The Stop · ${clockOf(leftS)} left`;
         // (an afterimage looks at whoever carries the camera; the last frame's two, once they walk, at each other)
         for (const q of [g, st.ghost2]) if (q) { q.animate(dt); const o = st.meet && (q === g ? st.ghost2 : g); if (!q.to) { if (o) q.face(o.x, o.y); else q.face(ctx.player.x, ctx.player.y); } }
+        if (ctx.ghostVoice) ctx.ghostVoice(st.beat === 'seek' && g ? [g.x, g.y, g.z || 0] : null); // (to be found by ear, while she is to be found: audio.js ghost)
         if (st.beat === 'seek') {
           // the keys are put away once they have been used
           if (st.from && Math.hypot(ctx.player.x - st.from[0], ctx.player.y - st.from[1]) > 3) { st.from = null; st.walked = true; keysHint(false); ctx.stage.classList.remove('story-walk-ask'); }
