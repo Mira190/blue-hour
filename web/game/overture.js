@@ -855,6 +855,17 @@ window.OEOverture = (function () {
       if (s.type === 'land') {
         const w = ctx.handOver(k, 0.7);
         pose.pos.lerp(ctx.live.pos, w); pose.look.lerp(ctx.live.look, w);
+        // (never tipped onto the tops of heads, issue 239: blending look points at different distances pitched the view
+        // straight down from 10 m in the shot's last part. The look kept no steeper than 20 degrees under the horizon, or
+        // than the chase camera's own look if that is steeper, heading along the crossing, so the descent ends as a person
+        // arriving sees the street and meets the chase camera exactly)
+        const d = pose.look.clone().sub(pose.pos), L = d.length(), hz = Math.hypot(d.x, d.z);
+        const ld = ctx.live.look.clone().sub(ctx.live.pos), lh = Math.hypot(ld.x, ld.z) || 1;
+        const floor = Math.min(-0.35, Math.atan2(ld.y, lh));
+        if (L > 1e-3 && Math.atan2(d.y, hz) < floor) {
+          const hx = d.x + ld.x / lh * L * 0.3, hzz = d.z + ld.z / lh * L * 0.3, hn = Math.hypot(hx, hzz) || 1;
+          pose.look.set(pose.pos.x + hx / hn * Math.cos(floor) * L, pose.pos.y + Math.sin(floor) * L, pose.pos.z + hzz / hn * Math.cos(floor) * L);
+        }
       }
       type(s, k, t);
       return pose;
