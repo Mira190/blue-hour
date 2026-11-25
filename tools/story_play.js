@@ -75,7 +75,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
-  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:')) console.log(t.slice(0, 600)); });
+  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:') || /^hero \w+: /.test(t)) console.log(t.slice(0, 600)); }); // (and each hero level made ready, with its steps' times: hero.js)
   fs.mkdirSync(out, { recursive: true });
   // FPS=1: the page's frames a second beat by beat (issues 8 and 206), counted in the page from its animation frames
   // and named as the telemetry names a beat ("frame 3: stop seek"): for each, the frames, the median and the 95th
