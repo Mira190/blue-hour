@@ -1,0 +1,26 @@
+{
+ "5554bb90": {
+  "file": "assets/story/late/score-5554bb90.mp3",
+  "seconds": 29.5,
+  "for": "story",
+  "code": "58eefb7704e6"
+ },
+ "65dbf568": {
+  "file": "assets/story/late/score-65dbf568.mp3",
+  "seconds": 48.5,
+  "for": "walk",
+  "code": "58eefb7704e6"
+ },
+ "01949f48": {
+  "file": "assets/story/late/score-01949f48.mp3",
+  "seconds": 51.1,
+  "for": "frame 5's flight",
+  "code": "58eefb7704e6"
+ },
+ "761f3a00": {
+  "file": "assets/story/late/score-761f3a00.mp3",
+  "seconds": 51.1,
+  "for": "frame 5's flight alone",
+  "code": "58eefb7704e6"
+ }
+}

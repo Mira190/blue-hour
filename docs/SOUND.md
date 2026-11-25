@@ -360,6 +360,23 @@ broke, and two tunes in two tempos over each other. So now:
   when a tune written for one (`tuneWav`) peaks over −1 dBFS; `tools/tune_levels.js` (in the `audio` target) fails when
   a tune a phone plays alone does.
 
+**A phone renders no music: its scores are files** (issue 166, 24 November 2026). The owner's iPhone (Safari 27, build
+`0.1+a1e5349`, 20:45 UTC) heard a strong noise in the story's opening, at the first aerial and at the shot from above,
+like the city's old bed. Its telemetry through the film: `snd` `no context`, `snd_music` `el 1`, `snd_quiet`. With no
+AudioContext there was nothing to render late; the noise was in what the one element played, the score, which the
+phone had rendered itself in WebKit's OfflineAudioContext (film-score.js) and written as a WAV (`tuneWav`). The same render
+here, in Chromium, is clean: in every half second its spectral flatness is 0.000 and nothing is above 3 kHz. A session
+cannot run WebKit's render, so where in it the noise came from is not known; Safari's fingerprinting protection adds
+about 0.1 % of each sample to audio a page reads back, too little alone. So a phone renders nothing:
+`tools/score_files.js` renders each score here (the story's opening, the walk's, frame 5's flight under the story's
+music and alone) by the same code from the same plan, and ships it as `web/assets/story/late/score-<key>.mp3`, the key a
+hash of the score's spec and its shots (`scores.json`, with a hash of film-score.js). `overture.js` `prepareScore` plays
+that file on a phone, and where no file matches plays the film without its score, never a render of its own (`tools/score_files.js --check`, in the static
+checks, fails then). `tools/tune_levels.js` decodes every file a phone plays and fails on broadband noise (the energy of
+the sample-to-sample difference against the signal's over 0.25 in any half second; the files read 0.05 to 0.09) and on
+a peak over −1 dBFS; `tools/opening_audio.js` fails when a phone renders a score in the page or an element plays any file
+but the cue and a score's.
+
 **The noise heard again with no context at all** (22 November 2026, build 0.1.215, which had all of the above; read again under "The guard" below: the walk's second play and the story's had a context, made two seconds into a start without a film, and it broke). The owner
 heard a loud noise, not a crackle, in both openings on the iPhone: the walk's at its title, the story's at the shot from
 above, where its title is; once in the street it was gone. The telemetry of those plays: in the walk's film `snd` read
@@ -404,6 +421,12 @@ is a guest of the page's frames, and gives way to them:
   The player is told once, in one short line at the foot of the frame ("Street sound off to keep the frame smooth · Menu › Sound to retry"), and the whole of it stays under the menu's Sound,
   and the loading cue's loop comes back on its element in the street's place (`sndBed`), so play is never silent. The Sound
   switch turned off and on asks again.
+  A break the system made is not the street's, and is kept (`EXCUSE`, telemetry `snd_kept`): the guard waits three seconds
+  on a break that would give up and lets it go when, within them either side, the context left `running` (iOS's
+  interruption, a suspension it did not ask for) or a WebGL context was lost (the GPU process the output lives in going
+  down). The owner's iPhone on 24 November gave the street up on 262 ms two seconds before its WebGL context was lost,
+  and on the page after on 1016 ms as iOS interrupted the context (states `isrs`): two give-ups, and the street was off on
+  the next page, on a phone that keeps it at 26 to 40 frames a second (`tools/snd_guard_check.js` holds both cases).
   A context's first second and a half, made or let go again, is not read (`SETTLE`): its clock runs ahead of its output
   until the output has begun and then steps back to it for good, 180 to 240 ms in WebKit on a Mac, and read as a break that
   step gave the street up within a second of every start (four runs of four; `tools/opening_audio.js` with `ENGINE=webkit`
