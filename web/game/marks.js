@@ -61,6 +61,15 @@ window.OEMarks = (function () {
       return true;
     }
     const cover = { top: 0 };
+    // the blocks of words on the screen, read every 150 ms (a layout read, not one a mark)
+    let wordsAt = -1, words = [];
+    const WORDS = '#g-story-goal > :not(:empty), #g-walk-where, #g-walk-told.on, .g-toasts .g-toast:not(.out)';
+    const overWords = (x, y, pad) => {
+      const t = performance.now();
+      if (t - wordsAt > 150) { wordsAt = t; words = []; for (const e of document.querySelectorAll(WORDS)) { const r = e.getBoundingClientRect(), c = getComputedStyle(e); if (r.width > 2 && r.height > 2 && c.visibility !== 'hidden' && +c.opacity > 0.1) words.push(r); } }
+      for (const r of words) if (x + pad > r.left && x - pad < r.right && y + pad > r.top && y - pad < r.bottom) return true;
+      return false;
+    };
     return {
       stat,
       frame() {
@@ -81,6 +90,10 @@ window.OEMarks = (function () {
         out.x = p.x; out.y = p.y; out.dep = p.dep;
         if (p.x < -20 || p.x > w + 20 || p.y < -20 || p.y > h + 20) { out.why = 'off'; return out; }
         const pad = o.pad ?? 14;
+        // (over the words: not drawn where a block of words lies, the story's goal, the walk's corner or a notice. A name moved
+        // off its person would be read as someone else's, so it waits until the picture moves; a waypoint, o.lift, is its
+        // own mark's, kept clear by story.js. The owner's iPhone, 24 Nov: the ring's metres drawn into the goal's line)
+        if (!o.lift && o.words !== false && overWords(p.x, p.y, pad)) { out.why = 'words'; return out; }
         // (a waypoint, o.lift: not hidden by a figure but held just over it, on the same line, as the way's sign must stay
         // up; at most six figures over one another (a crowd at the kerb), and not off the top of the frame)
         for (let k = 0; k < (o.lift ? 7 : 1); k++) {
