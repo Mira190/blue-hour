@@ -456,6 +456,7 @@ window.OEInland = (function () {
       }
       // the walls, copings, rails and beds of every body, a draw a material (batch.js): each body's still culled by itself
       if (window.OEBatch) OEBatch.merge(group, { skip: o => /water|foam|glints/.test(o.name), name: (m, o) => o.name });
+      if (window.OEVis) OEVis.gateAll(group); // (hidden while the street wall hides it: 9 of a phone's draws at the Scramble, issue 192)
       return { group, length };
     }
 

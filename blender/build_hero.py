@@ -35,8 +35,22 @@ def write_posts(city, meta):
         if m and txt.rfind('"id": "', 0, m.start()) == at:
             new = '"posts": ' + json.dumps(meta["posts"]) + ","
             if txt[m.start():m.end()] != new:
-                open(cp, "w", encoding="utf8").write(txt[:m.start()] + new + txt[m.end():])
+                txt = txt[:m.start()] + new + txt[m.end():]
+                open(cp, "w", encoding="utf8").write(txt)
                 print(f"{meta['id']}: {len(meta['posts'])} posts written to {cp} (then pipeline/game_text.py)")
+    # and its beds' edges into its rounds, beside the rounds placed by hand (Hachiko's planters, r >= 1 m), issue 213
+    if meta.get("bed_rounds") is not None:
+        import re
+        cp = os.path.join(ROOT, "cities", city, "city.json")
+        txt = open(cp, encoding="utf8").read()
+        at = txt.find(f'"id": "{meta["id"]}"')
+        m = re.compile(r'"rounds": (\[[^\n]*\]),').search(txt, at) if at >= 0 else None
+        if m and txt.rfind('"id": "', 0, m.start()) == at:
+            keep = [r for r in json.loads(m.group(1)) if r[2] >= 1.0]
+            new = '"rounds": ' + json.dumps(keep + meta["bed_rounds"]) + ","
+            if txt[m.start():m.end()] != new:
+                open(cp, "w", encoding="utf8").write(txt[:m.start()] + new + txt[m.end():])
+                print(f"{meta['id']}: {len(meta['bed_rounds'])} rounds of its beds written to {cp}")
 
 
 def main():
