@@ -1,14 +1,16 @@
 // The planned area's edge (web/game/bounds.js; docs/BOUNDS.md), walked, driven and flown at from several sides on the
 // walk (the title's way in, at the hour it is set), and fails if:
-//   - the page has no edge (no game.bounds, or none made), or no street across it is shut to cars and closed by works;
+//   - the page has no edge (no game.bounds, or none made), no street crosses it, anything is drawn across a crossing (the
+//     owner, 25 November 2026: no road works at the edge, the roads and their traffic run on past it), or a street
+//     across it is shut to the traffic;
 //   - on foot, walked at the edge along a street that crosses it, the player ends past it, is stopped dead (from a run
 //     to a stand in one step), or stands pressed against it without being turned back in within ten seconds;
-//   - by car, driven straight at the works, the car's nose passes the barriers, it is braked harder than a firm stop
+//   - by car, driven straight at the edge where a street crosses it, the car's nose passes the edge, it is braked harder than a firm stop
 //     (13 m/s²), or it cannot back away from them;
 //   - in the helicopter, flown straight out from the middle, it ends past the air's edge, is not turned back in an
 //     arc (its speed fell to a hover, or it turned on the spot), or it climbs over the ceiling with the key held;
 //   - the rides' destinations, the autopilot's or the map's places offer anywhere past the ground's edge.
-// Stills of each edge (the works from the walker, the car at its stop, the helicopter in its turn) in out_dir.
+// Stills of each edge (the crossing from the walker, the car at its stop, the helicopter in its turn) in out_dir.
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/bounds_check.js out_dir [WxH] [hour]      (390x844: a phone; hour blue|night|live, blue by default)
 const { chromium } = require('playwright');
@@ -39,11 +41,14 @@ const [,, out = '/tmp/bounds-check', size = '1440x900', hour = 'blue'] = process
     g.walkStart({ t: hr, w: 'clear' });
     for (let i = 0; i < 40; i++) { g.advance(0.25); if (g.dlg.open) g.dlg.quit(); }
     const roads = B.works.filter(c => !c.foot), foot = B.works.filter(c => c.foot);
-    return { closed: B.closed, works: B.works.length, roads: roads.length, foot: foot.length, mode: g.player.mode };
+    const L = g.cars.netL, edge = L.filter(l => l.edge), shut = edge.filter(l => (l.tb || []).length).length;
+    return { closed: B.closed, works: B.works.length, roads: roads.length, foot: foot.length, mode: g.player.mode, drawn: (() => { let r = g.world; while (r && r.parent) r = r.parent; return !!(r && r.getObjectByName('bounds-works')); })(), shut };
   }, hour);
   if (info.none) { fail('the walk has no edge (game.bounds, bounds.js)'); await b.close(); process.exit(1); }
-  if (!info.closed || !info.roads) fail(`no street across the edge is shut and closed by works (${info.closed} shut, ${info.roads} works)`);
-  else ok(`the edge: ${info.closed} streets across it shut to cars, works at ${info.works} crossings (${info.roads} streets, ${info.foot} footways)`);
+  if (!info.closed || !info.roads) fail(`no street crosses the edge (${info.closed} pieces, ${info.roads} crossings)`);
+  else if (info.drawn) fail('road works drawn at the edge (bounds-works): nothing is drawn across a crossing');
+  else if (info.shut) fail(`${info.shut} streets across the edge shut to the traffic: they are open, only your routes keep off them`);
+  else ok(`the edge: ${info.closed} streets across it open to the traffic and left out of your routes, ${info.works} crossings (${info.roads} streets, ${info.foot} footways), nothing drawn on them`);
 
   // the sides: of the streets' works, the widest facing each quarter, so the edge is met from four ways
   const reach = { foot: [], car: [] };
@@ -132,23 +137,34 @@ const [,, out = '/tmp/bounds-check', size = '1440x900', hour = 'blue'] = process
       const g = window.__game, B = g.bounds(), car = g.myCar(), st = car.D.st, half = car.C.half;
       const d0 = 55, x = sd.x - sd.rx * d0, y = sd.y - sd.ry * d0, f = g.nav.floorAt(x, y, sd.z + 2);
       Object.assign(st, { x, y, z: f ? f.z : sd.z, h: Math.atan2(sd.rx, sd.ry), vx: 0, vy: 0, v: 0, speed: 0, r: 0, steer: 0, reverse: false });
-      g.advance(0.2);
-      let maxS = -1e9, maxDec = 0, prev = 0, top = 0, reached = false;
+      // (the traffic out of its way, its lane to 20 m past the edge, as it goes: the streets across the edge are open to the
+      // traffic, and a car run into is a crash, not the edge's brake)
+      const clear = () => g.cars.clearLane && g.cars.clearLane(st.x, st.y, sd.x + sd.rx * 20, sd.y + sd.ry * 20, 4);
+      clear(); g.advance(0.2);
+      let maxS = -1e9, maxDec = 0, prev = 0, top = 0, reached = false, near = null;
       for (let i = 0; i < 140; i++) { // 14 s of W
+        if (i % 5 === 0) clear();
         g.advance(0.1, ['KeyW']);
         const v = st.speed, s = B.sd(st.x, st.y).s + half; // (its nose)
-        maxDec = Math.max(maxDec, (prev - v) / 0.1); prev = v; top = Math.max(top, v);
+        const dec = (prev - v) / 0.1;
+        if (dec > maxDec) { // (what was nearest it then: a car of the traffic, someone of the crowd)
+          let dc = 1e9, dp = 1e9; for (const o of g.cars.live) if (o.line >= 0) dc = Math.min(dc, Math.hypot(o.x - st.x, o.y - st.y));
+          const P = g.crowd.P; for (let k = 0; k < g.crowd.active; k++) if (P[k].line >= 0) dp = Math.min(dp, Math.hypot(P[k].x - st.x, P[k].y - st.y));
+          near = { car: +dc.toFixed(1), person: +dp.toFixed(1), s: +(B.sd(st.x, st.y).s + half).toFixed(1), v: +v.toFixed(1), was: +prev.toFixed(1), said: [...document.querySelectorAll('#g-toasts .g-toast')].map(e => e.textContent.slice(0, 60)).slice(-2) };
+        }
+        maxDec = Math.max(maxDec, dec); prev = v; top = Math.max(top, v);
         maxS = Math.max(maxS, s); if (s > -6) reached = true;
       }
       const at = [st.x, st.y];
       for (let i = 0; i < 40; i++) g.advance(0.1, ['KeyS']); // and away again
-      return { maxS, maxDec, top, reached, back: Math.hypot(st.x - at[0], st.y - at[1]), end: B.sd(st.x, st.y).s, half };
+      return { maxS, maxDec, top, reached, back: Math.hypot(st.x - at[0], st.y - at[1]), end: B.sd(st.x, st.y).s, half, near };
     }, sd);
     const name = `by car at the ${sd.k} edge (${sd.c})`;
     if (r.reached) done.car.add(sd.k);
     if (!r.reached) { reach.car.push(sd.k); console.log(`note ${name}: did not reach the works (top ${(r.top * 3.6).toFixed(0)} km/h, nose ${r.maxS.toFixed(1)} m from the edge)`); continue; }
     if (r.maxS > 0.4) fail(`${name}: the nose ${r.maxS.toFixed(1)} m past the works' line`);
-    else if (r.maxDec > 13) fail(`${name}: braked at ${r.maxDec.toFixed(1)} m/s² (stopped dead)`);
+    else if (r.maxDec > 13 && r.near && r.near.said.some(t => /^Careful|Watch out/.test(t))) console.log(`note ${name}: run into something on its way (${r.near.said[0]}), not the edge's brake: ${JSON.stringify(r.near)}`);
+    else if (r.maxDec > 13) fail(`${name}: braked at ${r.maxDec.toFixed(1)} m/s² (stopped dead; nearest then: ${JSON.stringify(r.near)})`);
     else if (r.back < 2) fail(`${name}: cannot back away from the works (${r.back.toFixed(1)} m)`);
     else ok(`${name}: from ${(r.top * 3.6).toFixed(0)} km/h to a stop ${(-r.maxS).toFixed(1)} m short, at most ${r.maxDec.toFixed(1)} m/s²; backs away ${r.back.toFixed(1)} m`);
     await p.evaluate(sd => {
