@@ -653,6 +653,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // coming up to a road its traffic may go on waits at the kerb and presses the button, and
   // crosses when the walk signal shows.
   const HORIZON = 4;   // seconds of look-ahead
+  const NEAR_BODY = 0.46; // two whole rigs' centres: no closer than this (m): stood on a footway they step apart to it (canopyAcross), issue 157 item 7, #187
   const BODY = 0.8;    // two walkers closer than this are in each other's way (m, centre to centre)
   const CLOSE = 0.56;  // a walker never steps closer than this to another (m, centre to centre): a
                        // Rocketbox body is about 0.45 m across the shoulders and its arms swing out, so
@@ -735,7 +736,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       umbI: undefined, umbS: undefined, umbStand: undefined, look0: undefined, ghost: undefined, give: undefined,
       yield: undefined, bt: undefined, back: undefined, carT: undefined, turnWhy: undefined, goneWhy: undefined,
       off: undefined, pBack: undefined, reg0: undefined,
-      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined });
+      ghostT: undefined, leftPz: undefined, reslot: undefined, sideT: undefined, why: undefined, whyBad: undefined, whole: undefined, turnAt: undefined, turnAt0: undefined, umbUpT: undefined });
     const R = makeRenderer ? makeRenderer(P) : boxRenderer(world, U, P);
     // a point along a line and its heading (net.at), the heading turned smoothly through each bend over
     // a metre or so either side of the vertex: walkers keep their offset across the footway from it, so
@@ -1778,13 +1779,17 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // keeps the offset (p.lat). The square's crowd steps apart in plazaStep; two waiting at a kerb on their footways stood
     // 0.37 m through each other at the Scramble's north-east corner, main's story on 8186ca5, issue 187)
     let umbAny = false, umbSeen = false; // (any umbrella up among the crowd, the last frame: only then is a head looked for under a canopy)
-    function canopyAcross(i, q, dt) {
+    function canopyAcross(i, q, dt, bodies = false) {
       const mx = q.x + (q.ucx || 0), my = q.y + (q.ucy || 0), c1 = Math.floor(q.x / CELL), r1 = Math.floor(q.y / CELL);
       let sx = 0, sy = 0;
       for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
         for (let k = head[bucket(c1 + a, r1 + b)]; k >= 0; k = chain[k]) {
           const o = P[k];
-          if (k === i || !(o.umbR > 0) || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+          if (k === i || (o.av ?? o.v ?? 0) > 0.3 || Math.abs((o.z || 0) - (q.z || 0)) > 1.5) continue;
+          // (two stood bodies in each other, umbrellas or none: bodyClear only keeps a step from coming closer, and two stood
+          // 0.17 m apart at a kerb by Hachiko stayed so for seconds: half the overlap each, issue 187)
+          if (bodies && o.line >= 0 && o.state === 'walk' && !mateOf(q, o)) { const ex = q.x - o.x, ey = q.y - o.y, e = Math.hypot(ex, ey); if (e < NEAR_BODY && e > 1e-4) { const f = (NEAR_BODY - e) / 2 / e; sx += ex * f; sy += ey * f; } }
+          if (!(o.umbR > 0)) continue;
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
@@ -1796,12 +1801,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       const nx = -q.hy, ny = q.hx; // (across the footway, as p.lat runs)
       let d = sx * nx + sy * ny;
-      if (Math.abs(d) < 1e-3) return;
+      if (!(Math.abs(d) >= 1e-3)) return; // (and nothing where the walker has no heading yet: a NaN taken into its place lost it from the street, issue 187)
       d = Math.sign(d) * Math.min(Math.abs(d), 0.6 * dt);
       const l = net.L[q.line], hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2), lat = (q.lat || 0) + d;
       if (Math.abs(lat) > hw && Math.abs(lat) > Math.abs(q.lat || 0)) return;
       const x = q.x + nx * d, y = q.y + ny * d;
       if ((clear && !clear(x, y, q.z)) || keepRoom(x, y, 0.5) < Math.min(0.35, keepRoom(q.x, q.y, 0.5)) || !bodyClear(i, q.x, q.y, x, y, 0.42)) return;
+      // (and never off the pavement into a carriageway: a stood walker stepped out of another's body at the Scramble's
+      // western arm stood in the lane, and a car waited on them 150 s, tools/check.sh roads, issue 187)
+      { const R = api.crossings && api.crossings.road; if (R && R(x, y) && !R(q.x, q.y)) return; }
       q.lat = lat; if (q.lim != null) q.lim += d; q.x = x; q.y = y;
     }
     function bodyClear(self, x0, y0, x, y, r) {
@@ -1812,6 +1820,20 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (o.line >= 0 && d2 < r * r && d2 < (o.x - x0) * (o.x - x0) + (o.y - y0) * (o.y - y0)) return false;
       }
       return true;
+    }
+    // the nearest whole rig (a near person drawn as one, people.js place: p.whole) to (x, y), up to 1 m; any: everyone
+    // (a whole rig keeps NEAR_BODY from the others, whichever of two steps: issue 157 item 7, hands 4 to 10 cm in a
+    // neighbour where two centres came to 0.31 to 0.49 m on the crossing; the far copies keep their 0.32)
+    function nearWhole(self, x, y, any) {
+      let best = 1;
+      const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
+        if (k === self) continue;
+        const o = P[k]; if (o.line < 0 || !(any || o.whole)) continue;
+        const ex = o.x - x, ey = o.y - y; if (Math.abs(ex) > best || Math.abs(ey) > best) continue;
+        const e = Math.hypot(ex, ey); if (e < best) best = e;
+      }
+      return best;
     }
     function nearest1(self, x, y) {
       let best = 1;
@@ -1933,10 +1955,18 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             let bx = 0, by = 0, br = 9;
             for (const r of [1, 2, 3, 4]) { for (let k = 0; k < 8 && br > r; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); if (!pz.road(q.x + ux * r, q.y + uy * r) && !pz.road(q.x + ux * (r + 0.8), q.y + uy * (r + 0.8))) { br = r; bx = ux; by = uy; } } if (br <= r) break; }
             if (br < 9) { q.T.x = q.x + bx * (br + 0.6); q.T.y = q.y + by * (br + 0.6); q.ph = 'wait'; q.roadOut = true; q.squeeze = 4; }
+            // (no pavement within 4 m: out in the box itself, to the nearest kerb its crossings land at, at a crosser's
+            // pace through the press. Looked for only 4 m off, one stranded 4 m from the Scramble's middle strolled there
+            // through the traffic's turns, and a driver who had stopped for them waited 150 s, issue 204)
+            else { let G = null, gd = Infinity; for (const g of gatesOf(pz)) { const e = Math.hypot(g.x - q.x, g.y - q.y); if (e < gd) { gd = e; G = g; } }
+              if (G) { toGate(q, G); q.sTries = 0; q.roadOut = true; q.squeeze = 4; } }
           }
         } else { q.roadT = 0; q.roadOut = false; }
       }
-      if (q.give) { q.give = false; if (q.ph === 'cross') q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
+      // (and one of them out in the road off the walk, strolling or waiting, as a crosser is: asked only for a spot behind
+      // its kerb, one strolling through the Scramble's box toward it stood before a car that waited on it 144 s, each
+      // in the other's way, issue 204)
+      if (q.give) { q.give = false; if (q.ph === 'cross' || (pz.road && pz.road(q.x, q.y))) q.sideT = 2.5; if (q.ph !== 'cross') { q.squeeze = Math.max(q.squeeze || 0, 2.5); if (q.ph === 'stroll' && q.g) { q.sTries = Math.min(3, (q.sTries || 0) + 1); spotAt(q.g, q.spread * 0.5, 2 + 1.5 * q.sTries, q.T, pz.road); }
         // (waiting at a kerb's edge: a pace and a half back from the road, the way that leads furthest from it)
         else if (q.ph === 'wait' && pz.road) { let bx = 0, by = 0, bn = -1; for (let k = 0; k < 8; k++) { const ux = Math.cos(k * Math.PI / 4), uy = Math.sin(k * Math.PI / 4); let n = 0; for (const r of [0.8, 1.6, 2.4, 3.2]) { if (pz.road(q.x + ux * r, q.y + uy * r)) break; n++; } if (n > bn) { bn = n; bx = ux; by = uy; } } if (bn >= 2) { q.T.x = q.x + bx * 1.5; q.T.y = q.y + by * 1.5; } } } }
       if (q.pause > 0) sp = 0;
@@ -2048,13 +2078,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // (nor inside the player or any of those not of the crowd, issue 65: one already there may step out of them)
         const room = (x, y) => keepRoom(x, y, player ? Math.min(nearest1(i, x, y), Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : nearest1(i, x, y));
         const hard = q.squeeze > 0 || q.ph === 'cross' ? 0.32 : 0.45, n0 = Math.min(hard, room(q.x, q.y));
+        // (two whole rigs no nearer than NEAR_BODY: nearer already, no nearer still; issue 157 item 7)
+        const w0 = Math.min(NEAR_BODY, nearWhole(i, q.x, q.y, !!q.whole)), fine = (x, y) => nearWhole(i, x, y, !!q.whole) >= w0 - 1e-4;
         // (nor a step into a shut stair well: along its rim on one axis, or round it to the left)
         // (nor a step off the pavement into a carriageway while the traffic has its turn: on its way to a kerb of the
         // scramble it waits where the road stops it, and crosses from there with the walk. One sent to the nearest
         // kerb in a straight line, 30 m off and across Dogenzaka, stood in the lane at the Scramble's western stop line
         // with a car before it, each waiting on the other, 150 s, issue 175)
         const offWalk = q.ph !== 'cross' && !!pz.road && Math.abs(q.vx) + Math.abs(q.vy) > 0.05 && !pz.walk() && !pz.road(q.x, q.y);
-        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
+        const inWell = shut && !shut(q.x, q.y) ? shut : null, ok = (x, y) => room(x, y) >= n0 - 1e-4 && fine(x, y) && !(inWell && inWell(x, y)) && !(offWalk && pz.road(x, y));
         // (a pace back from that kerb, the way it came: left at the road's very edge it stood within a passing car's
         // clearance, and a driver from the station's front waited on one at the Scramble's southern stop line 150 s)
         if (offWalk && pz.road(nx, ny)) { if ((q.kerbT = (q.kerbT || 0) + dt) > 1.5) { const vl = Math.hypot(q.vx, q.vy) || 1; q.kerbT = 0; q.T.x = q.x - q.vx / vl * 1.2; q.T.y = q.y - q.vy / vl * 1.2; q.ph = 'wait'; } } else q.kerbT = 0;
@@ -2290,7 +2322,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           else if (p.pause <= 0) p.arrived = 2;
         }
         if (p.umbR > 0) umbSeen = true;
-        if (p.state === 'walk' && p.line >= 0 && (p.umbR > 0 || (umbAny && p.crown > 0)) && (p.av ?? p.v ?? 0) < 0.3) canopyAcross(i, p, dt); // (every frame, near or far; a head under another's canopy too, while any umbrella is up)
+        if (p.state === 'walk' && p.line >= 0 && (p.av ?? p.v ?? 0) < 0.3) { // (stood on a footway: out of a canopy, from under one, or out of another's body)
+          const umbNear = p.umbR > 0 || (umbAny && p.crown > 0), bodyTurn = !!p.whole && (frame + i) % 8 === 0; // (bodies: a whole rig, a near person drawn as one (people.js place: p.whole), where a few cm in another reads as wrong; not a far copy. One frame in eight each, with those frames' time: called every frame for every stood walker drawn it cost a desktop's crowd 16 ms a call to 113)
+          if (umbNear || bodyTurn) canopyAcross(i, p, umbNear ? dt : dt * 8, bodyTurn);
+        }
         if (p.state === 'walk') { // farther off, a longer step every few frames does
           const d = Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)), k = d < NEAR ? 1 : d < FAR ? 2 : 4;
           // (and one the renderer did not draw last frame, p.inPic: behind the camera, behind the street's wall, past the
@@ -2416,11 +2451,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // for ten to twenty-five seconds (arrive's standing: gone once nobody is looking). Not held back: a turn put
       // back in the step it was made, a mate following its leader, and a walker getting out of a car's way)
       if (why === 'restore') q.turnedT = q.turnedT0;
-      else if (why === 'a car waited on them') { if (uT - (q.carT ?? -1e9) < 8) return; q.carT = uT; } // (out of a car's way once: turned again a second later it walked back into it, four turns in thirty seconds)
+      else if (why === 'a car waited on them') { if (uT - (q.carT ?? -1e9) < 8) return; q.carT = uT; q.turnedT0 = q.turnedT; q.turnedT = uT; } // (out of a car's way once: turned again a second later it walked back into it, four turns in thirty seconds. Made whatever the last turn, it counts for the next: refused a step on after it, a walker turned back again, to and fro on footway 2334)
       else if (why !== 'the leader turned' && why !== 'a car waited on them' && why !== 'held in the road') {
         if (uT - (q.turnedT ?? -1e9) < AGAIN) { q.v = 0; q.pause = Math.max(q.pause, 10 + rnd() * 15); q.arrived = 1; api.thought = (api.thought || 0) + 1; return; }
         q.turnedT0 = q.turnedT; q.turnedT = uT;
       }
+      if (why === 'restore') q.turnAt = q.turnAt0; else { q.turnAt0 = q.turnAt; q.turnAt = uT; } // (when it last turned, whatever turned it: a mate turns with its leader no more than once in AGAIN; a turn put back puts this back)
       q.dir = -q.dir; q.hx = -q.hx; q.hy = -q.hy; if (api.why) q.turnWhy = why; // (why: for the harnesses, what turned it)
       if (q.lat != null) q.lat = -q.lat;
       q.dodge = -q.dodge;
@@ -2452,7 +2488,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (p.v < 0.3 && p.pause <= 0) { turn(p, 'a car waited on them'); p.wait = p.still = 0; }
       }
       const G = p.lead >= 0 ? P[p.lead] : null; // (one of a group: its leader, whose place by it it keeps)
-      if (G && G.line === p.line && G.dir !== p.dir && Math.hypot(G.x - p.x, G.y - p.y) < 6) turn(p, 'the leader turned'); // (the leader turned back: so does it)
+      // (the leader turned back: so does it; but not twice in AGAIN seconds. A mate turned with its leader whenever the leader
+      // faced back within 6 m, a reason exempt from the limit on turning again, and on a 14.5 m footway, line 781 at 75,-696,
+      // the leader turned at each end and its two mates paced with it, issue 222. One that turned less than AGAIN ago leaves
+      // the group instead, and goes on its own way)
+      if (G && G.line === p.line && G.dir !== p.dir && Math.hypot(G.x - p.x, G.y - p.y) < 6) { if (uT - (p.turnAt ?? -1e9) < AGAIN) partGroup(p); else turn(p, 'the leader turned'); }
       // (stopped along the way: turned to the window, or with its back to the rail, over a second or so; the stop over, on)
       if (p.stop && p.stop.on && p.pause <= 0) { p.stop = null; p.stopFace = null; }
       if (p.stop && !p.stop.on && ((p.stop.try += dt) > 5 || p.detourT > 0)) { p.stop = null; p.stopFace = null; }
@@ -2708,7 +2748,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // car, the player or one of those not of the crowd: nobody stands blocked for minutes, issue 85)
       const ghost = p.ghost > 0, wasC = ghost ? blocked(p.x, p.y, false, false) : 0, roomK = ghost ? keepRoom(p.x, p.y, player ? Math.min(CLOSE, Math.hypot(player.x - p.x, player.y - p.y) - (player.r || 0.15)) : CLOSE) : 0;
       const ghostBad = (x, y) => blocked(x, y, false, false) > wasC + 1e-4 || keepRoom(x, y, player ? Math.min(CLOSE, Math.hypot(player.x - x, player.y - y) - (player.r || 0.15)) : CLOSE) < Math.min(0.36, roomK) - 1e-4; // (past them a shoulder close, never inside: their room is past what one of the crowd gives another)
-      const room0 = closest(p.x, p.y, player), bad = (x, y, r) => (ghost ? ghostBad(x, y) : blocked(x, y) > was + 1e-4 || (r < lim && r < room0 - 1e-4)); // (a hair's tolerance: stood exactly at the room from someone, every step on shaved a ten-thousandth off it and was refused, issue 85)
+      const room0 = closest(p.x, p.y, player), w0 = inRoad ? Math.min(NEAR_BODY, nearWhole(i, p.x, p.y, !!p.whole)) : 0; // (on a crosswalk two whole rigs no nearer than NEAR_BODY: issue 157 item 7)
+      const bad = (x, y, r) => (ghost ? ghostBad(x, y) : blocked(x, y) > was + 1e-4 || (r < lim && r < room0 - 1e-4) || (inRoad && nearWhole(i, x, y, !!p.whole) < w0 - 1e-4)); // (a hair's tolerance: stood exactly at the room from someone, every step on shaved a ten-thousandth off it and was refused, issue 85)
       if (dl !== 0 && bad(nx1, ny1, room1)) { // drifting across into someone it is passing: straight on instead
         const lat2 = p.lat - dl, x2 = tmp.x - nhy * lat2, y2 = tmp.y + nhx * lat2, r2 = closest(x2, y2, player);
         if (!bad(x2, y2, r2)) { p.lat = lat2; dl = 0; nx1 = x2; ny1 = y2; room1 = r2; }
@@ -2872,7 +2913,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       mv: undefined, mv0: undefined, trip: undefined, parking: undefined, park: undefined, wantPark: undefined,
       dodgeT: undefined, dodgeBrake: undefined, rev: undefined, vBend: undefined, nx: undefined, pv: undefined,
       exA: undefined, ex2: undefined, ex: undefined, plan: undefined, halt: undefined, q: undefined, lcT: undefined,
-      lnWait: undefined, wallGap: undefined, wallT: undefined, atWall: undefined, narrow: undefined,
+      lnWait: undefined, zipTo: undefined, wallGap: undefined, wallT: undefined, atWall: undefined, narrow: undefined,
       narrowF: undefined, narrowIn: undefined, m4: undefined, m4At: undefined, inAhead: undefined, ps: undefined,
       pz: undefined, pst: undefined, np: undefined, xWaitT: undefined, bonnetT: undefined, waitOn: undefined,
       waitOnCar: undefined, faceGap: undefined, faceAll: undefined, faceT: undefined, faceCar: undefined,
@@ -3267,6 +3308,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return c.trip ?? -1;
     };
     const parkedN = () => { let k = 0; for (let j = 0; j < api.active; j++) if (C[j].park && C[j].line >= 0) k++; return k; };
+    // (never nearer you than MADE_NEAR, however small the ring: tools/road_traffic_watch.js, nothing made within 120 m)
+    const MADE_NEAR = 125;
     function respawn(c, cx, cy, rMin) {
       const cand = net.near(cx, cy, rMin, radius), T = JN.trips && JN.trips();
       JN.forget(c);
@@ -3280,7 +3323,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           const line = cand[Math.floor(rnd() * cand.length)], L1 = net.L[line];
           if (!kerbLo(line)) continue;
           const s = L1.len * (0.1 + 0.8 * rnd()), dir = L1.ow || (rnd() < 0.5 ? 1 : -1);
-          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8 || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
+          if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8) || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
         }
       }
       for (let k = 0; k < 4 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
@@ -3307,7 +3350,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (JN.inScramble && JN.inScramble(tmp.x, tmp.y)) continue;
         // (out of the ring's inside: a long piece with one vertex in the ring has the rest of its length anywhere, and a
         // car put on Meiji-dori 85 m from you appeared in sight, issue 167)
-        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < rMin * 0.8) continue;
+        if (rMin > 0 && Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8)) continue;
         // (nor anywhere the camera sees, as a walker is put (the crowd's seen()): by distance alone a car came onto a
         // straight street 280 to 350 m off, in the frame, tools/crowd_vanish.js)
         if (rMin > 0 && crowd && crowd.seen(tmp.x, tmp.y, tmp.z)) continue;
@@ -3424,13 +3467,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // that way (and the cars already crossing to it)?
     // (on an exit with two lanes, behind the cars in the lane it will be in)
     // the arm with signals whose queue car c stands in, by the cars ahead of it (each queued behind the next), or null
+    // (a car held at a line without signals for the signalled junction just after, crossed with it, is in that one's queue
+    // whatever holds it: its light, or with the light green a movement across its way. Counted only while its light was
+    // red, the car at 807's line for the Scramble's arm 1 gave way to the oncoming arm on its green, the Scramble read the
+    // arm as empty and cut the turn at its minimum, and the queue behind it stood a whole cycle more, 149 s, issue 204)
+    const twinOf = x => x.lineArm && !x.lineArm.j.sig && x.why !== 'room' && x.lineEx && x.ex2 && x.ex2.a && x.ex2.a.j.sig && x.ex2.a.line === x.lineEx.m.line ? x.ex2.a : null;
     function queuedFor(c) {
       let x = c.front;
       if (c.why === 'room' && c.lineArm && !c.lineArm.j.sig) x = c;
+      else if (c.why !== 'light' && twinOf(c)) x = c; // (its own wait: one held by the light there is counted where it is held, below)
       for (let n = 0; n < 8 && x && x.q; n++) {
         const a = x.lineArm;
         if (a && a.j.sig) return a;
-        if (a && x.why === 'light' && x.ex2 && x.ex2.a && x.ex2.a.j.sig) return x.ex2.a; // (held at this line by the light of the junction just after)
+        { const b = twinOf(x); if (b) return b; } // (held at this line by the junction just after)
         if (a && x.why === 'room' && x.lineEx) { const b = JN.armBy(x.lineEx.m.line, 1 - x.lineEx.m.end); return b && b.in && b.j.sig ? b : null; }
         x = x.front;
       }
@@ -3746,11 +3795,45 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const h = Math.hypot(look.x, look.z); // (looking down from high up, all round it)
       return d < 12 || (d < 200 && (h < 0.3 ? d < 150 : (dx * look.x - dy * look.z) / (d * h) > 0.3)); // (sim y is -z)
     }
+    // ---- the ring (#204, #220): the traffic is a population held round the player, as an open world keeps a street dense
+    // where it is seen and heard and spends nothing on the far map. api.ring: the ring's radius as game.js asks it (on foot
+    // the arms round you, from the helicopter the whole of `radius`); a car out past it by a seventh leaves the traffic
+    // (and comes back inside it, out of sight: respawn) only where nobody sees it go, and past the widest ring whatever
+    // the eye sees, as before. api.want: how many cars the streets hold (by the hour and the tier: game.js trafficWant);
+    // more come at once, each put out of sight; fewer leave from the list's end one at a time, each only once out of
+    // sight, never in view (a cut to a later hour, api.fresh: all at once)
+    const RMAX = radius;
+    api.ring = radius; api.want = null; api.fresh = 0;
+    const seenCar = c => (crowd && crowd.seen ? crowd.seen(c.x, c.y, c.z) || Math.hypot(c.x - eye.position.x, c.y + eye.position.z) < 30 : inView(c));
+    function ringStep() {
+      radius = Math.max(60, Math.min(RMAX, api.ring || RMAX));
+      if (api.want == null) return;
+      const w = Math.max(0, Math.min(n, Math.round(api.want)));
+      if (w >= api.active || api.fresh > 0 || tick < 90) api.active = w; // (and in the first three seconds, the title card up)
+      else if (tick % 15 === 0) {
+        while (api.active > w) {
+          const c = C[api.active - 1];
+          if (c.line >= 0 && eye && seenCar(c)) break;
+          if (c.line >= 0) take(c);
+          api.active--;
+        }
+      }
+      if (api.active === w) { api.want = null; api.fresh = 0; }
+    }
+    // is car c (the i-th) out of the ring and free to leave it: past it by a seventh and unseen (looked at every eighth
+    // frame), or past the widest ring
+    function outRing(c, i, cx, cy) {
+      const d = Math.hypot(c.x - cx, c.y - cy);
+      if (d <= radius * 1.15) return false;
+      if (d > RMAX * 1.15 || !eye) return true;
+      return (tick + i) % 8 === 0 && !seenCar(c);
+    }
     function update(dt0, cx, cy, t, blockers) {
       centreAt[0] = cx; centreAt[1] = cy;
       const dt = dt0;
       tick++;
       if (eye) eye.getWorldDirection(look);
+      ringStep();
       if (fleet) for (const k in fleet) for (const M of fleet[k]) M.count = 0;
       // the eye's frustum as it was last drawn, to leave out the cars it cannot see; not across a cut
       culling = !!(fleet && eye && eye.isCamera && eye.position.distanceToSquared(eyeAt) < 400);
@@ -3777,7 +3860,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       for (let i = 0; i < n; i++) {
         const c = C[i];
         if (i >= api.active) { if (c.line >= 0) JN.forget(c); c.line = -1; if (mesh) { m4.makeScale(0, 0, 0); mesh.setMatrixAt(i, m4); } continue; }
-        if (c.line < 0 || Math.hypot(c.x - cx, c.y - cy) > radius * 1.15) respawn(c, cx, cy, c.line < 0 && t < 1 ? 0 : radius * 0.6);
+        if (c.line < 0 || outRing(c, i, cx, cy)) respawn(c, cx, cy, c.line < 0 && t < 1 ? 0 : radius * 0.6);
         if (c.line < 0) { if (mesh) { m4.makeScale(0, 0, 0); mesh.setMatrixAt(i, m4); } continue; }
         // at the kerb (parkNow): no step. Its time up and the lane beside it clear, it pulls out, as a lane change from
         // where it stands, on a trip out of town or to another part of it
@@ -4026,6 +4109,13 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
               }
             }
           }
+        }
+        // a car beside, stood waiting to move into this lane (zipTo, the lane changes below): the next in this lane, wholly
+        // behind it, stops short of its tail and leaves it the gap, as in a zip merge; the one beside it goes on (#198)
+        for (const j of onLine.get(c.line) || []) {
+          const o = C[j]; if (o === c || o.dir !== c.dir || o.zipTo !== (c.ln || 0) || o.zipTo == null) continue;
+          const d = (o.s - c.s) * c.dir - o.half - c.half;
+          if (d > 1 && d < 15 && d - 1 < gap) { gap = d - 1; byCar = true; front = o; why = 'car'; }
         }
         // a ride or your car on the move, along its way as a car of the traffic is (not along a straight line from
         // the bonnet, which misses one round the corner it is turning), and given way to by the same rule as the
@@ -4436,9 +4526,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             // (one at a time: not while a car close by on this road is moving across itself)
             let busy = false;
             for (const j of onLine.get(c.line) || []) { const o = C[j]; if (o !== c && o.dir === c.dir && Math.abs(o.s - c.s) < ml + o.half + c.half + 6 && Math.abs(o.lo - side * JN.shiftOf(l, o.ln)) > 0.15) { busy = true; break; } }
-            if (!busy && overlaps(c, tmp.x, tmp.y, fx, fy, ml, 0.25) === 0 && peopleIn(c, tmp.x, tmp.y, fx, fy) === 0) { c.ln = to; c.lcT = 0; c.lnWait = 0; laneChanges++; }
-          }
-        } else c.ln = 0;
+            if (!busy && overlaps(c, tmp.x, tmp.y, fx, fy, ml, 0.25) === 0 && peopleIn(c, tmp.x, tmp.y, fx, fy) === 0) { c.ln = to; c.lcT = 0; c.lnWait = 0; c.zipTo = null; laneChanges++; }
+            // (stood 3 s waiting to move across into the lane it must be in: the next in that lane gives it the gap, as in a
+            // zip merge, below where the cars ahead are found. The lane beside it crept past 2.4 m apart, never a car's
+            // length, and a car in the wrong lane at junction 1978 arm 0, whose one way out leaves from the other lane,
+            // stood at its line 150 s with the queue behind it, the roads check's drive to 109 among it, #198)
+            else c.zipTo = must && c.lnWait > 3 && c.v < 0.6 ? to : null;
+          } else c.zipTo = null;
+        } else { c.ln = 0; c.zipTo = null; }
         // given its way across but not yet at its line, and stopped there behind a car that is not in
         // that junction (one waiting at another of its lines, where two roads come in side by side,
         // for this very movement to clear): it gives the movement up and waits its turn

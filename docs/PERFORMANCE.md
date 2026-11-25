@@ -2661,6 +2661,18 @@ pictures that need it. What is left in the first minute is the warm-up's own com
 people's programs, compiled in slices by `world.js compile` and waited on by a draw that came first: `alu_fin`,
 `ginza_joint`, seconds each on a software renderer); a follow-up.
 
+The queue's order (issue 194, November 2026): a class, then the distance to the player. The hero level first (`first`),
+then what a caller waits on to show it (a person's body, a train, a picture swapped in, a ground tile), then the
+background `uploadRest` sends ahead of its first draw; within a class the job nearest the camera, and those with no place
+(a character's template, not yet stood anywhere) in the order they came, which the game already makes nearest first
+(`afterPlayable` `near()`, the crowd's `need`). `?wq=fifo` keeps the old order, and `OEWorld.uploadStats()` gives each
+class's count and waits. Measured with `tools/warm_queue.js` on llvmpipe, both orders alike: on a phone's tier 81 bodies'
+and models' pictures sent within 30 s of the title (waits p50 13 s, max 22 to 25 s, the old order and the new); on a
+desktop about 150 wait behind the title, sent one an idle frame of 1 to 4 s, and `uploadRest` found nothing undrawn once
+they were in, so a body asked for then waited only for the frames (10 to 13 s, `BODY=1`). The order has nothing to
+reorder on this map today; it keeps a body asked for while a background drains from waiting behind it. What a body
+waits for is the rate, a picture an idle frame, which on a real GPU's frames is 150 pictures in two or three seconds.
+
 ### Safari
 
 Safari's WebGL crosses to the GPU process on every call, and its ANGLE on Metal resolves a multisampled half-float
@@ -2748,6 +2760,38 @@ wrong; its scale and extras are governed as any device's, and half the rate is i
 `tools/engine_frames.js` can show the same on a session's machine (no GPU): `ASDEV=1` (the software renderer taken for an
 M3's, so the page starts on the device's tier), `SLOW=ms` (each frame held at least that long, outside the script),
 `THROTTLE=n` (Chromium's CPU) and `CLEAR=1` (a first visit).
+
+### The device floor and its tiers (issue 220)
+
+The floor the game is held to, by the owner's ask for no stutter on weak machines:
+
+| device | browser | tier it starts on | why |
+| --- | --- | --- | --- |
+| an iPhone 12-class phone | Safari | low, a phone's set (`lean`, its level from `level()`) | touch, a short side under 600 px |
+| a mid Android phone (4 GB) | Chrome | low, a phone's set | the same, and `deviceMemory` 4 |
+| a laptop with Intel's UHD (or an AMD APU), 8 GB, 4 cores | Chrome or Edge | **medium** (it was high) | `quality.js` `probe` `integrated`: the renderer string names a GPU on the processor's die; Intel's Arc cards are excluded |
+
+The laptop can step to low by the governor's judged step (above), after a visit's first 30 s. What each floor tier
+draws on the night walk where it starts, counted by `tools/gl_calls.js` on a session's machine (draws, WebGL calls and
+passes a frame are the device's work whatever renders them; their milliseconds are the mac's to read):
+
+| tier | draws | WebGL calls | passes | programs |
+| --- | --- | --- | --- | --- |
+| high (desktop) | 395 | 6,493 | 18 | 83 |
+| medium (desktop, the laptop's) | 364 | 5,660 | 18 | 85 |
+| low (desktop, the laptop's after a step) | 305 | 3,625 | 11 | 78 |
+| low (a phone's set) | 220 | 3,876 | 9 | 74 |
+
+(The phone's line was counted before one skeleton a person; its uploads have fallen since, as above.) CI holds per
+beat a desktop's high tier and a phone's low one (`tools/budgets/shibuya.json`). The laptop's medium is recorded beside them ("medium": the story's three parts at 1440 x 900 with `Q='?tex=bc7'`,
+`beat_budget.py set ... --parts medium`), to be held by a CI shard of its own once a few runs have shown its noise.
+Its pictures are packed as the laptop packs them (BC7, BC5 for normal maps: `?tex=bc7`); a software renderer otherwise
+keeps every picture raw, at four times the bytes, and the first recording read 771 to 1,552 MB for what is 435 to 743
+on the device. Its cap: 800 MB a beat. Frame 4's peak, 743 MB with BC7: textures 535, buffers 187, render targets 38.
+The largest textures there are the Sky roof pad's ORM (2048², kept as pixels: 21 MB), the night map (night.js, 2048 x
+1841: 19 MB), the buildings' facade blocks (4096 x 3680: 19 MB), the woods' and the shore's ground pictures (17 and 11
+MB, kept as pixels), two 2048² shadow maps (12 MB each: the sun's and its still copy, world.js shadowCache), the inland
+water (11 MB) and the two scene targets at 1440 x 900 (10 MB each).
 
 ### Not checked here
 
@@ -3097,10 +3141,82 @@ and off; nothing counted it. A grown index buffer is first bound as an index buf
 | of which the buildings' cells | 27 to 45 | 1 |
 | GPU memory | 212 MB | 213 MB |
 
+### The cells' streaming on a phone (issue 220)
+
+The walk's moving beats were 35% longer on a session's machine after the cells went into one draw, and the question
+was whether a phone pays it. `tools/stream_probe.js` (with `tools/phone_frame.js`: the emulated iPhone carried 450 m
+east and back, three metres a frame, every frame timed and the arena's own work on the page's thread counted) split it:
+
+| over the walk | adding the cells (272) | giving back idle room (5 trims) | growing |
+|---|---|---|---|
+| before | 66 ms in all, 0.24 ms a cell | 2,024 ms, the longest 652 ms | 1 ms |
+| after | 73 ms | 30 ms, the longest 10 ms | 2 ms |
+
+Sending a cell's vertices is cheap, so spreading the uploads over frames would buy nothing. The trim was the hitch:
+it read the whole index buffer back from the GPU to move the cells' indices, and a read back waits for every draw
+queued before it (on a phone's GPU as on a software one). Each cell now keeps its own indices from its first vertex
+(16 bits where they fit: about 1.4 MB of the page's memory on a phone), and a trim writes them again from those. The
+arena's longest frame of work went from 656 to 16 ms on the software renderer. After four trips the arena holds
+21.2 MB for 20.8 used, and every cell's indices on the GPU, read back by the harness alone, are what they should be
+(`tools/arena_probe.js`). The mac found no difference a player sees from the streaming on a real GPU and in Safari
+(issue 192); this takes out the one stall a phone would have felt.
+
+### The player's car from afar (issue 192)
+
+The player's car is the supercar, the one model in `cars.glb` with no lighter copies, and it was drawn whole at any
+distance: 54 meshes, a draw each, and 84,000 triangles in a phone's frame from 80 m by the Scramble, where it is twenty
+pixels wide. `cars.js` `car()` now makes two far copies with the car, by hand (no helper that differs between the
+three.js versions `cars.js` serves): the body and the wheels as they stand, without the cabin's inside, each part in its
+material's colour as a vertex colour (a metal darkened by its metalness, the glass as dark as it reads from outside),
+the vertices joined on a grid of 5 cm and of 15 cm. One draw each, 25,000 and 4,400 triangles. They ride on the body, so
+they move and tilt with the car, and the lamps' glows stay. Shown past 30 and 60 m on a phone (60 and 140 m on a
+desktop), with 3 m either way so they do not flicker, judged from the view's camera alone and divided by the lens's zoom
+(a long lens counts the car nearer). Made with the car, which is parked while the page loads: 55 to 119 ms on the
+emulated phone. They are compiled with it by the warm-up, which reaches hidden meshes. `?carfar=off`: the car whole.
+
+`tools/car_look.js` stands the player at set distances from the car and takes a still cropped round it, with the copies
+on and off. From 34 m in, at day, dusk and night, the copies read as the car: the same outline, wheels and lamps. The
+one difference is the clear coat's highlight along the roof by day, which a vertex-coloured copy does not have, a few
+pixels at 34 m.
+
+### A phone's three spikes (issue 192)
+
+Measured on a phone's tier, each beat's draws put down to what drew them and to the target they went to (`tools/draw_who.js`,
+`PROBE=<still>,<still>` in `tools/story_play.js`). On main of 24 November: 3-afterimage 272 (the earlier batching had
+already taken it from 647), 5-flight-lift 420, 7-hint-place 490. What the player could not see at those beats:
+
+- **The rain's cover map** (frame 7). It is drawn every half second in heavy rain, and its moving pass drew 50 draws of
+  things that stand: the trees' sets (they were counted still only by their shadow's order, which is written while the sun
+  is up, so after dark they went with what moves), the road works at the map's edge and the canal. The far trees'
+  impostors, 200 m and more away, were drawn into a map 80 m across. Now the trees are still by what they are
+  (`oeTree`), the impostors are left out (`oeNoOcc`), and the moving pass is 12 to 15 draws. The still map (120 to 145
+  draws) was drawn in the same frame as the moving pass; now it is drawn 48 things a frame, into its own target, while the
+  cover map before it is kept, and the moving pass follows in the frame after its last part. No cover frame is more than
+  about 50 draws.
+- **The light show's beams** (frame 5, SKY's CROSSING LIGHT). 36 beams, each a mesh and a material of its own: now one
+  `InstancedMesh`, each beam's colour times its opacity in its instance colour (the beams are added light, so it is the
+  same light), its turn in its instance matrix.
+- **The trains' pools.** Each pool (a material's cars, `OEBatch.pool`) was drawn wherever any train in the city ran:
+  18 draws with nothing in view by the Scramble. A pool is now culled whole by a sphere round the cars put in it this frame.
+
+After, the same beats: 7-hint-place 328 (the worst of frame 7, 346), 5-flight-lift 385. What is left over 250 is what is
+seen: the trees' sets (43, a species and a part each), the traffic's kinds (18), the people (issue 130), the hero level's
+materials (the atlas, issue 227).
+
+Then frames 1 to 3, where every player starts (phone, `PROBE=` lists of 2-find and 3-cam-down):
+
+- **The 1964 camera on the player's chest**: 18 parts in five materials, a draw each, in every beat it is worn. Now
+  merged a material each at its build (`people.js` `oldCamera`), its 3,300 triangles as they were: 18 draws to 5.
+- **The road works and the canal** stood out of the visibility sweep: drawn wherever the player was. Both are now
+  gated (`OEVis.gateAll`), and the sweep reads a `BatchedMesh` instance by instance (a merged level's shapes each in
+  their own space). At the Scramble the canal's water went from 4 draws to 1; its walls and the works are still seen
+  from 2-find, down a street.
+
+Worst beats, before and after: frame 1 286 to 285 (the people's share moves from run to run), frame 2 318 to 298,
+frame 3 296 to 288. What is left is seen: trees, the traffic's kinds, the people, the hero level's materials.
+
 ### What is left
 
-- **The player's car parked by the Scramble** (since the first drive landed): about 77,000 triangles and 40 draws
-  in a phone's frame when it is in view, its full model with a physical material.
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
 - **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
   is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.
@@ -3435,3 +3551,32 @@ session's machine, phone tier (390x844, `TIER=low`, `DRAW=60`), main at 2f1b4cb9
 Not measured: an iPhone. The CSS grade the Stop lays on the canvas (`story.css` `.story-stop #game-gl` filter and the
 veil's multiply) is drawn in every beat of the Stop, the still at 42 fps on the owner's phone as well as the seek, so
 it is not what parts them; what it costs a phone's compositor is not known.
+
+### Nothing new inside a Stop (issue 118, November 2026)
+
+The owner's iPhone lost its WebGL context in frame 2's Stop after a 5 s GPU hold. The governor's phone-tier play there showed
+programs linked mid-beat at "stop still" and "stop shoot", and a 4096 x 2849 R8 texture first uploaded at "stop shoot".
+`tools/story_play.js BIGUP=mb` now says every texture upload of mb MB or more with its beat and the code that made it, and
+every program linked with its beat, its material, its owner in the scene and the parameter that made it new (against
+the nearest program of the same shader). What it found, and what was done:
+
+| linked or sent in the Stop | why | now |
+|---|---|---|
+| a 4096 x 2849 R8 (11 MB), at the shot | `inland.js holeMask`, the channels' distance field over their whole box, full size off a phone, sent by the draw that first showed a channel | half size everywhere (a filtered distance loses nothing at a metre), and sent ahead with the hero level (`sendTex` class 0) |
+| a second R8 of the map's frame, drawn on a canvas | `world.js waterCover`: every deck and roof face 1 to 40 m up, for a sea Shibuya does not have (its ground is 15 to 40 m above the sea's level 0) | only shapes on ground within 3 m of the sea's level, in the box round them; none in Shibuya |
+| the Stop's ring (Basic, both sides), at still | the spare `stopfx.js warm` compiled had a RingGeometry's normals; the ring has none, and an attribute is a variant (`vertexNormals`) | the spare's normals and uvs taken off |
+| the past's relic (Lambert), at the shot | never warmed | `past.js warm`, a hidden relic of the kit's own geometry |
+| the camera of 1964, at the shot | built when it is hung on you | `OEPeople.oldCamera`, a hidden copy warmed (its materials are every copy's) |
+| the place's light and the goal's beacon (ShaderMaterials), at the shot | made at their first use; warmed on an empty geometry they were another variant (normals) | `hereMake`, `beaconMake`, made ahead hidden, laid as a drape |
+| the guide, at still and again after | made at the Stop (`makeGuide`), drawn before compiled, and whole, fading and his ghost are three variants | the first of him made with the Stop's things (`warmGuide`) and handed to the story; `companion.js warm` compiles him whole and fading (with the weather's dress) before he is ready |
+| the cast's faces, at the talk | a speaking face is its own program (face.js), and the cast was never warmed | `warmGhosts` warms the cast and living afterimages as they are, without the exposure |
+| a 760 x 1644 RGBA16F (9.5 MB) at still, talk and shown | the camera effect's target, let go eight seconds after the effect last ran, and the Stop's beats turn it off and on | kept through the Stop (`composer.keepPings`), made once at its start |
+
+On a phone's tier (llvmpipe, frames 1 and 2 from the title): programs linked in the Stops' beats 30 to 0; the longest frames
+of the guide's film 529 to 90 ms, of his sitting 477 to 77, of the step back into the light 427 to 38, of the beat after
+598 to 53; the warm-up's links moved before it (frame 1's order). The film waits for the guide to be drawable (`d.ready`,
+up to 8 s, else the Stop goes on without it: issue 237).
+
+What is left, on the medium tier (a desktop's page on llvmpipe, whose frames there are 7 to 10 s): the late crowd's and
+the helicopter's programs and shadow variants are compiled in the Stop's seek because they arrive in it; the afterimages'
+faded variants at its still. A real device's late models come minutes earlier. Not measured: a real GPU, Safari, an iPhone.

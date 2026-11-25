@@ -614,6 +614,10 @@
         const q = B.piers[si];
         for (let i = 0; i < q.length; i += 2) post(q[i] / 10, q[i + 1] / 10, foot ? Math.min(g0, foot(q[i] / 10, q[i + 1] / 10)) - 0.2 : g0, zb, bi, PIER);
       }
+      // any other solid that starts above its ground (an upper storey over a recess, a wing over a forecourt): its
+      // underside closed as a ceiling. Left open, its lowest window bays were boxes seen from below with nothing under
+      // them, by frame 6's set-down at the west exit (the owner's stills, 24 November 2026)
+      else if (s[2] > 0) cap(rings, zb, bi, soffitC, K_SOFFIT, 0, true);
       if (r) { roof(r, g0, bi); return; }
       // flat roof: a parapet round a deck that shows the aerial photo, where the building is big enough
       const par = PARAPET[P.style] && s[3] - s[2] >= 50 ? PARAPET[P.style] : 0;

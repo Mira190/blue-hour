@@ -665,7 +665,7 @@
 /* (and not there at all without a film: unseen, it took every tap and click at the top right of the street) */
 #g-story-mov:not(.on) button { pointer-events: none; }
 #g-story-mov button:is(:hover, :focus-visible) { color: var(--paper); }
-.game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
+.game-stage.story:has(#g-story-mov.on) :is(#g-story-goal, #g-story-frames, #g-story-finder, #g-story-mark, #g-story-keys, #g-story-cam, .g-toasts, .g-touch, .g-hud) { opacity: 0 !important; visibility: hidden; }
 @media (max-width: 640px) {
   #g-story-mov p { bottom: calc(8.5vh + 18px); width: calc(100% - 32px); font-size: 15px; }
   #g-story-mov button { right: 16px; }
@@ -1742,3 +1742,24 @@ html.bh-leave #g-menu { pointer-events: none; }
    menu's own layer, and later in the page, so on a phone the frame's goal was read through the paused menu. Under the
    credits, which open from it) */
 #g-menu { z-index: 13; }
+/* A mode parked under the title (game.js parkTitle, ?inplace=1): the case's and the walk's own interface put away while
+   the title stands over the street, as a fresh page's title has none of it; back as the mode is taken up */
+.game-stage.parked :is(#g-story-goal, #g-story-frames, #g-story-keys, #g-story-teach, #g-story-menu, #g-story-chip, #g-story-cam,
+  #g-story-hint, #g-story-mark, #g-story-card, #g-story-print, #g-story-finder, #g-walk-acts, #g-walk-where, #g-walk-keys,
+  #g-walk-told, #g-walk-tonight, #g-walk-hud, #gd, #g-pod, #g-touch, #g-btns, #g-toasts, .g-vhud, .g-lens, .g-chatter) { visibility: hidden !important; opacity: 0 !important; }
+/* Read, then folded (story.js goal; the owner on an iPhone, 24 Nov: "a pile of words at the top and another in the
+   middle"). One thing to read at a time, as a game's objective is: the frame's words for their reading time, then only
+   the line of what to do under the eyebrow; a tap on what is left opens the words again. Where there is no such line
+   the words stay */
+#g-story-goal span { max-height: 14em; overflow: hidden; transition: max-height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s ease; }
+#g-story-goal.folded:has(em:not(:empty)) span { max-height: 0; opacity: 0; }
+#g-story-goal.folded:has(em:not(:empty)) em { margin-top: 0; }
+#g-story-goal.folded:has(em:not(:empty)) { pointer-events: auto; cursor: pointer; padding-bottom: 20px; }
+/* (a notice is one short line at the foot of the frame, small and brief, never a box in the middle of the play; during a
+   talk it keeps its place over the words, above) */
+.game-stage.story .g-toasts { top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); width: min(560px, calc(100% - 48px)); }
+.game-stage.story .g-toast { font-size: 12px; line-height: 1.45; padding: 6px 16px; }
+#g-menu .gm-snd-why { display: block; margin: -2px 0 6px 26px; font: 400 11px/1.5 var(--f-body); color: var(--ink-2); }
+/* (the story's own word at the foot, "Time runs again", has the same place as a notice: while it is up the notice stands
+   above it, never drawn into it) */
+.game-stage.story:has(#g-story-chip.on) .g-toasts { bottom: max(206px, calc(env(safe-area-inset-bottom) + 206px)); }

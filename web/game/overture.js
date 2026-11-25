@@ -658,9 +658,29 @@ window.OEOverture = (function () {
       return Object.assign(sc, { duration: total, cuts: shots.map(s => s.t0).filter(x => x > 0),
         title: at(sc.title_shot, sc.title_at), finale: at(sc.finale_shot, sc.finale_at), hush: sc.hush_shot ? [at(sc.hush_shot, sc.hush_at[0]), at(sc.hush_shot, sc.hush_at[1])] : null });
     }
+    // A phone plays the score from a file made ahead (tools/score_files.js, web/assets/story/late/scores.json), never a
+    // render of its own: the owner's iPhone heard a strong noise in the opening (24 November, issue 166) with no
+    // AudioContext and one element playing the score that WebKit had rendered in the page, and the same render made here
+    // is clean. The file is found by a hash of what the score is made from; one not there (a score changed and the files
+    // not made again: tools/score_files.js --check fails) leaves the film without its score on a phone: silence, not the render
+    const scoreKey = () => { const q = JSON.stringify([spec.score, spec.shots.map(x => [x.id, x.dur])]); let h = 0x811c9dc5; for (let i = 0; i < q.length; i++) { h ^= q.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+    let scoreFiles = null;
+    async function scoreFile() {
+      if (!scoreFiles) scoreFiles = fetch(window.OEV ? window.OEV('assets/story/late/scores.json') : 'assets/story/late/scores.json').then(r => (r.ok ? r.json() : {}), () => ({}));
+      const e = (await scoreFiles)[scoreKey()];
+      return e ? { url: window.OEV ? window.OEV(e.file) : e.file, seconds: e.seconds, file: true } : null;
+    }
     async function prepareScore() {
       const v = pick();
       if ((scoreBuf && scoreFor === v) || !spec.score) return scoreBuf;
+      if (window.OEAudio && OEAudio.tunes) {
+        const f = await scoreFile().catch(() => null);
+        if (f) { if (v === variant) { scoreBuf = f; scoreFor = v; } fetch(f.url).catch(() => {}); return scoreBuf; } // (fetched now, behind the title: the element finds it at hand)
+        // (no file: silence, never WebKit's render, which was the noise; tools/score_files.js --check fails before this ships)
+        console.warn(`overture: no score file for ${scoreKey()}: the film plays without its score (tools/score_files.js)`);
+        if (window.OEAudio && OEAudio.noteMusic) OEAudio.noteMusic(`no score file ${scoreKey()}`);
+        return null;
+      }
       try {
         await loadScript('film-score.js');
         // at 24 kHz (a piano and soft sines: nothing above 12 kHz to keep), straight into one AudioBuffer and the
@@ -676,7 +696,7 @@ window.OEOverture = (function () {
     }
     function startScore(offset = 0) {
       if (!scoreBuf || (window.OEAudio && OEAudio.muted)) return;
-      if (scoreBuf.blob) { scoreSrc = OEAudio.tune(scoreBuf, { at: () => (active && t > offset ? t : offset) }); return; } // (begun once the tune before it has faded out: joined where the film is then, audio.js tune)
+      if (scoreBuf.blob || scoreBuf.file) { scoreSrc = OEAudio.tune(scoreBuf, { at: () => (active && t > offset ? t : offset) }); return; } // (begun once the tune before it has faded out: joined where the film is then, audio.js tune)
       try {
         // on the game's own context and its music bus (docs/SOUND.md): a second context made here, after the touch that
         // started the game's, is one a phone (iOS) leaves suspended, and it was outside the Sound switch and the duck
@@ -835,6 +855,17 @@ window.OEOverture = (function () {
       if (s.type === 'land') {
         const w = ctx.handOver(k, 0.7);
         pose.pos.lerp(ctx.live.pos, w); pose.look.lerp(ctx.live.look, w);
+        // (never tipped onto the tops of heads, issue 239: blending look points at different distances pitched the view
+        // straight down from 10 m in the shot's last part. The look kept no steeper than 20 degrees under the horizon, or
+        // than the chase camera's own look if that is steeper, heading along the crossing, so the descent ends as a person
+        // arriving sees the street and meets the chase camera exactly)
+        const d = pose.look.clone().sub(pose.pos), L = d.length(), hz = Math.hypot(d.x, d.z);
+        const ld = ctx.live.look.clone().sub(ctx.live.pos), lh = Math.hypot(ld.x, ld.z) || 1;
+        const floor = Math.min(-0.35, Math.atan2(ld.y, lh));
+        if (L > 1e-3 && Math.atan2(d.y, hz) < floor) {
+          const hx = d.x + ld.x / lh * L * 0.3, hzz = d.z + ld.z / lh * L * 0.3, hn = Math.hypot(hx, hzz) || 1;
+          pose.look.set(pose.pos.x + hx / hn * Math.cos(floor) * L, pose.pos.y + Math.sin(floor) * L, pose.pos.z + hzz / hn * Math.cos(floor) * L);
+        }
       }
       type(s, k, t);
       return pose;

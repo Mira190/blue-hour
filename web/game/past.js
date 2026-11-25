@@ -77,7 +77,7 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
  if (uOver > 0.5 && diffuseColor.a < 0.02) discard; // (where a place goes out into tonight, it hides nothing)
  totalEmissiveRadiance += diffuseColor.rgb * (0.36 + 0.72 * pastKey + 0.2 * pastFill);
  diffuseColor.rgb *= 1.0 - 0.85 * uOver;
- float pastRim = pow(1.0 - abs(dot(pastN, normalize(vViewPosition))), 2.5);`)
+ float pastRim = pow(max(0.0, 1.0 - abs(dot(pastN, normalize(vViewPosition)))), 2.5);`)
           // a silver print's tones: most of the colour gone to a warm grey, the blacks lifted to the paper's, a light round
           // the edges, a grain that moves; and while it forms, a glow it comes out of
           .replace('#include <dithering_fragment>', `#include <dithering_fragment>
@@ -135,8 +135,26 @@ void main() { vec2 nd = vPastClip.xy / vPastClip.w; if (nd.x < uPast.x || nd.x >
         // while its model is still loading, or is missing
         corners(fn) { const m = g.children[0]; if (!m || !kit || !kit[model]) return false; g.updateMatrixWorld(true); const b = kit[model].boundingBox; for (let i = 0; i < 8; i++) fn(corner.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).applyMatrix4(m.matrixWorld)); return true; } };
     }
+    // A thing of each kind, kept hidden in the world and compiled while the title is up (fn: game.js warmFor), as the Stop's
+    // own things are (stopfx.js warm): made at the shot, its program was linked in the frame the camera came up, the Stop's
+    // on a phone (issue 118). Its material and a model of the kit's, so the variant is the one the shot draws (the
+    // colours and normals as lean() leaves them); the program is shared by every relic (customProgramCacheKey 'past')
+    let spare = null;
+    function warm(fn) {
+      return new Promise(r => { if (kit) r(); else waiting.push(r); }).then(() => {
+        const name = Object.keys(kit)[0];
+        if (spare || !name) return null;
+        spare = new THREE.Group(); spare.name = 'past-spare'; spare.visible = false;
+        const pre = make(true, false), m1 = new THREE.Mesh(kit[name], make(false, false)), m2 = new THREE.Mesh(kit[name], pre), m3 = new THREE.Mesh(kit[name], make(true, false, pre));
+        for (const m of [m1, m2, m3]) { m.frustumCulled = false; spare.add(m); }
+        uses[name] = (uses[name] || 0) + 1; // (the kit's model is kept while the spare holds it)
+        world.add(spare);
+        return fn(spare);
+      });
+    }
     return {
       relic,
+      warm,
       rect(r) { if (r) keep.set(r[0], r[1], r[2], r[3]); else keep.set(1, 1, -1, -1); U.uPast.value.copy(keep); },
       open(on) { isOpen = !!on; },
       get isOpen() { return isOpen; },

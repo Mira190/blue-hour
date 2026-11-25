@@ -116,7 +116,7 @@ uniform float uVinylWet; varying vec2 vVinylUv;
 float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }`)
         .replace('#include <opaque_fragment>', `{
   // the film: clear square on, a sheen at a glancing angle
-  float vnF = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0);
+  float vnF = pow(max(0.0, 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)))), 3.0);
   float vnA = mix(0.1, 0.62, vnF);
   // the ribs along the panels' seams and the hem: white tape, a centimetre wide (never thinner than a pixel is drawn)
   float vnU = vVinylUv.x * 8.0, vnW = max(fwidth(vnU), 1e-4), vnR = abs(fract(vnU + 0.5) - 0.5);
@@ -166,6 +166,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
   // shaft in the crease under the fingers' roots. Looked at side by side with looser and tighter ones, close, from
   // four sides: tools/umbrella_held.js HANDS=1 FISTS=[...]. UMB_END: the handle's end, this far down the shaft from
   // the middle of the hand)
+  const UMB_RAISE = 0.2; // how much higher an umbrella is held over someone passing under it (m, people.js umbRaise; issue 157 item 7)
   const UMB_FIST = { x: 0.085, y: 0, palm: 0.022, slant: 0, curl: [1.35, 1.65, 0.9], thumb: [-0.45, 0.5, 0.35], roll: 0 }, UMB_END = 0.07;
   const UMB_LEN = Math.hypot(UMB_TOP[0] - UMB_GRIP[0], UMB_TOP[1] - UMB_GRIP[1], UMB_TOP[2] - UMB_GRIP[2]);
   // umbrellas are off for now: the hand on the handle doesn't read right yet, so nobody carries one,
@@ -390,6 +391,22 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       cyl(0.005, 0.005, 0.004, black, [0.048, top + 0.010, 0.0], 'y'));
     // a lug at each end, for its strap
     for (const s of [-1, 1]) g.add(cyl(0.0028, 0.0028, 0.006, chrome, [s * (W / 2 + 0.002), y0 + BODY + 0.004, 0], 'x'));
+    // (issue 192: its thirty parts in a draw a material, five, not one each: 16 of a phone's draws in every beat it is
+    // worn, frames 1 to 7. Each part's place is baked into its copy of the shape; what it looks like is the same)
+    if (THREE.BufferGeometryUtils) {
+      g.updateMatrixWorld(true);
+      const by = new Map();
+      for (const o of g.children) if (o.isMesh) { const l = by.get(o.material) || []; l.push(o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()); l[l.length - 1].applyMatrix4(o.matrixWorld); by.set(o.material, l); }
+      const one = new THREE.Group();
+      for (const [m, list] of by) {
+        for (const x of list) { for (const k of Object.keys(x.attributes)) if (!['position', 'normal', 'uv'].includes(k)) x.deleteAttribute(k); x.clearGroups(); }
+        const merged = THREE.BufferGeometryUtils.mergeGeometries(list, false);
+        if (!merged) return (oldCam = g);
+        one.add(new THREE.Mesh(merged, m));
+      }
+      one.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      return (oldCam = one);
+    }
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     return (oldCam = g);
   };
@@ -709,7 +726,7 @@ float oeCastIsSkin(vec4 c) {
 }`;
   const CAST_END = `
 { vec3 cV = normalize(vViewPosition), cN = normal;
-  vec3 cUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), cR = normalize(cross(cUp, cV));
+  vec3 cUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), cR = normalize(cross(cUp, cV) + vec3(1e-4, 0.0, 0.0)); // (never nought: a view straight down made it NaN, a black pixel)
   vec3 cSky = vec3(0.0);
 #if NUM_HEMI_LIGHTS > 0
   cSky = hemisphereLights[0].skyColor;
@@ -834,7 +851,7 @@ vec3 hairPass(vec3 a) {
 // (env: 1 for the light of the street round the head, which comes from a lit front's or a screen's whole width, not a
 // lamp's point: both lobes broader)
 vec3 hairLobes(vec3 n, vec3 v, vec3 l, vec3 c2, float env) {
-  vec3 t = normalize(vHairT), h = normalize(v + l);
+  vec3 t = normalize(vHairT), h = normalize(v + l + vec3(0.0, 1e-4, 0.0)); // (never nought: the light straight behind the hair)
   vec3 t1 = normalize(t + n * (-0.07 + 0.1 * hairJ)), t2 = normalize(t + n * (0.12 + 0.1 * hairJ));
   float spark = 0.3 + 1.4 * clamp(0.5 + hairJ, 0.0, 1.0);
   // (HAIR_HEAD: the hair painted on a head's own mesh. Issue 123 took its lobes and the cards' to half, against lobes that
@@ -972,7 +989,7 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
   // colour the pigment lets through)
   { vec3 hT = normalize(vHairT), hFn = normalize(hV - hT * dot(hV, hT));
     reflectedLight.indirectDiffuse += hE * sqrt(hC2) * 0.03 * clamp((dot(hFn, hL) + 1.0) * 0.5, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - vHairRoot) * vHairK; }
-  float hRim = pow(1.0 - abs(dot(normal, hV)), 2.0), hThin = (1.0 - smoothstep(0.35, 1.0, hairA)) * hRim;
+  float hRim = pow(max(0.0, 1.0 - abs(dot(normal, hV))), 2.0), hThin = (1.0 - smoothstep(0.35, 1.0, hairA)) * hRim;
   // (light comes through thin strands only where nothing but the street is behind them: at the outline of the head of
   // hair. A card's own fringe inside it lies over more hair, and lit there it drew a white lace round every card of a
   // grey or brown head, issue 170)
@@ -1101,7 +1118,7 @@ ${street ? `  // (the street's light where the head is goes from a lamp's pool t
   const EXPOSURE = `
 vec3 xpN = normalize(normal);
 float xpKey = max(dot(xpN, normalize((viewMatrix * vec4(0.35, 0.85, 0.4, 0.0)).xyz)), 0.0);
-float xpRim = pow(1.0 - abs(dot(xpN, normalize(vViewPosition))), 3.0);
+float xpRim = pow(max(0.0, 1.0 - abs(dot(xpN, normalize(vViewPosition)))), 3.0);
 vec3 xpC = gl_FragColor.rgb + diffuseColor.rgb * (0.04 + 0.1 * xpKey) * uXpLift;
 float xpV = sqrt(max(dot(xpC, vec3(0.3, 0.59, 0.11)), 0.0));
 vec3 xpP = mix(vec3(0.26, 0.245, 0.225), vec3(1.0, 0.95, 0.86), smoothstep(-0.02, 0.95, xpV));
@@ -1219,6 +1236,22 @@ ${PAT_GLSL}`)
   const OPT = { clearArms: true };
   const HIP_OVER = 0.09; // (m: the hip joint over what a seated person sits on)
   let made = 0;
+  // One skeleton for a person (issue 191). SkeletonUtils.clone gives every skinned part its own Skeleton, even where the
+  // parts share one skin: a person's body, head and hair and the camera in the hand each computed the same bones a frame
+  // and sent them to the GPU in a texture of their own, 53 to 78 textures a frame on the walk and 190 at a Stop, each a
+  // texSubImage2D and four texParameteri (tools/gl_calls.js). Parts whose bones are the same bones with the same inverses
+  // are bound to the first one's skeleton: one update and one upload a person.
+  function oneSkeleton(model) {
+    const kept = [];
+    model.traverse(o => {
+      if (!o.isSkinnedMesh || !o.skeleton) return;
+      const s = o.skeleton, B = s.bones, I = s.boneInverses;
+      const k = kept.find(t => t !== s && t.bones.length === B.length && t.bones.every((b, i) => b === B[i]) && t.boneInverses.every((m, i) => m.equals(I[i])));
+      if (!k) { if (!kept.includes(s)) kept.push(s); return; }
+      o.bind(k, o.bindMatrix);
+      s.dispose();
+    });
+  }
   function person(lib, look) {
     if (!up) {
       up = new THREE.Vector3(0, 1, 0); tv = new THREE.Vector3(); tq = new THREE.Quaternion(); tq2 = new THREE.Quaternion(); hp = new THREE.Vector3();
@@ -1229,6 +1262,7 @@ ${PAT_GLSL}`)
     const T = lib.tpl[look.character], speeds = T.speeds || lib.info.ground_speed[T.pack];
     const alias = n => (T.bones && T.bones[n]) || n; // the old characters' bone names on a main character's rig
     const model = noCover(THREE.SkeletonUtils.clone(T.scene));
+    oneSkeleton(model);
     let mesh = null, head = null;
     const bone = {};
     model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; if (o.isBone) bone[o.name] = o; });
@@ -1346,9 +1380,12 @@ ${PAT_GLSL}`)
     // frame, and the rest of the clip (the legs, the other arm, the spine) is as it was. The clip's own turns are kept
     // (umbHold.clip) and put back before the mixer runs again (armBack): the mixer writes a bone only when its value
     // changes, so a turn left on would be the next frame's start, under a still clip or a held world
-    let umbHold = null, umbUp = false, umbLaid = false, armHeld = null, canopy = null, umbW = 1;
+    let umbHold = null, umbUp = false, umbLaid = false, armHeld = null, canopy = null, umbW = 1, umbRaise = 0;
     // (the umbrella leant away from a neighbour's, a little, at the wrist: rig.umbLean, in the body's own space)
     const umbLeanQ = new THREE.Quaternion(); let umbLeant = false;
+    // (the umbrella held higher, 0 to 1 of UMB_RAISE: lifted over someone's head as one passes under it, issue 157 item 7;
+    // the second pose is found once beside the first, umbHold.hi, and a frame blends the two, umbLay)
+    rig.umbRaise = k => { umbRaise = k > 0 ? Math.min(1, k) : 0; };
     rig.umbLean = (x, z) => {
       const a = Math.hypot(x, z);
       umbLeant = a > 1e-3 && !!umbHold;
@@ -1359,7 +1396,8 @@ ${PAT_GLSL}`)
       for (let k = 0; k < n; k++) {
         const b = H.bones[k];
         H.clip[k].copy(b.quaternion);
-        if (k === 2 && umbLeant) sq2.multiplyQuaternions(umbLeanQ, H.q[k]); else sq2.copy(H.q[k]);
+        sq2.copy(H.q[k]); if (umbRaise > 0 && H.hi) sq2.slerp(H.hi[k], umbRaise);
+        if (k === 2 && umbLeant) sq2.premultiply(umbLeanQ);
         if (umbW < 1) b.quaternion.slerp(sq2, umbW); else b.quaternion.copy(sq2);
       }
       umbLaid = true;
@@ -1741,7 +1779,7 @@ ${PAT_GLSL}`)
     // for the fist, rig.umbTune: tools/umbrella_held.js lays several side by side to be looked at)
     const refPose = [];
     model.traverse(o => { if (o.isBone) refPose.push([o, o.quaternion.clone(), o.position.clone()]); });
-    const makeHold = (t = UMB_FIST) => {
+    const makeHold = (t = UMB_FIST, lift = 0) => { // (lift: the grip that much higher, m, for umbHold.hi)
       const now = refPose.map(([b]) => [b.quaternion.clone(), b.position.clone()]);
       for (const [b, q, at] of refPose) { b.quaternion.copy(q); b.position.copy(at); }
       const a = arms[1], G = grip.WristR, fingers = [];
@@ -1751,6 +1789,7 @@ ${PAT_GLSL}`)
       const mw = model.matrixWorld, mq = model.getWorldQuaternion(new THREE.Quaternion()), ms = model.getWorldScale(V3(0, 0, 0)).y;
       const toW = v => v.clone().applyMatrix4(mw), dirW = v => v.clone().applyQuaternion(mq).normalize(), wq = b => b.getWorldQuaternion(new THREE.Quaternion());
       const H = umbrellaHold(ref.Head.pos), F = toW(H.grip), yT = dirW(H.dir);
+      if (lift) F.y += lift * ms;
       const S = a.ua.getWorldPosition(V3(0, 0, 0)), E0 = a.la.getWorldPosition(V3(0, 0, 0)), W0 = a.wr.getWorldPosition(V3(0, 0, 0));
       const L1 = S.distanceTo(E0), L2 = E0.distanceTo(W0), pole = dirW(V3(-0.5, -1, -0.3));
       // (the middle of the closed hand from the wrist, as the reference pose has the hand: t.x along the fingers, t.y
@@ -1798,8 +1837,10 @@ ${PAT_GLSL}`)
       if ((look.acc || []).includes('umbrella_open')) { accKey = ''; setAccessories(); } // (made with an umbrella already up: hung again, from the hand)
     };
     if (reaches && ref.Head) {
-      makeHold();
-      rig.umbTune = t => { armBack(); makeHold(Object.assign({}, UMB_FIST, t)); };
+      // (the hold, and the same hold with the grip UMB_RAISE higher: umbLay blends towards it by rig.umbRaise)
+      const holdBoth = t => { makeHold(t, UMB_RAISE); const hi = umbHold.q.map(q => q.clone()); makeHold(t); umbHold.hi = hi; };
+      holdBoth(UMB_FIST);
+      rig.umbTune = t => { armBack(); holdBoth(Object.assign({}, UMB_FIST, t)); };
     }
     // The mixer only writes a bone whose value has changed, so under a still clip a foot moved
     // here stays moved: put it back where the clip had it before measuring again (or standing up).
@@ -2575,7 +2616,13 @@ transformed = crowdPose(transformed, false);`);
         if (u !== !!r.umbOn) { r.umbOn = u; r.setLook({ acc: u ? [...(p.look.acc || []), 'umbrella_open'] : p.look.acc || null, clip: u ? null : p.look.clip || null }); } // (the phone put away while the umbrella's hand holds it up)
         if (u && r.umbOpen) r.umbOpen(ut);
         if (u && r.umbLean) { const c = Math.cos(Math.PI - p.h), s = Math.sin(Math.PI - p.h); r.umbLean(p.umbLx * c + p.umbLy * s, p.umbLx * s - p.umbLy * c); } // (the lean, from the world's plan into the body's own space)
+        // (held higher while its canopy's rim comes within a head's width of the player's head, where the crowd is centred
+        // this step: people passing under umbrellas lift one over the other's head. Up over 0.3 s, down over 0.5. A canopy went
+        // 7 cm into the player's head as a crossing walker passed; a step rule against it trapped walkers by the player and a
+        // lean of the canopy did not clear it. Issue 157 item 7)
+        if (r.umbRaise) { let want = 0; if (u && lastBegin) { const D = Math.hypot(p.rx + (p.ucx || 0) - lastBegin[0], p.ry + (p.ucy || 0) - lastBegin[1]); want = D < (p.umbR || 0) + 0.12 + 0.25 ? 1 : 0; } const k = 1 - Math.exp(-dtNow / (want > (p.umbUpT || 0) ? 0.3 : 0.5)); p.umbUpT = (p.umbUpT || 0) + (want - (p.umbUpT || 0)) * k; r.umbRaise(p.umbUpT); }
         unshow(p);
+        p.whole = true; // (drawn as a whole person: actors.js keeps two of them NEAR_BODY apart)
         r.root.visible = true; // (as hide(i, true) left it, a frame ago)
         r.root.position.set(p.rx, p.rz, -p.ry);
         r.root.rotation.y = Math.PI - p.h;
@@ -2586,7 +2633,7 @@ transformed = crowdPose(transformed, false);`);
         r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
         return;
       }
-      p.wave = false;
+      p.wave = false; p.whole = false;
       const sit = p.mode === 'sit';
       at.set(p.rx, p.rz - (sit ? p.thigh : 0), -p.ry);
       // out of sight by more than the longest shadow reaches back into it: not drawn (30 m: a sun 4 degrees up)
@@ -2627,6 +2674,7 @@ transformed = crowdPose(transformed, false);`);
     // for as long as they are near: giving their rig back and dressing another every frame is work for nothing)
     function hide(i, soft = false) {
       const p = P[i], m = p.mesh, was = m && p.slot < m.count;
+      p.whole = false;
       unshow(p);
       if (was && ended) { resend(m); m.userData.swapped = false; }
       if (p.umbF === frameNo && p.umbI >= 0) { // (its far umbrella, laid this frame: to nothing)
@@ -2684,7 +2732,7 @@ transformed = crowdPose(transformed, false);`);
       for (let i = 0; i < P.length; i++) {
         const p = P[i];
         if (p.line < 0 && !p.pz) continue;
-        if (p.rx == null || !shows(i) || p.mode === 'sit') continue;
+        if (p.rx == null || !Number.isFinite(p.rx) || !shows(i) || p.mode === 'sit') continue; // (a slot past the crowd's active count keeps its old instance and no place: not drawn as anyone)
         const d = camera ? Math.hypot(p.rx - camera.position.x, p.ry + camera.position.z, p.rz + 1 - camera.position.y) : 0;
         if (d > within) continue;
         const r = active.get(i), row = { i, near: !!r, d: +d.toFixed(2), x: +p.rx.toFixed(2), y: +p.ry.toFixed(2), wait: p.ph === 'wait' || !!p.lst, moving: (p.av ?? p.v ?? 0) > 0.15, up: +(p.umbT || 0).toFixed(2), line: p.line, pz: !!p.pz, lean: +Math.hypot(p.umbLx || 0, p.umbLy || 0).toFixed(3), character: r ? r.character : p.far || p.look.character };
@@ -2755,5 +2803,5 @@ transformed = crowdPose(transformed, false);`);
     return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) };
   }
 
-  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, opts: OPT };
+  return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, oldCamera, opts: OPT }; // (oldCamera: the camera of 1964, its materials shared by every copy hung on a rig, warmed ahead: game.js)
 })();

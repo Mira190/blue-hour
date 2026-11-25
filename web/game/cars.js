@@ -145,7 +145,7 @@ window.OECars = (function () {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 color;\nvarying float vAO;\nvarying vec3 vObjP;\nvarying vec3 vObjN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAO = color.r; vObjP = position; vObjN = normal;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vAO;\nuniform vec3 uLining;\nuniform float uLiningOn;\nuniform vec3 uFlip;\nuniform float uFlipOn;\nuniform float uWeave;\nuniform float uSky;\nvarying vec3 vObjP;\nvarying vec3 vObjN;')
-        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( (uLiningOn > 0.5 && !gl_FrontFacing ? uLining : mix(diffuse, uFlip, uFlipOn * pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 3.0))) * mix(1.0, vAO, 0.45), opacity );')
+        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( (uLiningOn > 0.5 && !gl_FrontFacing ? uLining : mix(diffuse, uFlip, uFlipOn * pow(max(0.0, 1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition)))), 3.0))) * mix(1.0, vAO, 0.45), opacity );')
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 if (uWeave > 0.0 && gl_FrontFacing) {
   vec3 wn = abs(normalize(vObjN));
@@ -154,7 +154,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
   float over = step(mod(wc.x + wc.y, 4.0), 1.5);                      // a 2x2 twill: this tow runs over, or under
   float along = over > 0.5 ? wf.x : wf.y;                             // the tow's round back across its width
   float tow = mix(0.55, 1.0, sin(along * 3.14159));
-  float seen = 1.0 - smoothstep(0.3, 0.8, max(fwidth(wg.x), fwidth(wg.y)));
+  float seen = 1.0 - smoothstep(0.15, 0.4, max(fwidth(wg.x), fwidth(wg.y))); // (gone before a tow is half a pixel, where it aliases: at 0.3 to 0.8 a phone's dense screen showed the twill a pixel a tow, as dark specks under the tail lights' glow)
   diffuseColor.rgb *= mix(1.0, (0.45 + 1.5 * over) * tow, seen);
   diffuseColor.rgb += vec3(0.012, 0.013, 0.015) * over * tow * seen;
   roughnessFactor = mix(roughnessFactor, roughnessFactor + 0.18 * (1.0 - over), seen);
@@ -304,7 +304,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       }
     }
     // the cabin, mirrored for left-hand drive, and the wheel turning on its column
-    let steering = null, q0 = null;
+    let steering = null, q0 = null, cabinRoot = null;
     const cab = M.cabin && lib.cars.scene.getObjectByName(M.cabin);
     if (cab) {
       const c = cab.clone(true);
@@ -315,7 +315,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         if (o.name === `${name}_Steering`) steering = o;
       });
       if (steering) q0 = steering.quaternion.clone();
-      body.add(c);
+      body.add(c); cabinRoot = c;
     }
     const seats = {};
     for (const [k, p] of Object.entries(M.seats || {})) seats[k] = new THREE.Vector3(p[0] * mirror, p[1], p[2]);
@@ -355,8 +355,87 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       }
       return roofs[key];
     }
+    // A far copy (issue 192): the whole model is some fifty meshes, a draw each, and a car with no lighter models of its
+    // own (the player's supercar has none in cars.glb) was drawn whole at any distance: 54 draws and 84,000 triangles in
+    // a phone's frame from 80 m, where it is twenty pixels wide. Past FAR_M from the view's camera (30 m on a phone, where the car is some sixty points wide) it is one mesh: the body
+    // and the wheels as they stand, without the cabin's inside, each part in its own material's colour, its vertices
+    // joined on a grid of GRID_M; it rides on the body, so it tilts and moves as the car does, and the lamps' glows stay.
+    // ?carfar=off: drawn whole, as before
+    // (two copies: joined on 5 cm from FAR_M, and on 15 cm from FAR2_M, where a pixel of a phone's screen is some 7 cm across)
+    const LEAN = !!(window.OEQuality && OEQuality.city && OEQuality.city().lean), FAR_M = LEAN ? 30 : 60, FAR2_M = LEAN ? 60 : 140, GRIDS = [0.05, 0.15];
+    const farOff = /[?&]carfar=off\b/.test(location.search);
+    const farMesh = [null, null]; let farMat = null, isFar = 0;
+    const detail = [];
+    g.traverse(o => { if (o.isMesh) detail.push(o); });
+    function makeFar(GRID_M) {
+      g.updateMatrixWorld(true);
+      const toBody = new THREE.Matrix4().copy(body.matrixWorld).invert(), m4 = new THREE.Matrix4(), n3 = new THREE.Matrix3(), v = new THREE.Vector3(), cl = new THREE.Color();
+      const P = [], N = [], C = [], X = [];
+      for (const o of detail) {
+        let inCab = false; for (let q = o; q; q = q.parent) if (q === cabinRoot) inCab = true;
+        if (inCab) continue;
+        const geo = o.geometry, pos = geo.attributes.position, nrm = geo.attributes.normal, mat = o.material;
+        if (!pos || !nrm || !mat || !mat.color) continue;
+        m4.multiplyMatrices(toBody, o.matrixWorld); n3.getNormalMatrix(m4);
+        cl.copy(mat.color); if (mat.transparent) cl.multiplyScalar(0.35); // (the glass as dark as it reads from outside)
+        if (mat.metalness) cl.multiplyScalar(1 - 0.7 * mat.metalness); // (a metal's colour is its reflection's, not its own: an alloy rim reads dark)
+        const base = P.length / 3;
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(m4); P.push(v.x, v.y, v.z);
+          v.fromBufferAttribute(nrm, i).applyMatrix3(n3).normalize(); N.push(v.x, v.y, v.z);
+          C.push(cl.r, cl.g, cl.b);
+        }
+        const idx = geo.index;
+        if (idx) for (let i = 0; i < idx.count; i++) X.push(base + idx.getX(i)); else for (let i = 0; i < pos.count; i++) X.push(base + i);
+      }
+      // the vertices joined on the grid: one vertex a cell, at the cell's mean, its normal and colour the cell's mean;
+      // a triangle whose corners fell in fewer than three cells is gone
+      const cell = new Map(), of = new Int32Array(P.length / 3), sum = [];
+      for (let i = 0; i < of.length; i++) {
+        const k = `${Math.round(P[3 * i] / GRID_M)},${Math.round(P[3 * i + 1] / GRID_M)},${Math.round(P[3 * i + 2] / GRID_M)}`;
+        let j = cell.get(k); if (j === undefined) { j = sum.length; cell.set(k, j); sum.push([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]); }
+        const q = sum[j]; for (let c = 0; c < 3; c++) { q[c] += P[3 * i + c]; q[3 + c] += N[3 * i + c]; q[6 + c] += C[3 * i + c]; } q[9]++;
+        of[i] = j;
+      }
+      const pos = new Float32Array(sum.length * 3), nor = new Float32Array(sum.length * 3), col = new Float32Array(sum.length * 3);
+      sum.forEach((q, j) => { const l = Math.hypot(q[3], q[4], q[5]) || 1; for (let c = 0; c < 3; c++) { pos[3 * j + c] = q[c] / q[9]; nor[3 * j + c] = q[3 + c] / l; col[3 * j + c] = q[6 + c] / q[9]; } });
+      const tri = [];
+      for (let t = 0; t + 2 < X.length; t += 3) { const a = of[X[t]], b = of[X[t + 1]], c = of[X[t + 2]]; if (a !== b && b !== c && a !== c) tri.push(a, b, c); }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setIndex(tri); geo.computeBoundingSphere();
+      own.push(geo);
+      const mat = farMat || (farMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.15 }));
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = mesh.receiveShadow = true; mesh.visible = false; mesh.name = `${name}_far`;
+      body.add(mesh);
+      return mesh;
+    }
+    // (decided where the view's camera draws it: a cube's camera, whose field of view is -90, or a shadow's, decides nothing)
+    const fv = new THREE.Vector3(), cp = new THREE.Vector3();
+    const judge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+    judge.frustumCulled = false; judge.castShadow = judge.receiveShadow = false; judge.name = `${name}_lod`;
+    judge.onBeforeRender = (r, sc, cam) => {
+      if (farOff || !cam || !cam.isPerspectiveCamera || !(cam.fov > 0)) return;
+      g.getWorldPosition(fv); cp.setFromMatrixPosition(cam.matrixWorld);
+      // (through a long lens, the story's finder at 22 to 40 degrees, the car is as large as if it were nearer: counted so)
+      const d = fv.distanceTo(cp) / Math.max(1, Math.min(3, 55 / cam.fov)), lv = l => (l === 1 ? FAR_M : FAR2_M), up = isFar < 2 && d > lv(isFar + 1) + 3, down = isFar > 0 && d < lv(isFar) - 3;
+      if (!up && !down) return;
+      const want = up ? (d > FAR2_M + 3 ? 2 : 1) : (d > FAR_M - 3 ? 1 : 0);
+      if (want === isFar) return;
+      if (want && !farMesh[want - 1]) farMesh[want - 1] = makeFar(GRIDS[want - 1]);
+      isFar = want;
+      for (const o of detail) o.visible = !want;
+      farMesh.forEach((m, k) => { if (m) m.visible = want === k + 1; });
+    };
+    g.add(judge);
+    // (made now, with the car: the warm-up that compiles a car before it is shown reaches hidden meshes too, game.js
+    // warmFor, so the far copy's program is ready before the first time it is drawn, not compiled in that frame)
+    let farMs = 0;
+    if (!farOff) { const t0 = performance.now(); farMesh[0] = makeFar(GRIDS[0]); farMesh[1] = makeFar(GRIDS[1]); farMs = performance.now() - t0; }
     let spin = 0, blink = 0, pitch = 0, roll = 0, pv = 0, ph = 0;
     const api = {
+      far: () => ({ far: isFar, triangles: farMesh.map(m => (m ? m.geometry.index.count / 3 : 0)), ms: Math.round(farMs) }), // (for the harnesses)
       group: g, body, name, info: M, half, hw, top: M.height_m, wheelbase: wb, seats, mats, lamp: null,
       // put it at (x, y, z) heading h, tilted by the ground under it (pitch: nose down, roll: left side up)
       place(x, y, z, h, gp = 0, gr = 0) {
@@ -458,6 +537,7 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         world.remove(g);
         for (const q of own) q.dispose();
         for (const m of new Set(Object.values(mats).concat(glows.map(q => q.material)))) m.dispose();
+        if (farMat) farMat.dispose(); judge.geometry.dispose(); judge.material.dispose();
       },
     };
     return api;
@@ -1283,10 +1363,12 @@ if (uWeave > 0.0 && gl_FrontFacing) {
     }
     const q = {}, q2 = {};
     const end = route.end !== false; // pull in at the end (a car driving off just runs out of road)
-    const kerbStart = kerbOf(P.pos(0, q2).c, q2.cw);
     // (kerbFit(x, y, hx, hy, k, keep): the kerb as the ground drawn there has it, where it is nearer the line than its
     // street's class says: a car pulls in beside the kerb, not over it onto a square's paving, #54)
     const pk = {}, fitKerb = (s, k) => { if (!kerbFit) return k; P.at(s, pk, 3); return kerbFit(pk.x, pk.y, pk.hx, pk.hy, k, keep); };
+    // (and sets off from it so: the story's car leaving Hachiko took the class's 6 m off a 14 m street's line as its start
+    // and slid 3.4 m sideways onto the pavement under the station, where the kerb drawn is 3.7 m off the line, issue 213)
+    const kerbStart = fitKerb(0, kerbOf(P.pos(0, q2).c, q2.cw));
     let kerbEnd = fitKerb(P.len, kerbOf(P.pos(P.len, q2).c, q2.cw));
     // the way it keeps off the centre line at s: the lane, easing in to the kerb at the end and out of it at the start
     // (the lane's place on each piece of road on the way: LANE off the line, or on it along a one-way
@@ -1683,15 +1765,19 @@ if (uWeave > 0.0 && gl_FrontFacing) {
       st.mutT = !dry && across && st.xMutual && st.v < 0.3 ? (st.mutT || 0) + dt : 0;
       if (st.mutT > 3) { st.mutT = -3; if (!backable() && makeWay) makeWay(st.x, st.y, st.z, st.h, C.half, C.hw); else st.backoff = 1.5; }
       // held up near the end for good (by a car that isn't moving off, not a light): stop here
+      // (never inside a junction's box: the car coming for you, held 4 s there by a car crossing within 30 m of the end,
+      // stopped in the box and waited there for you, the car it gave way to 0.6 m off its nose and the junction shut,
+      // and the ride check stood 40 minutes, #235. It waits out there what it would wait out anywhere, and pulls in after)
+      const inBox = !!st.mv && outAt < Infinity && st.s <= outAt;
       st.stall = st.v < 0.2 && room < 0.1 && carGap < line && !waiting ? st.stall + dt : 0; // (not in a queue for the lights)
-      if (end && st.stall > (atSignal(st.block) ? 25 : 8) && left < 45 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; }
+      if (end && !inBox && st.stall > (atSignal(st.block) ? 25 : 8) && left < 45 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; }
       // (held 4 s by people on its way within 30 m of the end, the pavement's edge where it pulls in: it stops there)
-      else if (end && !dry && forPerson && st.v < 0.2 && st.stall > 4 && left < 30) { endAt(st.s); left = 0; }
+      else if (end && !inBox && !dry && forPerson && st.v < 0.2 && st.stall > 4 && left < 30) { endAt(st.s); left = 0; }
       // and queued 8 s behind cars within 45 m of the end (a jam between it and you), it stops where
       // it is, as a driver picking you up does, and you walk the last few metres
       // (a queue held at a signal is waited out, not taken for a jam, unless it stands 25 s: Kyoto's taxi stopped 39 m
       // from you behind a car waiting for its green, #243)
-      else if (end && !dry && st.held > (atSignal(st.block) ? 25 : left < 30 ? 4 : 8) && left < 45 && carGap < line && carGap < 12 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; } // (not for a crowd crossing in front: that is waited out)
+      else if (end && !inBox && !dry && st.held > (atSignal(st.block) ? 25 : left < 30 ? 4 : 8) && left < 45 && carGap < line && carGap < 12 && !(st.block && st.block.walker)) { endAt(st.s); left = 0; } // (not for a crowd crossing in front: that is waited out)
       // (and within 30 m of the end, after 4 s: a driver that close to the fare stops where it is, rather than wait to go
       // round a car standing in the lane, Fushimi-inari's phoned ride 8 s late so, #264)
       // out round something stopped in the lane, and back in after it, at a crawl

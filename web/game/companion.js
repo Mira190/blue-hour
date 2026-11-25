@@ -94,7 +94,7 @@ window.OECompanion = (function () {
   // between them where there is room and round the edge of the crowd where there is not. Pushing off each one in turn
   // got him nowhere in a crowd shoulder to shoulder, and after a second he went through their coats
   const GRID = 0.35, BODY = 0.5, ROOM = 1.15, SPAN = 26;
-  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1, lean = false, eye = null }) {
+  function create({ url, world, W, ground, player, people = null, route = null, slide = null, stand = null, edge = null, wall = null, held = null, speeds = { walk: 0.95, trot: 2.3, run: 6 }, height = 1, lean = false, eye = null, warm = null }) {
     const RUN = speeds.run || speeds.trot * 2.6;
     const root = new THREE.Group();
     root.visible = false;
@@ -142,9 +142,10 @@ window.OECompanion = (function () {
       soles = solesOf(m); // (points of the skin by their vertices: the lean index draws the same ones)
       mixer = new THREE.AnimationMixer(m);
       for (const c of g.animations) acts[c.name] = mixer.clipAction(c);
-      s.ready = true;
-      play('idle', 0);
-      root.visible = s.state !== 'away';
+      // (warm: his programs compiled off the frame, whole and fading, before he is drawn: made at the Stop's guide beat, he
+      // was linked in its frames, issue 118; a compile that does not end in 6 s lets him come anyway)
+      const go = () => { if (s.ready) return; s.ready = true; play('idle', 0); root.visible = s.state !== 'away'; };
+      if (warm) Promise.race([api.warm(warm), new Promise(r => setTimeout(r, 6000))]).catch(() => {}).then(go); else go();
     }, null, e => console.warn('The guide\'s model did not load:', e));
     // A phone (lean): his body in the lighter index over the same vertices (pipeline/lod_index.mjs: 20,000 triangles of
     // 90,000, within a thousandth of his size), and the guard hairs' cards (31,500 triangles) drawn only within COAT_M
@@ -718,6 +719,10 @@ window.OECompanion = (function () {
       bone.quaternion.premultiply(q0).premultiply(q1).premultiply(q0.invert());
     }
     const api = {
+      // his faded programs compiled ahead (fn: a synchronous gather of the root's programs, game.js compileFor0): his coat
+      // is blended while he fades in (shade), a program of its own, two for a double-sided part, and they were linked in the
+      // frame he first came, the Stop's on a phone (issue 118). False while his model is still loading
+      warm(fn) { if (!mats.length) return null; shade(1); return Promise.resolve(fn(root)).then(() => { shade(0.5); return fn(root); }).catch(() => {}).then(() => shade(s.fade)); }, // (whole, then fading: each compile waited for, a sliced one runs over frames with the state it was given)
       get x() { return s.x; }, get y() { return s.y; }, get z() { return s.z; }, get state() { return s.state; }, get to() { return s.to; }, get ready() { return s.ready; }, get clip() { return cur; }, root,
       // (standing: on his feet, looking at you, and there already, not faded in: a film's first sight of him)
       place(x, y, h = 0, standing = false) { s.x = x; s.y = y; s.h = h; s.z = ground(x, y, player.z); s.state = standing ? 'stand' : 'sit'; s.t = 1; s.fade = standing ? 1 : 0; shade(s.fade); s.det = null; root.visible = s.ready; root.position.copy(W(x, y, s.z)); root.rotation.y = h; return api; },

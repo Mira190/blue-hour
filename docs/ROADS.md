@@ -197,6 +197,7 @@ footways and islands, and each piece's band at the width it now carries (magenta
 |---|---|---|---|
 | Project PLATEAU (MLIT Japan), Shibuya-ku road model 2025, `13113_tran_lod2`, as vector tiles from the catalogue at `api.plateauview.mlit.go.jp/datacatalog/plateau-datasets` (`pipeline/road_survey.py` → `cities/shibuya/road_surface.json`) | every public road cut into carriageway (車道部), junction (車道交差部), footway (歩道部) and island (島), from the 1:2,500 public survey (数値地形図, 公共測量成果): 29.3 ha of carriageway, 8.6 ha of junctions, 10.2 ha of footway over the phone's district | CC BY 4.0 | each piece's width |
 | OpenStreetMap, the API's map call over the planned area and the traffic's ring, fetched 23 November 2026 (`pipeline/bus_lines.py --fetch` → `cities/shibuya/bus_lines.json`) | 85 `route=bus` relations, each one's ways in the order it runs them (the public transport schema, version 2), with its number, operator and destination | ODbL | the bus lines |
+| Tokyo Metropolitan Government, Digital Twin project, 2023 ortho photographs at 0.20 m (sheets 09LD2659, 2669, 2750, 2760; `pipeline/fetch_tokyo_ortho.py`, laid under the ground by `tools/ortho_overlay.py`) | what is painted on the survey's carriageway, and whether an island is raised: the bus stand in front of Hachiko has none, it is one plain laid out in paint (`cities/shibuya/terminal_paint.json`, traced to within half a metre) | CC BY 4.0 (credited on the Credits screen) | the markings a hero level paints that neither PLATEAU's LOD2 nor OpenStreetMap carries |
 
 How others do it, and what was adopted:
 
@@ -693,8 +694,80 @@ were inside them (46 to 161 s) and one took 193 s, with the Scramble's red and t
 undisturbed drive can meet: a mean of 8 m/s between lines with a quarter in hand for queues to start, and a car that
 comes up to each scramble as its turn ends waits the rest of that cycle. The fourth start drives back across the
 Scramble, from Bunkamura-dori to Miyamasuzaka. `TRACE=1` prints
-each stand of a drive: where, how long, behind what, at which light. `DUMP=1 node tools/junction_flow.js` prints a
+each stand of a drive: where, how long, behind what, at which light; `CRAWL=1` with it every field of the cars round a
+stand, and every five seconds the head of the queue it stands in, the light that head waits on and the movements in
+both boxes. `tools/drive_repeat.sh n` plays the check's drives n times (`TIMES=` across hours: at one hour the plays
+differ little, ten at 17:57 gave five outcomes). `DUMP=1 node tools/junction_flow.js` prints a
 junction as built: arms, stop lines, ways across, which cross and where, and where footways cross its arms.
+
+**A queue held one junction back is the next one's** (issue 204). Junction 807, without signals, lies too close to the
+Scramble to wait between, and a car at its line crosses both together. It was counted in the Scramble's arm 1 queue
+only while the Scramble's light was red. On its green the head car turned right across the oncoming arm and gave way
+(`cross`), and from then on neither it nor the queue behind it counted: the Scramble read the arm as empty, cut the turn
+at its minimum, and the queue stood a whole cycle more (149 s in 3 of 15 plays of the check's first drive). `actors.js`
+`queuedFor()` now counts a car held at a line without signals for the signalled junction just after, whatever holds it
+but room, and the head car itself. On the Scramble at 17:57 the cross turn's green went from 13.3 s to 25.8 s, its arm 1
+seen queued in 3 greens of 4 (none of 5 before), the cycle 78 to 82 s, the main turn unchanged. The stand is 61 to 78 s
+now, once 150: the turner still waits outside the box, at 807's line, for a gap in a free-flowing oncoming stream,
+and cannot take the end of the green as a driver waiting in the box does (left on issue 204, with a lamp post at
+370.6,-971.9 that `tools/box_posts.js` finds in the carriageway at the Scramble's north exit, where a car of the
+north-south turn stood 8 s).
+
+**One of the Scramble's crowd in the road off the walk gives way as a crosser does** (issue 204). Asked to step aside
+by a car that has waited on it, one of the crowd strolling or waiting in the road was only given another spot behind
+its kerb: it edged on before the car's nose and the car waited on it 97 to 144 s (the roads check's drive back across
+the Scramble over its time in 2 or 3 of 8 plays). It now takes the crosser's sidestep (`sideT`) to the car's side, and
+one stranded deeper in the box than 4 m from pavement goes to the nearest kerb its crossings land at
+(`tools/box_stranded.js`). The drive back: 8 of 9 plays within time after, the one over (by 11 s) a different route
+behind a queue waiting on `cross`.
+
+## The traffic round the player: a ring
+
+Issue 204 (and 220's rule, compute spent where the player looks). Counted at Hachiko's kerb (362, -1012) at 17:57 for
+five minutes of the game's time at the real rate (`tools/traffic_near.js`), the traffic round the player was six to nine
+times sparser than the real Scramble: the nearest moving vehicle at a median of 60 m, one within 30 m in 28% of the
+samples, about 220 vehicles an hour into the Scramble's box, where Shibuya ward's 2017 count has about 1,900 at a
+weekday peak, 50 to 65 a signal cycle. The 200 cars were spread over the whole ring of 550 m, 0.95 km², and steering
+them (a branch routed three in five through the player and put half of them back within 120 m) moved nothing beyond
+the count's noise. What an open world does instead is hold its population by distance to the player:
+
+- **The ring.** The traffic is held within `game.crowd.cars_ring_m` (280 m) of the player on foot, a third wider at the
+  wheel, and the whole of `radius_m` + 100 from the helicopter, whose eye takes in the map (`game.js` `trafficRing`,
+  `actors.js` `ringStep`, `outRing`). A car past the ring by a seventh leaves it only where nobody sees it go (the
+  crowd's `seen()`, sight through the buildings included, looked at every eighth frame), and comes back inside the ring
+  out of sight, as before (`respawn`: 0.48 to 1 times the ring off and never within 125 m, `MADE_NEAR`, nor where the camera sees). Past the widest ring
+  it leaves whatever the eye sees, as before. The far map holds no cars at all.
+- **The count by the hour.** `game.crowd.cars` (200) is the peak's count; `cars_hours` the share of it out by the hour
+  (the evening peak whole, the small hours a quarter: an estimate in the shape of a weekday on central Tokyo's
+  arterials); times the density setting and the frame governor's share (`game.js` `trafficWant`). More come at once,
+  each out of sight; fewer leave from the list's end, each only once out of sight (`api.want`); a cut, `api.fresh`.
+- **The count by the tier.** A phone has 0.65 of the slots (`CARS_PHONE`, 130).
+
+Measured, a desktop's page, five minutes from 17:57 (main against the ring tried at 240 cars within 240 m, and as landed,
+200 within 280 m):
+
+| | Main | 240 in 240 m | 200 in 280 m |
+|---|---|---|---|
+| Cars on the streets | 200 within 550 m | 239 within 240 m | 200 within 280 m |
+| Within 60 m of you, on average | 10.1 | 10.3 | 10.9 |
+| Within 120 m | 22.8 | 40.6 | 25.1 |
+| Within 100 m (`tools/traffic_feed.js`), and standing | 12.0, 70% (at the light 3.6, behind a car 2.1) | 29.2, 76% (behind a car 13.2, at the light 4.6) | |
+| The nearest moving: median, 90% within; one within 30 m | 60 m, 108 m; 28% | 56 m, 84 m; 28% | 61 m, 137 m; 21% |
+| Into the Scramble's box an hour | 216 | 300 | 228 |
+| The traffic's step a frame (`tools/crowd_cost.js`, self time, this machine) | 3.3 ms | 4.5 ms | |
+
+What the ring shows: the streets round the Scramble now hold their real queues, every arm full back past the next
+junction, and moving cars within 100 m double (3.6 to 7.0). The Scramble's own count is no longer the count's to raise:
+its arms are full and it passes what its greens let through, 1.7 to 5 vehicles a green at headways of 5 to 9 s
+(`tools/junction_flow.js`, 4 minutes from 17:57: 175, 105, 58 and 122 an hour on its four arms in, the head car
+standing for a way across its own: "cross by" 7 to 17 s of a green). A real stop line discharges at about 2 s a
+vehicle. That is the junction's capacity (above), the next lever for 1,900 an hour (issue 224).
+
+Why it landed at 200 within 280 m: at 240 within 240 m the queues at Hachiko's kerb held the story's ride still, and its
+cut on (`rides.js` `skipRide`, `setDown`: the furthest clear point short of the stop) set it down 8 m short, a rail
+between its door and the pavement (`tools/ride_people.js`, issue 208's check); once its pickup was never boarded. The
+ring and the count by the hour and the tier are the mechanism; the count is raised once the Scramble discharges at a
+real stop line's rate, and its queues no longer spill back onto the story's kerbs.
 
 ## Not done, and why
 

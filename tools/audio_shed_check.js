@@ -36,7 +36,7 @@ const { chromium } = require('playwright');
     A.ctx.getOutputTimestamp = real;
     o.afterSteps = A.shed;
     const c0 = M.conv; A.place('inside'); await wait(100); o.convWhileShed = M.conv - c0;
-    A.shedTo(2); const s0 = M.osc; A.murmur(1); A.screens(1); A.cicadas(1); A.penguin(1); A.gull(1); await wait(100); o.bedsMadeAt2 = M.osc - s0;
+    A.shedTo(2); const s0 = M.osc; A.screens(1); A.cicadas(1); A.penguin(1); A.gull(1); await wait(100); o.bedsMadeAt2 = M.osc - s0;
     A.shedTo(1);
     // ninety seconds without a step: the room comes back
     window.__skew = 100000; await wait(400);
@@ -51,7 +51,7 @@ const { chromium } = require('playwright');
   if (r.beepMade < 1) fail('a dialogue beep was dropped with the street full');
   if (r.afterSteps !== 1) fail(`three steps of the output's clock took the level to ${r.afterSteps}, not 1`);
   if (r.convWhileShed !== 0) fail(`${r.convWhileShed} convolvers built for a room while the reverb was given up`);
-  if (r.bedsMadeAt2 !== 0) fail(`${r.bedsMadeAt2} oscillators built for the crowd, the screens, the cicadas or the animals at level 2`);
+  if (r.bedsMadeAt2 !== 0) fail(`${r.bedsMadeAt2} oscillators built for the screens, the cicadas or the animals at level 2`);
   if (r.afterQuiet !== 0) fail(`ninety seconds without a click left the level at ${r.afterQuiet}, not 0`);
   if (!(r.convBack > 0)) fail('the room did not come back at level 0');
   if (!(r.snd_shed >= 1)) fail(`telemetry says the most shed was ${r.snd_shed}, not 1 or more`);

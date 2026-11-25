@@ -192,11 +192,12 @@ window.OEInland = (function () {
         const dk = inDeck ? (inDeck.at(x, y) > 127 ? 1 : -1) * dD[k] / QD : -SDF_BAND * 2;
         px[k] = Math.max(0, Math.min(255, Math.round(128 + SDF_K * Math.min(w + HOLE_PAD, -dk))));
       }
-      // On a phone the mask goes to the GPU at half the size, each texel the mean of four (issue 130): it is a distance,
-      // which filtered follows a straight wall as closely from metre to metre as from half metre to half metre, and
-      // over Shibuya's channels' box it was 3345 x 1891 texels, 6.3 MB, for a few strips of water. The raster walking
-      // and the terrain read (inWalled) is as it was. ?holemask=full: whole, to set beside.
-      const QC = window.OEQuality && OEQuality.city ? OEQuality.city() : null, half = !!(QC && QC.lean) && !/[?&]holemask=full\b/.test(location.search);
+      // The mask goes to the GPU at half the size, each texel the mean of four (issue 130, on a phone; issue 118, everywhere):
+      // it is a distance, which filtered follows a straight wall as closely from metre to metre as from half metre to half
+      // metre, and over Shibuya's channels' box it was 4096 x 2849 texels, 11 MB, for a few strips of water, sent in the
+      // draw that first showed them (the Stop's shot, on the governor's phone tier). The raster walking and the terrain read
+      // (inWalled) is as it was. ?holemask=full: whole, to set beside.
+      const half = !/[?&]holemask=full\b/.test(location.search);
       let tw = nx, th = ny, tp = px;
       if (half) {
         tw = Math.ceil(nx / 2); th = Math.ceil(ny / 2); tp = new Uint8Array(tw * th);
@@ -455,6 +456,7 @@ window.OEInland = (function () {
       }
       // the walls, copings, rails and beds of every body, a draw a material (batch.js): each body's still culled by itself
       if (window.OEBatch) OEBatch.merge(group, { skip: o => /water|foam|glints/.test(o.name), name: (m, o) => o.name });
+      if (window.OEVis) OEVis.gateAll(group); // (hidden while the street wall hides it: 9 of a phone's draws at the Scramble, issue 192)
       return { group, length };
     }
 

@@ -91,6 +91,10 @@ def check(city):
         if f["iou"] < 0.97 or f["kerb_within_1_75"] < 0.97 or f["plan_on_survey_walk_m2"] > 0.01 * max(f["plan_m2"], 1) or moved > 5.0:
             bad.append(f"{h['id']}: its carriageway as built is not the survey's now: overlap {f['iou']}, {int(f['kerb_within_1_75'] * 100)} % of the kerb within "
                        f"{ACCURACY_M} m, {f['plan_on_survey_walk_m2']} m2 of it on a surveyed footway, {moved:.0f} m2 apart ({build})")
+        # (its posts, which the walking grid and the traffic stand off, are the lamps it drew: none in a carriageway)
+        for q in h.get("posts") or []:
+            if built.buffer(-0.2).contains(Point(*q)):
+                bad.append(f"{h['id']}: a post at {q[0]:.1f}, {q[1]:.1f} stands in its carriageway (game.hero posts: the build writes them, then pipeline/game_text.py)")
         edge = built.boundary
         for w in rec[key]["walks"]:
             for e in (w[0:2], w[2:4]):

@@ -61,6 +61,7 @@ TEX = {
     "paint": ("OEPaint002", 2.4),       # thermoplastic road paint (drawn here)
     "tact_bar": ("OETactileBar", 0.3),  # a 30 cm guide block: four bars (drawn here, JIS T 9251's pattern)
     "tact_dot": ("OETactileDot", 0.3),  # a 30 cm warning block: five by five domes
+    "grass": ("Grass004", 2.6),         # a bed's clipped lawn (issue 213)
 }
 
 
@@ -71,6 +72,7 @@ def materials():
         "ground_kerb": {"tex": "granite", "tint": (0.7, 0.69, 0.68), "maps": "cn"},
         "ground_paint": {"tex": "paint", "tint": (0.92, 0.92, 0.9)},
         "ground_paver": {"tex": "paver", "tint": (0.7, 0.7, 0.7)},
+        "ground_bed": {"tex": "grass"},  # (its tone below: the 2023 orthophoto's, issue 213)  # a bed's clipped lawn (issue 213: OpenStreetMap's landuse=grass)
         "ground_sett": {"tex": "plaza"},                 # Hachiko Square's blocks, drawn in their own colour (scramble_tex.plaza)
         "ground_tact_bar": {"tex": "tact_bar", "maps": "cn", "rough": 0.7},
         "ground_tact_dot": {"tex": "tact_dot", "maps": "cn", "rough": 0.7},
@@ -488,6 +490,7 @@ class Level:
         walks = S.crosswalk_list(D)
         centre = np.mean([np.asarray(c["a"]) + np.asarray(c["b"]) for c in walks], axis=0) / 2
         bands = S.road_bands(D)
+        stand = self.stand()
         for cw in walks + self.plan.zebras:
             for p, q in S.walk_bars(cw):
                 self.paint(p, q, S.BAR, step=2.4)
@@ -502,9 +505,12 @@ class Level:
                     cc = c0 + o * dd
                     if not (bands.contains(Point(*cc).buffer(1.0)) and self.disc.contains(Point(*cc).buffer(2.6))):
                         continue
+                    if stand is not None and stand.intersects(Point(*cc).buffer(2.5)):
+                        continue                                      # (none in the bus stand, which the photo has bare)
                     pts = [cc + o * 2.5, cc + left * 0.75, cc - o * 2.5, cc - left * 0.75]
                     for j in range(4):
                         self.paint(pts[j], pts[(j + 1) % 4], 0.2)
+        self.traced_paint()
         # centre lines on the two-way streets, up to the stop lines (none through the junction)
         keep_out = self.junction.buffer(S.STOP_BACK + 1.0).union(self.walks.buffer(S.STOP_BACK + 1.0))
         inner = self.roads.buffer(-2.5)
@@ -530,12 +536,99 @@ class Level:
                         self.paint(P.xy(d, 0.0), P.xy(d + 5.0, 0.0), 0.15)
                         d += 10.0
 
+    def traced(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "terminal_paint.json")
+        return json.load(open(path)) if os.path.exists(path) else {}
+
+    def stand(self):
+        """Where the buses stand in front of Hachiko: the U of solid line closed by the diagonal (terminal_paint.json)."""
+        from shapely.geometry import Polygon
+        sol = self.traced().get("solid") or []
+        if len(sol) < 2:
+            return None
+        return Polygon(sol[0] + sol[1][::-1]).buffer(0)
+
+    def traced_paint(self):
+        """The bus stand in front of Hachiko as the 2023 orthophoto has it (cities/shibuya/terminal_paint.json):
+        one asphalt plain laid out in paint, solid lines round where the buses stand, a dotted lane edge, a hatched
+        wedge. Without it the stand read as a dead end of bare asphalt (issue 213)."""
+        from shapely.geometry import LineString, Polygon
+        T = self.traced()
+        for co in T.get("solid", []):
+            for a, b in zip(co[:-1], co[1:]):
+                self.paint(np.asarray(a, float), np.asarray(b, float), 0.15)
+        for co in T.get("dotted", []):                   # the bay edge: dashes 0.5 m long every 1.1 m, 0.2 m wide
+            P = LineString(co)
+            d = 0.0
+            while d + 0.5 <= P.length:
+                p, q = P.interpolate(d), P.interpolate(d + 0.5)
+                self.paint(np.array([p.x, p.y]), np.array([q.x, q.y]), 0.2)
+                d += 1.1
+        for ring in T.get("hatched", []):                # an outline and stripes at 45 degrees, 0.45 m every 1.5 m
+            poly = Polygon(ring)
+            co = np.asarray(poly.exterior.coords)
+            for a, b in zip(co[:-1], co[1:]):
+                self.paint(a, b, 0.15)
+            x0, y0, x1, y1 = poly.bounds
+            span = (x1 - x0) + (y1 - y0)
+            c = x0 - (y1 - y0)
+            while c < x1:
+                line = LineString([(c, y0), (c + span, y0 + span)]).intersection(poly.buffer(-0.1))
+                for seg in self.lines(line):
+                    self.paint(seg[0], seg[-1], 0.45)
+                c += 1.5 * np.sqrt(2)
+
     # -- the pavements
+    def beds(self):
+        """The planted beds OpenStreetMap maps in the paving (landuse=grass: beside A5a and along Dogenzaka-shita's
+        footways; their outlines confirmed on Tokyo's 2023 orthophoto, issue 213): each cut from the paving, a granite
+        edge 0.12 m wide and 0.14 m high round a clipped lawn 4 cm under it, and its edge a fence to a walker
+        (meta rounds, every 0.35 m). What grows in them waits on a photograph."""
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
+        out = []
+        # (not on Hachiko Square, whose landmark builds its own planters and bed: city.py; OpenStreetMap's are traced from
+        # the air and lie off them)
+        square = Polygon(_city().HACHIKO_SQUARE).buffer(1.0)
+        for w in self.D.ways:
+            if w["tags"].get("landuse") not in ("grass", "flowerbed", "planter") or len(w["xy"]) < 4:
+                continue
+            g = Polygon(w["xy"]).buffer(0)
+            if g.intersects(square):
+                continue
+            g = g.intersection(self.pave).intersection(self.disc)
+            for q in getattr(g, "geoms", [g]):
+                if q.geom_type == "Polygon" and q.area > 0.8:
+                    out.append(q)
+        self.bed_polys = out
+        self.bed_rounds = []
+        if not out:
+            return None
+        X, top, E = self.X, LIFT + 0.14, 0.12
+        for q in out:
+            inner = q.buffer(-E)
+            X.cover("ground_kerb", q.difference(inner).buffer(0), top, cell=1.0, uvk=1.0 / TEX["granite"][1])
+            if not inner.is_empty:
+                X.cover("ground_bed", inner, top - 0.04, cell=1.0, uvk=1.0 / TEX["grass"][1])
+            co = np.asarray(q.exterior.coords)
+            if Polygon(co).exterior.is_ccw is False:
+                co = co[::-1]
+            for a, b in zip(co[:-1], co[1:]):       # the edge's outer face, from the paving up to its top
+                if np.linalg.norm(b - a) < 0.02:
+                    continue
+                self.geo.quad("ground_kerb", self.Gp(*b, LIFT), self.Gp(*a, LIFT), self.Gp(*a, top), self.Gp(*b, top))
+            L = q.exterior.length
+            n = max(3, int(L / 0.35))
+            self.bed_rounds += [[round(p.x, 2), round(p.y, 2), 0.2] for p in (q.exterior.interpolate(i * L / n) for i in range(n))]
+        return unary_union(out)
+
     def pavements(self):
         X, A = self.X, self.A
         plaza = self.box(PLAZA[0], PLAZA[1], PLAZA[2], PLAZA[3])
-        X.cover("ground_sett", self.pave.intersection(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / self.K.TEXTURES["plaza"][1])
-        X.cover("ground_paver", self.pave.difference(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / TEX["paver"][1])
+        bed = self.beds()
+        pave = self.pave.difference(bed).buffer(0) if bed is not None else self.pave
+        X.cover("ground_sett", pave.intersection(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / self.K.TEXTURES["plaza"][1])
+        X.cover("ground_paver", pave.difference(plaza).buffer(0), LIFT + 0.01, cell=2.0, uvk=1.0 / TEX["paver"][1])
         self.geo.walls += [(np.asarray(a), np.asarray(b), self.T(*a), self.T(*a) + 4.0) for poly in getattr(self.solids, "geoms", [self.solids])
                            for a, b in zip(list(poly.exterior.coords)[:-1], list(poly.exterior.coords)[1:]) if np.linalg.norm(np.subtract(a, b)) > 1.0]
         # a cast-iron grate round each tree that stands in the paving (OpenStreetMap's trees)
@@ -599,8 +692,15 @@ class Level:
         """Tall tapered steel posts with a flat LED head out over the road (the square's and the junction's own, from
         photographs), on the pavement 0.9 m behind the kerb, about 26 m apart; their light is the bake's."""
         from shapely.geometry import Point
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
         centre, R = np.asarray(self.centre), self.r
         placed = []
+        # (none under what is raised over the ground lower than the post: the station over the west exit's roads has its
+        # underside at 3.9 m, and once the level's plan stopped counting it as standing (issue 213) a 9 m post stood
+        # through it, in the way frame 6's car leaves its stop)
+        over = unary_union([Polygon(s["ring"]).buffer(0) for s in self.D.solids
+                            if len(s["ring"]) >= 3 and 2.5 <= s.get("base", 0) < 10.0]).buffer(2.0)
         for co in self.lines(self.roads.buffer(KERB_M + 0.9).boundary.intersection(self.pave)):
             P = HP.Path(np.c_[co, np.zeros(len(co))])
             d = 6.0
@@ -609,7 +709,7 @@ class Level:
                 q = q[:2]
                 to_road = r if self.roads.contains(Point(*(q + r * 1.5))) else -r
                 if (np.linalg.norm(q - centre) < R - 8 and not self.walks.buffer(1.5).contains(Point(*q)) and self.solids.distance(Point(*q)) > 1.2
-                        and all(np.linalg.norm(q - p) > 20 for p in placed)
+                        and all(np.linalg.norm(q - p) > 20 for p in placed) and not over.contains(Point(*q))
                         and self.plan.footways.distance(Point(*q)) > 1.0 and not self.plan.mouths.contains(Point(*q))):   # (never in a walker's way)
                     placed.append(q)
                     PT.lamp_post(self.geo, q, math.atan2(to_road[1], to_road[0]), self.T(*q) + LIFT + 0.01, h=9.0, arms=((1.9, 8.6),),
@@ -1005,7 +1105,9 @@ def build(K):
     M = materials()
     # the pavements, the square, kerbs and gutters in close tones of one grey family (AGENTS.md, "The bar"): each
     # texture brought to its tone by its own mean, so that a yellowish block ends as a grey
-    for mat, key, srgb in (("ground_paver", "paver", (150, 150, 148)),
+    # (the beds' lawn: the median of their pixels in Tokyo's 2023 orthophoto against the paving round them, in linear
+    # light, 1.04 / 1.06 / 0.83 of the paving's: as bright as it, a little yellow-green; issue 213)
+    for mat, key, srgb in (("ground_paver", "paver", (150, 150, 148)), ("ground_bed", "grass", (153, 154, 136)),
                            ("ground_kerb", "granite", (160, 160, 158)), ("ground_gutter", "conc", (152, 152, 150)),
                            ("wall_white", "tile", (192, 192, 188)), ("wall_cream", "tile", (190, 180, 164)), ("wall_grey", "clad", (158, 160, 162)),
                            ("wall_clad", "clad", (176, 180, 184)), ("wall_char", "clad", (62, 64, 68))):
@@ -1016,5 +1118,6 @@ def build(K):
     # (web/game/nav.js lift), and the lamp posts, which are solid (game.js)
     meta["lift"] = LIFT + 0.01
     meta["posts"] = [[round(float(q[0]), 1), round(float(q[1]), 1)] for q in L.lamp_at]
+    meta["bed_rounds"] = L.bed_rounds          # (into city.json's rounds beside the planters: blender/build_hero.py)
     print("game.hero:", json.dumps({"lift": meta["lift"], "posts": meta["posts"]}))
     return geo, atlas, M, meta

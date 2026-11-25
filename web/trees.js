@@ -147,7 +147,7 @@ if (vLit > 0.0) {
   totalEmissiveRadiance += diffuseColor.rgb * uYozCol * vLit * under * fall;
 }`);
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uBarkBands; varying float vAO; varying float vCell; varying float vTurn; varying vec3 vLocal; uniform float uAutumn; uniform vec3 uFall[ATLAS_CELLS];')
+        .replace('#include <common>', '#include <common>\n#define OE_AREA_OCC (vAO * vAO)\nuniform float uBarkBands; varying float vAO; varying float vCell; varying float vTurn; varying vec3 vLocal; uniform float uAutumn; uniform vec3 uFall[ATLAS_CELLS];')
         .replace('#include <map_fragment>', `#include <map_fragment>
 #if defined(LEAVES) && defined(USE_MAP)
 // a leaf card's alpha, averaged down the mip chain, falls under the cut-out threshold and thin leaves (a
@@ -363,6 +363,7 @@ if (uAutumn > 0.0) { float l = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); int
         // for nothing (on Hong Kong's wooded hill they are half the trees' triangles), so they cast none
         im.castShadow = lod < 2; im.receiveShadow = true;
         im.frustumCulled = false;
+        im.userData.oeTree = true; // (a tree stands where it stands: the rain's cover map keeps it with the still things, weather.js sortCover)
         im.count = 0;
         world.add(im);
         out.push(im);
@@ -521,6 +522,7 @@ vec3 nonPerturbedNormal = normal;`)
         m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count[k] * 3), 3);
         m.castShadow = false; m.receiveShadow = true; m.frustumCulled = false; m.count = 0; m.name = `${names[k]}-far`;
+        m.userData.oeNoOcc = true; // (200 m and more away, past the rain's cover map, which is 80 m across: not drawn into it)
         world.add(m);
         for (const h of meshes[k][2]) { h.count = 0; h.visible = false; }
         meshes[k][2] = [m];

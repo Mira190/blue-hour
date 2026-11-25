@@ -7,7 +7,8 @@
 //   wall        the car's body is in a building's solid
 // A leg's pieces are counted as it passes them, so most legs drive several.
 //   xvfb-run -a node tools/road_drive.js shibuya [radius=320]        (MINUTES=40 of the game's time at most; LOG=1)
-// TRACE=1 prints each stand of a drive (when, where, how long, why, and the light it stood at); TIMED=1 fails a drive
+// TRACE=1 prints each stand of a drive (when, where, how long, why, and the light it stood at); CRAWL=1 with it every
+// field of the cars within 12 m forty and eighty seconds into a stand; TIMED=1 fails a drive
 // that takes longer than its road at 6 m/s and one cycle of each scramble on its way, or than its start's own figure
 // ("x,y@180") (issue 175).
 // An errand's drive instead: TO=x,y FROM="x,y;x,y;x,y" drives from each start (the car brought to the kerb there, as
@@ -50,7 +51,7 @@ function seatAt(at) {
 }
 
 // (in the page) one stretch of a drive: up to `secs` of the game's time, or to the leg's end. Returns what happened.
-function driveFor({ secs, mark }) {
+function driveFor({ secs, mark, crawl }) {
   const g = window.__game, car = g.myCar(), st = car.D.st, L = g.roadNet.L, HALF = { motorway: 7, trunk: 6, primary: 6, secondary: 5, tertiary: 4.5, residential: 3.5, unclassified: 3 };
   const S = window.__drive || (window.__drive = { stood: 0, t: 0, seen: {}, bad: [] });
   const out = { done: null };
@@ -61,6 +62,23 @@ function driveFor({ secs, mark }) {
     { const o = g.pilot(); if (o) { const d = o.drv.st, bl = d.block; S.last = `${o.join ? 'joining ' + (o.joinWhy || '') : d.why || '?'}${o.turn ? ' turning' : ''} stood ${(o.stoodT || 0).toFixed(0)} s, crawl ${o.crawl ? o.crawl.t.toFixed(0) : 0} s, at ${st.x.toFixed(0)},${st.y.toFixed(0)}${bl ? `, behind ${bl.walker ? 'a person' : g.cars.C.includes(bl) ? (() => { const ch = []; for (let q = bl, n = 0; q && n < 6; n++) { const i = g.cars.C.indexOf(q); if (i < 0) { ch.push(q === car.C ? 'MY CAR' : 'other'); break; } ch.push(`car ${i}${q.bus ? ' (bus)' : ''}${q.park ? ' parked' : ''} at ${q.x.toFixed(0)},${q.y.toFixed(0)} v ${(q.v || 0).toFixed(1)} ${q.why || ''}${q.heldBy ? '/' + q.heldBy : ''}${q.mv ? ' in j' + q.mv.j.id : q.lineArm ? ' at j' + q.lineArm.j.id : ''}`); q = q.front; } return ch.join(' < '); })() : bl.id || 'something'}` : ''}`; } }
     S.t += 0.5;
     S.stood = st.speed < 0.3 ? S.stood + 0.5 : 0;
+    if (crawl && S.stood >= 20 && S.stood % 5 === 0) { // (CRAWL=1: every 5 s of a stand, the car it stands behind, the head of that queue, and the light that head waits on: phase, queues, skips)
+      const C = g.cars.C, d = g.pilot() && g.pilot().drv.st; let h = d && d.block;
+      for (let n = 0; n < 12 && h && h.front && C.includes(h.front) && h.front !== d.block; n++) h = h.front;
+      if (h && C.includes(h)) {
+        const J = g.junctions, sig = j => !j ? '-' : `j${j.id}${j.scramble ? ' scr' : ''} ph ${j.ph}${j.st} t ${(+j.t).toFixed(1)} nxt ${j.nxt} gEnd ${j.gEnd != null ? (+j.gEnd).toFixed(1) : '-'} gNow ${j.gNow != null ? (+j.gNow).toFixed(1) : '-'} cut ${j.cut != null ? (+j.cut).toFixed(1) : '-'} missed ${j.missed} urged ${j.urged != null} coQ ${j.coQ ? j.coQ.join(':') : '-'} arms ${(j.arms || []).filter(a => a.in).map(a => `${a.i}:p${a.phase} qn${a.qn || 0}${a.qnX ? '+' + a.qnX : ''}${a.full ? ' full' : ''}`).join(' ')}`;
+        const ex = (a, e) => a && e ? `j${a.j.id} arm ${a.i}>${e.m.i} turn ${(+e.turn).toFixed(2)} light ${J.light(a, e)}` : '-';
+        const mvs = j => !j ? '' : ` [j${j.id} in the box: ${(j.active || []).map(o => `${o.c === d ? 'MY CAR' : 'car ' + C.indexOf(o.c)} ${o.k}>${o.m} at ${Math.round(o.c.x)},${Math.round(o.c.y)} v ${(o.c.v || 0).toFixed(1)} ${o.c.why || ''}${o.c.front ? ' front ' + (C.includes(o.c.front) ? C.indexOf(o.c.front) : 'other') : ''} still ${(o.c.still || 0).toFixed(0)} in at ${(+o.t).toFixed(0)}${o.forced ? ' FORCED' : ''}${o.c.why === 'person' && o.c.who >= 0 && g.crowd.P[o.c.who] ? (w => ` [held by walker ${o.c.who}: ${w.state || ''} ${w.ph || ''} line ${w.line}${w.pz ? ' pz' : ''} at ${w.x.toFixed(1)},${w.y.toFixed(1)} v ${(w.v || 0).toFixed(1)} roadT ${(w.roadT || 0).toFixed(0)} sTries ${w.sTries || 0} pause ${(w.pause || 0).toFixed(1)} kerbNext ${!!w.kerbNext} still ${(w.still || 0).toFixed(0)} in road ${g.nav.carriageway ? g.nav.carriageway(w.x, w.y) : '?'}]`)(g.crowd.P[o.c.who]) : ''}${o.c.mv0 ? ' (also j' + o.c.mv0.j.id + ')' : ''}`).join('; ')}; waiting: ${(j.pend || []).map(o => `${o.c === d ? 'MY CAR' : 'car ' + C.indexOf(o.c)} ${o.k}>${o.m} ${o.c.why || ''} since ${(+o.since).toFixed(0)}`).join('; ')}]`;
+        (S.detail || (S.detail = [])).push(`   at ${S.t} s, stood ${S.stood} s: head car ${C.indexOf(h)} v ${(h.v || 0).toFixed(1)} ${h.why} still ${(h.still || 0).toFixed(0)} toLine ${h.toLine != null ? (+h.toLine).toFixed(1) : '-'} at ${ex(h.lineArm, h.lineEx)} then ${h.ex2 ? ex(h.ex2.a, h.ex2.e) : '-'} | ${sig(h.lineArm && h.lineArm.j)} | ${h.ex2 && h.ex2.a ? sig(h.ex2.a.j) : ''}${h.why === 'cross' || h.why === 'turn' ? mvs(h.lineArm && h.lineArm.j) + (h.ex2 && h.ex2.a ? mvs(h.ex2.a.j) : '') : ''}`);
+      }
+    }
+    if (crawl && (S.stood === 40 || S.stood === 80)) { // (CRAWL=1: forty and eighty seconds into a stand, every field of each car within 12 m: what it reads and what it is, issue 204)
+      const C = g.cars.C, d = g.pilot() && g.pilot().drv.st, name = q => !q ? 'null' : q === d ? 'MY CAR' : q === car.C ? 'MY CAR(C)' : C.includes(q) ? 'car ' + C.indexOf(q) : q.walker ? 'walker' : q.id || 'obj';
+      const snap = q => Object.keys(q).filter(k => q[k] !== undefined && typeof q[k] !== 'function').map(k => { const v = q[k]; return `${k}=${v === null ? 'null' : typeof v === 'number' ? +v.toFixed(2) : typeof v !== 'object' ? v : C.includes(v) || v === d || v === car.C ? name(v) : Array.isArray(v) ? '[' + v.slice(0, 4).map(x => typeof x === 'number' ? +x.toFixed(2) : Array.isArray(x) ? x.join(':') : typeof x).join(',') + (v.length > 4 ? ',..' : '') + ']' : v.j ? `{j${v.j.id}${v.i != null ? ' arm ' + v.i : ''}${v.a ? ' a' + v.a.i : ''}${v.e && v.e.m ? '>' + v.e.m.i : ''}}` : '{' + Object.keys(v).slice(0, 5).join(',') + '}'}`; }).join(' ');
+      (S.detail || (S.detail = [])).push(`   at ${S.t} s, stood ${S.stood} s, my driver: ${d ? snap(d) : '-'}`);
+      for (const q of C) if (q.line >= 0 && Math.hypot(q.x - st.x, q.y - st.y) < 12) (S.detail || (S.detail = [])).push(`     ${name(q)}: ${snap(q)}`);
+      { const w = d && d.pwWho, P = g.crowd && g.crowd.P, xy = o => o ? `${(+o.x).toFixed(1)},${(+o.y).toFixed(1)}${w.pz && w.pz.road ? (w.pz.road(o.x, o.y) ? ' (road)' : ' (off)') : ''}` : '-'; if (w) (S.detail || (S.detail = [])).push(`     the one on foot it waits on, walker ${P ? P.indexOf(w) : '?'}${w.pz && w.pz.road ? ' in the road ' + !!w.pz.road(w.x, w.y) : ''}, walk ${w.pz && w.pz.walk ? !!w.pz.walk() : '-'}, its spot ${xy(w.T)}, its gate ${xy(w.g)}${w.g && w.g.partner ? ' partner ' + xy(w.g.partner) : ''}, back ${xy(w.back)}: ${snap(w)}`); }
+    }
     if (S.stood === 20) { // (TRACE=1: twenty seconds into a stand, what the driver sees: its reasons, what it brakes for, who is near)
       const o = g.pilot(), d = o && o.drv.st, C = g.cars.C, name = q => (!q ? 'none' : q.walker ? 'someone on foot' : C.includes(q) ? `car ${C.indexOf(q)}${q.bus ? ' bus' : ''} at ${Math.round(q.x)},${Math.round(q.y)} v ${(q.v || 0).toFixed(1)} ${q.why || ''}` : q === d ? 'itself' : q.id || 'something');
       if (d) { const near = []; for (const q of C) if (q.line >= 0 && Math.hypot(q.x - st.x, q.y - st.y) < 14) near.push(name(q) + (q.front === d || q.youBy ? ' (waits on you)' : ''));
@@ -127,7 +145,7 @@ function driveFor({ secs, mark }) {
       if (!leg.ok) { console.log(`FAIL start ${k + 1} (${FROM[k]}): no road from there reaches ${TO}`); bad++; continue; }
       let r = null, n = 0;
       for (let t = 0; t < 600; t += EVERY) {
-        r = await p.evaluate(driveFor, { secs: EVERY, mark: false });
+        r = await p.evaluate(driveFor, { secs: EVERY, mark: false, crawl: !!process.env.CRAWL });
         if (OUT) { await p.evaluate(() => window.__game.frame(0)); await p.waitForTimeout(400); await p.screenshot({ path: `${OUT}/drive${k + 1}${tag}_${String(n++).padStart(2, '0')}.png` }); }
         if (r.done) break;
       }
