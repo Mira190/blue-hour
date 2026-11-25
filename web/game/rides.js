@@ -702,6 +702,10 @@ window.OEGameRides = function (g) {
     let hd = b;
     for (let k = 0; k < 30 && hd.front && hd.front.line != null && (hd.why === 'car' || hd.why === 'held'); k++) hd = hd.front;
     if (['light', 'walk', 'amber'].includes(hd.why) && hd.lineArm && hd.lineArm.j.sig && o.qT < 120) { o.turnNo = `the queue's head waits at a light (${hd.why})`; return; }
+    // (and one whose head waits at its line for the junction to give it room, or for a way across to clear, lights or none:
+    // a wait that clears. Backed out of it, the car asked the queue behind it to back out too, one after another, and a
+    // drive from Hachiko to 109 stood 50 to 130 s on the one-way street north of it, roads' start 1, #198)
+    if (['room', 'cross', 'turn'].includes(hd.why) && hd.lineArm && o.qT < 120) { o.turnNo = `the queue's head waits at its line (${hd.why})`; return; }
     } else if (st.mv) { o.turnNo = 'in a junction'; return; }
     o.turnLook = g.clockT;
     const pl = placeOnRoute(st), to = o.phase === 'coming' ? o.pickup : st.route.to;
@@ -763,7 +767,9 @@ window.OEGameRides = function (g) {
       const moving = behind.filter(c => c.v > 0.5 && !c.rev);
       if (moving.length) { o.turnNo = 'a car coming up behind'; return; }
       let asked = 0;
-      for (const c of behind) if (c.rev || (g.cars.reverse && g.cars.reverse(c))) asked++;
+      let hd = b; for (let k = 0; k < 30 && hd && hd.front && (hd.why === 'car' || hd.why === 'held'); k++) hd = hd.front;
+      const tag = `ride out${force ? ', forced' : ''}, ${o.drv.st.why || ''}, the queue's head ${hd ? hd.why : 'none'}`; // (what asked, for revLog: #198)
+      for (const c of behind) if (c.rev || (g.cars.reverse && g.cars.reverse(c, tag))) asked++;
       o.turnNo = asked ? 'the cars behind back out first' : 'a car behind'; return;
     }
     const half = g.rwOf(l) / 2;
@@ -803,7 +809,7 @@ window.OEGameRides = function (g) {
       T.held = (T.held || 0) + dt; st.v = 0; st.brake = true; T.by = g.cars.footBy; // (what holds it, for the checks)
       if (T.held > 3 && g.junctions.makeWay) g.junctions.makeWay(nx.x, nx.y, st.z, nx.h, o.C.half, o.C.hw, 0.3);
       // (a car come into the street behind it since, stopped there for it: it backs out first, Fushimi Inari's piece 99)
-      if (T.rev && T.held > 3 && T.pl && g.cars.reverse) for (const c of g.cars.live) if (c.line === T.pl.line && c.dir === T.pl.dir && c.v < 0.3 && !c.rev && Math.hypot(c.x - nx.x, c.y - nx.y) < 10) g.cars.reverse(c);
+      if (T.rev && T.held > 3 && T.pl && g.cars.reverse) for (const c of g.cars.live) if (c.line === T.pl.line && c.dir === T.pl.dir && c.v < 0.3 && !c.rev && Math.hypot(c.x - nx.x, c.y - nx.y) < 10) g.cars.reverse(c, 'ride turn held');
       // (held 10 s on the way back: its way out worked out again from where it is, round what holds it now)
       if (T.rev && T.held > 10 && !T.again && T.pl && P[T.i].leg) { // (still on the straight back: from there it can take up another way round from where it is, without a jump)
         T.again = true;
