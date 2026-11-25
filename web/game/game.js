@@ -1880,7 +1880,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const carCfg = Object.assign({ model: 'Car_Super', colour: '#0b0d11', accent: '#d9a441', seat: '#6e4228' }, (G.vehicles || {}).car);
   if (vlib && vlib.info.cars && !vlib.info.cars.models[carCfg.model]) carCfg.model = 'Car_Hatch';
   // the ways you can actually go, on foot, by road and in the air (route.js), worked out in slices behind the title
-  const ways = OERoute.create({ nav, footNet, roadNet, DSM, helipads: G.helipads, lifts: G.lifts || [], ground: lineGround });
+  const ways = OERoute.create({ nav, footNet, roadNet, DSM, helipads: G.helipads, lifts: G.lifts || [], ground: lineGround, gentle: () => !playing }); // (built gently behind the title, at full pace once the player is in: route.js slice)
   roadNet.avoid = ways.drive;
   // (a street whose lane has room for no vehicle anywhere along it, by the width pass above, is one a car can't
   // get along, as one the data runs through a building is: kept off by the traffic and the routes alike, #202)
@@ -5908,6 +5908,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const own = (cine.label === 'crane' || cine.label === 'hop') && (camera.position.distanceTo(shot.look) < 25 || clockT < liftHop); // (a lift's climb is beside its tower, under its roofline all the way and found clear when it was planned: rideLift)
       if (cine.label !== 'film' && cine.label !== 'closer' && cine.label !== 'overture' && !own) camera.position.y = Math.max(camera.position.y, roofBelow(camera.position.x, -camera.position.z) + 3);
       camera.lookAt(shot.look);
+      lensClear({ look: [shot.look.x, -shot.look.z] }, true);
       Wd.fitShadow(shot.look, THREE.MathUtils.clamp(camera.position.distanceTo(shot.look) * 1.2, live.half, 1600));
       return;
     }
@@ -6105,10 +6106,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // half a phone's upright frame with the back of their head as the dog walked behind them: in a film, whoever stands
   // within 3 m in front of the lens and in its line to what it looks at is not drawn either, as a film crew would ask
   // them to step out of the shot
-  function lensClear(film = null) {
+  function lensClear(film = null, shot = false) {
     for (const o of lensHid) o.traverse(q => q.layers.enable(0));
     lensHid.clear();
-    if (cine.active && cine.label !== 'hop') return;
+    // (a scripted shot frames the story's people, the map's and the guide itself, and they stay as it put them; the crowd
+    // does not know the shot, and a walker passing the lens filled the last frame's (issue 232). So in a shot only the
+    // crowd's part runs, as for a film, on the line from the lens to what the shot looks at: updateCamera passes it)
     const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y;
     let fx = 0, fy = 0, fl = 0;
     if (film) { fx = film.look[0] - cx; fy = film.look[1] - cy; fl = Math.hypot(fx, fy) || 1; fx /= fl; fy /= fl; }
@@ -6117,16 +6120,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       if (!root || (!inShot(x, y) && (Math.abs(x - cx) > r || Math.abs(y - cy) > r || Math.hypot(x - cx, y - cy) > r || cz < z - 0.1 || cz > z + h))) return;
       root.traverse(q => q.layers.disable(0)); lensHid.add(root);
     };
-    for (const n of npcs) if (n.rig && n.rig.root) near(n.rig.root, n.x, n.y, n.z, 1.95, 0.62); // (a body's reach from its middle, 0.3 m, and the near plane's, 0.3)
+    if (!shot) for (const n of npcs) if (n.rig && n.rig.root) near(n.rig.root, n.x, n.y, n.z, 1.95, 0.62); // (a body's reach from its middle, 0.3 m, and the near plane's, 0.3)
     // (behind you, one of the story's people within a metre of the lens is not drawn either: an afterimage there, a pace off
     // where frame 5's stand is, filled a phone's whole frame with his back. Not in a film or a talk, which frame them)
-    for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, film || talkShot ? 0.62 : 1.0);
-    const gd = guideMade; if (gd && gd.root && !film) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75); // (in a film of him, he is what it is of)
+    if (!shot) for (const f of storyFigs) if (f.rig && f.rig.root) near(f.rig.root, f.x, f.y, f.z, 1.95, film || talkShot ? 0.62 : 1.0);
+    const gd = guideMade; if (gd && gd.root && !film && !shot) near(gd.root, gd.x, gd.y, gd.z, 1.0, 0.75); // (in a film of him, he is what it is of)
     lensNear.gone = 0;
     if (crowdDraw && crowd && crowd.P) for (let i = 0, m = Math.min(crowd.active, crowd.P.length); i < m; i++) {
       const q = crowd.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y, z = q.rz ?? q.z ?? 0;
       if (!(q.line >= 0 || q.pz)) { q.lensOut = false; continue; }
-      if ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < z + 1.95) || inShot(x, y)) { crowdDraw.hide(i); continue; }
+      if ((Math.abs(x - cx) < 0.55 && Math.abs(y - cy) < 0.55 && cz < z + 1.95) || (inShot(x, y) && (!shot || cz < z + 2.2))) { crowdDraw.hide(i); continue; }
       // (near the lens: out at lensNear.in, back at lensNear.out; with the band off, everyone back at once)
       if (lensNear.out > 0 && lensNearOn) { const d = Math.hypot(x - cx, y - cy, z + 1 - cz); q.lensOut = d < (q.lensOut ? lensNear.out : lensNear.in); } else q.lensOut = false;
       if (q.lensOut) { crowdDraw.hide(i, true); lensNear.gone++; }
