@@ -164,6 +164,7 @@ window.OpenEarthGame = async function game(cityId) {
     if (due && window.OEGLCare && OEGLCare.trace) glLoad = OEGLCare.trace(renderer.getContext());
   } catch (e) { /* storage blocked */ }
   const BASE_FOV = 55, camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.3, 40000);
+  const TRUNK_SHARE = 0.3; // (a trunk or a post between the chase lens and you that would cover more of the frame's width than this is come in front of: #233)
   // The frame-time governor (quality.js): how much of the canvas's resolution the scene is drawn at, and how much
   // of what a frame can do without (governor.extras), both ways as the frame time allows. Its ceiling is the
   // tier's budget of scene pixels on this canvas. The frame-rate cap is the player's (the menu), 60 unless asked, and on
@@ -2678,6 +2679,33 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     for (const k of bodiesOn.keys()) if (!now.has(k)) bodiesOn.delete(k);
   };
+  // a trunk or a post between the chase lens and you, covering more than TRUNK_SHARE of the frame's width, for a second or
+  // more (tools/story_play.js, window.__trunks: #233, where a planter tree's trunk filled a third of a phone's frame in frame
+  // 3's Stop and hid you). Measured from the lens as drawn, independent of how the rig decides (postAtLens): the trunk's
+  // circle across the line from the lens to your chest, its share the trunk's width over the frame's width at its depth
+  const trunksOn = new Map(), trunkC = new THREE.Vector3();
+  const trunksCheck = () => {
+    const TK = window.__trunks, now = new Set();
+    if (TK.length < 100 && player.mode === 'foot' && !fpOn && !talkShot && !cine.active && !photo.on && !(overture && overture.active)) {
+      const P = camera.position, C = trunkC.copy(W(player.x, player.y, player.z + 1.2));
+      const ax = P.x, ay = -P.z, dx = C.x - ax, dy = -C.z - ay, L = Math.hypot(dx, dy);
+      const halfW = Math.tan(camera.fov * Math.PI / 360) * (camera.aspect || 1.6);
+      if (L > 0.8 && L < 12) for (const q of postsNear((ax + C.x) / 2, (ay - C.z) / 2, L / 2 + 0.5)) {
+        if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue;
+        const s = ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L);
+        if (s <= 0 || s >= 1) continue;
+        const px = ax + dx * s - q.x, py = ay + dy * s - q.y, z = P.y + (C.y - P.y) * s;
+        if (px * px + py * py > q.r * q.r || z < q.z || z > q.z + (q.kind === 'tree' && q.hb != null ? q.hb : 7)) continue;
+        const share = 2 * q.r / (s * L * 2 * halfW);
+        if (share < TRUNK_SHARE) continue;
+        const key = `${q.x.toFixed(1)},${q.y.toFixed(1)}`; now.add(key);
+        const e = trunksOn.get(key);
+        if (e) { e.n++; if (share > e.share) e.share = +share.toFixed(2); if (e.n === 45) TK.push(e); }
+        else trunksOn.set(key, { kind: q.kind, at: bodiesAt(), x: +q.x.toFixed(1), y: +q.y.toFixed(1), m: +(s * L).toFixed(2), share: +share.toFixed(2), aspect: +(camera.aspect || 0).toFixed(2), n: 1 });
+      }
+    }
+    for (const k of trunksOn.keys()) if (!now.has(k)) trunksOn.delete(k);
+  };
   let talkShot = null, talkPrint = false, talkTyped = '';
   const talkText = document.getElementById('gd-text'), talkBox = document.getElementById('gd');
   // the share of the frame's height the dialogue's words cover, from its foot (issue 76: the talk's shot is composed
@@ -2861,11 +2889,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let haloTex = null;
   const haloMap = () => {
     if (haloTex) return haloTex;
-    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-    const x = c.getContext('2d'), g = x.createRadialGradient(32, 64, 0, 32, 64, 32);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.setTransform(1, 0, 0, 2, 0, -64); x.fillStyle = g; x.fillRect(0, 0, 64, 128); // (an ellipse twice as tall as it is wide: a standing figure's)
-    haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    // (worked out here, not drawn on a 2D canvas: a canvas keeps its pixels premultiplied, and handed to WebGL unpremultiplied
+    // the faint texels' white came back as dark and coloured ones, and iOS Safari dithers the gradient besides. On the owner's
+    // iPhone at a render scale of 0.65 each such texel was a speck a few pixels wide, a cloud of them round Sumiko from
+    // across the crossing, gone as one came near and the halation faded, issue 206. White throughout, only alpha falls off)
+    const W = 64, H = 128, d = new Uint8Array(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const r = Math.hypot((x + 0.5 - 32) / 32, (y + 0.5 - 64) / 64); // (an ellipse twice as tall as it is wide: a standing figure's)
+      const a = r < 0.35 ? 1 - 0.45 * r / 0.35 : r < 1 ? 0.55 * (1 - r) / 0.65 : 0;
+      const i = (y * W + x) * 4; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(a * 255);
+    }
+    haloTex = new THREE.DataTexture(d, W, H, THREE.RGBAFormat);
+    haloTex.magFilter = THREE.LinearFilter; haloTex.minFilter = THREE.LinearMipmapLinearFilter; haloTex.generateMipmaps = true; // (a DataTexture is nearest-sampled unless told)
+    if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    haloTex.needsUpdate = true;
     return haloTex;
   };
   // (an afterimage's look compiled before the Stop it stands in, as the title waits: people.js exposure makes a program of
@@ -5322,6 +5359,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       : story && story.soft ? { focus: camera.position.distanceTo(W(player.x, player.y, player.z + 1.5)), aperture: lensBlur(camera.fov, 7, 2) * story.soft } : null); // (the Stop's first moments: held round you, the street behind soft)
     bodiesGuard();
     if (window.__bodies) bodiesCheck();
+    if (window.__trunks) trunksCheck();
     // (tools/clip_probe.js, issue 126: what stands inside what, measured every frame of a play from the bones as they are drawn)
     if (window.__probe) window.__probe.frame({ THREE, player, storyFigs, npcs, crowd, crowdDraw, guide: guideMade, guideSeg, nav, posts, carBoxes, heli, car: myCar, story, at: bodiesAt(), talk: !!talkShot, camera });
     mirrorTick();
@@ -6641,19 +6679,22 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // landmarks, the decks), and one between that is away from the lens is looked past, as a post is; but within 1.5 m of
     // it a trunk filled half a phone's frame and hid you (the planters' trees round Hachiko, since the camera came down
     // to the shoulder in issue 71): the camera comes in to stand in front of it, eased as for a wall
-    // (how far from the lens a trunk or a post is still in front of you, not looked past: 1.5 m on a desktop's wide frame, 3 m
-    // on a phone's tall one, where a planter tree's trunk 2 to 3 m off filled a third of the screen in frame 3's Stop, #233)
-    const trunkReach = camera.aspect < 1 ? 3 : 1.5;
+    // (how far from the lens a trunk or a post is still in front of you, not looked past: as far as it would cover more than
+    // TRUNK_SHARE of the frame's width, and never under 1.5 m. On a phone's tall, narrow frame a planter tree's trunk 2 to 3 m
+    // off filled a third of the screen in frame 3's Stop, #233: there a trunk reaches about 4 m, a lamp post under 2; a
+    // desktop's wide frame keeps 1.5 m. Never nearer you than 1 m: the lens would be in your head, and the post is looked past)
+    const halfW = Math.tan(camera.fov * Math.PI / 360) * (camera.aspect || 1.6);
+    const trunkReach = r => Math.max(1.5, 2 * r / (TRUNK_SHARE * 2 * halfW));
     const postAtLens = (a, b) => {
       if (!close || player.mode !== 'foot' || fpOn) return 1;
       const ax = a.x, ay = -a.z, dx = b.x - ax, dy = -b.z - ay, L = Math.hypot(dx, dy);
       if (L < 0.8) return 1;
       let t = 1;
-      for (const q of postsNear(b.x, -b.z, 2.5)) {
+      for (const q of postsNear(b.x, -b.z, Math.min(L, trunkReach(0.5)) + 0.5)) {
         if ((q.kind !== 'tree' && q.kind !== 'lamp') || q.wall) continue; // (a planter's low rail and a queue belt are under the lens; a level's wall is wallCut's)
         if (b.y < q.z || b.y > q.z + (q.kind === 'tree' && q.hb != null ? q.hb + 0.5 : 7)) continue; // (over a tree's trunk, its crown is leaves(): above)
         const R = q.r + 0.4, s = Math.max(0, Math.min(1, ((q.x - ax) * dx + (q.y - ay) * dy) / (L * L))), px = ax + dx * s - q.x, py = ay + dy * s - q.y, d2 = px * px + py * py;
-        if (d2 > R * R || (1 - s) * L > trunkReach) continue;
+        if (d2 > R * R || (1 - s) * L > Math.min(trunkReach(q.r), L - 1)) continue;
         t = Math.min(t, Math.max(0, (s * L - Math.sqrt(R * R - d2)) / L));
       }
       return t;
