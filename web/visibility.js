@@ -205,7 +205,14 @@ window.OEVis = (() => {
     const E = o.matrixWorld.elements, cells = new Map();
     const put = (i, j, top) => { const k = i * 65536 + j, v = cells.get(k); if (v === undefined || top > v) cells.set(k, top); };
     const box = (x0, x1, y0, y1, top) => { for (let j = Math.floor(y0 / CELL); j <= Math.floor(y1 / CELL); j++) for (let i = Math.floor(x0 / CELL); i <= Math.floor(x1 / CELL); i++) put(i + 32768, j + 32768, top); };
-    if (o.isInstancedMesh) {
+    if (o.isBatchedMesh) { // (each of its instances by its shape's sphere where its matrix puts it: its shapes are each in their own space, batch.js merge)
+      const m = new THREE.Matrix4(), sp = new THREE.Sphere(), n = o.instanceCount != null ? o.instanceCount : 0;
+      for (let i = 0; i < n; i++) {
+        try { if (!o.getVisibleAt(i)) continue; o.getBoundingSphereAt(o.getGeometryIdAt(i), sp); o.getMatrixAt(i, m); } catch (e) { continue; }
+        sp.applyMatrix4(m.premultiply(o.matrixWorld));
+        box(sp.center.x - sp.radius, sp.center.x + sp.radius, -sp.center.z - sp.radius, -sp.center.z + sp.radius, sp.center.y + sp.radius);
+      }
+    } else if (o.isInstancedMesh) {
       if (!g.boundingSphere) g.computeBoundingSphere();
       const c = g.boundingSphere.center, r0 = g.boundingSphere.radius, A = o.instanceMatrix.array;
       const m = new THREE.Matrix4(), v = new THREE.Vector3();

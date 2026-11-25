@@ -391,6 +391,22 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       cyl(0.005, 0.005, 0.004, black, [0.048, top + 0.010, 0.0], 'y'));
     // a lug at each end, for its strap
     for (const s of [-1, 1]) g.add(cyl(0.0028, 0.0028, 0.006, chrome, [s * (W / 2 + 0.002), y0 + BODY + 0.004, 0], 'x'));
+    // (issue 192: its thirty parts in a draw a material, five, not one each: 16 of a phone's draws in every beat it is
+    // worn, frames 1 to 7. Each part's place is baked into its copy of the shape; what it looks like is the same)
+    if (THREE.BufferGeometryUtils) {
+      g.updateMatrixWorld(true);
+      const by = new Map();
+      for (const o of g.children) if (o.isMesh) { const l = by.get(o.material) || []; l.push(o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()); l[l.length - 1].applyMatrix4(o.matrixWorld); by.set(o.material, l); }
+      const one = new THREE.Group();
+      for (const [m, list] of by) {
+        for (const x of list) { for (const k of Object.keys(x.attributes)) if (!['position', 'normal', 'uv'].includes(k)) x.deleteAttribute(k); x.clearGroups(); }
+        const merged = THREE.BufferGeometryUtils.mergeGeometries(list, false);
+        if (!merged) return (oldCam = g);
+        one.add(new THREE.Mesh(merged, m));
+      }
+      one.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      return (oldCam = one);
+    }
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     return (oldCam = g);
   };
