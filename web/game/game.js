@@ -2861,11 +2861,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   let haloTex = null;
   const haloMap = () => {
     if (haloTex) return haloTex;
-    const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-    const x = c.getContext('2d'), g = x.createRadialGradient(32, 64, 0, 32, 64, 32);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.setTransform(1, 0, 0, 2, 0, -64); x.fillStyle = g; x.fillRect(0, 0, 64, 128); // (an ellipse twice as tall as it is wide: a standing figure's)
-    haloTex = new THREE.CanvasTexture(c); if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    // (worked out here, not drawn on a 2D canvas: a canvas keeps its pixels premultiplied, and handed to WebGL unpremultiplied
+    // the faint texels' white came back as dark and coloured ones, and iOS Safari dithers the gradient besides. On the owner's
+    // iPhone at a render scale of 0.65 each such texel was a speck a few pixels wide, a cloud of them round Sumiko from
+    // across the crossing, gone as one came near and the halation faded, issue 206. White throughout, only alpha falls off)
+    const W = 64, H = 128, d = new Uint8Array(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const r = Math.hypot((x + 0.5 - 32) / 32, (y + 0.5 - 64) / 64); // (an ellipse twice as tall as it is wide: a standing figure's)
+      const a = r < 0.35 ? 1 - 0.45 * r / 0.35 : r < 1 ? 0.55 * (1 - r) / 0.65 : 0;
+      const i = (y * W + x) * 4; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(a * 255);
+    }
+    haloTex = new THREE.DataTexture(d, W, H, THREE.RGBAFormat);
+    haloTex.magFilter = THREE.LinearFilter; haloTex.minFilter = THREE.LinearMipmapLinearFilter; haloTex.generateMipmaps = true; // (a DataTexture is nearest-sampled unless told)
+    if ('colorSpace' in haloTex) haloTex.colorSpace = THREE.SRGBColorSpace;
+    haloTex.needsUpdate = true;
     return haloTex;
   };
   // (an afterimage's look compiled before the Stop it stands in, as the title waits: people.js exposure makes a program of
