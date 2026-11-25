@@ -634,7 +634,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // is walked into and left on the ground; the corner says what he did; beside her Help her up is offered, and taken,
       // she speaks and asks for her photograph; a photograph with her in it sends you back to her, and the story is put away
       {
-        const line = () => p.evaluate(() => window.__game.walkLine());
+        const line = () => p.evaluate(() => (window.__game && window.__game.walkLine ? window.__game.walkLine() : null)).catch(() => null); // (null while the page loads again: a lost context it could not take back, glcare.js)
         const beside = near => p.evaluate(near => { const g = window.__game, n = g.npcById('nagi'); g.spawn([n.x + near * 0.55, n.y - near * 0.83]); const a = Math.atan2(n.x - g.player.x, n.y - g.player.y); g.player.h = a; g.cam.yaw = a; for (let i = 0; i < 6; i++) g.frame(0.05); }, near);
         const drawnN = await p.waitForFunction(() => { const n = window.__game.npcById('nagi'); return n && !n.rig.pending; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
         await p.evaluate(() => window.__game.walkTalk().lineAgain()); // (the checks before this one began the stories again, and with them took the incident away)

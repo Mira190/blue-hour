@@ -1760,3 +1760,6 @@ html.bh-leave #g-menu { pointer-events: none; }
 .game-stage.story .g-toasts { top: auto; bottom: max(150px, calc(env(safe-area-inset-bottom) + 150px)); width: min(560px, calc(100% - 48px)); }
 .game-stage.story .g-toast { font-size: 12px; line-height: 1.45; padding: 6px 16px; }
 #g-menu .gm-snd-why { display: block; margin: -2px 0 6px 26px; font: 400 11px/1.5 var(--f-body); color: var(--ink-2); }
+/* (the story's own word at the foot, "Time runs again", has the same place as a notice: while it is up the notice stands
+   above it, never drawn into it) */
+.game-stage.story:has(#g-story-chip.on) .g-toasts { bottom: max(206px, calc(env(safe-area-inset-bottom) + 206px)); }
