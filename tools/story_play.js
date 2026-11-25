@@ -1130,7 +1130,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         // (from the camera down: raised already, by the teaching steps before it in frame 1, the lens stayed where it was and
         // nothing came up onto the thing, which sat at -5.37 in the picture: main's budget on ccaf4fd and two local plays. A
         // player raises a lowered camera; the lens comes up onto the thing as it is raised, game.js fpOn)
-        if (await p.evaluate(() => !!window.__game.story.state.cam)) { await raise(false); await frames(4); }
+        // (lowered and raised with no frame of the game's between, as a phone's 30 a second let happen: the raise is an event the
+        // game reads, story.state.raised, not a state it must see change)
+        if (await p.evaluate(() => !!window.__game.story.state.cam)) await raise(false);
         await p.evaluate(at => { const g = window.__game, pl = g.player, b = Math.atan2(at[0] - pl.x, at[1] - pl.y) + 1.1; pl.h = b; g.cam.yaw = b; g.cam.pitch = 0.9; }, T.subject);
         await frames(4);
         await raise(true);

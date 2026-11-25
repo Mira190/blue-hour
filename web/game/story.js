@@ -240,7 +240,7 @@ window.OEStory = (function () {
       if (st.phase !== 'stop' || st.beat !== 'shoot' || st.cam === on) return;
       if (on && camWait()) return; // (a press left over from the talk: nothing)
       if (on && !camCan(framed())) { teachNudge(); say('Not from here · the light first'); goal((st.fr.task.goals || {}).stand || 'Not from here. Go to the light.'); st.miss = 2.5; return; } // (off the light: the step to do shakes, and the goal says where)
-      st.cam = on; camLabel(); camBtn.classList.toggle('up', on);
+      st.cam = on; if (on) st.raised = (st.raised || 0) + 1; camLabel(); camBtn.classList.toggle('up', on); // (raised: counted, so the game aims the lens at each raise, game.js fp.raised)
       if (st.fr.task.lens && ctx.lens) ctx.lens(on ? (st.meet ? st.lensNow : st.fr.task.lens) : null, !!st.meet); // (a frame taken through a long lens: task.lens, degrees; the last frame's, closed on the two of them as they meet)
       if (on) fitFinder(); shutter.classList.toggle('on', on); finder.classList.toggle('on', on);
       // (the lens comes up onto the thing, at its height, unless it is behind you: game.js reads story.subject as it raises it)
@@ -287,7 +287,7 @@ window.OEStory = (function () {
       if (st.cam === on) return;
       if (on && (!st.jobReady || camWait())) return; // (not before the office has asked for the picture, nor on a press that passed a line)
       if (on) fitFinder(); // (the same lines as every frame's: inside the print)
-      st.cam = on; st.jobT = 0; camLabel(); camBtn.classList.toggle('up', on); finder.classList.toggle('on', on);
+      st.cam = on; st.jobT = 0; if (on) st.raised = (st.raised || 0) + 1; camLabel(); camBtn.classList.toggle('up', on); finder.classList.toggle('on', on);
       say(on ? 'Camera up' : 'Camera down'); sfx(on ? 'cam-up' : 'cam-down');
     }
     // her corner inside the frame lines, and near enough to be the picture of it

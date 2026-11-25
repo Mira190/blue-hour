@@ -6089,7 +6089,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // screen; with the finder's lines inside the print, a band across a phone held upright (story.js fitFinder), the
       // board of frame 1 stood taller than the print through 0.7, and frame 6's pillar box, umbrella and board wider
       const lensOf = (v, ring) => camera.aspect >= 1.5 ? v : Math.min(lensWas != null && (ring >= 45 || lensWide) ? 105 : 95, 2 * Math.atan(Math.tan(v * Math.PI / 360) * (lensWas != null && ring < 45 && !lensWide ? 1 : 1.5) / camera.aspect) * 180 / Math.PI); // (a lens closed on the last frame's two as they meet keeps the film frame's width too, lensWide, so that a phone's print is a desktop's; a frame's wide lens, the last frame's two kerbs 44 to 50 degrees apart, keeps the film frame's width on a phone too: at 95 degrees from top to bottom a phone held upright saw 53 across)
-      if (!fpOn) {
+      // (and at each raise, not only when the view was last seen lowered: a phone's game runs 30 frames a second, and a camera
+      // lowered and raised between two of its frames kept the lens where it was, 63 degrees off the thing, the finder never
+      // turned onto it: story.state.raised counts the raises)
+      if (!fpOn || fp.raised !== story.state.raised) {
+        fp.raised = story.state.raised;
         // (from the view as it was: where it stood, which way it looked, its lens)
         fp.from = { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
         // (the way the view behind you faces, and its pitch as the eye's: 0.3 of it is level. Not that view's own downward
