@@ -2719,7 +2719,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       world.add(m);
       return { remove() { world.remove(m); m.geometry.dispose(); m.material.dispose(); } };
     },
-    shift: (n, x, y, h) => { n.x = x; n.y = y; n.z = Math.max(0, nav.terrain(x, y)); if (h != null) n.h = h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); },
+    // (shift: turned or moved on its own floor, as it was placed (npcMove): the bare terrain is under the paving, and the walk's
+    // woman, turned to the screens as control was handed over, stood in the road with only her head over it, issue 241)
+    shift: (n, x, y, h) => { const f = nav.floorAt(x, y, n.z + 0.3); n.x = x; n.y = y; n.z = f ? f.z : Math.max(0, nav.terrain(x, y)); if (h != null) n.h = h; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); },
     put: (n, at, to) => { if (!npcMove(n, at)) return false; if (to) { n.h = Math.atan2(to[0] - n.x, to[1] - n.y); n.rig.root.rotation.y = Math.PI - n.h; } return true; },
     thud: () => { try { if (A.thump) A.thump(); } catch (e) { /* no sound */ } },
     waitWith: (n, plan) => waitWith(n, plan), // (sat beside someone on Hachiko's wall while the night passes: below)
