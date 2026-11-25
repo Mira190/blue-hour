@@ -57,7 +57,18 @@
     unorm8(a) {
       const n = a.count, k = a.itemSize, four = k === 3 ? 4 : k, out = new Uint8Array(n * four);
       if (k !== 3 && k !== 4) return null;
-      for (let i = 0; i < n; i++) for (let c = 0; c < k; c++) {
+      // (read straight from their array, as getComponent reads them: floats as they are, sixteen bits scaled to 0..1 by the
+      // same division three.js makes. Read through getComponent, the loop was thrown out of its optimised code on each
+      // call, 44 times as the player's car was built (0.7 µs a vertex): tools/deopt_survey.js, issue 220; the bytes the
+      // same, tools/verts_same.js)
+      const src = a.array, f32 = src instanceof Float32Array && !a.normalized, u16 = src instanceof Uint16Array && a.normalized;
+      if (f32 || u16) {
+        for (let i = 0, j = 0; i < n; i++, j += k) for (let c = 0; c < k; c++) {
+          const v = f32 ? src[j + c] : src[j + c] / 65535;
+          if (!(v >= -1e-4 && v <= 1.0001)) return null;
+          out[four * i + c] = Math.round(Math.min(1, Math.max(0, v)) * 255);
+        }
+      } else for (let i = 0; i < n; i++) for (let c = 0; c < k; c++) {
         const v = a.getComponent(i, c);
         if (!(v >= -1e-4 && v <= 1.0001)) return null;
         out[four * i + c] = Math.round(Math.min(1, Math.max(0, v)) * 255);
