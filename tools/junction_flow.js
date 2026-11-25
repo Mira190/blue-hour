@@ -165,6 +165,9 @@ function watch({ x, y, secs, R }) {
       if (process.env.CHECK && cyc.length && Math.max(...lens) > 130) { bad++; console.log(`FAIL junction ${j.id}: a cycle of ${f1(Math.max(...lens))} s (130 at most)`); }
     }
   }
+  // (the cars that stood for a post near the places, where and for what: actors.js postLog)
+  const pl = await p.evaluate(at => (window.__game.cars.postLog || []).filter(q => at.some(([x, y]) => Math.hypot(q.x - x, q.y - y) < 80)), PLACES);
+  for (const q of pl) console.log(`   stood for a post: car ${q.i} at ${q.x},${q.y} on piece ${q.line}${q.mv ? ` in ${q.mv}` : ''}, a ${q.kind} r ${q.r} at ${q.at}`);
   if (process.env.CHECK && !bad) console.log('ok   the junctions keep their cycles and pass their queues');
   await b.close();
   process.exit(bad ? 1 : 0);
