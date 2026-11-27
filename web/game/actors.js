@@ -3557,6 +3557,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function first(c, o, d, d2, ic, io) {
       const cs = (c.v || 0) * (c.v || 0) / 8 > d + 0.3, os = (o.v || 0) * (o.v || 0) / 8 > d2 + 0.3; // (braking at 4 m/s²)
       if (cs !== os) return cs;
+      // (in one junction's box, at a signalled one in the same turn: a turn across the oncoming traffic gives way to it,
+      // whoever went in first, junctions.js yields; one that can no longer stop went first, above, #224)
+      if (c.mv && o.mv && c.mv.j === o.mv.j && c.mv.j.sig && c.mv.e && o.mv.e && !!c.mv.e.across !== !!o.mv.e.across && c.mv.a.phase === o.mv.a.phase) return !c.mv.e.across;
       if (c.mv && o.mv && c.mv.j === o.mv.j) return c.mvT < o.mvT || (c.mvT === o.mvT && ic < io);
       if (c.mv && !o.mv && o.toLine > 0) return true;
       if (!c.mv && o.mv && c.toLine > 0) return false;
@@ -3680,7 +3683,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return false;
     }
     // (revLog: the last backings out begun, what asked each and how the car stood then: tools/road_drive.js TRACE, #198)
-    const revLog = [];
+    const revLog = [], postLog = [];
+    let postQ = null;
     function reverse(c, tag = '') {
       if (!canReverse(c)) return false;
       { const f = c.front; revLog.push({ t: +tick, i: C.indexOf(c), tag, line: c.line, why: c.why, q: !!c.q, stuck: +(c.stuck || 0).toFixed(1), front: f ? { i: C.indexOf(f), why: f.why, q: !!f.q, line: f.line, rev: !!f.rev } : null }); if (revLog.length > 60) revLog.shift(); }
@@ -4283,6 +4287,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // crossed the corner of a turn, and a car braked to a stop in the junction for the walk-signal post
         // on that corner, which its way never comes near, and the cars behind it ran into it; Roppongi,
         // tools/clip_check.js. With no way ahead, straight on as before)
+        postQ = null;
         if (posts) posts.near(c.x + fx * reach / 2, c.y + fy * reach / 2, reach / 2 + 1, q => {
           if (Math.abs(q.z - c.z) >= LEVEL) return;
           const dx = q.x - c.x, dy = q.y - c.y, a = dx * fx + dy * fy, r = c.hw + q.r + 0.1;
@@ -4293,8 +4298,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             for (let k = 0; k < np; k++) { const ex = P[2 * k] - q.x, ey = P[2 * k + 1] - q.y; if (ex * ex + ey * ey < r2) { g = k * step - q.r; break; } }
             if (g === Infinity && a + q.r >= c.half && a <= c.half + step && Math.abs(-dx * fy + dy * fx) < r) g = a - q.r - c.half; // (between its bumper and the first point)
           } else if (a + q.r >= c.half && a <= reach && Math.abs(-dx * fy + dy * fx) < r) g = a - q.r - c.half;
-          if (g < gap && !(c.postPass > 0)) { gap = g; byCar = true; front = null; why = 'post'; }
+          if (g < gap && !(c.postPass > 0)) { gap = g; byCar = true; front = null; why = 'post'; postQ = q; }
         });
+        // (postLog: the last cars stood a second for a post, where and for what: tools/junction_flow.js, #224)
+        if (why === 'post' && c.v < 0.3 && (c.postT || 0) < 1 && (c.postT || 0) + dt >= 1 && postQ) { postLog.push({ i, x: +c.x.toFixed(1), y: +c.y.toFixed(1), line: c.line, mv: c.mv ? `${c.mv.j.id} ${c.mv.a.i}>${c.mv.e.m.i}` : '', kind: postQ.kind, at: [+postQ.x.toFixed(1), +postQ.y.toFixed(1)], r: postQ.r }); if (postLog.length > 80) postLog.shift(); }
         // (stopped for one more than 10 s, a post its way runs into in a junction, say: it edges past it, #144)
         c.postT = why === 'post' && c.v < 0.3 ? (c.postT || 0) + dt : 0;
         if (c.postT > 10 && !inView(c)) { c.postT = 0; respawn(c, cx, cy, radius * 0.6); continue; } // (out of view: it leaves the traffic rather than drive through it)
@@ -4995,7 +5002,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return added;
     }
-    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, revLog, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
+    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, revLog, postLog, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
   }
 
   // ------------------------------------------------------------ text sprites (names, markers)

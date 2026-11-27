@@ -3748,6 +3748,28 @@ readings, none deeper than 2 cm in its own body, the deepest 1.2 cm (main the sa
 cm); stills of the crowd at the kerb before and after show nothing changed. The same trace names other functions of
 the crowd thrown out of their optimised code while it plays (`actors.js` `carDepth`, `blocked`): next to look at.
 
+**Functions thrown out of their optimised code while the player plays** (25 November). `tools/deopt_survey.js` reads
+V8's own trace (`--trace-deopt-verbose`) over a minute of play after the page has settled, and counts every deopt by
+function, place and reason (the loops' on-stack exits left out). A function thrown out again and again runs unoptimised
+in between, as `sliceAt` did. On main at 0e6c3fa9, a session's machine:
+
+| a minute of | deopts | the repeated ones |
+|---|---|---|
+| desktop, frame 1 | 213 | `verts.js` `unorm8` 48 (packing a streamed cell's colours: insufficient feedback at its range test), `trees.js` `sort` 15 |
+| phone, frame 1 | 290 | `unorm8` 44, `junctions.js` `update` and `light` 2 to 5 each, `actors.js` `twin`, `twinOf`, `slotAt` 2 each |
+| desktop, frame 7 | 198 | `unorm8` 48, `unorm16` 5, `people.js` `begin` 7 |
+| phone, frame 7 | 117 | none more than 3 |
+| desktop, the walk | 98 | **`people.js` `begin` 57** (the renderer's, every frame) |
+| phone, the walk | 26 | `game.js` `crowdKeep` 3 |
+
+The rest are once each: a function meeting a new kind of object as the evening goes on, which costs one recompile.
+`begin`'s were two: `lib.tpl`, the loaded cast by name, grew one name at a time and each name was a new shape of it; and
+the stand-in for a near walker whose own model has not come was picked from a list filtered fresh, an empty one an
+array of another kind. `lib.tpl` and `lib.loading` are now made without a prototype (a dictionary from the start, one
+shape), and the stand-in is picked by counting, the same pick: the walk's minute 98 deopts to 58, `begin` none.
+`unorm8` is the cells' streaming's (#192). `carDepth` and `blocked`, thrown out in the first trace, were not in these
+windows.
+
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.
 
