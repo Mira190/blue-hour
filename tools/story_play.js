@@ -714,8 +714,18 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const G = await p.evaluate(() => { const g = window.__game, st = g.story.state, d = g.guideMade && g.guideMade(); if (!st.dog && st.fi === 0) return null;
         if (!d) return { made: false, dog: !!st.dog }; let inScene = false; for (let q = d.root; q; q = q.parent) if (q === g.world) inScene = true;
         return { made: true, dog: !!st.dog, ready: !!d.ready, shown: !!(d.root && d.root.visible), inScene, at: [+(d.x || 0).toFixed(1), +(d.y || 0).toFixed(1)], d: +Math.hypot((d.x || 0) - g.player.x, (d.y || 0) - g.player.y).toFixed(1) }; }).catch(e => ({ err: String(e).slice(0, 120) }));
+      if (G && G.made) {
+        // (and his meshes drawn, not only shown: the draw gate holds a whole model's parts together, web/world.js gate,
+        // issue 241. The draws asked for under his root in two frames drawn whole, and how many the renderer made)
+        await drawAll(true);
+        Object.assign(G, await p.evaluate(() => new Promise(done => { const g = window.__game, R = g.renderer, d = g.guideMade(), f = R.renderBufferDirect; let asked = 0, drew = 0;
+          const under = o => { for (let q = o; q; q = q.parent) if (q === d.root) return true; return false; };
+          R.renderBufferDirect = function (cam, sc, geo, mat, obj) { if (!obj || !under(obj)) return f.apply(this, arguments); const n = R.info.render.calls, r = f.apply(this, arguments); asked++; if (R.info.render.calls > n) drew++; return r; };
+          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { R.renderBufferDirect = f; done({ asked, drew, gate: window.__gate ? Object.assign({}, window.__gate.n) : null }); }))); })).catch(e => ({ drawErr: String(e).slice(0, 120) })));
+        await drawAll(false);
+      }
       if (G) {
-        const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15;
+        const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15 && !(G.asked > 0 && !G.drew); // (asked for and none drawn: held by the gate. None asked: out of the frame, which the distance covers)
         console.log(`${ok ? 'ok  ' : 'FAIL'} ${s.fi + 1}-${name}: the guide ${JSON.stringify(G)}`);
         if (!ok) errors.push(`${s.fi + 1}-${name}: the guide is not drawn beside you in the Stop (${JSON.stringify(G)})`);
       }
