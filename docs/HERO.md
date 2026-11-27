@@ -375,7 +375,13 @@ landmarks' meshes, which went on being solid and being stood on where they had b
   cities/<id>/hero_floor.json`) and walked as one smooth patch (`pipeline/hero_floor.py`, game.json `patches` with
   `smooth` and `hero`). Before, Shibuya's road by the station was drawn 0.36 m over the floor walked and Sydney's
   paving by the quay 0.41 m (rms 2.3 and 3.9 cm, 106 and 132 points of a metre's grid off by over 15 cm); now both
-  are within a centimetre (0.5 cm rms, none over 15 cm). Run the probe again after a level is rebuilt.
+  are within a centimetre (0.5 cm rms, none over 15 cm). Run the probe again after a level is rebuilt. A level whose
+  floor is its own (`hero[].floor`, SHIBUYA SKY's hall) gets no patch: it is walked from its own drawn triangles while
+  it is shown (`game.js` `heroCover`, `h.height`), and on the city's ground while it is not, since that is then what
+  is drawn; its patch stood the guide on the hall's slab 7.5 cm over the forecourt (issues 201 and 258). The city's
+  own paving under a level (a `decal` or `pave` material, the Scramble's passage floor) is walked from its triangles
+  (`navcells.js` `paveTri`, `nav.js` `paveAt`), not from the highest point of each half-metre cell, which stood
+  whoever was off its edge 5.5 cm in the air.
 - A level that drapes its ground on the game's terrain is rebuilt when that ground is graded again
   (`pipeline/street_ground.py`, issues 510 and 522). The Scramble's entry says `"graded": true`: the streets inside it
   are graded with the rest of the map (its road along the JR embankment north of the station was draped on the

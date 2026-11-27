@@ -127,7 +127,7 @@ window.OENav = (function () {
     const NC = window.OENavCells, { paveKey } = NC;
     const RC = D.navCells && D.navCells.grid === `${DSM.nx}x${DSM.ny}` ? NC.unpack(D.navCells, D.LM, strips) : NC.raster(D.LM, strips, DSM, NC.unwalkedOf(G));
     D.navCells = null;
-    const { solid0, tops, solidMeshes, paving, pavingHid } = RC;
+    const { solid0, tops, solidMeshes, paving, pavingHid, paveTri } = RC;
     const slabs = new Map();  // the same as solid0 for the strips' slabs alone (the collision world's boxes for them)
     const cellOf = (x, y) => {
       const c = Math.floor((x - x0) / DSM.cell), r = Math.floor((y1 - y) / DSM.cell);
@@ -1116,7 +1116,26 @@ window.OENav = (function () {
     }
     // the paving drawn over the ground at (x, y) (a decal or a "pave" material: navcells.js), or undefined: what floorAt
     // stands a walker on, and the crowd's lines too (game.js lineGround), so that the two stand on one surface
-    function paveAt(x, y) { return paving.size ? paving.get(paveKey(x, y)) : undefined; }
+    // (read from the paving's own triangles where they came, navcells.js paveTri: the highest of them under the point, and none
+    // off their edge, however near; a cell's highest point stood whoever was off a passage's edge 5.5 cm in the air, issue 258)
+    function paveAt(x, y) {
+      if (!paving.size) return undefined;
+      if (!paveTri) return paving.get(paveKey(x, y));
+      const ids = paveTri.cells.get(paveKey(x, y));
+      if (!ids) return undefined;
+      const P = paveTri.xyz;
+      let best = -Infinity;
+      for (let n = 0; n < ids.length; n++) {
+        const o = ids[n] * 9, ax = P[o], ay = P[o + 1], bx = P[o + 3], by = P[o + 4], cx = P[o + 6], cy = P[o + 7];
+        const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+        if (Math.abs(den) < 1e-12) continue;
+        const l1 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den, l2 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den, l3 = 1 - l1 - l2;
+        if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
+        const z = l1 * P[o + 2] + l2 * P[o + 5] + l3 * P[o + 8];
+        if (z > best) best = z;
+      }
+      return best > -Infinity ? best : undefined;
+    }
     function floorAt(x, y, z, cars = false) {
       let best = null, kind = '';
       const take = (h, k) => { if (h <= z + STEP && (best === null || h > best)) { best = h; kind = k; } };
@@ -1125,7 +1144,7 @@ window.OENav = (function () {
       const pr = inland && inland.promenade ? inland.promenade(x, y) : null;
       if (pr) take(pr.z, 'promenade');
       else if (!offGround(x, y)) {
-        const t = terrain(x, y) + (lifts.length ? lift(x, y) : 0), pv = paving.size ? paving.get(paveKey(x, y)) : undefined;
+        const t = terrain(x, y) + (lifts.length ? lift(x, y) : 0), pv = paveAt(x, y);
         take(t, 'ground');
         if (pv !== undefined && pv > t && pv < t + 1.5 && !cars) take(pv, 'ground'); // (paving on the ground, not on a roof; a walker's)
         const u = under(x, y); if (u !== null) take(u, 'ground');
