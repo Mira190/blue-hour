@@ -2973,7 +2973,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       sg: undefined, vWas: undefined, hWas: undefined, youT: undefined, toLine: undefined, lineEx: undefined,
       wallChk: undefined, wbT: undefined, wbCar: undefined, boxT: undefined, mvT: undefined, nearT: undefined,
       roomT: undefined, bl: undefined, rx: undefined, ry: undefined, rel: undefined, dropT: undefined,
-      pit: undefined, rol: undefined });
+      pit: undefined, rol: undefined, xBy: undefined, roomBy: undefined, waive: undefined, waiveT: undefined, kM: undefined, kOn: undefined });
     if (I) {
       // (with only the far models come yet, vehicles.js cars: 'later', each stands in for the nearer two until upgrade())
       const geos = carGeometries(lib.cars, I.tones), names = Object.keys(I.models).filter(k => geos[k] && geos[k][2]);
@@ -3401,6 +3401,11 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // (nor anywhere the camera sees, as a walker is put (the crowd's seen()): by distance alone a car came onto a
         // straight street 280 to 350 m off, in the frame, tools/crowd_vanish.js)
         if (rMin > 0 && crowd && crowd.seen(tmp.x, tmp.y, tmp.z)) continue;
+        // (nor at the tail of a queue: a car standing on the 40 m ahead of it its way. Put there, each car that left the
+        // ring came straight back onto the queues round the Scramble, which then never shortened, and they backed up
+        // through the junctions behind them; made where the street moves, it joins the traffic as one more car on the
+        // move. The queues are fed only by what drives into them)
+        if (rMin > 0 && (onLine.get(line) || []).some(j => { const o = C[j]; if (o === c || o.dir !== dir || o.v >= 1) return false; const d = (o.s - s) * dir; return d > -6 && d < 40; })) continue;
         c.z = tmp.z;
         if (!clear(tmp.x, tmp.y, 12, c, tmp.z) || overlaps(c, tmp.x, tmp.y, tmp.hx, tmp.hy, 3, 1) > 0 || peopleIn(c, tmp.x, tmp.y, tmp.hx, tmp.hy) > 0) continue; // (and not on your car or a ride)
         c.line = line; c.s = s; c.dir = dir; c.v = L1.v * 0.7; c.stuck = 0; c.dodgeT = 0; c.dodgeBrake = false; c.rev = null; c.vBend = Infinity; c.nx = undefined; c.plan = c.ex = c.ex2 = c.exA = c.pv = null; c.halt = false; c.q = false; c.off = 0;
@@ -3534,13 +3539,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     }
     function room(c, e) {
       const m = e.m, ml = net.L[m.line], out = m.end === 0 ? 1 : -1, two = JN.lanesOf(ml) > 1, ln = c.ln && e.lanes.includes(c.ln) ? c.ln : 0;
-      let free = JN.reach(e), need = 2 * c.half + 2.5;
+      let free = JN.reach(e), need = 2 * c.half + 2.5, by = null, byIn = null;
       for (const j of onLine.get(m.line) || []) {
         const o = C[j];
-        if (o === c || o.dir !== out || (two && (o.ln || 0) !== ln)) continue;
-        free = Math.min(free, (out > 0 ? o.s : ml.len - o.s) - o.half - m.back);
+        if (o === c || o === c.waive || o.dir !== out || (two && (o.ln || 0) !== ln)) continue;
+        const f = (out > 0 ? o.s : ml.len - o.s) - o.half - m.back;
+        if (f < free) { free = f; by = o; }
       }
-      for (const a of m.j.active) if ((a.m & 15) === m.i && (!two || (a.m >> 4) === ln) && a.c !== c && a.c.line !== m.line) need += 2 * a.c.half + 2.5;
+      for (const a of m.j.active) if ((a.m & 15) === m.i && (!two || (a.m >> 4) === ln) && a.c !== c && a.c !== c.waive && a.c.line !== m.line) { need += 2 * a.c.half + 2.5; byIn = byIn || a.c; }
       // a short exit that simply runs on into another piece, no junction between (a slip road, a loop
       // back): the room is on those pieces too, up to the next junction's line, behind the last car on
       // them, or a car let in stops part way, still across this junction, in the queue for the next
@@ -3552,12 +3558,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         reach = free = base + l2.len - (a2 ? a2.back : 0);
         for (const j of onLine.get(nx[0]) || []) {
           const o = C[j];
-          if (o === c || o.dir !== d2) continue;
-          free = Math.min(free, base + (d2 > 0 ? o.s : l2.len - o.s) - o.half);
+          if (o === c || o === c.waive || o.dir !== d2) continue;
+          const f = base + (d2 > 0 ? o.s : l2.len - o.s) - o.half;
+          if (f < free) { free = f; by = o; }
         }
         li = nx[0]; end = 1 - nx[1]; base += l2.len;
       }
-      return free >= Math.min(need, reach - 1);
+      const ok = free >= Math.min(need, reach - 1);
+      if (!ok) c.roomBy = by || byIn; // (the car the room waits on: the traffic's graph of who waits on whom, knots)
+      return ok;
     }
     // is car c's way across the junction at arm a (its line toLine ahead of its centre; its way ahead P,
     // np points step apart from its bumper) blocked by a ride or your car standing in it? That car, or null
@@ -3571,6 +3580,48 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       return hit;
     }
     let redRuns = 0, revs = 0, laneChanges = 0, outOfRing = 0, squeezes = 0;
+    // ---- knots: who waits on whom, the whole traffic at once. Every car standing still names the one car it waits on:
+    // the car ahead it brakes for or is held by (front), the car whose movement holds it out of a junction (xBy, from
+    // junctions.js may), the car whose place on its way out leaves it no room (roomBy, from room). Followed from car to
+    // car, a wait ends at a red light, someone on foot, a stop sign, or a car that moves: those clear by themselves. A
+    // wait that comes back round to where it began is a deadlock no light or rule will ever clear (two cars on a 7 m piece
+    // each the other's car ahead, Shibuya's 804; a car let into 817 that queues on its way out while the car its movement
+    // holds out is the one its queue waits on; a ring of queues round a block, each waiting for room in the next). The
+    // single rules that undid one kind each after so many seconds stay; this undoes any of them, whatever made it: once
+    // every car of the ring has stood KNOT_T, the one that has stood longest goes, as if the car it waits on were not there
+    // (c.waive: braked for no longer, its movement and its room not counted), squeezing past where it must; out of your
+    // sight one of them leaves the traffic instead (respawn). SUMO undoes a deadlock so, by the vehicle that has waited
+    // longest (its time-to-teleport); here it is found the moment it closes, not after minutes. Every half second, O(n).
+    const KNOT_T = 6, WAIVE_T = 8;
+    let knotT = 0, knotsUndone = 0, knotsGone = 0, knotMark = 0;
+    const knotLog = [];
+    const waitsOn = c => {
+      if (c.line < 0 || c.v >= 0.3 || c.park) return null;
+      const w = c.why, o = w === 'car' || w === 'held' || w === 'narrow' ? c.front : w === 'cross' || w === 'turn' || w === 'give' ? c.xBy : w === 'room' ? c.roomBy : null;
+      return o && o !== c && o.line >= 0 && o.kM !== undefined ? o : null; // (a car of the traffic: kM is set on each, below)
+    };
+    function knots(cx, cy) {
+      for (const c of live) c.kM = 0;
+      for (const c of live) c.kOn = waitsOn(c);
+      for (const c0 of live) {
+        if (c0.kM || !c0.kOn) continue;
+        const mark = ++knotMark;
+        let c = c0;
+        while (c && !c.kM) { c.kM = mark; c = c.kOn; }
+        if (!c || c.kM !== mark) continue; // (it ends somewhere that clears, or in a knot already looked at)
+        const ring = [];
+        for (let x = c, n = 0; n < 64; n++) { ring.push(x); x = x.kOn; if (x === c) break; }
+        if (ring.some(x => (x.still || 0) < KNOT_T || x.waiveT > 0)) continue;
+        let go = ring[0];
+        for (const x of ring) if ((x.still || 0) > (go.still || 0)) go = x;
+        const unseen = api.knotsSeen ? [] : ring.filter(x => !inView(x)); // (knotsSeen: a harness's, every knot as if in view)
+        if (unseen.length && knotLog.length < 40) knotLog.push(`gone: ring of ${ring.length} (${ring.map(x => x.why).join(' ')})`);
+        if (unseen.length) { const x = unseen.reduce((a, b) => ((b.still || 0) > (a.still || 0) ? b : a)); x.still = x.idle = 0; JN.forget(x); respawn(x, cx, cy, radius * 0.6); knotsGone++; continue; }
+        go.waive = go.kOn; go.waiveT = WAIVE_T; knotsUndone++;
+        if (go.why === 'car' || go.why === 'held' || go.why === 'narrow') { go.passBy = go.kOn; go.passFace = true; go.faceSq = 5; }
+        if (knotLog.length < 40) knotLog.push(`undone: ring of ${ring.length} (${ring.map(x => x.why).join(' ')}), the car stood ${(go.still || 0).toFixed(0)} s goes`);
+      }
+    }
     const redLog = []; // (the last few cars over a crossing's line on red, how: tools/traffic_why.js)
     // The traffic as game.js reads it (#317 item 2: the step is to move to a Worker): `live`, the records of the cars
     // on the roads as the last step left them, each the same object from one frame to the next (here the car itself;
@@ -3916,6 +3967,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         onLine.get(c.line).push(i);
       }
       JN.update(dt, t);
+      if ((knotT -= dt) <= 0) { knotT = 0.5; knots(cx, cy); }
       const TR = JN.trips && JN.trips(); // (where the traffic is going, trips.js)
       youX = cx; youY = cy;
       const WXT = (window.OECars && OECars.weather) || DRY; // (the weather as drivers meet it)
@@ -3974,6 +4026,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         c.inAhead = !!c.mv && api.extra.length > 1 && api.extra.some(o => o.ahead && boxIn(c, o)); // (in a junction, in where a ride backing out will be)
         const left = c.dir > 0 ? l.len - c.s : c.s, nl = c.nx ? c.nx[0] : -1, nd = c.nx ? (c.nx[1] === 0 ? 1 : -1) : 0;
         let gap = 40, byCar = false, swerve = 0, front = null, why = '', walker = -1;
+        c.roomBy = null; // (set again by room() while it waits for room this frame: knots)
         // the road ends ahead in nothing (a stub at the map's edge, a dead end): it slows to turn round there
         if (!c.nx && !arm && left + 4 < gap) { gap = left + 4; why = 'end'; }
         // at the end of a trip into town: room at the kerb 12 m and two seconds ahead on this street, looked for
@@ -4258,6 +4311,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // mouth of Sydney's junction 460 stood 40 s while the car used up its backing off, then the 20 s: 63 s, #432)
         else if (c.faceCar && c.faceCar.line >= 0 && (c.faceGap = (c.faceGap || 0) + dt) < 3) { c.faceAll = (c.faceAll || 0) + dt; c.faceT = 0; }
         else { c.faceT = c.faceAll = c.faceGap = 0; c.faceCar = null; }
+        if (c.waive && ((c.waiveT -= dt) <= 0 || c.waive.line < 0)) { c.waive = null; c.waiveT = 0; } // (a knot's leave to go past one car: knots)
         if (c.passBy && ((!c.mv && !c.passFace) || Math.hypot(c.passBy.x - c.x, c.passBy.y - c.y) > c.half + c.passBy.half + 4 || c.passBy.line < 0)) { c.passBy = null; c.passFace = false; }
         // your car and a ride: one parked beside the lane is passed side by side with a hand's width
         // between, or round it: a short swing out towards the kerb, or out over the centre line round
@@ -5056,7 +5110,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return added;
     }
-    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, revLog, postLog, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
+    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, revLog, postLog, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, knotsUndone, knotsGone, knotLog, conflicts: JN.conflicts() }) });
   }
 
   // ------------------------------------------------------------ text sprites (names, markers)

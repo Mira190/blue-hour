@@ -855,6 +855,21 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         const cx = st.x + fx * o, cy = st.y + fy * o, p = nav.push(cx, cy, st.z, rad, 1.6), dx = p.x - cx, dy = p.y - cy;
         if (dx || dy) { what = what || 'wall'; shove(o, dx, dy); }
       }
+      // the guard rails a hero level draws along its kerbs (nav.pushFence): as solid to the car as a wall. They were solid
+      // on foot only, and a car driven at the white pipes stood with them through its bonnet
+      if (nav.pushFence) {
+        for (const o of offs) {
+          const cx = st.x + fx * o, cy = st.y + fy * o, p = nav.pushFence(cx, cy, st.z, rad, 1.6), dx = p.x - cx, dy = p.y - cy;
+          if (dx || dy) { what = what || 'rail'; shove(o, dx, dy); }
+        }
+        // (and its four corners, which the three circles down the body leave out: a rail is thin, and met at an angle it
+        // stood in a corner of the bonnet)
+        for (const a of [-1, 1]) for (const b of [-1, 1]) {
+          const u = a * (C.half - 0.22), w = b * (C.hw - 0.22), cx = st.x + fx * u + fy * w, cy = st.y + fy * u - fx * w;
+          const p = nav.pushFence(cx, cy, st.z, 0.24, 1.6), dx = p.x - cx, dy = p.y - cy;
+          if (dx || dy) { what = what || 'rail'; shove(u, dx, dy); }
+        }
+      }
       // lamp posts and tree trunks ({ x, y, z, r, kind }), solid: the body as a box, out of each circle
       // from the nearest point of the box to its centre; again while one moves it, so that out of one
       // post it is not left in another beside it (a signal pole by a trunk at a corner), and the

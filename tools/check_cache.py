@@ -49,7 +49,7 @@ HARNESS = {
     'guide': ['tools/guide_way.js', 'tools/guide_body.js'], 'guide1': ['tools/guide_way.js'], 'guide3': ['tools/guide_way.js'], 'guide4': ['tools/guide_way.js'], 'guide5': ['tools/guide_way.js'],
     'guide2': ['tools/guide_body.js'],
     'walk': ['tools/walk_play.js', 'tools/draw_skip.js'], 'walk1': ['tools/walk_play.js'], 'walk2': ['tools/walk_play.js'], 'walk3': ['tools/walk_play.js'], 'walk4': ['tools/walk_play.js'],
-    'ride': ['tools/ride_people.js', 'tools/ride_rails.js'], 'roads': ['tools/road_traffic_watch.js', 'tools/road_drive.js', 'tools/junction_flow.js', 'tools/trips_probe.js'], 'mem': ['tools/mem_check.js', 'tools/bake_setup.js', 'tools/crowd_cost.js', 'tools/load_tex.js', 'tools/lost_check.js', 'tools/glcare_phone.js', 'tools/killed_check.js'], 'ctx': ['tools/ctx_beats.js'], 'look': ['tools/look_check.js'],
+    'ride': ['tools/ride_people.js', 'tools/ride_rails.js', 'tools/car_rail.js', 'tools/car_call.js'], 'roads': ['tools/road_traffic_watch.js', 'tools/road_drive.js', 'tools/junction_flow.js', 'tools/trips_probe.js'], 'mem': ['tools/mem_check.js', 'tools/bake_setup.js', 'tools/crowd_cost.js', 'tools/load_tex.js', 'tools/lost_check.js', 'tools/glcare_phone.js', 'tools/killed_check.js', 'tools/ctx_beats.js'], 'look': ['tools/look_check.js'],
     'audio': ['tools/reverb_check.js', 'tools/audio_graph_check.js', 'tools/audio_shed_check.js', 'tools/sound_places.js', 'tools/phone_audio.js', 'tools/el_stall_check.js', 'tools/opening_audio.js', 'tools/snd_guard_check.js', 'tools/snd_probe_check.js', 'tools/tune_levels.js'],
     'clip': ['tools/clip_check.js'], 'gl': ['tools/gl_error_probe.js', 'tools/sampler_probe.js'],
     'touch': ['tools/touch_check.js'], 'astc': ['tools/astc_check.js'], 'hold': ['tools/hold_check.js', 'tools/hold_depth.js'], 'game': ['tools/game_check.js'],
@@ -458,7 +458,7 @@ def words(target, path, was):
 # when it is still there and, a model, gives what the code asks of it: a person's by the people's contract
 # (tools/people_contract.py, with the static checks), any other by its own interface as the check's pass read it
 # (tools/model_contract.py: its names, flags, attributes and where its ground lies).
-SEEN_BY = ('look', 'mem', 'ctx')   # (ctx: the lost contexts, played within mem until 27 November 2026)
+SEEN_BY = ('look', 'mem')
 # And what a beat draws is counted (issue 131): the story's parts hold each beat they play to its budget of draws,
 # triangles, passes, pixels and GPU memory, on the desktop's tier (story1 to story3) and a phone's (budget1 to budget3;
 # tools/beat_budget.py). A model or a picture one of them fetched can cost its beats more while it keeps every name the

@@ -177,13 +177,20 @@ window.OpenEarthGame = async function game(cityId) {
   // come down to a little under one pixel to the CSS pixel, sharpened up by the lens, before anything else is given up.
   // At the ordinary floor of 0.6 an M3 MacBook drew the story's street at 1.2 pixels to the CSS pixel and thirty frames
   // a second, its GPU's frame growing with the pixels drawn (telemetry, November 2026); at 0.45 it draws half as many)
+  // The floor and the step before it are kept in the display's terms, pixels to the CSS pixel, not the canvas's: the
+  // canvas itself is drawn below the display's ratio on the medium and low tiers (their budget of pixels: 1.25 to 1.5 on
+  // a Retina display), and the floor of 0.45 meant for a canvas at 2 took the scene there to 0.56 pixels to the CSS pixel,
+  // a picture blurred and stepped at once (the owner's MacBook, November 2026). So on a dense display the scene comes down
+  // to 0.9 pixels to the CSS pixel and no further, on any tier, and elsewhere to 0.6 of the canvas as before (floorFor)
   const DENSE = Math.min(window.devicePixelRatio || 1, 2) >= 1.75 && !QC.lean;
-  const gov = OEQuality.governor({ min: DENSE ? 0.45 : 0.6, mid: DENSE ? 0.7 : 0.8, cap: (() => { try { const v = localStorage.getItem('bh-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
+  const MIN0 = DENSE ? 0.45 : 0.6, MID0 = DENSE ? 0.7 : 0.8, FLOOR_PX = DENSE ? 0.9 : 0;
+  const floorFor = pr => { const min = Math.min(1, Math.max(MIN0, FLOOR_PX / Math.max(pr, 0.1))); return { min, mid: Math.max(MID0, min) }; };
+  const gov = OEQuality.governor({ ...floorFor(QC.pixelRatio(stage.clientWidth, stage.clientHeight)), cap: (() => { try { const v = localStorage.getItem('bh-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
   const GOV_KEY = `bh-gov-${cityId}`;
   // What this device held on this map before ("scale/extras"; a bare scale from before issue 375 kept its extras): it
   // starts there. A device with no record starts low and climbs (quality.js startLow, issue 375), not at its ceiling.
   let govRecord = null;
-  if (gov.auto) try { const v = localStorage.getItem(GOV_KEY); if (v) { const [sc, ex] = v.split('/').map(Number); if (sc >= gov.min && sc <= 1) govRecord = { scale: Math.round(sc * 20) / 20, extras: [0, 0.5, 1].includes(ex) ? ex : 1 }; } } catch (e) { /* storage blocked */ }
+  if (gov.auto) try { const v = localStorage.getItem(GOV_KEY); if (v) { const [sc, ex] = v.split('/').map(Number); if (sc > 0 && sc <= 1) govRecord = { scale: Math.max(gov.min, Math.round(sc * 20) / 20), extras: [0, 0.5, 1].includes(ex) ? ex : 1 }; } } catch (e) { /* storage blocked */ }
   // (a check starts as a device with that record would, ?gov=0.8/0: the governor itself stands still under a harness,
   // so the state an ordinary device opens the map in was one no check played: issue 485)
   const govAsked = /[?&]gov=([\d.]+)\/([\d.]+)/.exec(location.search);
@@ -197,8 +204,10 @@ window.OpenEarthGame = async function game(cityId) {
   function resize() {
     const w = stage.clientWidth, h = stage.clientHeight, pr = QC.pixelRatio(w, h);
     stageW = Math.max(1, w); stageH = Math.max(1, h);
+    Object.assign(gov, floorFor(pr)); // (the canvas's ratio changes with the window and the tier: the floor in the display's terms with it)
     gov.max = QC.sceneScale ? Math.max(gov.min, QC.sceneScale(w * pr, h * pr)) : 1;
     if (gov.scale > gov.max) gov.scale = gov.max;
+    if (gov.scale < gov.min) gov.scale = gov.min;
     // (the post stack draws the scene at the governor's scale into its own target and the lens brings it up to the
     // canvas, sharpened; without the stack the canvas itself is scaled)
     const stack = !!(atmos && atmos.setScale && atmos.composer);
@@ -316,6 +325,18 @@ window.OpenEarthGame = async function game(cityId) {
   // marks the floor's half-metre cells in uHeroCut; uHeroCut4 is (x0, y0, its side, on), on only while the level is drawn
   const HERO_CUT = { tex: { value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) }, box: { value: new THREE.Vector4(0, 0, 0, 0) }, h: null, off: false };
   HERO_CUT.tex.value.needsUpdate = true;
+  // The zebra crossings of the map's data (streetZebras, and the survey's road_ground.z), drawn by the ground's shader as
+  // the share of each pixel their bars cover (streets.js oeZebra) where the drawn streets are. In the street drawing at
+  // half a metre a texel their 0.9 m pattern was under two texels and came out as moiré, from the street as from the
+  // air (the owner's still of the Scramble, November 2026, whose own bars had the same fault: hero.js). uZebraRec: each
+  // crossing as two texels, its start and its way across (x, -y in the world's frame) and its length and half width;
+  // uZebraGrid: the cells of uZebraBox (x0, z0, cell, on) that crossings lie over, as a hash table (uZebraHash: its slots
+  // and its longest probe) whose slot holds the cell, 1-based, and where its crossings start in uZebraList and how many.
+  // A table sized by the cells in use, not by the map: a grid over the whole map was 1673 x 946 texels of 16 bytes,
+  // 25 MB of a phone's memory and past its largest texture. Every texture is wrapped to rows of ZEBRA_ROW texels
+  const ZEBRA_ROW = 1024;
+  const ZEBRA_DRAW = { rec: { value: null }, grid: { value: null }, list: { value: null }, box: { value: new THREE.Vector4(0, 0, 1, 0) }, hash: { value: new THREE.Vector2(1, 0) } };
+  { const t = new THREE.DataTexture(new Float32Array(4), 1, 1, THREE.RGBAFormat, THREE.FloatType); t.needsUpdate = true; ZEBRA_DRAW.rec.value = ZEBRA_DRAW.grid.value = ZEBRA_DRAW.list.value = t; }
   const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
     if (Wd.sea) Wd.sea.patchGround(sh); // the wet band and swash along the shore
@@ -323,11 +344,42 @@ window.OpenEarthGame = async function game(cityId) {
     sh.uniforms.uStreetOn = m.material.userData.streetOn = m.material.userData.streetOn || { value: 0 };
     sh.uniforms.uZone = ZONE;
     sh.uniforms.uHeroCut = HERO_CUT.tex; sh.uniforms.uHeroCut4 = HERO_CUT.box;
+    sh.uniforms.uZebraRec = ZEBRA_DRAW.rec; sh.uniforms.uZebraGrid = ZEBRA_DRAW.grid; sh.uniforms.uZebraList = ZEBRA_DRAW.list; sh.uniforms.uZebraBox = ZEBRA_DRAW.box; sh.uniforms.uZebraHash = ZEBRA_DRAW.hash;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8]; uniform sampler2D uHeroCut; uniform vec4 uHeroCut4;
 #define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
+#define ZEBRA_PAINT vec3(0.776, 0.753, 0.686) // (the drawn paint, linear: streetTexture's #e4e1d8)
+uniform highp sampler2D uZebraRec, uZebraGrid, uZebraList; uniform vec4 uZebraBox; uniform vec2 uZebraHash;
+vec4 oeZFetch(highp sampler2D s, int i) { return texelFetch(s, ivec2(i % ${ZEBRA_ROW}, i / ${ZEBRA_ROW}), 0); }
+${OEStreets.ZEBRA_GLSL}
+// how much of this pixel the bars of the crossings over its cell cover (dpx, dpy: the pixel's sides on the ground)
+float oeZebraAt(vec2 p, vec2 dpx, vec2 dpy) {
+  if (uZebraBox.w < 0.5) return 0.0;
+  ivec2 c = ivec2(floor((p - uZebraBox.xy) / uZebraBox.z));
+  if (c.x < 0 || c.y < 0) return 0.0;
+  int n = int(uZebraHash.x), at = -1, count = 0;
+  uint h = (uint(c.x) * 73856093u ^ uint(c.y) * 19349663u) & uint(n - 1);
+  for (int k = 0; k < 32; k++) {
+    if (float(k) >= uZebraHash.y) break;
+    vec4 e = oeZFetch(uZebraGrid, int((h + uint(k)) & uint(n - 1)));
+    if (e.x < 0.5) break;
+    if (int(e.x) - 1 == c.x && int(e.y) == c.y) { at = int(e.z); count = int(e.w); break; }
+  }
+  float cov = 0.0;
+  for (int k = 0; k < 8; k++) {
+    if (k >= count) break;
+    int j = at + k, i = int(oeZFetch(uZebraList, j >> 2)[j & 3]);
+    vec4 a = oeZFetch(uZebraRec, i * 2), b = oeZFetch(uZebraRec, i * 2 + 1);
+    vec2 n = a.zw, t = vec2(-n.y, n.x), q = p - a.xy;
+    float s = dot(q, n), u = dot(q, t);
+    float ws = max(abs(dot(dpx, n)) + abs(dot(dpy, n)), 1e-4), wu = max(abs(dot(dpx, t)) + abs(dot(dpy, t)), 1e-4);
+    float inside = clamp(min(s, b.x - s) / ws + 0.5, 0.0, 1.0) * clamp((b.y - abs(u)) / wu + 0.5, 0.0, 1.0);
+    cov = max(cov, inside * oeZebra(s - 0.225, ws));
+  }
+  return cov;
+}
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
@@ -345,6 +397,7 @@ vec2 pavers(vec2 p) {
       .replace('#include <map_fragment>', `#include <map_fragment>
 if (uHeroCut4.w > 0.5) { vec2 hc = (vec2(vWP.x, -vWP.z) - uHeroCut4.xy) / uHeroCut4.z; if (hc.x > 0.0 && hc.y > 0.0 && hc.x < 1.0 && hc.y < 1.0 && texture2D(uHeroCut, hc).r > 0.5) discard; }
 float camD = distance(vWP, cameraPosition);
+vec2 oeDpx = dFdx(vWP.xz), oeDpy = dFdy(vWP.xz); // (here, where every pixel of the quad takes them: oeZebraAt)
 float near = 1.0 - smoothstep(12.0, 70.0, camD);
 float street = 1.0 - smoothstep(60.0, 420.0, camD); // street level, out to where the photo takes over
 // round a hero level (ZONE): how far the ground is drawn from the street data alone, whatever the height
@@ -433,6 +486,10 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
     paved = mix(paved, 1.0 - zr, zn);
     green *= 1.0 - zn;
   }
+  // the zebras' bars, as far as the drawn streets go (ZEBRA_DRAW)
+  float zb = oeZebraAt(vWP.xz, oeDpx, oeDpy) * max(k, zn);
+  diffuseColor.rgb = mix(diffuseColor.rgb, ZEBRA_PAINT, zb);
+  roadway *= 1.0 - zb;
 }
 // paving at the albedo it has, not the photo's near-white: a soft knee from 0.28
 float L = dot(diffuseColor.rgb, LUM);
@@ -520,6 +577,62 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return zebrasMemo = out;
   }
+  // ZEBRA_DRAW's textures: each crossing as the line its bars are laid along from kerb to kerb (the first bar at its start,
+  // as the street drawing laid them), 4 m wide, and a grid of 16 m cells naming the crossings over each
+  function zebraDraw() {
+    const lines = streetZebras().map(([x, y, ux, uy, half]) => [x - uy * half, y + ux * half, x + uy * half, y - ux * half]);
+    if (RG) for (const z of RG.z || []) lines.push([z[0] / 10, z[1] / 10, z[2] / 10, z[3] / 10]);
+    const L = lines.map(([x0, y0, x1, y1]) => ({ x: x0, z: -y0, len: Math.hypot(x1 - x0, y1 - y0), nx: x1 - x0, nz: -(y1 - y0) })).filter(l => l.len > 0.5);
+    if (!L.length) return;
+    const HALF = 2, CELL = 16, rec = [];
+    let x0 = Infinity, z0 = Infinity;
+    const corners = l => { const tx = -l.nz, tz = l.nx; return [[0, -HALF], [0, HALF], [l.len, -HALF], [l.len, HALF]].map(([s, u]) => [l.x + l.nx * s + tx * u, l.z + l.nz * s + tz * u]); };
+    L.forEach(l => {
+      l.nx /= l.len; l.nz /= l.len;
+      rec.push(l.x, l.z, l.nx, l.nz, l.len, HALF, 0, 0);
+      for (const [cx, cz] of corners(l)) { x0 = Math.min(x0, cx); z0 = Math.min(z0, cz); }
+    });
+    x0 -= CELL; z0 -= CELL;
+    const cells = new Map(); // gx + gz * 65536 -> the crossings over that cell, 0-based
+    L.forEach((l, i) => {
+      const c = corners(l), cx0 = Math.floor((Math.min(...c.map(q => q[0])) - 1 - x0) / CELL), cx1 = Math.floor((Math.max(...c.map(q => q[0])) + 1 - x0) / CELL);
+      const cz0 = Math.floor((Math.min(...c.map(q => q[1])) - 1 - z0) / CELL), cz1 = Math.floor((Math.max(...c.map(q => q[1])) + 1 - z0) / CELL);
+      for (let gz = cz0; gz <= cz1; gz++) for (let gx = cx0; gx <= cx1; gx++) {
+        // (a cell its band does not reach, by the band's own axes: a crossing laid askew covers few of the cells round it)
+        const mx = x0 + (gx + 0.5) * CELL - l.x, mz = z0 + (gz + 0.5) * CELL - l.z, r = CELL * 0.7072 + 1;
+        const s = mx * l.nx + mz * l.nz, u = -mx * l.nz + mz * l.nx;
+        if (s < -r || s > l.len + r || Math.abs(u) > HALF + r) continue;
+        const key = gx + gz * 65536;
+        (cells.get(key) || cells.set(key, []).get(key)).push(i);
+      }
+    });
+    // the table: twice the cells in use, a power of two, probed in turn from the cell's hash (oeZebraAt)
+    let n = 1; while (n < cells.size * 2) n *= 2;
+    const slots = new Float32Array(n * 4), list = [];
+    let probe = 0, full = 0;
+    for (const [key, ids] of cells) {
+      const gx = key % 65536, gz = Math.floor(key / 65536);
+      let h = ((Math.imul(gx, 73856093) ^ Math.imul(gz, 19349663)) >>> 0) & (n - 1), k = 0;
+      while (slots[h * 4] > 0) { h = (h + 1) & (n - 1); k++; }
+      probe = Math.max(probe, k + 1);
+      if (ids.length > 8) full++;
+      slots.set([gx + 1, gz, list.length, Math.min(ids.length, 8)], h * 4);
+      list.push(...ids.slice(0, 8));
+    }
+    // a texture of rows of ZEBRA_ROW texels, of four numbers each
+    const tex = a => {
+      const texels = Math.max(1, Math.ceil(a.length / 4)), w = Math.min(texels, ZEBRA_ROW), h = Math.ceil(texels / w), d = new Float32Array(w * h * 4);
+      d.set(a);
+      const t = new THREE.DataTexture(d, w, h, THREE.RGBAFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+    };
+    ZEBRA_DRAW.rec.value = tex(rec);
+    ZEBRA_DRAW.grid.value = tex(slots);
+    ZEBRA_DRAW.list.value = tex(list);
+    ZEBRA_DRAW.hash.value.set(n, probe);
+    ZEBRA_DRAW.box.value.set(x0, z0, CELL, 1);
+    if (probe > 32) console.warn(`zebras: a probe of ${probe} slots, past the shader's 32`);
+    if (full) console.warn(`zebras: ${full} cells with more than eight crossings over them`);
+  }
   function streetTexture(i) {
     const t = scene.ground[i], PX = QC.lean ? 0.75 : 0.5, w = Math.round((t.x1 - t.x0) / PX), h = Math.round((t.y1 - t.y0) / PX);
     const cv = document.createElement('canvas');
@@ -584,17 +697,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     survey(() => { for (const [x, y, rad] of streetNodes()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
       g.beginPath(); g.arc(x, y, rad, 0, 6.2832); g.fillStyle = ASPHALT; g.fill();
     } }, true);
-    g.setLineDash([0.45 / PX, 0.45 / PX]);
-    for (const [x, y, ux, uy, half] of streetZebras()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
-      g.beginPath(); g.moveTo((x - uy * half - t.x0) / PX, (t.y1 - (y + ux * half)) / PX); g.lineTo((x + uy * half - t.x0) / PX, (t.y1 - (y - ux * half)) / PX);
-      g.strokeStyle = PAINT; g.lineWidth = 4 / PX; g.stroke();
-    }
-    g.setLineDash([]);
-    survey(() => { // the zebras of the data inside the ring, each from kerb to kerb
-      g.setLineDash([0.45, 0.45]); g.strokeStyle = PAINT; g.lineWidth = 4;
-      for (const z of RG.z || []) { g.beginPath(); g.moveTo(z[0] / 10, z[1] / 10); g.lineTo(z[2] / 10, z[3] / 10); g.stroke(); }
-      g.setLineDash([]);
-    }, true);
+    // (the zebras are the shader's, filtered to the pixel: zebraDraw. Their 0.9 m pattern is under two texels here)
     if (window.OETex && OETex.stats.on && typeof createImageBitmap === 'function') {
       // a phone (tex.js): the overlay in ASTC blocks, a quarter of the GPU's memory; the aerial photo shows until it is in (groundLod)
       const tex = new THREE.Texture();
@@ -661,6 +764,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.farSun) Wd.farSun.init(DSM); // the sun's shadow past the shadow map, from this surface model (world.js, issue 358)
   if (D.navJob) { D.navCells = await D.navJob; D.navJob = null; } // (the landmarks on its grid, from the worker: world.js)
   const tNav = performance.now(), nav = OENav.create(D, DSM);
+  zebraDraw();
   console.info(`nav: ${Math.round(performance.now() - tNav)} ms (the collision world ${nav.col.count} solids; the landmarks' fine cells sorted ${Math.round(nav.startMs)} ms)`);
   if (window.OESurface) OESurface.load(renderer); // the street's scanned surfaces, which the shaders take when they come (surface.js)
   // the big screens light the street, the crowd and the buildings across from them (neon.js)
@@ -806,7 +910,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // frame 5's foot of Scramble Square and frame 6's kerb under the station's deck (the Scramble's own were solid only as
   // far as its landmark lays them, 62 m from the junction). Each FC m cell a rail's body crosses, 0.1 m over the ground
   // under it to its top, is a box, a row of cells one box, in nav's walkers' own world (addFences): what nav.slide
-  // stops you at, the guide's step and his planner's stand too (nav.walk), and no car, lens or sound. Made once, as the
+  // stops you at, the guide's step and his planner's stand too (nav.walk), and the body of a car driven at one (cars.js
+  // collide, nav.pushFence); no lens or sound, and of the searches for a kerb only your own car's, which asks whether a rail would stand in the car set down there (parkClear, nav.fenceHit). Made once, as the
   // level first comes; tools/rail_walk.js walks into them
   const FC = 0.25;
   function heroFence(h, root) {
@@ -2066,11 +2171,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return OECars.ledgesUnder(nav, pose, hl, hw) > 0;
   }
+  // Whether a car of half length hl and half width hw can stand at a pose with nothing of the street in its body: the
+  // walls and ledges (wedged), the lamp posts, signals and trunks (posts), and a hero level's guard rails (nav.fenceHit,
+  // which the car's own queries of the world leave out, so that a rail beside the kerb is no wall it is wedged against;
+  // a rail through the bonnet is another thing: the owner's still of 27 November 2026, your car called to the kerb by the
+  // scramble with the rail and a post through it). traffic: the cars standing or going there too. Every place a car is
+  // set down at the kerb is asked this, and one that fails it is never used, however far the search has to go
+  function parkClear(pose, hl, hw, traffic = true) {
+    if (traffic && cars.footprint(pose.x, pose.y, pose.z, pose.h, hl, hw, 0.3) > 0) return false;
+    if (wedged(pose, hl, hw)) return false; // (not into a wall nor half over a ledge a car cannot climb: it would stand there wedged)
+    const fx = Math.sin(pose.h), fy = Math.cos(pose.h);
+    let hit = false;
+    posts.near(pose.x, pose.y, hl + 1, p => {
+      const dx = p.x - pose.x, dy = p.y - pose.y;
+      if (Math.abs(dx * fx + dy * fy) < hl + p.r + 0.2 && Math.abs(-dx * fy + dy * fx) < hw + p.r + 0.2) hit = true;
+    }, pose.z);
+    if (hit) return false;
+    if (nav.fenceHit) { // (the body as circles along it, and its four corners; from the sills to the roof)
+      const zlo = pose.z + 0.15, zhi = pose.z + 1.3, run = Math.max(0, hl - hw), r = hw - 0.05;
+      for (const o of [-run, -run / 2, 0, run / 2, run]) if (nav.fenceHit(pose.x + fx * o, pose.y + fy * o, r, zlo, zhi)) return false;
+      for (const a of [-1, 1]) for (const b of [-1, 1]) {
+        const u = a * (hl - 0.2), v = b * (hw - 0.2);
+        if (nav.fenceHit(pose.x + fx * u + fy * v, pose.y + fy * u - fx * v, 0.18, zlo, zhi)) return false;
+      }
+    }
+    return true;
+  }
   function kerbNear(x, y, z, ahead = 9, within = 250) {
     const pl0 = offScramble(roads.place(x, y, within, keepSign, z), true);
     if (!pl0) return null;
     const M = CARS_OK && vlib.info.cars.models[carCfg.model], half = M ? M.length_m / 2 : 2.2, hw = M ? M.width_m / 2 : 0.9;
-    let first = null;
     const along = (pl, s0) => {
       const L = roadNet.L[pl.line].len;
       // (not in a junction, nor so close to one that the traffic turning through it can't get round: at Hong
@@ -2078,32 +2208,31 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // 12 m clear of one ahead, and 18 m of one behind, where a taxi hailed from beside it pulls in)
       const l0 = roadNet.L[pl.line], n0 = l0.pts.length / 3, jn = k => (roadNet.nodes.get(roadNet.key(l0.pts[3 * k], l0.pts[3 * k + 1])) || []).length > 2;
       const back = d => half + (d ? 18 : 12), nearJ = s => junctions.inner(pl.line) || (jn(0) && s < back(pl.dir > 0)) || (jn(n0 - 1) && L - s < back(pl.dir < 0));
-      for (const d of [0, 6, -6, 12, -12, 18, -18, 24, -24, 30, -30, 36, -36]) {
+      for (const d of [0, 3, -3, 6, -6, 9, -9, 12, -12, 18, -18, 24, -24, 30, -30, 36, -36]) {
         const q = Object.assign({}, pl, { s: Math.max(3, Math.min(L - 3, s0 + d * pl.dir)) });
         if (SCR_AT.length && (inScramble(q.line, q.s) || inScramble(q.line, Math.max(0, Math.min(L, q.s - 15 * q.dir))) || (q.dir > 0 ? L - q.s : q.s) < 12)) continue; // (not back by the scramble's crosswalks, nor the kerb behind it; and with road ahead to drive off along)
+        if (nearJ(q.s)) continue;
         const pose = kerbPose(q);
-        first = first || { pl: q, pose };
-        if (nearJ(q.s) || cars.footprint(pose.x, pose.y, pose.z, pose.h, half, hw, 0.3) > 0) continue;
-        if (wedged(pose, half, hw)) continue; // (not into a wall nor half over a ledge a car cannot climb: it would stand there wedged)
         if (scrambleJ.some(j => Math.hypot(j.x - pose.x, j.y - pose.y) < 36)) continue; // (not at the mouth of a scramble, its crowd crossing every way)
-        let hit = false;
-        const fx = Math.sin(pose.h), fy = Math.cos(pose.h);
-        posts.near(pose.x, pose.y, half + 1, p => {
-          const dx = p.x - pose.x, dy = p.y - pose.y;
-          if (Math.abs(dx * fx + dy * fy) < half + p.r + 0.2 && Math.abs(-dx * fy + dy * fx) < hw + p.r + 0.2) hit = true;
-        }, pose.z);
-        if (!hit) return { pl: q, pose };
+        if (parkClear(pose, half, hw)) return { pl: q, pose };
       }
       return null;
     };
     let got = along(pl0, pl0.s + ahead * pl0.dir);
-    // (by a scramble, its street too short for all that, or a short piece between two junctions: the streets
-    // round, nearest first)
-    if (!got) for (let r = 15; r <= 75 && !got; r += 15) for (let k = 0; k < 12 && !got; k++) {
-      const a = k / 12 * Math.PI * 2, q = roads.place(x + Math.sin(a) * r, y + Math.cos(a) * r, 8, keepSign, z);
-      if (q && q.line !== pl0.line) got = along(q, q.s);
+    // (by a scramble, its street too short for all that, or a short piece between two junctions: the streets round,
+    // ring by ring, and in each ring the place nearest you, not the first found going round it. Nothing that fails
+    // parkClear is ever the answer: where nowhere near is clear, null, and the caller says so)
+    for (let r = 15; r <= 120 && !got; r += 15) {
+      let best = null, bestD = Infinity;
+      for (let k = 0; k < 12; k++) {
+        const a = k / 12 * Math.PI * 2, q = roads.place(x + Math.sin(a) * r, y + Math.cos(a) * r, 8, keepSign, z);
+        const c = q && q.line !== pl0.line ? along(q, q.s) : null;
+        const d = c ? Math.hypot(c.pose.x - x, c.pose.y - y) : Infinity;
+        if (d < bestD) { best = c; bestD = d; }
+      }
+      got = best;
     }
-    return got || first || { pl: pl0, pose: kerbPose(pl0) };
+    return got;
   }
   // where a car is on the roads, going the way it faces
   function placeOf(st) {
@@ -2248,14 +2377,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function bringCar() {
     if (!myCar) { H.toast('Your car is not here yet. Try again in a moment.'); return; }
     if (player.mode !== 'foot') { H.toast('Get out first.'); return; }
-    const k = kerbNear(player.x, player.y, player.z, 10);
-    if (!k) { H.toast('There is no street near enough to bring it to.'); return; }
+    const k = kerbNear(player.x, player.y, player.z, 2); // (beside you, a step ahead: ten metres on, it stood at the next corner, and with the scramble's mouths and the junctions kept clear it was often thirty)
+    if (!k) { H.toast('There is no clear place at a kerb near enough to bring it to.'); return; }
     const st = myCar.D.st, m = Math.round(Math.hypot(k.pose.x - player.x, k.pose.y - player.y));
-    if (Math.hypot(st.x - k.pose.x, st.y - k.pose.y) < 6 && !carCome) { A.honk(0.25, 1.15); H.toast(`Your car is here, ${m} m away.`); return; }
-    const L = roadNet.L[k.pl.line].len, s1 = k.pl.s, s0 = Math.max(3, Math.min(L - 3, s1 - CAR_COME_M * k.pl.dir)), from = Object.assign({}, k.pl, { s: s0 }), p0 = kerbPose(from);
     const M = vlib.info.cars.models[carCfg.model], half = M ? M.length_m / 2 : 2.2, hw = M ? M.width_m / 2 : 0.9;
+    carCall = { t: clockT }; // (from here until you reach it, its own mark and its own line in the corner: carAim)
+    // (already there: unless where it stands has something of the street in it, as a car set down before parkClear could)
+    if (Math.hypot(st.x - k.pose.x, st.y - k.pose.y) < 6 && !carCome && parkClear(st, half, hw, false)) { A.honk(0.25, 1.15); H.toast(`Your car is here, ${m} m away.`); return; }
+    const L = roadNet.L[k.pl.line].len, s1 = k.pl.s, s0 = Math.max(3, Math.min(L - 3, s1 - CAR_COME_M * k.pl.dir)), from = Object.assign({}, k.pl, { s: s0 }), p0 = kerbPose(from);
     // (from where it comes: clear of the traffic and not wedged, or it stands at the kerb at once)
-    const far = Math.abs(s1 - s0) > 4 && !cars.footprint(p0.x, p0.y, p0.z, p0.h, half, hw, 0.3) && !wedged(p0, half, hw);
+    // (and nothing of the street's on its way in: it comes along the kerb's lane, and a post or a rail on that line it
+    // would pass through, every three metres of it asked as the place it stops at is, the traffic aside)
+    let far = Math.abs(s1 - s0) > 4 && parkClear(p0, half, hw);
+    for (let u = 3; far && u < Math.abs(s1 - s0); u += 3) far = parkClear(kerbPose(Object.assign({}, k.pl, { s: s0 + Math.sign(s1 - s0) * u })), half, hw, false);
     parkMyCar(far ? p0 : k.pose);
     carCome = far ? { pl: k.pl, s0, s1, t: 0, dur: 2 * Math.abs(s1 - s0) / 8.5 } : null; // (in at 30 km/h, slowing evenly to the kerb)
     if (!far) A.honk(0.25, 1.15);
@@ -2263,6 +2397,50 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     save();
   }
   const CAR_COME_M = 20;
+  // Where your car is, once called, until you reach it: where the kerb beside you is kept clear (the scramble's mouths,
+  // a junction's box) it stands down the street, and "33 m away" said nothing of which way (the owner, 27 November
+  // 2026). So it has a mark over it in the frame and a line of its own in the walk's corner, with the way to it. Both
+  // are the car's: its outline and its teal (the colour its autopilot speaks in), in a box, never the amber arrow and
+  // metres of what someone on the walk asked of you, nor the story's ring, so that the two are not taken for each other
+  let carCall = null;
+  const CAR_CALL_S = 240, CAR_NEAR_M = 4.5, CAR_MARK_M = 7;
+  const carMarkEl = document.createElement('div');
+  carMarkEl.id = 'g-car-mark'; carMarkEl.setAttribute('aria-hidden', 'true');
+  carMarkEl.innerHTML = '<span><i class="car"></i><b></b></span>';
+  stage.appendChild(carMarkEl);
+  // -> { m, dir (a bearing from north, as the corner's arrows take it), x, y, z } while a called car is still to be
+  // reached on foot; null once you are at it or in it, or four minutes on
+  function carAim() {
+    if (!carCall || !myCar) return null;
+    const st = myCar.D.st;
+    if (player.mode !== 'foot' || clockT - carCall.t > CAR_CALL_S) { carCall = null; return null; }
+    const m = Math.hypot(st.x - player.x, st.y - player.y);
+    if (m < CAR_NEAR_M) { carCall = null; return null; }
+    return { m, dir: Math.atan2(st.x - player.x, st.y - player.y), x: st.x, y: st.y, z: st.z, seen: carMarkOn }; // (seen: its mark over it is the guide now, carMark)
+  }
+  // the mark over it: drawn as the story's place to walk to is (marks.js, story.js 'go'), not on you and held over a
+  // figure in front of it, and not hidden by the building it stands behind: it is where you are going, and behind a
+  // station kiosk 28 m off, hidden, it said nothing. One guide to the car at a time (the owner's phone, 27 Nov: two teal
+  // boxes, the corner's and this one pinned to the frame's edge, read as two cars): while the car itself is in the
+  // picture, well inside the frame, this mark over it is the guide and the corner's line steps aside (carAim().seen);
+  // off the frame, behind you or too near to need it, the corner's line and its arrow are, and this is not drawn. Not
+  // clamped to the edge: there it pointed at nothing. A margin either way so that it does not flick at the edge
+  let carMarkOn = false, carMarkM = '';
+  function carMark(hide) {
+    const a = hide || !carCall ? null : carAim();
+    let on = false;
+    if (a && a.m > CAR_MARK_M) {
+      const v = marks.see(a.x, a.y, a.z + 2.1, { pad: 18, solid: false, lift: true });
+      const e = carMarkOn ? 40 : 76, top = carMarkOn ? 40 : 64;
+      if (!v.why && v.x > e && v.x < stageW - e && v.y > top && v.y < stageH - e) {
+        on = true;
+        carMarkEl.style.transform = `translate(${v.x.toFixed(1)}px, ${v.y.toFixed(1)}px)`;
+        const t = `${Math.round(a.m)} m`;
+        if (t !== carMarkM) { carMarkM = t; carMarkEl.querySelector('b').textContent = t; }
+      }
+    }
+    if (on !== carMarkOn) { carMarkOn = on; carMarkEl.classList.toggle('on', on); }
+  }
   function carComing(dt) {
     const c = carCome;
     if (!c || !myCar) { carCome = null; return; }
@@ -4943,6 +5121,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       dress: sp => { if (sp.t === 'live') presetTime('live'); else if (sp.t) { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); } else if (sp.min != null) setClock(clock.y, clock.m, clock.d, sp.min); if (sp.w && weather) weather.set(sp.w, { now: true }); if (walk) Object.assign(walk, sp.t ? { t: sp.t } : sp.w ? { w: sp.w } : { t: 'any' }); menuSync(); },
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
+      carAim: () => carAim(), // (your car, once called and until you reach it: the way to it, its own line in the corner)
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
@@ -5152,7 +5331,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.sea && Wd.sea.reflections) gov.rung('reflection', [1, 2, 0], v => { Wd.sea.reflEvery = v; });
   if (atmos && atmos.ao && atmos.ao.limit) gov.rung('ao', [2, 1, 0], v => atmos.ao.limit(v));
   // the scene's multisampling: the tier's (four on high) with every extra, two at half, none at the floor, where the
-  // sharpened upscale and the lens's grain hide the edges more cheaply than four samples a pixel
+  // lens smooths the edges itself, more cheaply than four samples a pixel (lens.js smoothEdge: before it, nothing did,
+  // and the sharpened upscale drew the stairs harder)
   // (the tier's: two on a dense display, where the scene has two device pixels or more under each CSS pixel already:
   // quality.js samplesAt; followed when the window changes size, resize())
   if (atmos && atmos.setSamples && QC.samples) { msaaRung = [0, 0, 0]; msaaFor(); gov.rung('msaa', msaaRung, v => atmos.setSamples(v)); }
@@ -5318,6 +5498,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
+    carMark(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active)); // (before the corner: it steps aside while this mark is up, carAim().seen, in the same frame)
     if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
     if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)

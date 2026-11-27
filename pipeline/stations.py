@@ -98,6 +98,89 @@ def restyle(B, japan):
     return n
 
 
+FLOOR_DM = 39   # build_scene.py's storey for a building:min_level with no min_height (m x 10, a building not lived in)
+MEET_M = 1.0          # a neighbour this near a raised building's outline is one it meets
+PODIUM_DM = 80        # (a neighbour's underside or a podium's roof no higher than this is its first floor)
+
+
+def min_levels(city):
+    """{OpenStreetMap id: building:min_level} from the city's OpenStreetMap detail (cities/<id>/*_osm.json)."""
+    import glob
+    out = {}
+    for f in glob.glob(os.path.join(ROOT, "cities", city, "*_osm.json")):
+        J = json.load(open(f, encoding="utf8"))
+        for kind, pre in (("ways", "w"), ("relations", "r")):
+            for w in J.get(kind) or []:
+                t = w.get("tags") or {}
+                if "building:min_level" in t and "min_height" not in t:
+                    try:
+                        out[pre + str(w["id"])] = float(t["building:min_level"])
+                    except ValueError:
+                        pass
+    return out
+
+
+def meet_floors(B, city):
+    """A building the record starts at a storey (building:min_level n, no min_height) starts where its neighbours' storey
+    n does: build_scene.py counts n storeys of 3.9 m from its base, but Shibuya's shops have ground floors of 5 to 6 m
+    and stand on ground that climbs from the base, so a bridge between two of them hung a storey under their first
+    floor, its underside at a car's roof over the east exit's taxis (the owner's report, 27 November 2026). Its
+    underside is set at the highest storey n's floor of the neighbours it meets (2 m of wall or more) that stand on the
+    ground and rise past it (base, ground floor and n - 1 storeys of buildings.json; for the first floor also a neighbour's underside or a
+    podium's roof up to PODIUM_DM): a bridge reaches the floor at
+    either end, and the lower end's stair makes up the rest. Never lower than the record's.
+    UNDERSIDE's figures stand. The number raised."""
+    import shapely
+    levels = min_levels(city)
+    def plan(s):
+        r = s[4]
+        return Polygon([(r[i] / 10, r[i + 1] / 10) for i in range(0, len(r), 2)]).buffer(0)
+    polys = [plan(s) for s in B["s"]]
+    tree = shapely.STRtree(polys)
+    by_b = defaultdict(list)
+    for si, s in enumerate(B["s"]):
+        if s[2] > 0:
+            by_b[s[0]].append(si)
+    n = 0
+    for bi, ks in by_b.items():
+        m = B["b"][bi]
+        if m[1] == "roof" or m[6] in UNDERSIDE:
+            continue
+        lv = levels.get(m[6])
+        under = min(B["s"][k][2] for k in ks)
+        if lv is None:   # (the record's own min_floor: an underside of whole storeys of build_scene.py's)
+            lv = under // FLOOR_DM if under % FLOOR_DM == 0 and 1 <= under // FLOOR_DM <= 6 else None
+        if not lv:
+            continue
+        meet = []   # (storey lv's floor in each neighbour, over the sea: the building's solids are raised as one)
+        for si in ks:
+            F = polys[si]
+            for j in tree.query(F.buffer(MEET_M)):
+                t = B["s"][j]
+                c = B["b"][t[0]]
+                if t[0] == bi or c[1] == "roof" or polys[j].buffer(MEET_M).intersection(F.exterior).length < 2:
+                    continue
+                if t[2] > 0:   # (a neighbour itself lifted to its first floor: its underside is that floor)
+                    if lv == 1 and t[2] <= PODIUM_DM:
+                        meet.append((t[1] + t[2]) / 10)
+                    continue
+                if lv == 1 and 40 <= t[3] <= PODIUM_DM:   # (a podium whose roof is the first floor's deck)
+                    meet.append((t[1] + t[3]) / 10)
+                    continue
+                floor = t[1] / 10 + c[12] + (lv - 1) * c[11]
+                if (t[1] + t[3]) / 10 >= floor + 2:   # (not one lower than that storey: a station's box, a kiosk)
+                    meet.append(floor)
+        if not meet:
+            continue
+        lows = {k: math.ceil(max(meet) * 10) - B["s"][k][1] for k in ks}
+        if all(lows[k] <= B["s"][k][2] for k in ks) or any(B["s"][k][3] - lows[k] < 30 for k in ks):
+            continue
+        for k in ks:
+            B["s"][k][2] = max(B["s"][k][2], lows[k])
+        n += 1
+    return n
+
+
 def over_roads(B, city, game):
     """Raise every solid standing on a driven surveyed carriageway to stand over it (see the module's note): the
     number raised. Needs the survey (cities/<id>/road_surface.json); without it nothing is done."""
@@ -149,6 +232,7 @@ def decks(B):
 
 PLATFORM_M = 8.0   # a roof this near a course is over its platform (an island platform's far edge, 6 m off the rail)
 CANOPY_DM = 8      # a platform's roof: a slab this thick (dm)
+CANOPY_WALL, CANOPY_ROOF = "#c3c6c8", "#9fa3a6"   # its fascia and its sheet: light metal
 
 
 def platform_roofs(B, game):
@@ -181,8 +265,12 @@ def platform_roofs(B, game):
             continue
         rail = max(float(np.interp(g.project(Point(x, y)), m, P[:, 2])) for _, g, m, P in near for x, y in F.exterior.coords)
         lo, hi = (s[1] + s[2]) / 10, (s[1] + s[3]) / 10
-        if hi < rail - 0.5 or lo >= rail + rail_clear.WIRE_M:
-            continue   # (a canopy over the street under the line, or a roof over the wire already)
+        if hi < rail - 0.5 or lo >= rail + rail_clear.WIRE_M + 1.5:
+            continue   # (a canopy over the street under the line, or a roof well over the wire: a station's own)
+        m = B["b"][s[0]]   # (a platform's roof is a flat sheet of metal on steel: the record's tiled skillion on a slab
+        m[7], m[8], m[13], m[15] = CANOPY_WALL, CANOPY_ROOF, B["roof_materials"].index("metal"), 0   # read as a brown wavy band)
+        if lo >= rail + rail_clear.WIRE_M:
+            continue
         deep = s[3] - s[2]
         s[2] = math.ceil((rail + rail_clear.WIRE_M) * 10) - s[1]
         s[3] = s[2] + min(CANOPY_DM, max(2, deep))
@@ -384,6 +472,7 @@ def main():
     game = json.load(open(os.path.join(d, "game.json"), encoding="utf8")) if os.path.exists(os.path.join(d, "game.json")) else {}
     before = json.dumps(B, sort_keys=True)
     n = restyle(B, typology.region_name(cfg) == "japan")
+    met = meet_floors(B, a.city)
     raised = over_roads(B, a.city, game)
     roofs = platform_roofs(B, game)
     carved = over_tracks(B, a.city, game)
@@ -410,7 +499,7 @@ def main():
     if changed:
         with open(path, "w") as f:
             json.dump(B, f, separators=(",", ":"))
-    print(f"{a.city}: {n} stations restyled, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs, {len(bodies)} an expressway's own body, {len(strays)} scraps of a roof under it, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
+    print(f"{a.city}: {n} stations restyled, {met} raised to meet their neighbours' floors, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs, {len(bodies)} an expressway's own body, {len(strays)} scraps of a roof under it, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
 
 
 if __name__ == "__main__":
