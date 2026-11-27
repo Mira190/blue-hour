@@ -167,7 +167,7 @@ function watch({ x, y, secs, R }) {
   }
   // (the cars that stood for a post near the places, where and for what: actors.js postLog)
   const pl = await p.evaluate(at => (window.__game.cars.postLog || []).filter(q => at.some(([x, y]) => Math.hypot(q.x - x, q.y - y) < 80)), PLACES);
-  for (const q of pl) console.log(`   stood for a post: car ${q.i} at ${q.x},${q.y} on piece ${q.line}${q.mv ? ` in ${q.mv}` : ''}, a ${q.kind} r ${q.r} at ${q.at}`);
+  for (const q of pl) console.log(`   stood for a post: car ${q.i} at ${q.x},${q.y} on piece ${q.line} s ${q.s} dir ${q.dir} lane ${q.ln} lo ${q.lo} off ${q.off} way points ${q.np} to its line ${q.toLine}${q.mv ? ` in ${q.mv}` : ''}, a ${q.kind} r ${q.r} at ${q.at}`);
   if (process.env.CHECK && !bad) console.log('ok   the junctions keep their cycles and pass their queues');
   await b.close();
   process.exit(bad ? 1 : 0);
