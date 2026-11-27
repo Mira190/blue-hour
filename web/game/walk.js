@@ -185,19 +185,21 @@ window.OEWalk = (function () {
       }
       // your car, once called and until you reach it (game.js carAim): a line of its own under the rest, in its box and
       // its teal with its outline, its arrow turned as the other is; never the amber line and arrow of what someone asked
+      // One guide to it at a time: while its own mark stands over it in the picture (ca.seen) this line steps aside, and
+      // comes back without its entrance when the car leaves the frame (the entrance is for the call, once)
       const ca = r.mode === 'foot' && ctx.carAim ? ctx.carAim() : null;
-      const cm = ca ? (ca.m < 30 ? `${Math.round(ca.m)} m` : ca.m < 950 ? `${Math.round(ca.m / 5) * 5} m` : `${(ca.m / 1000).toFixed(1)} km`) : '';
+      const cm = ca && !ca.seen ? (ca.m < 30 ? `${Math.round(ca.m)} m` : ca.m < 950 ? `${Math.round(ca.m / 5) * 5} m` : `${(ca.m / 1000).toFixed(1)} km`) : '';
       if (force || cm !== shown.cm) {
         const e = hud.querySelector('.c');
-        if (cm && !shown.cm) { e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
+        if (cm && !shown.cm && !shown.ccall) { e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
         e.hidden = !cm; e.querySelector('.m').textContent = cm;
       }
       let cdir = shown.cdir;
-      if (ca && ctx.yaw) {
+      if (cm && ctx.yaw) {
         const deg = Math.round(((ca.dir - ctx.yaw()) * 180 / Math.PI % 360 + 540) % 360 - 180);
         if (cdir == null || Math.abs(deg - cdir) >= 3) { hud.querySelector('.c .dir').style.transform = `rotate(${deg}deg)`; cdir = deg; }
       } else cdir = null;
-      shown = { where, t, em, g, q, dir: shown.dir, cm, cdir };
+      shown = { where, t, em, g, q, dir: shown.dir, cm, cdir, ccall: !!ca };
       if (keys.classList.contains('on')) {
         keysT += dt;
         if (at) { if (lastXY) walked += Math.hypot(at[0] - lastXY[0], at[1] - lastXY[1]); lastXY = at; }

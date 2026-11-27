@@ -3,7 +3,8 @@
 // level's guard rail). The owner's stills of 27 November 2026: called by the scramble it stood 33 m off with nothing
 // to say which way, and another time with a rail and a post through it. Fails where the car stands in anything, where
 // it stands more than FAR m from you with a clear kerb nearer that the search should have found, or where, called from
-// beyond CAR_MARK m, the corner has no line of its own for the car (game.js carAim, walk.js) or it is the errand's.
+// beyond CAR_MARK m, there is no guide to the car (its mark over it in the picture, else its own line in the corner:
+// game.js carAim, carMark, walk.js) or there are both at once (the owner's phone, 27 Nov: two teal boxes).
 //   xvfb-run -a node tools/car_call.js [out_dir] [WxH]     STEP=20 (m between places) R=110 (m round the start)
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -55,20 +56,21 @@ const STEP = +(process.env.STEP || 20), R = +(process.env.R || 110), FAR = +(pro
     }, [x, y, z]);
     // (the corner is drawn by the page's own frames, not by advance: a few of them before it is read, however slowly this machine draws them)
     { const t0 = await p.evaluate(() => window.__game.t()); await p.waitForFunction(t0 => window.__game.t() > t0 + 0.2, t0, { timeout: 300000, polling: 100 }); }
-    Object.assign(r, await p.evaluate(() => { const e = document.querySelector('#g-walk-where .c'); return { line: !!e && !e.hidden, lineText: e ? e.textContent.replace('Your car', 'Your car ') : '' }; }));
+    Object.assign(r, await p.evaluate(() => { const e = document.querySelector('#g-walk-where .c'), mk = document.querySelector('#g-car-mark.on'); return { line: !!e && !e.hidden, lineText: e ? e.textContent.replace('Your car', 'Your car ') : '', mark: !!mk, markText: mk ? mk.textContent : '' }; }));
     n++;
     rows.push({ from: [x, y], ...r });
     const why = [];
     if (r.ins.length) why.push(`stands in ${[...new Set(r.ins)].join(', ')}`);
     if (r.m > FAR) { farN++; why.push(`${r.m} m off`); }
-    if (r.m > 7 && !r.line) why.push('no line of its own in the corner');
-    if (r.line) shown++;
-    console.log(`${why.some(w => /stands|line/.test(w)) ? 'FAIL' : r.m > FAR ? 'far ' : 'ok  '} from ${x},${y}: car at ${r.at}, ${r.m} m${r.ins.length ? `, in ${r.ins.join(',')}` : ''}${r.line ? ` · corner "${r.lineText}"` : ''}${/no clear/.test(r.toast) ? ` · "${r.toast}"` : ''}`);
-    if (why.some(w => /stands|line/.test(w))) bad++;
+    if (r.m > 7 && !r.line && !r.mark) why.push('no guide to it, neither its mark nor a line in the corner');
+    if (r.line && r.mark) why.push('two guides to it at once, its mark and the corner\'s line');
+    if (r.line || r.mark) shown++;
+    console.log(`${why.some(w => /stands|guide/.test(w)) ? 'FAIL' : r.m > FAR ? 'far ' : 'ok  '} from ${x},${y}: car at ${r.at}, ${r.m} m${r.ins.length ? `, in ${r.ins.join(',')}` : ''}${r.line ? ` · corner "${r.lineText}"` : ''}${r.mark ? ` · mark "${r.markText}"` : ''}${/no clear/.test(r.toast) ? ` · "${r.toast}"` : ''}`);
+    if (why.some(w => /stands|guide/.test(w))) bad++;
   }
   fs.writeFileSync(`${OUT}/car-call.json`, JSON.stringify(rows, null, 1));
   const ms = rows.map(r => r.m).sort((a, b) => a - b);
-  console.log(`${n} calls: median ${ms[Math.floor(ms.length / 2)]} m, ${farN} beyond ${FAR} m, ${shown} with the corner's car line, ${bad} failing`);
+  console.log(`${n} calls: median ${ms[Math.floor(ms.length / 2)]} m, ${farN} beyond ${FAR} m, ${shown} with one guide to the car, ${bad} failing`);
   if (errors.length) { console.log(`FAIL ${errors.length} page errors`); bad++; }
   await b.close();
   process.exit(bad ? 1 : 0);

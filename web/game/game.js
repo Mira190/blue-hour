@@ -2304,22 +2304,25 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (player.mode !== 'foot' || clockT - carCall.t > CAR_CALL_S) { carCall = null; return null; }
     const m = Math.hypot(st.x - player.x, st.y - player.y);
     if (m < CAR_NEAR_M) { carCall = null; return null; }
-    return { m, dir: Math.atan2(st.x - player.x, st.y - player.y), x: st.x, y: st.y, z: st.z };
+    return { m, dir: Math.atan2(st.x - player.x, st.y - player.y), x: st.x, y: st.y, z: st.z, seen: carMarkOn }; // (seen: its mark over it is the guide now, carMark)
   }
   // the mark over it: drawn as the story's place to walk to is (marks.js, story.js 'go'), not on you and held over a
   // figure in front of it, and not hidden by the building it stands behind: it is where you are going, and behind a
-  // station kiosk 28 m off, hidden, it said nothing. Off the frame the corner's arrow is the way. Nothing a frame while
-  // there is no call
+  // station kiosk 28 m off, hidden, it said nothing. One guide to the car at a time (the owner's phone, 27 Nov: two teal
+  // boxes, the corner's and this one pinned to the frame's edge, read as two cars): while the car itself is in the
+  // picture, well inside the frame, this mark over it is the guide and the corner's line steps aside (carAim().seen);
+  // off the frame, behind you or too near to need it, the corner's line and its arrow are, and this is not drawn. Not
+  // clamped to the edge: there it pointed at nothing. A margin either way so that it does not flick at the edge
   let carMarkOn = false, carMarkM = '';
   function carMark(hide) {
     const a = hide || !carCall ? null : carAim();
     let on = false;
     if (a && a.m > CAR_MARK_M) {
       const v = marks.see(a.x, a.y, a.z + 2.1, { pad: 18, solid: false, lift: true });
-      if (!v.why) {
+      const e = carMarkOn ? 40 : 76, top = carMarkOn ? 40 : 64;
+      if (!v.why && v.x > e && v.x < stageW - e && v.y > top && v.y < stageH - e) {
         on = true;
-        const mx = Math.max(70, Math.min(stageW - 70, v.x)), my = Math.max(56, v.y); // (its box whole in the frame: at the edge of a phone's it was cut in half)
-        carMarkEl.style.transform = `translate(${mx.toFixed(1)}px, ${my.toFixed(1)}px)`;
+        carMarkEl.style.transform = `translate(${v.x.toFixed(1)}px, ${v.y.toFixed(1)}px)`;
         const t = `${Math.round(a.m)} m`;
         if (t !== carMarkM) { carMarkM = t; carMarkEl.querySelector('b').textContent = t; }
       }
@@ -5382,11 +5385,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (window.OEKit) OEKit.setNight(U.uNight.value); // cabin windows and navigation lights
     fer.vessels.forEach(v => (v.events || []).splice(0).forEach(ev => onFerryEvent(ev)));
     if (life && !simHold) life.tick(dt, paused, titleOn); // (held by a harness: the day moves on only with advance())
+    carMark(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active)); // (before the corner: it steps aside while this mark is up, carAim().seen, in the same frame)
     if (walk && walkUi) walkUi.tick(dt, [player.x, player.y]); // (where and when you are, on the walk)
     if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
     npcMarks(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
-    carMark(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
     if (atmos && atmos.composer && 'keepPings' in atmos.composer) atmos.composer.keepPings = !!(story && story.on && story.state && story.state.phase === 'stop'); // (the camera effect's target kept through a Stop: atmosphere.js)
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's
