@@ -910,6 +910,7 @@
     ],
     "OENight": [
      "GLSL",
+     "MAPPED_H",
      "create",
      "uniforms"
     ],
@@ -1040,11 +1041,14 @@
     "OEPbr": [],
     "OEQuays": [],
     "OEStreets": [
+     "ZEBRA_GLSL",
      "carriageways",
      "posts",
      "roomForTwo",
      "setback",
-     "widthOf"
+     "widthOf",
+     "zebraCells",
+     "zebraMaterial"
     ],
     "OESurface": [
      "active",

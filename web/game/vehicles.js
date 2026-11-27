@@ -275,11 +275,12 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // compiles in parallel, KHR_parallel_shader_compile), not in the first frame that draws it
     // (opts.compile: the page's own, which compiles the variant its post stack draws with: world.js compile)
     // (and its textures sent to the GPU then too, not in the first frame that draws them)
+    let hurried = false; // (hurry: the player near it; its pictures go at the head of the page's queue)
     const warm = m => {
       const R = opts.renderer, cam = opts.camera;
       if (m && m.warmed) return m.warmed;
       // (a texture a frame in idle time where the page queues them, opts.upload: world.js upload; else all at once)
-      const up = m && opts.upload ? Promise.all([m.group, ...(m.extras || [])].map(o => opts.upload(o))).catch(() => {}) : null;
+      const up = m && opts.upload ? Promise.all([m.group, ...(m.extras || [])].map(o => opts.upload(o, hurried ? { first: true } : undefined))).catch(() => {}) : null;
       if (m && !up && R && R.initTexture) {
         const seen = new Set();
         for (const o of [m.group, ...(m.extras || [])]) o.traverse(q => { for (const mat of [].concat(q.material || [])) for (const v of Object.values(mat)) if (v && v.isTexture && !seen.has(v)) { seen.add(v); try { R.initTexture(v); } catch (e) { /* drawn later instead */ } } });
@@ -471,6 +472,10 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     const show = () => { g.visible = true; };
     return { group: g, st, get seat() { return V.seat; }, update, place, doorAt, get door() { return V.door; }, get way() { return V.way; }, toWorld, toLocal, roofOver, want, prefetch, show,
       boxes: () => boxesAt(), boxesAt, loaded: () => !ready || V === real,
+      // hurry(): the player is near it (game.js, as you come to its pad): its pictures sent at the head of the page's queue,
+      // now if they wait there, or from the start of its warm-up. Asked for from 800 m away, it waited behind 147 others in
+      // a queue sending one a frame, and on the roof it never came in, 19 minutes into the page (walk part 3, #157)
+      hurry: () => { if (hurried || !opts.upload) return; hurried = true; if (real && !warmed) for (const o of [real.group, ...(real.extras || [])]) opts.upload(o, { first: true }); },
       // (for the harnesses: what the model's swap waits on, tools/walk_play.js on the roof)
       late: () => ({ asked: !!asked, real: !!real, warmed, worn: V === real, kids: g.children.length, on: !!st.on, rotor: +(st.rotor || 0).toFixed(2), door: st.door, swap: !!swap }) };
   }

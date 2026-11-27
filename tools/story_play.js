@@ -725,6 +725,14 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
           let over = false; const end = () => { if (over) return; over = true; R.renderBufferDirect = f; done({ asked, drew, gate: window.__gate ? Object.assign({}, window.__gate.n) : null }); };
           setTimeout(end, 8000); requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(end))); })).catch(e => ({ drawErr: String(e).slice(0, 120) })));
       }
+      // (at a talk he may still be on his way: met at the kerb in the first Stop, he leads you 33 m to Sumiko and a player who
+      // walks straight there is at her before him; he goes on and sits by them. So at a talk the distance is read again for
+      // up to 20 s of the play while he comes, and fails only if he never comes within 15 m: run 473, 16.3 m at the talk)
+      if (G && G.made && s.beat === 'talk' && G.d >= 15) {
+        const t0 = Date.now(); let far = [G.d];
+        while (Date.now() - t0 < 20000) { await p.waitForTimeout(1000); const dd = await p.evaluate(() => { const g = window.__game, d = g.guideMade(); return d ? +Math.hypot(d.x - g.player.x, d.y - g.player.y).toFixed(1) : 99; }).catch(() => 99); far.push(dd); if (dd < 15) { G.came = far; G.d = dd; break; } }
+        if (!G.came) G.never = far;
+      }
       if (G) {
         const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15 && !(G.asked > 0 && !G.drew); // (asked for and none drawn: held by the gate. None asked: out of the frame, which the distance covers)
         console.log(`${ok ? 'ok  ' : 'FAIL'} ${s.fi + 1}-${name}: the guide ${JSON.stringify(G)}`);

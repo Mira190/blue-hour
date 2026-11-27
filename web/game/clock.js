@@ -26,7 +26,7 @@ window.OEGameClock = function (g) {
     g.Wd.setSeason(clock.m, clock.d);
     if (g.show) g.show.setClock(clock.min);
     const night = g.U.uNight.value;
-    g.headMat.emissiveIntensity = 1.6 * night;
+    g.headMat.emissiveIntensity = g.Wd.night ? 0 : 1.6 * night; // (with night.js the panel under the head is lit, not the housing)
     g.glowMat.opacity = 0.85 * night;
     if (g.junctions.heads) g.junctions.heads.setNight(night);
     const loc = g.S.utcToLocal(g.S.localToUtc(clock.y, clock.m, clock.d, clock.min));
