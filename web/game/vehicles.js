@@ -470,7 +470,9 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     const prefetch = () => (ready && !asked ? ready() : Promise.resolve(null));
     const show = () => { g.visible = true; };
     return { group: g, st, get seat() { return V.seat; }, update, place, doorAt, get door() { return V.door; }, get way() { return V.way; }, toWorld, toLocal, roofOver, want, prefetch, show,
-      boxes: () => boxesAt(), boxesAt, loaded: () => !ready || V === real };
+      boxes: () => boxesAt(), boxesAt, loaded: () => !ready || V === real,
+      // (for the harnesses: what the model's swap waits on, tools/walk_play.js on the roof)
+      late: () => ({ asked: !!asked, real: !!real, warmed, worn: V === real, kids: g.children.length, on: !!st.on, rotor: +(st.rotor || 0).toFixed(2), door: st.door, swap: !!swap }) };
   }
 
   function heliModel(world, lib, cfg, opts) {
