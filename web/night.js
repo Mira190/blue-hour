@@ -529,6 +529,7 @@ void main() {
     // A strip just outside the walls of each lit tower's highest part; additive, so it adds to them.
     const cr = Object.assign({ from_m: 60, share: 0.6, colours: [['#ffe2bf', 0.5], ['#fff1e2', 0.3], ['#ffc890', 0.12], ['#cfe0ff', 0.08]] }, st.crown);
     const crownColour = picker(cr.colours, rnd), crowns = new Map(), cPos = [], cCol = [], cV = [];
+    const dPos = [], dCol = [], dV = []; // (a walked roof's crown, drawn apart: below)
     let crownsLit = 0;
     // The crown goes on the highest part that is the tower's own top, not on a small box on its
     // roof (a plant room, a lift overrun, a sliver of the survey's model: under 300 m² and under
@@ -555,13 +556,20 @@ void main() {
       }
       return inside;
     };
-    // (not a roof people walk on: an observation deck in scene.json, deck_z, SHIBUYA SKY's. From on it the wash's line at
-    // the walls' top showed through the glass at the deck's foot as a white bar along every edge, issue 72)
+    // A roof people walk on (an observation deck in scene.json, deck_z: SHIBUYA SKY's) is lit like any tower's from
+    // everywhere else: the city's tallest, and the one the walk's opening names, it stood dark among lit crowns from the
+    // street and the air (the owner, 27 November 2026), since its own lit roof is a level fetched only near the roof
+    // (hero.js zr). From on the deck the wash's line at the walls' top showed through the glass at the deck's foot as a
+    // white bar along every edge (issue 72), so its crown is drawn apart and let go while the camera is up on that roof,
+    // where the level draws the roof's own lights. Always lit, in white (SKY EDGE's glass is lit white at night)
     const decks = Object.values((D.scene && D.scene.landmarks) || {}).filter(l => l && typeof l.deck_z === 'number' && l.centre);
+    const deckWhite = lampColour(cr.deck_colour || '#fff1e2'), deckAt = [];
     for (const [bi, { zt, top, ring, parts: others }] of crowns) {
-      if (decks.some(l => inRing(ring, l.centre[0], l.centre[1]))) continue;
-      if (rng(bi * 7 + 3)() > cr.share) continue; // the same towers lit on every visit
-      const H = Math.min(14, Math.max(4, 0.08 * top)), c = crownColour(), n = ring.length / 2;
+      const deck = decks.find(l => inRing(ring, l.centre[0], l.centre[1]));
+      if (!deck && rng(bi * 7 + 3)() > cr.share) continue; // the same towers lit on every visit
+      const H = Math.min(14, Math.max(4, 0.08 * top)), c = deck ? deckWhite : crownColour(), n = ring.length / 2;
+      const P = deck ? dPos : cPos, C = deck ? dCol : cCol, V = deck ? dV : cV;
+      if (deck) deckAt.push({ deck, ring });
       crownsLit++;
       let area = 0;
       for (let k = 0; k < n; k++) { const j = (k + 1) % n; area += ring[2 * k] * ring[2 * j + 1] - ring[2 * j] * ring[2 * k + 1]; }
@@ -575,14 +583,18 @@ void main() {
         const mx = (ax + bx) / 2 + ox * 4, my = (ay + by) / 2 + oy * 4;
         if (others.some(p => p.zt > zt - H && inRing(p.ring, mx, my))) continue;
         const q = [W(ax + ox, ay + oy, zt - H), W(bx + ox, by + oy, zt - H), W(bx + ox, by + oy, zt + 0.15), W(ax + ox, ay + oy, zt + 0.15)];
-        for (const i of [0, 1, 2, 0, 2, 3]) { cPos.push(q[i].x, q[i].y, q[i].z); cCol.push(c.r, c.g, c.b); cV.push(i < 2 ? 0 : 1); }
+        for (const i of [0, 1, 2, 0, 2, 3]) { P.push(q[i].x, q[i].y, q[i].z); C.push(c.r, c.g, c.b); V.push(i < 2 ? 0 : 1); }
       }
     }
-    if (cPos.length) {
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(cPos, 3));
-      g.setAttribute('color', new THREE.Float32BufferAttribute(cCol, 3));
-      g.setAttribute('v', new THREE.Float32BufferAttribute(cV, 1));
+    let deckCrown = null;
+    if (cPos.length || dPos.length) {
+      const strip = (pos, col, v) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        g.setAttribute('v', new THREE.Float32BufferAttribute(v, 1));
+        return g;
+      };
       const m = lightMaterial(common, `attribute vec3 color; attribute float v; uniform float uOn; varying vec3 vC; varying float vV;
 #include <common>
 #include <fog_pars_vertex>
@@ -603,10 +615,28 @@ void main() {
   #include <colorspace_fragment>
 }`);
       m.side = THREE.DoubleSide;
-      const mesh = new THREE.Mesh(g, m);
-      mesh.renderOrder = 19;
-      lights.push(mesh);
+      // (one material for both: the walked roof's crown is a second draw of the same program, nothing more to compile)
+      for (const [pos, col, v, deck] of [[cPos, cCol, cV, false], [dPos, dCol, dV, true]]) {
+        if (!pos.length) continue;
+        const mesh = new THREE.Mesh(strip(pos, col, v), m);
+        mesh.renderOrder = 19;
+        lights.push(mesh);
+        if (deck) deckCrown = mesh;
+      }
     }
+    // up on a walked roof: within 40 m of its top's ring in plan and from 25 m under its deck to 60 m over it (the
+    // chase camera behind you at the glass, the lift's last metres, the helicopter on its pad)
+    const onDeck = cp => deckAt.some(({ deck, ring }) => {
+      const x = cp.x, y = -cp.z, h = cp.y - deck.deck_z;
+      if (h < -25 || h > 60) return false;
+      if (inRing(ring, x, y)) return true;
+      for (let k = 0, n = ring.length / 2, j = n - 1; k < n; j = k++) { // (the distance to its edges)
+        const ax = ring[2 * j] / 10, ay = ring[2 * j + 1] / 10, bx = ring[2 * k] / 10, by = ring[2 * k + 1] / 10, L2 = (bx - ax) ** 2 + (by - ay) ** 2;
+        const t = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / L2)) : 0;
+        if (Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay)) < 40) return true;
+      }
+      return false;
+    });
 
     group.add(...lights);
     Wd.world.add(group);
@@ -653,7 +683,7 @@ void main() {
         for (const m of touched) m.instanceMatrix.needsUpdate = true;
         api.poles = keep;
         return bases.length / 3 - keep.length / 3;
-      }, towers: tops.size, crowns: crownsLit, map,
+      }, towers: tops.size, crowns: crownsLit, deckCrown: () => !!(deckCrown && deckCrown.visible), map,
       // the street lights' light on the ground at (x, y), local metres, once they are all on: the
       // luminance streetLight() gives there (the pools, the district's glow from the coarse mip, and
       // the screens' light if they play at that hour). For checks: a person standing there at night
@@ -687,6 +717,7 @@ void main() {
         common.uOn.value = on;
         NU.uNightOn.value = on;
         for (const o of lights) o.visible = on > 0.001; // (the poles stand by day too)
+        if (deckCrown && deckCrown.visible) deckCrown.visible = !onDeck(camera.position);
         common.uTime.value = tSec;
         renderer.getDrawingBufferSize(sizeV);
         common.uScale.value = sizeV.y / (2 * Math.tan(camera.fov * Math.PI / 360));

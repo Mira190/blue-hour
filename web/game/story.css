@@ -748,6 +748,25 @@
 /* (before the story to come is begun: who has it, quieter than what was asked) */
 #g-walk-where .q.next { border-left-color: rgba(244, 239, 230, 0.4); color: rgba(244, 239, 230, 0.82); font-size: clamp(13px, 1.15vw, 15px); }
 @keyframes g-walk-q { 0% { border-left-color: var(--amber); color: var(--amber); transform: translateX(-10px); opacity: 0; } 30% { opacity: 1; transform: none; } 100% { border-left-color: rgba(255, 207, 138, 0.7); color: var(--paper); } }
+/* Your car, once called (C) and until you reach it (game.js carAim): its own line under the rest and its own mark over it
+   in the frame. Both are the car's: its outline, its teal (the colour its autopilot speaks in) and a box round them, so
+   that they are never taken for the amber line, needle and metres of what someone on the walk asked of you */
+#g-walk-where .c { --car: #7fd1c8; display: flex; align-items: center; width: max-content; max-width: 100%; box-sizing: border-box; margin: 14px 0 0; padding: 7px 11px 7px 10px; border: 1px solid rgba(127, 209, 200, 0.6); border-radius: 3px; background: rgba(3, 20, 22, 0.62); font: 400 10px/1 var(--f-mono); letter-spacing: 0.26em; text-transform: uppercase; color: var(--car); font-variant-numeric: tabular-nums; text-shadow: 0 1px 8px #000; }
+#g-walk-where .c[hidden] { display: none; }
+#g-walk-where .c.new { animation: g-car-in 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes g-car-in { 0% { opacity: 0; transform: translateX(-10px); box-shadow: 0 0 0 0 rgba(127, 209, 200, 0.7); } 35% { opacity: 1; transform: none; } 100% { box-shadow: 0 0 0 10px rgba(127, 209, 200, 0); } }
+:is(#g-walk-where .c, #g-car-mark) i.car { position: relative; display: inline-block; flex: none; width: 15px; height: 7px; margin: 4px 10px 0 0; border: 1px solid currentColor; border-radius: 3px 3px 2px 2px; }
+:is(#g-walk-where .c, #g-car-mark) i.car::before { content: ""; position: absolute; left: 3px; right: 3px; top: -4px; height: 4px; box-sizing: border-box; border: 1px solid currentColor; border-bottom: 0; border-radius: 3px 3px 0 0; }
+:is(#g-walk-where .c, #g-car-mark) i.car::after { content: ""; position: absolute; left: 2px; bottom: -3px; width: 3px; height: 3px; border-radius: 50%; background: currentColor; box-shadow: 8px 0 0 currentColor; }
+#g-walk-where .c .dir { display: inline-block; flex: none; width: 0; height: 0; margin: 0 9px 0 12px; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 9px solid currentColor; transform-origin: 50% 60%; transition: transform 0.18s linear; filter: drop-shadow(0 1px 3px #000); }
+#g-car-mark { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.35s ease; will-change: transform; }
+#g-car-mark.on { opacity: 1; }
+#g-car-mark span { position: absolute; left: 0; top: 0; display: flex; align-items: center; transform: translate(-50%, calc(-100% - 8px)); padding: 6px 10px 6px 9px; border: 1px solid #7fd1c8; border-radius: 3px; background: rgba(3, 20, 22, 0.74); box-shadow: 0 0 14px rgba(127, 209, 200, 0.35); white-space: nowrap; font: 500 10px/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: #7fd1c8; font-variant-numeric: tabular-nums; }
+#g-car-mark span::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top: 7px solid #7fd1c8; border-bottom: 0; }
+#g-car-mark b { font-weight: 500; }
+@media (pointer: coarse), (max-width: 640px) { #g-car-mark span { font-size: 12px; padding: 7px 11px; } #g-walk-where .c { font-size: 11px; } }
+@media (prefers-reduced-motion: reduce) { #g-walk-where .c.new { animation: none; } #g-walk-where .c .dir, #g-car-mark { transition: none; } }
+.game-stage:has(#g-title:not([hidden])) #g-car-mark, .game-stage:has(.g-overlay:not([hidden])) #g-car-mark, .game-stage:is(.photo, .cine) #g-car-mark { visibility: hidden; }
 /* (and so does a station's announcement, trains.js, whose caption stood over the talk's own words) */
 body:has(#gd:not([hidden])) #g-announce { opacity: 0 !important; }
 /* (the keys' line gives way to a talk: the box stands where it is, at the foot of the frame) */
@@ -1746,7 +1765,7 @@ html.bh-leave #g-menu { pointer-events: none; }
    the title stands over the street, as a fresh page's title has none of it; back as the mode is taken up */
 .game-stage.parked :is(#g-story-goal, #g-story-frames, #g-story-keys, #g-story-teach, #g-story-menu, #g-story-chip, #g-story-cam,
   #g-story-hint, #g-story-mark, #g-story-card, #g-story-print, #g-story-finder, #g-walk-acts, #g-walk-where, #g-walk-keys,
-  #g-walk-told, #g-walk-tonight, #g-walk-hud, #gd, #g-pod, #g-touch, #g-btns, #g-toasts, .g-vhud, .g-lens, .g-chatter) { visibility: hidden !important; opacity: 0 !important; }
+  #g-walk-told, #g-walk-tonight, #g-walk-hud, #g-car-mark, #gd, #g-pod, #g-touch, #g-btns, #g-toasts, .g-vhud, .g-lens, .g-chatter) { visibility: hidden !important; opacity: 0 !important; }
 /* Read, then folded (story.js goal; the owner on an iPhone, 24 Nov: "a pile of words at the top and another in the
    middle"). One thing to read at a time, as a game's objective is: the frame's words for their reading time, then only
    the line of what to do under the eyebrow; a tap on what is left opens the words again. Where there is no such line

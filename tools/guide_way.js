@@ -65,6 +65,9 @@ const LEADS = [
   };
   // (as a case left at frame 4 and opened again: the dog is met, and the frame's goal is the lift)
   await p.addInitScript(() => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 3, left: 4, prints: [0, 1, 2].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
+  // GAPS=m: every half-metre sample of his feet more than m off what is drawn, printed with the floor he stood on
+  // (NEAR=x,y,r: and every sample within r m of (x, y), whatever its gap)
+  if (process.env.GAPS) { await p.addInitScript(([m, near]) => { window.__gaps = m; window.__near = near; }, [+process.env.GAPS, process.env.NEAR ? process.env.NEAR.split(',').map(Number) : null]); p.on('console', m => { if (/^gap /.test(m.text())) console.log(m.text()); }); }
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0${process.env.QUERY || ""}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());
@@ -210,6 +213,7 @@ const LEADS = [
       const listMeshes = () => { meshes = []; (g.world || g.scene).traverse(m => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.geometry && m.geometry.attributes.position) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); m.updateMatrixWorld(); meshes.push({ m, b: m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld) }); } }); };
       const heroKey = () => (g.hero && g.hero() ? g.hero().state().map(q => q.id + q.state + q.shown).join() : '');
       listMeshes(); heroSeen = heroKey();
+      let lastHit = '';
       const surface = (x, y, z) => {
         { const k = heroKey(); if (k !== heroSeen) { heroSeen = k; listMeshes(); } }
         o.set(x, z + 0.9, -y); ray.set(o, down); ray.far = 4;
@@ -218,6 +222,7 @@ const LEADS = [
         const H = g.hero && g.hero(), hm = [];
         if (H && H.group) H.group.traverse(m => { if (m.isMesh && !over.includes(m)) hm.push(m); });
         const hits = ray.intersectObjects(over.concat(hm), false).filter(h => solidMesh(h.object)).sort((a, b) => a.distance - b.distance);
+        lastHit = hits.length ? hits[0].object.name || hits[0].object.parent && hits[0].object.parent.name || '?' : ''; // (which mesh: on a float, what the ray met, issue 257)
         return hits.length ? hits[0].point.y : null; // (the scene's y is the map's height: game.js W)
       };
       const arrows = await signs();
@@ -236,7 +241,8 @@ const LEADS = [
         if (mv > 0.5 && pl.mode === 'foot') {
           const sz = surface(dog.x, dog.y, dog.z), gap = sz == null ? null : dog.z - sz;
           if (gap != null) { maxGap = Math.max(maxGap, gap); minGap = Math.min(minGap, gap); }
-          if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind, g.hero ? g.hero().state().filter(h => h.state !== 'idle').map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : '']);
+          if (window.__gaps != null && gap != null && (Math.abs(gap) > window.__gaps || (window.__near && Math.hypot(dog.x - window.__near[0], dog.y - window.__near[1]) < window.__near[2]))) { const f = nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}; console.log(`gap ${gap.toFixed(3)} at ${dog.x.toFixed(2)},${dog.y.toFixed(2)} dog z ${dog.z.toFixed(3)} drawn ${sz.toFixed(3)} floor ${f.kind} ${f.z != null ? f.z.toFixed(3) : ''} terrain ${nav.terrain(dog.x, dog.y).toFixed(3)} lifts ${JSON.stringify((g.G.hero || []).filter(h => h.lift && h.at && Math.hypot(dog.x - h.at[0], dog.y - h.at[1]) < h.r).map(h => [h.id, h.lift, !!h.shown, h.cover ? h.cover(dog.x, dog.y) : 'no cover', h.floor && h.height ? h.height(dog.x, dog.y) : null]))}`); }
+          if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind, g.hero ? g.hero().state().filter(h => h.state !== 'idle').map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : '', lastHit, g.hero ? g.hero().levels.filter(L => L.root).map(L => `${L.h.id} ${L.root.visible ? 'visible' : 'hidden'}`).join(', ') : '']);
           const nx = -(dog.y - lastY) / mv, ny = (dog.x - lastX) / mv, [l, rr] = ways.room(dog.x, dog.y, dog.z, nx, ny);
           if (ways.crossing(dog.x, dog.y, dog.z, nx, ny)) mouths.push([dog.x, dog.y]);
           if (nearMouth(dog.x, dog.y)) run = 0;

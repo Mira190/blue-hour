@@ -119,7 +119,7 @@ window.OEWalk = (function () {
     // the keys once, at the foot of the frame
     const hud = document.createElement('div');
     hud.id = 'g-walk-where'; hud.setAttribute('aria-live', 'off');
-    hud.innerHTML = '<small></small><span class="t"></span><em></em><b class="g" hidden></b><p class="q" hidden><span></span><i></i></p>';
+    hud.innerHTML = '<small></small><span class="t"></span><em></em><b class="g" hidden></b><p class="q" hidden><span></span><i></i></p><p class="c" hidden><i class="car"></i><span>Your car</span><b class="dir"></b><span class="m"></span></p>';
     const acts = document.createElement('div');
     acts.id = 'g-walk-acts';
     // (your car first: called to the kerb nearest you, it is the one way about the walk that is not in the street to be
@@ -131,7 +131,7 @@ window.OEWalk = (function () {
     const keys = document.createElement('div');
     keys.id = 'g-walk-keys';
     ctx.stage.append(hud, acts, keys);
-    let shown = { where: '', t: '', em: '', g: '', q: '' }, keysT = 0, walked = 0, lastXY = null, mode = 'foot';
+    let shown = { where: '', t: '', em: '', g: '', q: '', cm: '', cdir: null }, keysT = 0, walked = 0, lastXY = null, mode = 'foot';
     const taught = new Set(); // (the ways of getting about whose keys have been shown on this walk: each once, the first time)
     // the keys at the foot of the frame: walking's as you set out, and a car's or the helicopter's the first time you are in one
     const K = k => `<kbd>${ctx.key(k)}</kbd>`;
@@ -183,7 +183,23 @@ window.OEWalk = (function () {
         const deg = Math.round(((er.dir - ctx.yaw()) * 180 / Math.PI % 360 + 540) % 360 - 180);
         if (shown.dir == null || Math.abs(deg - shown.dir) >= 3) { const a = hud.querySelector('.q .dir'); if (a) a.style.transform = `rotate(${deg}deg)`; shown.dir = deg; }
       }
-      shown = { where, t, em, g, q, dir: shown.dir };
+      // your car, once called and until you reach it (game.js carAim): a line of its own under the rest, in its box and
+      // its teal with its outline, its arrow turned as the other is; never the amber line and arrow of what someone asked
+      // One guide to it at a time: while its own mark stands over it in the picture (ca.seen) this line steps aside, and
+      // comes back without its entrance when the car leaves the frame (the entrance is for the call, once)
+      const ca = r.mode === 'foot' && ctx.carAim ? ctx.carAim() : null;
+      const cm = ca && !ca.seen ? (ca.m < 30 ? `${Math.round(ca.m)} m` : ca.m < 950 ? `${Math.round(ca.m / 5) * 5} m` : `${(ca.m / 1000).toFixed(1)} km`) : '';
+      if (force || cm !== shown.cm) {
+        const e = hud.querySelector('.c');
+        if (cm && !shown.cm && !shown.ccall) { e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
+        e.hidden = !cm; e.querySelector('.m').textContent = cm;
+      }
+      let cdir = shown.cdir;
+      if (cm && ctx.yaw) {
+        const deg = Math.round(((ca.dir - ctx.yaw()) * 180 / Math.PI % 360 + 540) % 360 - 180);
+        if (cdir == null || Math.abs(deg - cdir) >= 3) { hud.querySelector('.c .dir').style.transform = `rotate(${deg}deg)`; cdir = deg; }
+      } else cdir = null;
+      shown = { where, t, em, g, q, dir: shown.dir, cm, cdir, ccall: !!ca };
       if (keys.classList.contains('on')) {
         keysT += dt;
         if (at) { if (lastXY) walked += Math.hypot(at[0] - lastXY[0], at[1] - lastXY[1]); lastXY = at; }

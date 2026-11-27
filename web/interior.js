@@ -185,11 +185,28 @@ vec3 ofRoom(vec3 p, vec3 d, float Hc, float D, float rowP, vec3 floorC, vec3 wal
       open = 0.02 + 0.96 * smoothstep(9.5, 10.0, hr) * (1.0 - smoothstep(22.5, 23.0, hr));
     }
     Hc = min(Hc, S * (1.0 - OF_SPAN) - 0.3);
-    // the storey lit whole or dark (a lit floor among dark ones, not patches: a zone's edge seen into the room at a slant
-    // read as a smudge), each lit storey a little brighter or dimmer than the next; farther off, the share lit
-    float far = smoothstep(2.5, 6.0, w);
-    float L = mix(step(ofH(vec2(fl, 7.1)), open) * (0.85 + 0.3 * ofH(vec2(fl, 5.1))), open, far) * gain * uOfNight;
-    vec3 lampC = vec3(0.88, 0.94, 1.0);
+    // which of it is lit, and in what light. The offices by the city's own rule for an office tower's windows
+    // (buildings.js): in runs of 6 m along each floor (four panes, their edges on the panes' mullions, so a run is cut
+    // where the glass is), the floors mostly lit or dark together with some runs apart, an odd pane dark, each run at
+    // its own brightness (most at office light, a few bright) under cool white or, one in four, a warmer white. Lit a
+    // storey at a time in one even cool white, nine in ten of its storeys lit at the blue hour, the tower read as a grey
+    // ribbed column among lit ones (the owner, 27 November 2026: "at least as the other buildings are"). The rest (the
+    // shops, the restaurants, the lobby, the gallery) a storey lit whole by its hours, as the city's shop floors are.
+    // What is lit is settled at the glass, where the mullions are, not where the ray ends in the room. Farther off,
+    // the share lit and the mean light: once a run is under a pixel or two, and once a storey is
+    float shift = mod(mod(fl, OF_ROWS) * OF_SHIFT, 2.0 * OF_PANE);
+    float pane = floor((ax - shift) / OF_PANE), unit = floor(pane / 4.0);
+    float far = max(smoothstep(2.5, 6.0, w), smoothstep(0.75, 1.6, max(wx / (4.0 * OF_PANE), ws)));
+    vec3 coolC = vec3(0.8, 0.9, 1.0), whiteC = vec3(1.0, 0.84, 0.62), lampC = vec3(0.88, 0.94, 1.0), meanC = lampC;
+    float near, share = open;
+    if (use < 0.5) {
+      float rnd = ofH(vec2(pane, fl + 3.9)), unitR = mix(ofH(vec2(fl, 7.1)), ofH(vec2(unit, fl + 13.7)), 0.3), bR = ofH(vec2(unit, fl + 29.3));
+      near = step(unitR, open) * step(0.12, rnd) * (0.25 + 0.6 * pow(bR, 1.5) + 0.5 * step(0.9, bR)) / 0.55 * (0.85 + 0.3 * rnd);
+      lampC = ofH(vec2(unit, fl + 51.1)) < 0.75 ? coolC : whiteC; meanC = 0.75 * coolC + 0.25 * whiteC;
+      share = 0.88 * open;
+    } else near = step(ofH(vec2(fl, 7.1)), open) * (0.85 + 0.3 * ofH(vec2(fl, 5.1)));
+    float L = mix(near, share, far) * gain * uOfNight;
+    lampC = mix(lampC, meanC, far);
     float top = OF_SPAN + Hc / S;                              // the ceiling's line, in the storey
     float room = ofP(sc, OF_SPAN, top, 1.0, ws), plen = ofP(sc, top, 1.0, 1.0, ws);
     float day = 0.05 * (1.0 - uOfNight);
@@ -204,7 +221,6 @@ vec3 ofRoom(vec3 p, vec3 d, float Hc, float D, float rowP, vec3 floorC, vec3 wal
     // through the glass: its share of the light, less where the frit is printed (and a haze of the room's light on
     // the frit itself), nothing through the spandrel and the mullions; over the ceiling, the plenum's dark
     float frit = mix(pow(1.0 - clamp((fy - OF_SPAN) / OF_FRIT, 0.0, 1.0), 1.6) * 0.45, 0.06, smoothstep(0.15, 0.4, ws));
-    float shift = mod(mod(fl, OF_ROWS) * OF_SHIFT, 2.0 * OF_PANE);
     float mull = ofP(ax, shift - 0.5 * OF_MULL, shift + 0.5 * OF_MULL, OF_PANE, wx);
     vec3 glow = see * OF_TRANS * (1.0 - 0.7 * frit) + frit * 0.18 * L * lampC;
     vec3 ofE = (glow * room + 0.012 * L * lampC * plen) * (1.0 - mull);

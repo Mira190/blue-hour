@@ -15,6 +15,7 @@ the script is short: a set of checks that open no browser, and a handful that op
 | `roads` | The road plan in the game (docs/ROADS.md, issue 167). From two kerbs for three minutes each: no vehicle made on a quiet street, at a wall or within 120 m, buses made on bus streets and keeping to them, no two vehicles one inside the other for over 3 s, no queue held for good, traffic coming in and going out. Then the Scramble counted at its stop lines for four minutes: no cycle over 130 s, no arm whose greens pass nobody of a queue (issue 175). Then the walk's drive to 109 on the autopilot from three starts and one back across the Scramble, each arriving within its road at 6 m/s and one cycle of the Scramble; a failed drive is run a second time, and fails only where the same start failed both times (else `FLAKY`). About fifteen minutes | `tools/road_traffic_watch.js`, `tools/junction_flow.js`, `tools/road_drive.js` |
 | `ride` | Takes frame 6's car (the one the story sends) from where the flight sets you down to Hachiko, stepping the world on and checking every car (the ride, your own, the traffic) against every person (the crowd, the NPCs, you) at every step: it fails on any car standing in someone. `PIN=5` plays the skip's case instead: five of the crowd held where the car will stand at its stop, then F (#50). You get in from the kerb seat's door; `PASS=1 SIDE=road` plays #94 instead: you stood off the car's road-side flank as a car of the traffic passes over the spot, which fails every run (`tools/lane_you_probe.js`: a walker set down in a lane ahead of a car, which the traffic never drives into, and one set down inside a car, counted for the one frame before its step moves them out). When the car gives way to a car across its way, each step's line names that car (`xb`: its speed, why it stands and for whom); a ride that did not arrive ends with what held it up, ten cars down the chain (#97). The cause found was a car inside another when it came into sight; the driver now has a bound on standing that no change of reason sets back, and the story one of its own (docs/STORY.md, "The car always comes"); `tools/ride_come.js [trials]` sends for the car again and again and prints what each stood for (`FORCE=overlap`, `FORCE=hold`: the two cases made to happen). Against the rails as drawn too (#208): the ride's box, every step from when it is sent, against the guard rails and posts the hero levels draw (`tools/rails_drawn.js`), and at the door where you get in and where it sets you down, no rail between the door and the pavement; then, set down by Hachiko, you walk the station's free passage (frame 4's way to SKY's lift) in and turn and drag the view at its far end, the lens never over or through its ceiling, as drawn and as built (`tools/cam_ceiling.js`; `PASSAGE=all` the whole walk, `PASSAGE=0` none). Prints the ride's mean speed on the move; stills from behind the car. Then a ride ordered from each of twelve kerbs round the Scramble, Hachiko, the station and Miyamasu, held against the rails, bollards and posts as drawn on every step: none drives through one or stops with one between its door and you (issue 208). Run when the drivers, the cars or the crowd change (`web/game/cars.js`, `actors.js`, `game.js`) | `tools/ride_people.js`, `tools/ride_rails.js` |
 | `mem` | Opens the page as an iPhone on the low tier and fails it over the memory budget (peak GPU memory, read with a conversation's depth of field up in the rain at ten at night, the heaviest a player holds; settled JS heap), so that a phone's tab is not killed; then the story as a desktop to its title, the loader's own vertex buffers against 140 MB; counts a phone's lost context as a death at once, once (`tools/lost_check.js`); and plays the story's page through a lost WebGL context as a phone: a death makes the next load lighter, the reload waits for a tab put away to be seen (a minute) | `tools/mem_check.js`, `tools/lost_check.js`, `tools/glcare_phone.js` |
+| `ctx` | A lost WebGL context at the story's beats (frame 3's street, its Stop) and on the walk, on a desktop and a phone: restored in place on a desktop, taken up where it was after a phone's reload. Routed with `mem` wherever it goes; a runner of its own since 27 November 2026, when it was 22 of `mem`'s 38 minutes on a session's machine | `tools/ctx_beats.js` |
 | `budget` | Plays the episode as an iPhone (390 x 844 at three pixels to the point, the low tier) and counts every still's frame: each beat's draws, triangles, passes, pixels shaded and GPU memory against a phone's budget (`tools/budgets/shibuya.json`; docs/PERFORMANCE.md, "A budget for every beat"). The `story` check counts its own stills against the desktop's budget as it plays, and the static checks hold the counts of a kept play against the budgets as they are now. Main's full tier runs it for every change to the page. Before landing it plays in the story's three parts, `budget1` (frames 1 to 4), `budget2` (5 and 6) and `budget3` (7 and the last card), each only where the change reaches it ("A phone's beats before landing", below) | `tools/story_play.js` with `BUDGET=`, `tools/beat_count.js`, `tools/gl_mem.js`, `tools/beat_budget.py` |
 | `storyp` | Plays the episode on a phone's page by touch (390 x 844, the low tier, `TOUCH=1`): every answer, every line passed, the camera, the release, a hint, the roll, the cards, the order and the helicopter's door are taps of a finger where the thing is on the screen, not a key, a script's click or the story's own functions. A thing that cannot be tapped (off the screen however the page is scrolled, or under something else) fails the play, and is then clicked so that the play goes on and names the rest. Main's full tier only, a runner of its own (issue 120) | `tools/story_play.js` |
 | `storyl` | Plays the episode down its losing branches, as the man (`PLAYER=M SLIP=3,5,6,7 CHOOSE=3:0,4:0 SPEND=5 BACKTO=3`): a lie at the police box, two guesses at the foreman and at Mr Tanaka's pitch, each seen through and asked again where it was lost (issue 93), the summation's first question answered wrongly until she says it herself; the false solution said aloud and the lecturer named, and every line the story says only to one who chose so heard, filed or on the last card; frame 5 spent from the wrong place (its card kept once, then spent), so that the summation's first question is asked in words alone; and from the last card frame 3 gone back into and played to its print. Not played by it: the other frames spent (`SPEND=4` leaves frame 5 nothing to cross-examine with, `SPEND=2` frame 6 nothing to show; run them by hand), *I cannot tell yet* (`CHOOSE=4:2`), silence (`SILENT=3`) and *Play it again*. Main's full tier only, a runner of its own (issue 120) | `tools/story_play.js` |
@@ -283,6 +284,7 @@ CHECK_BASE=<commit> tools/check.sh  # what changed since that commit
 CHECK_FULL=1 tools/check.sh         # the whole branch, not only what changed since the last pass, and no pass kept
 CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 CHECK_STATIC=0 tools/check.sh ...   # without the static checks (a runner's shard)
+CHECK_REMOTE=0 tools/check.sh       # the browser checks played on this machine, not on GitHub's runners
 ```
 
 Logs and stills go to `$CHECK_OUT` (default `/tmp/oe-check`). The free game's clock is pinned
@@ -590,6 +592,56 @@ The pass is of a runner's play, not this machine's. What a check runs is the pag
 differs is timing, and a function one machine's play reaches and the other's does not is the rule's known blind spot
 (above), covered by main's full tier after landing. The job that pushes the branch cannot fail the run, and nothing
 waits for it.
+
+## Before landing, on the runners
+
+Measured on 27 November 2026, a change to `web/world.js` on a session's machine (four cores, 15 GB, no swap, WebGL in
+software): `tools/check.sh` routed it to static and eleven browser checks (story1 to 3, budget1 to 3, walk1, walk3,
+walk4, mem, launch). Each loads the whole map afresh and plays it for 4 to 16 minutes, and a page with the map loaded
+holds 5 to 6 GB, so two play at a time. The run took 70 to 80 minutes of checks in 40 to 50 of the wall, and a
+third page, or the static checks' peak beside two, ran the machine out of memory: the kernel killed a GPU process and
+walk3 or story1's textures failed for nothing in the change, to be played again alone, ten to twenty minutes more.
+Seven sessions did this at once, each on its own machine. What was left to cut here was the machine.
+
+Main's full tier already ran each target on a runner of its own (GitHub's, four cores and 16 GB each), the slowest
+of these eleven in 16 minutes and the runner made ready in 30 to 40 s. The repository is public, so its runners cost
+nothing. So since 27 November the same checks run there before landing too:
+
+- **`.github/workflows/checks.yml` runs on a push to any branch** (but `live` and `check-passes`). Its plan is
+  `tools/check.sh --plan` on the branch, the fast tier routed against main as a session routes it; after a pass of
+  the branch (the workflow's last successful run on it) only what changed since, with a file that is main's as main
+  has it left to main's checks, as a session's stamp does. Each target is a runner, its check judged against main's
+  passes (`check-passes`), so a check the change cannot reach is kept in seconds, as here. A newer push to the branch
+  cancels the older run. The fast tier names the story, the budget and the walk in parts already; the guide and the
+  medium tier's budget it names whole, and the plan splits them as main does (`CHECK_SPLIT=parts`: guide1 to 5,
+  budgetm1 to 3), a runner a part. Whole, the guide's four ways played in a row held a branch's run 492 past 72
+  minutes, where main's slowest guide part took 23.
+- **The result comes back by git.** The workflow's job `result` writes every shard's lines and the verdict to one
+  commit under the ref `refs/checks/<commit>`. No token or API is needed to read it.
+- **`tools/check.sh` on a session's machine** routes as before; when a browser check is among its targets it pushes
+  the branch (committed: the runners check a commit, not a tree), waits for that ref and prints its lines, each shard
+  as it ends and the run's address while it waits (GitHub's public API, two requests every two minutes). It exits as
+  the run did, and stamps a pass. A commit already checked is answered at once. Static only, it runs here, in half a
+  minute.
+- **What stays here:** a run of named targets (`tools/check.sh walk3`), `CHECK_REMOTE=0`, and a run with `CHECK_TIER`,
+  `CHECK_FULL`, `CHECK_BASE` or `CHECK_CACHE=0`, which the runners would not be told of. These play as before, with
+  the memory admission below.
+
+What it costs and buys: the same targets, the same script and the same passes, so a check catches what it caught; the
+wall is the slowest shard's plus a minute, 15 to 25 minutes for a change to the page, and no check shares a
+machine's memory with another. The limit is the account's: twenty jobs at once on GitHub's free plan. A page
+change's run is thirteen jobs, and main's full tier twenty-eight at its start, so sessions landing together queue for
+runners; the queue is GitHub's and is shown in the run.
+
+## Memory, by measure
+
+For what still plays here, a lane starts by the memory it will take, not by a count fixed at the start. Each check's
+peak proportional set (PSS: a page Chromium's processes share counted once), summed over everything it started, is
+kept in the clone (`.git/oe-check-mem`, the largest of the last five; 6 GB before any). A check waits for a lane
+until the memory free, less what the checks already running are still expected to grow to, covers its peak and a
+margin (`CHECK_MEM_MARGIN`, 1200 MB); alone, it starts whatever it needs. And a check that failed while the kernel
+killed a process for memory (`oom_kill` in `/proc/vmstat` rose during it) failed on the machine, not on its page: its
+line says so (`again`) and it is played again alone once the others are done, where a failure is its own.
 
 ## The checks faster
 
