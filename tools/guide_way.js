@@ -65,6 +65,8 @@ const LEADS = [
   };
   // (as a case left at frame 4 and opened again: the dog is met, and the frame's goal is the lift)
   await p.addInitScript(() => { try { localStorage.setItem('bh-story-late', JSON.stringify({ fi: 3, left: 4, prints: [0, 1, 2].map(i => ({ src: null, stamp: `frame ${i + 1}`, cap: '' })) })); } catch (e) { /* storage blocked */ } });
+  // GAPS=m: every half-metre sample of his feet more than m off what is drawn, printed with the floor he stood on
+  if (process.env.GAPS) { await p.addInitScript(m => { window.__gaps = m; }, +process.env.GAPS); p.on('console', m => { if (/^gap /.test(m.text())) console.log(m.text()); }); }
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0${process.env.QUERY || ""}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
   await p.evaluate(() => document.getElementById('gt-play').click());
@@ -236,6 +238,7 @@ const LEADS = [
         if (mv > 0.5 && pl.mode === 'foot') {
           const sz = surface(dog.x, dog.y, dog.z), gap = sz == null ? null : dog.z - sz;
           if (gap != null) { maxGap = Math.max(maxGap, gap); minGap = Math.min(minGap, gap); }
+          if (window.__gaps != null && gap != null && Math.abs(gap) > window.__gaps) { const f = nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}; console.log(`gap ${gap.toFixed(3)} at ${dog.x.toFixed(2)},${dog.y.toFixed(2)} dog z ${dog.z.toFixed(3)} drawn ${sz.toFixed(3)} floor ${f.kind} ${f.z != null ? f.z.toFixed(3) : ''} terrain ${nav.terrain(dog.x, dog.y).toFixed(3)} lifts ${JSON.stringify((g.G.hero || []).filter(h => h.lift && h.at && Math.hypot(dog.x - h.at[0], dog.y - h.at[1]) < h.r).map(h => [h.id, h.lift, !!h.shown, h.cover ? h.cover(dog.x, dog.y) : 'no cover', h.floor && h.height ? h.height(dog.x, dog.y) : null]))}`); }
           if (gap == null || gap > FLOAT_M || gap < -SINK_M) bad.push([+dog.x.toFixed(2), +dog.y.toFixed(2), +dog.z.toFixed(2), gap == null ? 'nothing drawn' : +gap.toFixed(3), (nav.floorAt(dog.x, dog.y, dog.z + 0.5) || {}).kind, g.hero ? g.hero().state().filter(h => h.state !== 'idle').map(h => `${h.id} ${h.state}${h.shown ? ' shown' : ''}`).join(', ') : '']);
           const nx = -(dog.y - lastY) / mv, ny = (dog.x - lastX) / mv, [l, rr] = ways.room(dog.x, dog.y, dog.z, nx, ny);
           if (ways.crossing(dog.x, dog.y, dog.z, nx, ny)) mouths.push([dog.x, dog.y]);
