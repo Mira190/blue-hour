@@ -259,7 +259,6 @@ window.OEHud = (function () {
     const touchy = () => matchMedia('(pointer: coarse)').matches;
     const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
     function show(npc, lines, choices, done, opts = {}) {
-      lines = (lines || []).map(l => (l == null ? '' : String(l))); // (a line that is not words is said as nothing and passed on a press: never a box held on a name with no line, as Nagi's was)
       cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0, free: !!opts.free && !(choices || []).length };
       view = 0; box.hidden = false; box.classList.remove('back', 'cut'); box.classList.toggle('free', cur.free);
       head(npc);

@@ -125,6 +125,9 @@ The static checks:
 - the frame-time governor on modelled devices (`tools/governor_unit.js`);
 - the story's guide without a browser: round a held crowd by its gap, never through a person, and in front of a player
   who runs, stops and overtakes him (`tools/guide_unit.js`);
+- the walk's people without a browser: their stories played in random orders with the walk's line's incident falling
+  anywhere in them, everyone with something to say talked to after each step, each talk lines of words, and the line's
+  person given her first part to say once she is on her feet, whatever story is under way (`tools/walktalk_unit.js`);
 - the building solids valid on their decimetre grid (`pipeline/solid_rings.py --check`);
 - the ground graded by the method as it is, its roads' cross-falls and creases within their limits
   (`pipeline/street_ground.py --check`: lost from the script in a merge of 18 November 2026, after which the map
