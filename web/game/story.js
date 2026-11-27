@@ -346,7 +346,7 @@ window.OEStory = (function () {
       if (kind === 'said') {
         const p = slip.querySelector('p'); clearInterval(slipT); let i = 0;
         slip.querySelector('small').textContent = wrong ? 'Entered, and struck through' : strikes ? 'Struck from the file, and entered' : 'Entered in the file'; slip.classList.toggle('wrong', wrong);
-        p.textContent = ''; slip.classList.add('on');
+        p.textContent = ''; slip.classList.add('on'); placeSlip();
         slipT = setInterval(() => { p.textContent = text.slice(0, ++i); if (i >= text.length) { clearInterval(slipT); later(3600, () => { if (p.textContent === text) slip.classList.remove('on'); }); } }, 30);
       }
     }
@@ -460,6 +460,9 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const goalBox = () => { const t = performance.now(); if (t - gbAt > 100) { gbAt = t; let r = 0, b = 0; for (const e of goalEl.children) { const q = e.getBoundingClientRect(); if (q.height > 0) { r = Math.max(r, q.right); b = Math.max(b, q.bottom); } } gb = { right: r, bottom: b }; } return gb; };
     // (what is said after a picture, its notices, all said and gone: the queue empty and nothing still up, hud.js toast)
     const afterSaid = () => { const T = document.getElementById('g-toasts'); return !T || (!T.dataset.next && !T.querySelector('.g-toast:not(.out)')); };
+    // (the file's slip stands at the top right; where the goal's words reach under it, a phone's screen or a narrow one, it
+    // stands under the goal's box instead, never drawn over the goal: issue 233)
+    const placeSlip = () => { if (!slip.classList.contains('on')) { if (slip.style.top) slip.style.top = ''; return; } let top = ''; if (goalEl.classList.contains('on')) { const g = goalEl.getBoundingClientRect(), right = goalEl.closest('.words-solid') ? g.right : goalBox().right; if (g.height > 0 && slip.getBoundingClientRect().left < right) top = `${Math.round(g.bottom + 8)}px`; } if (slip.style.top !== top) slip.style.top = top; };
     const clockOf = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
     // a place as the beacon and the mark want it: [x, y, the height of a head there, the floor]
     const spot = p => { const z = p[2] != null ? p[2] : ctx.floor(p[0], p[1]); return [p[0], p[1], z + 1.2, z]; };
@@ -1482,6 +1485,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
     }
     function tick(dt) {
       const ep = st.ep, fr = st.fr;
+      placeSlip();
       if (st.gone) { st.gone.tick(dt); if (st.gone.state === 'away') st.gone = null; } // (a guide on his way off)
       // (the case closed and the street walked on, release(): tonight's people go once the lens no longer has them, never in view)
       if (st.released) for (const id in st.cast) { const f = st.cast[id], v = ctx.screen([f.x, f.y, (f.z || 0) + 1]); if (!v.front || v.x < -0.15 || v.x > 1.15 || v.y < -0.15 || v.y > 1.15 || v.dist > 80) { f.remove(); delete st.cast[id]; } }
