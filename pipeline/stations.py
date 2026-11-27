@@ -232,6 +232,7 @@ def decks(B):
 
 PLATFORM_M = 8.0   # a roof this near a course is over its platform (an island platform's far edge, 6 m off the rail)
 CANOPY_DM = 8      # a platform's roof: a slab this thick (dm)
+CANOPY_WALL, CANOPY_ROOF = "#c3c6c8", "#9fa3a6"   # its fascia and its sheet: light metal
 
 
 def platform_roofs(B, game):
@@ -264,8 +265,12 @@ def platform_roofs(B, game):
             continue
         rail = max(float(np.interp(g.project(Point(x, y)), m, P[:, 2])) for _, g, m, P in near for x, y in F.exterior.coords)
         lo, hi = (s[1] + s[2]) / 10, (s[1] + s[3]) / 10
-        if hi < rail - 0.5 or lo >= rail + rail_clear.WIRE_M:
-            continue   # (a canopy over the street under the line, or a roof over the wire already)
+        if hi < rail - 0.5 or lo >= rail + rail_clear.WIRE_M + 1.5:
+            continue   # (a canopy over the street under the line, or a roof well over the wire: a station's own)
+        m = B["b"][s[0]]   # (a platform's roof is a flat sheet of metal on steel: the record's tiled skillion on a slab
+        m[7], m[8], m[13], m[15] = CANOPY_WALL, CANOPY_ROOF, B["roof_materials"].index("metal"), 0   # read as a brown wavy band)
+        if lo >= rail + rail_clear.WIRE_M:
+            continue
         deep = s[3] - s[2]
         s[2] = math.ceil((rail + rail_clear.WIRE_M) * 10) - s[1]
         s[3] = s[2] + min(CANOPY_DM, max(2, deep))
