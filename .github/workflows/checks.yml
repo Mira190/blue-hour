@@ -120,6 +120,9 @@ jobs:
       - name: Chromium, Xvfb and Mesa's software renderer
         if: matrix.target != 'static'
         run: |
+          # (the runner's image lists Microsoft's package repository, which nothing here installs from; its index once came
+          # back 403, "no longer signed", and apt's update stopped the shard before any check ran, run 468)
+          { sudo grep -ls 'packages.microsoft.com' /etc/apt/sources.list.d/* || true; } | xargs -r sudo rm -f
           npm install -g "playwright@$PLAYWRIGHT"
           npx playwright install --with-deps chromium
           sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri
