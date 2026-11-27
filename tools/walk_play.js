@@ -693,6 +693,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           // (not in the first calm of control, and a man running: issue 229)
           if (l.startedAt == null || l.startedAt < 24.9) fail(`the walk's line began ${l.startedAt} s into control, inside its calm of 25 s`);
           if (!(l.v >= 4)) fail(`the walk's line: he came at ${l.v} m/s, a walk, not a run`);
+          if (l.gait !== 'Run') fail(`the walk's line: he came at ${l.v} m/s playing ${l.gait || 'nothing'}, not running (a figure sliding upright)`);
           if (l.ph !== 'down' || l.at[2] !== 'down') fail(`the walk's line: nobody walked into her, or she is not on the ground (${JSON.stringify(l)})`);
           else {
             ok(`the walk's line: he walked into her and walked on (he is at ${l.man}); she is on the ground`);
