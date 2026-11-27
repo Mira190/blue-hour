@@ -622,6 +622,11 @@ void main() {
     // two metres of where it was set: set afresh at every draw, as it was, a camera that sways a hand's width moved the
     // map a texel and the still things' map was never the same place twice.)
     let stillKey = '', stillAt = -99, sortAt = -99, stillList = [], movesList = [], ctr = null, stillCtr = null;
+    // (what the kept still map holds: the list of the still job that drew it. What moves is drawn over it with everything
+    // else, so a still thing the map does not hold (hidden when its job began, or sorted after) is drawn with what moves
+    // and keeps the rain off at once. Left out of both passes until the next still job, a stair hut's roof let rain fall
+    // under it, issue 239: tools/rain_roof.js)
+    let stillDrawn = [];
     const stillCam = new THREE.OrthographicCamera(-OCC_R - STILL_M, OCC_R + STILL_M, OCC_R + STILL_M, -OCC_R - STILL_M, 1, 4000);
     stillCam.up.set(0, 0, -1);
     const COVER_TREES_MOVE = /[?&]covertrees=move\b/.test(location.search); // (the trees drawn with what moves, as they were: to tell their part of the map)
@@ -1393,7 +1398,7 @@ void main() {
             const vis = window.OEVis && OEVis.shadow ? OEVis : null;
             if (vis) vis.shadow(true);
             try { without(movesList, () => without(rest, () => renderer.render(world, stillCam))); } finally { if (vis) vis.shadow(false); }
-            if (J.i >= J.list.length) { stillKey = J.key; stillAt = J.at; treesAt = J.trees; coverStat.still++; stillJob = null; }
+            if (J.i >= J.list.length) { stillKey = J.key; stillAt = J.at; treesAt = J.trees; stillDrawn = J.list; coverStat.still++; stillJob = null; }
             stillOnly = keep;
           }
           if (!stillOnly) {
@@ -1401,7 +1406,7 @@ void main() {
           // (its square of the still map: a texel is a texel in both, and both look down with the map's north up)
           copyStill(Math.round((cx - stillCtr.cx + STILL_M) / texel), Math.round((stillCtr.cz - cz + STILL_M) / texel));
           renderer.autoClear = false;
-          without(stillList, () => renderer.render(world, occCam));
+          without(stillDrawn, () => renderer.render(world, occCam));
           coverStat.moves++;
           }
         } catch (e) { // (a GPU that will not copy: whole, as it was)

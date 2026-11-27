@@ -65,7 +65,10 @@ cameras over the walk for scouting. Nobody drawn in part (issue 241): `tools/who
 scene from the page's start, and a frame that draws one mesh of a person, the guide or a car and holds another (the draw
 gate in `web/world.js`, which lets a mesh whose shader is still linking come late) fails `tools/walk_play.js` through the
 walk's handover; `tools/whole_check.js out [WxH] [hour] [sky]` runs it alone, from the opening's film to `WAIT` seconds
-after the handover. The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
+after the handover. No rain under a roof (issue 239): `tools/rain_roof.js out [WxH]` walks each hero level on a
+grid in the rain, the cover map drawn afresh round the player, and fails a point on the walking floor with something a
+metre across drawn over the head (a tree is no roof) that the map leaves open to the rain, naming the mesh over it and
+whether the map drawn whole would have covered it (`LEVELS=`, `STEP=`; about 35 minutes for all six here). The frame's cost part by part on the walk: `tools/perf_walk.js [WxH]` runs `game/perf.js` (`?perf`) from a harness
 (shares on a software renderer; a real device's own table comes with its telemetry, issue 67).
 
 What lights a person (issue 123): `xvfb-run -a node tools/cast_probe.js [HH:MM]` opens the walk at that hour and prints the
