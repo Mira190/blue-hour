@@ -1857,7 +1857,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const isFirst = m >= last && m < first, at = isFirst ? first : last;
     return { first: isFirst, at, in: (at - m + 1440) % 1440 };
   }
-  // Waiting with someone (walktalk.js wait: Nagi, for her train). You sit on Hachiko's wall and they sit beside you, and
+  // Waiting with someone (walktalk.js wall: Nagi, for her train). You sit on Hachiko's wall and they sit beside you, and
   // the night passes by itself while the crossing goes on: faster where nothing happens, slower near the night's moments
   // (`says`: a line at a minute, said over them as it comes round), until a few minutes before the train. Standing up (E)
   // ends it where it is; the wait can be taken up again
@@ -5547,7 +5547,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
     // (on a perch, Space or the Time-lapse button held: the evening runs fast, the crowd at its own pace; perch.js warp)
-    if (waitRun) waitStep(dt); // (waiting with someone on the wall: the night passes by itself, walktalk.js wait)
+    if (waitRun) waitStep(dt); // (waiting with someone on the wall: the night passes by itself, walktalk.js wall)
     { const wm = perch && !clock.frozen && !waitRun ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
