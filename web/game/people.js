@@ -642,7 +642,8 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // (someone named waiting on this character, a person of the story or the walk you meet: its pictures sent at the head of
     // the upload queue (world.js upload, first), ahead of the crowd's and the levels', from now or as soon as it is warming.
     // Behind them, Nagi waited minutes to be drawn on a slow machine; she is never drawn as anyone else meanwhile)
-    lib.hurry = name => { lib.hurried[name] = true; const t = lib.warming[name]; if (t && lib.warm) lib.warm(t.scene, { first: true }).catch(() => {}); };
+    lib.hurry = name => { if (lib.hurried[name]) return; lib.hurried[name] = true; // (once: asked every half second, it warmed the model again each time and the helicopter's load waited behind it)
+      const t = lib.warming[name]; if (t && lib.warm) lib.warm(t.scene, { first: true }).catch(() => {}); };
     lib.require = name => {
       const h = lib.heroes[name], c = lib.npcs[name];
       if (c) {
