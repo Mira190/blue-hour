@@ -176,6 +176,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else ok(`from the title, the case begins (${await where()})`);
     }
   };
+  // UPTRACE=s: every s seconds of the wall clock, the upload queue (world.js uploadStats): how many wait, how many have gone
+  // by class, the page's age, where you are, the draw gate's counters (the helicopter that never warmed on the roof, #157)
+  if (+process.env.UPTRACE) setInterval(() => p.evaluate(() => { const g = window.__game, u = window.OEWorld && OEWorld.uploadStats ? OEWorld.uploadStats() : null; if (!u) return null;
+    return { s: Math.round(performance.now() / 1000), wait: u.waiting, sent: [u[0].n, u[1].n, u[2].n], p90: [u[0].p90, u[1].p90, u[2].p90], gate: window.__gate ? Object.assign({}, window.__gate.n) : null, at: g && g.player ? [Math.round(g.player.x), Math.round(g.player.y), Math.round(g.player.z)] : null, heli: g && g.heli && g.heli.late ? g.heli.late() : null };
+  }).then(r => r && console.log('uptrace', JSON.stringify(r)), () => {}), +process.env.UPTRACE * 1000);
   if (process.env.WALK_ONLY === 'title') {
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
@@ -208,7 +213,8 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     // Hachiko, and in the walk played whole it came in during the people's quarter of an hour before the roof. Here the
     // roof comes four minutes on: its model is waited for first, as that time gave it, and on the roof it must still stand
     // on its pad. Two plays on one machine, it had not come in the roof's four minutes)
-    if (PART === 3) { const t0h = Date.now(), came = await until(() => window.__game.heli.loaded(), null, 600000); console.log(`(the helicopter's model ${came ? 'in' : 'not in'} after ${Math.round((Date.now() - t0h) / 1000)} s of setting out)`); }
+    // (HELI_PREWAIT=0: not waited for here, the roof's own four minutes and its hurry, game.js heliToPad, must bring it)
+    if (PART === 3 && process.env.HELI_PREWAIT !== '0') { const t0h = Date.now(), came = await until(() => window.__game.heli.loaded(), null, 600000); console.log(`(the helicopter's model ${came ? 'in' : 'not in'} after ${Math.round((Date.now() - t0h) / 1000)} s of setting out)`); }
   } else {
     await title();
     s = await state();
@@ -624,6 +630,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           else if (!go) fail('seated, the scramble never turned to all-walk in two minutes');
           else { ok('the scramble crossing, from the seat'); await shot('4h-sit-go'); }
           await act(); await frames(30);
+          // (g.frame steps the world and the camera, not the HUD: the button's label is set in a drawn frame, and on a
+          // slow runner none may have come in those 30; run 473 read the seat's label after standing. Up to 10 s for one.)
+          if (phone) await p.waitForFunction(() => window.__game.player.mode !== 'foot' || !/Time-lapse/.test(document.getElementById('gt-jump').textContent), null, { timeout: 10000 }).catch(() => {});
           const up = await p.evaluate(() => { const g = window.__game, P = g.perch; return { mode: g.player.mode, seat: !!P.seat, z: g.player.z, ground: g.nav.floorAt(g.player.x, g.player.y, g.player.z + 1), jump: document.getElementById('gt-jump').textContent }; });
           if (up.mode !== 'foot' || up.seat) fail(`E seated does not stand you up (${JSON.stringify(up)})`);
           else ok(`stood up, on foot again${phone ? ` (the button reads "${up.jump}")` : ''}`);
@@ -693,6 +702,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           // (not in the first calm of control, and a man running: issue 229)
           if (l.startedAt == null || l.startedAt < 24.9) fail(`the walk's line began ${l.startedAt} s into control, inside its calm of 25 s`);
           if (!(l.v >= 4)) fail(`the walk's line: he came at ${l.v} m/s, a walk, not a run`);
+          if (l.gait !== 'Run') fail(`the walk's line: he came at ${l.v} m/s playing ${l.gait || 'nothing'}, not running (a figure sliding upright)`);
           if (l.ph !== 'down' || l.at[2] !== 'down') fail(`the walk's line: nobody walked into her, or she is not on the ground (${JSON.stringify(l)})`);
           else {
             ok(`the walk's line: he walked into her and walked on (he is at ${l.man}); she is on the ground`);

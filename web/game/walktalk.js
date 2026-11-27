@@ -72,7 +72,7 @@ window.OEWalkTalk = (function () {
       k.inc = helped ? 'helped' : 'alone'; inc.ph = 'up'; keep();
     }
     function lineOff() { waitOn = false; if (gate && gate.n) gate.n.fixed = false; gate = null; if (inc) { if (inc.man) inc.man.remove(); if (inc.thing) inc.thing.remove(); inc = null; } if (lineS) { const n = ctx.npc(lineS.npc); if (n) { n.sit = false; n.fixed = false; if (n.rig) delete n.rig.legRake; } } } // (for the checks: the stories from the start, or from another: no incident under way)
-    // ---- the line's end (lineS.wait): waited with by the wall until a few minutes before her train (game.js waitWith),
+    // ---- the line's end (lineS.wall): waited with by the wall until a few minutes before her train (game.js waitWith),
     // she stands ("That's mine"), walks to the station's gate and stops there; asked, she wants one more photograph, not
     // with the lights behind her; shown it, she takes yours, says one thing, goes in, and turns round once. Then she is gone
     // for good in this browser (k.w 'gone'). Left half done (a page closed at the gate), she is by the wall again
@@ -86,13 +86,13 @@ window.OEWalkTalk = (function () {
     const runsOf = (n, lines) => { const runs = []; for (const l of lines || []) { const who = typeof l === 'string' ? n : ctx.npc(l.npc) || n, text = ctx.fill(typeof l === 'string' ? l : l.text); if (runs.length && runs[runs.length - 1][0] === who) runs[runs.length - 1][1].push(text); else runs.push([who, [text]]); } return runs; };
     const faceMe = n => { const me = ctx.here(); if (ctx.shift) ctx.shift(n, n.x, n.y, Math.atan2(me.x - n.x, me.y - n.y)); };
     function gateBegin(n) {
-      const W = lineS.wait;
+      const W = lineS.wall;
       gate = { ph: 'walk', n }; n.fixed = true;
       bark(n.id, W.up, 3.4);
       after(1.4, () => { if (gate && gate.ph === 'walk') walk(n, W.gate, 1.3, () => { if (!gate) return; gate.ph = 'ask'; faceMe(n); }); });
     }
     function gateTalk(n) {
-      const W = lineS.wait;
+      const W = lineS.wall;
       if (busy || !gate) return false;
       busy = true;
       if (gate.ph === 'ask') { ctx.say(runsOf(n, W.ask), () => { busy = false; if (gate) gate.ph = 'shot'; }); return true; }
@@ -103,7 +103,7 @@ window.OEWalkTalk = (function () {
       return true;
     }
     function gateGo(n) {
-      const W = lineS.wait, k = of(lineS);
+      const W = lineS.wall, k = of(lineS);
       gate.ph = 'going';
       walk(n, W.turn, 1.2, () => { // (in through the gate a few steps, and round once)
         faceMe(n);
@@ -138,6 +138,7 @@ window.OEWalkTalk = (function () {
         if (inc.man) inc.man.walkTo(n.x, n.y, inc.v);
       } else if (inc.ph === 'come') {
         const m = inc.man;
+        if (m && m.rig && m.rig.clipName) inc.gait = m.rig.clipName() || inc.gait; // (what his legs do as he comes: tools/walk_play.js wants a run)
         if (m && dist(m, n) > 0.78 && m.to) return;
         // the shoulder: she goes the way he was going, and down; he does not turn
         const d = m ? Math.hypot(n.x - I.by.from[0], n.y - I.by.from[1]) || 1 : 1;
@@ -175,6 +176,11 @@ window.OEWalkTalk = (function () {
       if (gate && lineS.npc === id) return gate.ph === 'ask' || gate.ph === 'shown' ? { kind: 'gate' } : null; // (at the gate: her last words, below)
       if (waitOn && lineS.npc === id) return null;
       if (inc && lineS.npc === id && inc.ph !== 'up') return null; // (the walk's line: before she is on her feet again she has nothing to say)
+      // (and once she is, her first part is hers to say whatever story is under way: the incident happens to whoever is
+      // there. Helped up beside a player who had begun Mei's story first, she was not the story under way and was asked
+      // for a word in waiting instead; the box opened on her name with no line, and no press passed it. Said, her story is
+      // the one under way, as the first in the walk's order, and Mei's waits behind it: tools/walktalk_unit.js)
+      if (lineS && lineS.npc === id && !gate && !waitOn) { const k = of(lineS); if (k.inc && k.part === 0 && !k.done) return { kind: 'story', s: lineS, k }; }
       if (ev && ev.e.people[0] === id && (ev.phase === 'waiting' || ev.phase === 'met')) return { kind: 'event' }; // (a street moment's favour, below)
       if (ev && ev.e.people.includes(id) && ev.phase !== 'gone') return null; // (and its others: they are with them)
       const s = current();
@@ -202,7 +208,7 @@ window.OEWalkTalk = (function () {
     }
     function errand() {
       if (gate && gate.ph === 'going') return null; // (she is going: nothing asked of you while she does)
-      if (gate) { const n = ctx.npc(lineS.npc), me = ctx.here(), W = lineS.wait; return n ? toward(me, n, { text: gate.ph === 'walk' ? W.follow : gate.ph === 'ask' ? W.at : gate.ph === 'shot' ? W.goal : `Back to ${first(n.name)}`, key: gate.ph === 'shot' ? 'O' : '' }) : null; } // (the walk's line, its end: at the gate)
+      if (gate) { const n = ctx.npc(lineS.npc), me = ctx.here(), W = lineS.wall; return n ? toward(me, n, { text: gate.ph === 'walk' ? W.follow : gate.ph === 'ask' ? W.at : gate.ph === 'shot' ? W.goal : `Back to ${first(n.name)}`, key: gate.ph === 'shot' ? 'O' : '' }) : null; } // (the walk's line, its end: at the gate)
       if (inc && inc.ph === 'down') { const n = ctx.npc(lineS.npc), me = ctx.here(); return n ? toward(me, n, { text: lineS.incident.corner || '', key: '' }) : null; } // (the walk's line: what he did, and the metres to her)
       if (inc && inc.ph !== 'up') { const n = ctx.npc(lineS.npc), me = ctx.here(); return n && lineS.incident.lead ? toward(me, n, { text: lineS.incident.lead, key: '', next: true }) : null; } // (before it: where to look, and the way; never what is about to happen)
       if (ev && (ev.phase === 'asked' || ev.phase === 'met')) { // (a favour asked of you on the street: the corner's while it lasts)
@@ -553,10 +559,10 @@ window.OEWalkTalk = (function () {
       // someone on the ground beside you: what is offered (the words of the prompt), and taking it
       lineAgain() { lineOff(); if (lineS) { delete st[lineS.id]; const n = ctx.npc(lineS.npc); if (n && ctx.put) ctx.put(n, lineS.at || [n.x, n.y]); } lineArm(); keep(); }, // (for the checks: the incident from its start)
       // beside her by the wall once her story is told: wait with her for her train (the words of the prompt), and taking it
-      waits: id => (lineS && lineS.wait && id === lineS.npc && of(lineS).done && (of(lineS).rested || (n => n && lineS.rest && Math.hypot(n.x - lineS.rest[0], n.y - lineS.rest[1]) < 3)(ctx.npc(id))) && !waitOn && !gate && of(lineS).w !== 'gone' ? ctx.fill(lineS.wait.verb) : ''),
+      waits: id => (lineS && lineS.wall && id === lineS.npc && of(lineS).done && (of(lineS).rested || (n => n && lineS.rest && Math.hypot(n.x - lineS.rest[0], n.y - lineS.rest[1]) < 3)(ctx.npc(id))) && !waitOn && !gate && of(lineS).w !== 'gone' ? ctx.fill(lineS.wall.verb) : ''),
       wait(n) {
         if (!ctx.waitWith || waitOn || gate || busy) return false;
-        const W = lineS.wait;
+        const W = lineS.wall;
         waitOn = true;
         const ok = ctx.waitWith(n, { beside: W.beside, before: W.before || 3, says: W.says, say: line => bark(n.id, line, 4.5), done: () => { waitOn = false; gateBegin(n); }, cancel: () => { waitOn = false; n.fixed = false; } });
         if (!ok) waitOn = false;
@@ -564,7 +570,7 @@ window.OEWalkTalk = (function () {
       },
       helps: id => (inc && inc.ph === 'down' && lineS.npc === id ? lineS.incident.help || 'Help her up' : ''),
       help(n) { if (!inc || inc.ph !== 'down' || busy) return false; getUp(true); return talk(n); },
-      line: () => (lineS ? { ph: inc ? inc.ph : '', ctl: inc ? +(inc.ctl || 0).toFixed(1) : 0, startedAt: inc && inc.at != null ? +inc.at.toFixed(1) : null, v: inc ? inc.v || 0 : 0, inc: of(lineS).inc || '', part: of(lineS).part, done: !!of(lineS).done, man: inc && inc.man ? [+inc.man.x.toFixed(1), +inc.man.y.toFixed(1)] : null, at: (n => (n ? [+n.x.toFixed(1), +n.y.toFixed(1), n.rig && n.rig.pending ? 'pending' : n.sit ? 'down' : 'up'] : null))(ctx.npc(lineS.npc)) , gate: gate ? gate.ph : '', wait: waitOn, w: of(lineS).w || '' } : null),
+      line: () => (lineS ? { ph: inc ? inc.ph : '', ctl: inc ? +(inc.ctl || 0).toFixed(1) : 0, startedAt: inc && inc.at != null ? +inc.at.toFixed(1) : null, v: inc ? inc.v || 0 : 0, inc: of(lineS).inc || '', part: of(lineS).part, done: !!of(lineS).done, man: inc && inc.man ? [+inc.man.x.toFixed(1), +inc.man.y.toFixed(1)] : null, gait: inc ? inc.gait || '' : '', at: (n => (n ? [+n.x.toFixed(1), +n.y.toFixed(1), n.rig && n.rig.pending ? 'pending' : n.sit ? 'down' : 'up'] : null))(ctx.npc(lineS.npc)) , gate: gate ? gate.ph : '', wait: waitOn, w: of(lineS).w || '' } : null),
       // each frame on the walk: what was asked met, and the marks drawn (hide: a talk, a menu, the camera up)
       tick(dt, hide) { if (!on) return; laterTick(dt, hide); incident(dt, hide); check(); street(dt, hide); barkNear(ctx.here(), hide); draw(hide, dt); },
       // the street moments, for the checks: start one now (by its id, at one of event_spots), and where it stands
