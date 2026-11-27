@@ -862,7 +862,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // levels a Stop will see are fetched a frame ahead instead, stopAnchor). Not behind the way in's veil, which waits for
   // the level (holdForLevel)
   const stopHeld = () => { try { return !!(story && story.stopped) && !levelHold; } catch (e) { return false; } }; // (the story not made yet)
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => uploadFor(obj, { first: true }).then(() => compileFor(obj, world, { behind: stopHeld, hold: stopHeld })), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
+  // (a level's programs on a phone: a slice of a frame at a time and one program in flight, wherever it is fetched: one that
+  // came in play compiled in 50 ms slices with six in flight, and the frames' own calls waited behind them, issue 327)
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => uploadFor(obj, { first: true }).then(() => compileFor(obj, world, QC.lean ? { behind: true, hold: stopHeld, flight: 1 } : { behind: stopHeld, hold: stopHeld })), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -5247,7 +5249,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Wd.tick(now, camera);
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
-    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [[player.x, player.y], stopAnchor()] : stopAnchor()); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
+    // (on a phone the opening's flight fetches no level it only passes: the walk's came down over SKY GATE's lobby, Miyamasu and
+    // SHIBUYA SKY's roof, and the three were fetched, sent and compiled in the flight, sixteen programs in ten seconds; the
+    // owner's iPhone, 26 November 2026, drew no frame for 5.1 s and lost its WebGL context, and the page reloaded. The flight
+    // passes them in seconds and the city's own buildings stand there; the levels the player lands in are fetched round
+    // the anchors, as before)
+    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [[player.x, player.y], stopAnchor()] : stopAnchor(), !(QC.lean && ((titleOn && !preTitle) || (overture && overture.active)))); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (HERO_CUT.h) HERO_CUT.box.value.w = HERO_CUT.h.shown && !HERO_CUT.off ? 1 : 0; // (the ground cut under a level's floor only while the floor is drawn)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
