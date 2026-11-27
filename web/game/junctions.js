@@ -1050,11 +1050,14 @@ window.OEJunctions = (function () {
       // turning across the oncoming road took that road's whole green, and one late out of the last turn the first 4 to
       // 6 s of the next, issue 175. And in a scramble's wide box a long vehicle sweeps its own way 4.4 m wide, not the
       // whole junction: a bus going straight over held the oncoming lane 20 m from it at its line)
+      // (and never the one car a knot was undone by letting this one past: actors.js knots, c.waive)
+      const waived = o => !!c.waive && o.c === c.waive;
+      c.xBy = null; // (the car whose movement holds it out, when it is held: the traffic's graph of who waits on whom, actors.js knots)
       for (const o of j.active) {
-        if (o.c === c || behind(o) || waitsOnMe(o) || knot(o) || forYou(o)) continue;
+        if (o.c === c || behind(o) || waitsOnMe(o) || knot(o) || forYou(o) || waived(o)) continue;
         const long = (o.k !== k || (o.m >> 4) !== (m >> 4)) && (c.half > LONG || o.c.half > LONG) && !stood(o);
-        if (long && !j.scramble && !j.wideBox) return 'cross';
-        if (long ? zoneEnd(j, o.k, o.m, k, m, WIDE) >= 0 && !past(j, o, k, m, WIDE) : conflict(j, k, m, o.k, o.m) && !past(j, o, k, m) && !yields(j, o, a, e, k, m)) return 'cross';
+        if (long && !j.scramble && !j.wideBox) { c.xBy = o.c; return 'cross'; }
+        if (long ? zoneEnd(j, o.k, o.m, k, m, WIDE) >= 0 && !past(j, o, k, m, WIDE) : conflict(j, k, m, o.k, o.m) && !past(j, o, k, m) && !yields(j, o, a, e, k, m)) { c.xBy = o.c; return 'cross'; }
       }
       const mine = j.pend.find(o => o.c === c);
       for (const o of j.pend) {
@@ -1074,11 +1077,12 @@ window.OEJunctions = (function () {
         // Shinjuku's 1103, whose arm 0 waits on 1105's turn 6 m on, stood 389 s so, #331)
         const x2 = o.c.ex2, e0 = x2 && x2.e ? wayFor(j, o.k, o.m) : null;
         if (e0 && x2.a.line === e0.m.line && x2.a.j.sig && light(x2.a, x2.e) !== 'g') continue;
-        if (conflict(j, k, m, o.k, o.m)) return 'turn';
+        if (waived(o)) continue;
+        if (conflict(j, k, m, o.k, o.m)) { c.xBy = o.c; return 'turn'; }
       }
       if (!j.sig && j.seen >= frame - 1 && !(mine && t - mine.since > 3 * WAITED)) { // give way to the main road: a car on a greater arm coming, not stopped
         const me = rankOf(a, c);
-        for (const o of j.near) if (o.c !== c && o.rank > me && o.eta < 3.2 && o.c.v > 1.5 && (o.m < 0 || conflict(j, k, m, o.k, o.m))) return 'give';
+        for (const o of j.near) if (o.c !== c && o.rank > me && o.eta < 3.2 && o.c.v > 1.5 && (o.m < 0 || conflict(j, k, m, o.k, o.m))) { c.xBy = o.c; return 'give'; }
       }
       return true;
     }

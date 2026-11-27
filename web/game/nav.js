@@ -1237,6 +1237,12 @@ window.OENav = (function () {
       for (const b of fenceList) fence.addBox(b[0], b[1], b[2], b[3], b[4], b[5], LFINE, -1);
       fence.build();
     }
+    // push a car's body circle (radius r, its bottom at z) out of the guard rails as drawn (addFences): a car driven at a
+    // rail stops at it, as at a wall. Only the body's own step asks this (cars.js collide, follow); the queries that look
+    // for a place at the kerb, the camera's and the sound's keep reading the world without the rails, as above. {x, y}
+    function pushFence(x, y, z, r, top = HEAD) {
+      return fence ? fence.depenetrate(x, y, r, z + KNEE, z + top) : { x, y };
+    }
     // move a walker whose feet are at z by (dx, dy), sliding along walls and round the cars
     // in `movers` (the traffic, which sets it) and the lamp posts and trunks in `posts`
     // (streets.js, which game.js sets): {x, y, hit}
@@ -1384,7 +1390,7 @@ window.OENav = (function () {
       }
       return f;
     }
-    const api = { addFences, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    const api = { addFences, pushFence, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   // a ceiling's cells from triangles [[x, y, z] x 3] (local metres) over the square (ax, ay) to + n * cell: each cell keeps the
