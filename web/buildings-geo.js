@@ -14,8 +14,9 @@
   // rows of posts inside a roof over 400 m2 (buildings.json inner_posts, by building: pipeline/arcades.py),
   // those inside this solid's outline
   const POST = 0.3; // a post's side (m)
+  const CANOPY_HIGH = 9.0, PLATFORM_ROOF = 4.1, PLATFORM_DECK = 1.1; // no canopy over a street is higher than this (m; the map's on the second floor's deck are 6.8 to 8.2): a platform's roof, this high over its platform, and the platform this high over the rail (pipeline/stations.py platform_roofs: the roof's underside 5.2 m over the rail)
   const PIER = 0.9; // a pier's, under a building that stands off the ground (pipeline/stations.py)
-  function canopyPosts(s, meta, skip = null, inner = null) {
+  function canopyPosts(s, meta, skip = null, inner = null, high = false) { // (high: a platform's roof on a raised bed, posts 12 m apart)
     if (!(s[2] > 0) || !meta || meta[1] !== 'roof') return [];
     const r = s[4], n = r.length / 2, out = [];
     let area = 0, per = 0;
@@ -36,7 +37,7 @@
       add(b[0] + nx / l * 0.25, b[1] + ny / l * 0.25);
       const L = Math.hypot(c[0] - b[0], c[1] - b[1]);
       if (thin || (wide && L > 12)) { // along the edge to the next corner (a wide roof's long side: a platform's or a forecourt's canopy)
-        const m = Math.floor(L / (thin ? 6 : 8));
+        const m = Math.floor(L / (high ? 12 : thin ? 6 : 8));
         for (let i = 1; i < m; i++) { const t = i / m; add(b[0] + (c[0] - b[0]) * t + n1[0] * 0.25, b[1] + (c[1] - b[1]) * t + n1[1] * 0.25); }
       }
     }
@@ -317,9 +318,10 @@
 
     // ------------------------------------------------------------ walls
     const LEVELS = [0, 8, 24, 48, 96, 192, 384];
+    const SLAB_EDGE = 0.9, RAISED_MIN = 2.6; // a raised solid's slab edge (m), and the least height that has one
     // signRun: this ring carries the building's one vertical corner sign (mixed-use fronts), at the
     // start of its longest run on a street (else its longest run)
-    function walls(ring, bi, si, zb, zt, g0, kindOk, fronts, o, signRun = false) {
+    function walls(ring, bi, si, zb, zt, g0, kindOk, fronts, o, signRun = false, lift = 0) { // (lift: added to the facade's height over the ground, raiseds())
       const P = BI[bi], n = ring.length / 2, grid = GRIDS[P.style] || GRID.plain;
       const bayW = grid[0] * (0.92 + 0.16 * P.u);
       // edges, directions and turns; runs break at corners sharper than 30 degrees
@@ -356,7 +358,7 @@
         for (const k of run) total += L[k];
         const margin = 0.6, nb = bayW > 0 && kindOk ? Math.floor((total - 2 * margin) / bayW + 0.5) : 0;
         // whole floors under the eave: a floor whose window head does not fit gets none
-        const ht = zt - g0, qTop = ht < P.ground ? ht / P.ground : 1 + (ht - P.ground) / P.storey;
+        const ht = zt - g0 + lift, qTop = ht < P.ground ? ht / P.ground : 1 + (ht - P.ground) / P.storey;
         const nFloors = Math.max(0, Math.floor(qTop - grid[3] + 1 + 1e-3));
         const facade = nb >= 1 && h >= 2.2;
         const kind = facade ? K_FACADE : K_WALL;
@@ -380,8 +382,8 @@
           for (let li = 0; li < levels.length; li++) {
             const z = levels[li];
             const oa = openness(ra, z + 0.5), ob = openness(rb, z + 0.5);
-            const ia = buf.v(x0, y0, z, ax, ay, 0, P.wall, s0, z - g0, kind * 16 + si, P.storey, P.ground, P.u, oa, flags, nb, bi, P.code);
-            const ib = buf.v(x1, y1, z, bx, by, 0, P.wall, s1, z - g0, kind * 16 + si, P.storey, P.ground, P.u, ob, flags, nb, bi, P.code);
+            const ia = buf.v(x0, y0, z, ax, ay, 0, P.wall, s0, z - g0 + lift, kind * 16 + si, P.storey, P.ground, P.u, oa, flags, nb, bi, P.code);
+            const ib = buf.v(x1, y1, z, bx, by, 0, P.wall, s1, z - g0 + lift, kind * 16 + si, P.storey, P.ground, P.u, ob, flags, nb, bi, P.code);
             if (prevIds) buf.idx.push(prevIds[0], prevIds[1], ib, prevIds[0], ib, ia);
             prevIds = [ia, ib];
           }
@@ -601,13 +603,34 @@
         if (q) for (let i = 0; i < q.length; i += 2) post(q[i] / 10, q[i + 1] / 10, foot ? Math.min(g0, foot(q[i] / 10, q[i + 1] / 10)) - 0.2 : g0, zb, bi, PIER);
         return;
       }
-      rings.forEach((ring, o) => walls(ring, bi, P.si, zb, Math.max(eave, zb + 0.1), g0, P.windows, fronts, o, o === 0 && signSolid.get(bi) === si));
+      // a solid that starts above its ground (a wing over a forecourt, a station over a street, a bridge between two
+      // buildings) has a slab under its lowest floor: its edge is a solid band, and its storeys start on it. With the
+      // storeys counted from the street, its lowest row of windows was cut in half by the underside, and one starting
+      // within the ground floor's height was drawn as a shopfront glazed down to the underside's edge (the owner's
+      // report, 25 November 2026: the Ginza line's station over Meiji-dori, the buildings by the new south exit)
+      const top = Math.max(eave, zb + 0.1), slab = s[2] > 0 && top - zb >= RAISED_MIN ? Math.min(SLAB_EDGE, 0.25 * (top - zb)) : 0;
+      if (slab) rings.forEach((ring, o) => walls(ring, bi, P.si, zb, zb + slab, g0, false, null, o));
+      const zf = zb + slab, lift = slab ? P.ground - (zf - g0) : 0; // (the facade's first row a whole storey over the ground floor)
+      rings.forEach((ring, o) => walls(ring, bi, P.si, zf, top, g0, P.windows, slab ? null : fronts, o, o === 0 && signSolid.get(bi) === si, lift));
       if (lod) { cap(rings, zt, bi, P.roof, roofOf.has(si) ? K_ROOF : K_DECK, photoOK && !roofOf.has(si) && meta[bi][2] < 45 ? 16 : 0); return; }
       if (foot && s[2] === 0) plinth(rings, bi, P.si, zb);
       if (passages.has(si)) cap(rings, zb, bi, soffitC, K_SOFFIT, 0, true); // a building over a road through it (pipeline/road_passages.py): the passage's ceiling
       else if (s[2] > 0 && meta[bi][1] === 'roof') { // a canopy over the street (pipeline/arcades.py): its underside, and the posts it stands on
         cap(rings, zb, bi, soffitC, K_SOFFIT, 0, true);
-        for (const [x, y] of canopyPosts(s, meta[bi], B.no_posts && B.no_posts[bi], B.inner_posts && B.inner_posts[bi])) post(x, y, foot ? Math.min(g0, foot(x, y)) - 0.2 : g0, zb, bi);
+        // a roof higher over the street than a canopy stands (a platform's roof on the railway's raised bed) stands on
+        // the platform under it, not on the street: its posts, every 6 m down both sides and in rows inside it, ran
+        // from the pavement up through the bed, a forest of posts under the railway by the new south exit (the owner's
+        // report, 25 November 2026). The platform is not drawn (the stations stand in their boxes): its posts end a
+        // canopy's height under the roof, on the bed's deck, and stand 12 m apart down its sides
+        const high = zb - g0 > CANOPY_HIGH;
+        for (const [x, y] of canopyPosts(s, meta[bi], B.no_posts && B.no_posts[bi], B.inner_posts && B.inner_posts[bi], high))
+          post(x, y, high ? zb - PLATFORM_ROOF : foot ? Math.min(g0, foot(x, y)) - 0.2 : g0, zb, bi);
+        if (high) { // the platform under it (the station's own is not drawn): its deck, its edge down to the rail, its underside
+          const zp = zb - PLATFORM_ROOF, zr = zp - PLATFORM_DECK;
+          cap(rings, zp, bi, deckFloorC, K_TRIM, 0);
+          cap(rings, zr, bi, deckUnderC, K_SOFFIT, 0, true);
+          rings.forEach((ring, o) => edge(ring, zr, zp, bi, deckEdgeC, K_TRIM, o === 0));
+        }
       }
       else if (B.piers && B.piers[si]) { // a building that stands wholly off the ground (a station's concourse over the street: pipeline/stations.py): its underside, and its piers
         cap(rings, zb, bi, soffitC, K_SOFFIT, 0, true);
@@ -716,7 +739,7 @@
     return [...set];
   }
 
-  const api = { build, colourNames, canopyPosts, POST, PIER, STYLES, SI, GRID, LOOK, REGION_GRID, STOREY, STOREY_MAX, PARAPET, ROOF_MAT, CURVED,
+  const api = { build, colourNames, canopyPosts, POST, PIER, CANOPY_HIGH, PLATFORM_ROOF, STYLES, SI, GRID, LOOK, REGION_GRID, STOREY, STOREY_MAX, PARAPET, ROOF_MAT, CURVED,
     K_FACADE, K_WALL, K_ROOF, K_DECK, K_TRIM, K_SOFFIT, hash1, guessStyle, inset };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.OEBuildingsGeo = api;

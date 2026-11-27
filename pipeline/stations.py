@@ -27,10 +27,20 @@ Three things a buildings.json written before typology.facade_style() learned the
   man_made=bridge) was a two-storey building of shops on the bus terminal's carriageway, with a road through it (the
   owner's report, 24 November 2026; tools/deck_check.py, issue 196).
 
-Rewrites web/data/<city>/buildings.json in place; running it again changes nothing.
+- a solid in a train's way (tools/rail_clear.py: the Yamanote Line's envelope, from the rail to the contact wire,
+  outside a station's box) has the envelope carved out of it: what stands beside the tracks keeps its height, what is
+  over them starts over the wire, and a roof over a platform is raised to clear it. South of Shibuya Station the trains
+  ran through the walls of the new south exit's building and the buildings beside it (the owner's report, 25 November
+  2026).
+
+- a solid that is an elevated road's own body (a building with no record of its own along whose top a motorway runs)
+  is not drawn (road_bodies(); scene.json hidden_solids).
+
+Rewrites web/data/<city>/buildings.json and scene.json's hidden_solids in place; running it again changes nothing.
 """
 import argparse
 import json
+import math
 import os
 from collections import defaultdict
 
@@ -111,6 +121,7 @@ def over_roads(B, city, game):
     return n
 
 
+UNNAMED_DECK_M = 9.0   # (one of a building with no record of its own)
 DECK_M = 6.0      # a raised solid no deeper than this, over the road, of a building with no foot on the ground: a deck
 
 
@@ -124,18 +135,182 @@ def decks(B):
     for k, s in enumerate(B["s"]):
         by_b[s[0]].append(k)
     out = []
-    raised = set(B.get("over_roads") or [])
+    raised, through = set(B.get("over_roads") or []), set(B.get("passages") or [])
     for bi, ks in by_b.items():
-        if not raised.intersection(ks) or any(B["s"][k][2] <= 0 for k in ks):
+        unnamed = not B["b"][bi][6] and B["b"][bi][1] != "roof"
+        if not (raised.intersection(ks) or unnamed and through.intersection(ks)) or any(B["s"][k][2] <= 0 for k in ks):
             continue
-        out += [k for k in ks if B["s"][k][3] - B["s"][k][2] <= DECK_M * 10]
+        # (a building the survey alone has, with no record of what it is, raised over a road and standing nowhere on the
+        # ground, is a deck: south of the station one 8 m deep stood over Route 246 as a block of offices on nothing)
+        deep = UNNAMED_DECK_M if unnamed else DECK_M
+        out += [k for k in ks if B["s"][k][3] - B["s"][k][2] <= deep * 10]
     return sorted(out)
 
 
-def piers(B, game):
-    by_b = defaultdict(list)
-    for k, s in enumerate(B["s"]):
-        by_b[s[0]].append(k)
+PLATFORM_M = 8.0   # a roof this near a course is over its platform (an island platform's far edge, 6 m off the rail)
+CANOPY_DM = 8      # a platform's roof: a slab this thick (dm)
+
+
+def platform_roofs(B, game):
+    """A roof by the trains' course, at the platforms' level or over it and under the wire, is a platform's roof:
+    its underside over the wire, a slab of CANOPY_DM. The open data's levels put them anywhere from the rail to a
+    storey over it: south of Shibuya Station one hung a 5 m box 0.9 m over the rail, dark over the street below
+    (the owner's report, 25 November 2026). The number set."""
+    tracks = game.get("trains", {}).get("tracks", []) if game else []
+    if not tracks:
+        return 0
+    import numpy as np
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import rail_clear
+    lines = []
+    for t in tracks:
+        p = t["p"]
+        P = np.array([(p[i] / 10, p[i + 1] / 10, p[i + 2] / 10) for i in range(0, len(p), 3)])
+        g = LineString(P[:, :2])
+        m = np.concatenate([[0], np.cumsum(np.hypot(*np.diff(P[:, :2], axis=0).T))])
+        lines.append((g, m, P))
+    n = 0
+    for s in B["s"]:
+        if B["b"][s[0]][1] != "roof":
+            continue
+        F = Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0)
+        near = [(g.distance(F), g, m, P) for g, m, P in lines]
+        near = [v for v in near if v[0] < PLATFORM_M]
+        if not near:
+            continue
+        rail = max(float(np.interp(g.project(Point(x, y)), m, P[:, 2])) for _, g, m, P in near for x, y in F.exterior.coords)
+        lo, hi = (s[1] + s[2]) / 10, (s[1] + s[3]) / 10
+        if hi < rail - 0.5 or lo >= rail + rail_clear.WIRE_M:
+            continue   # (a canopy over the street under the line, or a roof over the wire already)
+        deep = s[3] - s[2]
+        s[2] = math.ceil((rail + rail_clear.WIRE_M) * 10) - s[1]
+        s[3] = s[2] + min(CANOPY_DM, max(2, deep))
+        n += 1
+    return n
+
+
+ROOM_M = 2.6   # (what is left over a train's wire lower than this is not kept: no room in it)
+
+
+def over_tracks(B, city, game):
+    """Carve the trains' envelope out of every solid in their way (see the module's note): the number carved. A part
+    carved off a solid is kept as a solid of its own, at the end of the list, so that no index into the solids moves."""
+    if not game or not game.get("trains"):
+        return 0
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import rail_clear
+    from solid_rings import valid_rings
+    from shapely.geometry.polygon import orient
+    E = rail_clear.envelope(game)
+    n = 0
+    for si, bi, _a, z, lo, hi in rail_clear.in_the_way(city, B, game):
+        s = B["s"][si]
+        base = s[1]
+        env = unary_union([e[1] for e in E if e[1].intersects(Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0))])
+        rail = max(rail_clear.rail_over(env.buffer(0.3).intersection(Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0)), e[2])
+                   for e in E if e[1].intersects(env))
+        clear = math.ceil((max(z, rail) + rail_clear.WIRE_M) * 10) - base      # over the wire, in decimetres over the base
+        if B["b"][bi][1] == "roof":   # a platform's roof: over the wire, as thin as it was
+            s[3], s[2] = max(s[3], clear + (s[3] - s[2])), clear
+            n += 1
+            continue
+        P = Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)],
+                    [[(h[i] / 10, h[i + 1] / 10) for i in range(0, len(h), 2)] for h in s[5:] if len(h) >= 6]).buffer(0)
+        env = env.buffer(0.3, join_style="mitre")   # (and a hand past it: what the decimetre grid rounds back in)
+        def rings(g):
+            out = []
+            for q in getattr(g, "geoms", [g]):
+                if q.geom_type != "Polygon" or q.area < 2:
+                    continue
+                q = orient(q, 1.0)
+                r = valid_rings([[round(v * 10) for xy in list(q.exterior.coords)[:-1] for v in xy]] +
+                                [[round(v * 10) for xy in list(h.coords)[:-1] for v in xy] for h in q.interiors])
+                if r:
+                    out.append((q.area, r))
+            return [r for _, r in sorted(out, key=lambda v: -v[0])]
+        beside, over = rings(P.difference(env)), rings(P.intersection(env)) if s[3] - clear >= ROOM_M * 10 else []
+        head = s[:4]
+        parts = [head + r for r in beside] + [[bi, base, max(s[2], clear), s[3]] + r for r in over]
+        if not parts:
+            continue
+        B["s"][si] = parts[0]
+        B["s"].extend(parts[1:])
+        n += 1
+    return n
+
+
+def road_bodies(B, game):
+    """The solids that are an elevated road's own body: PLATEAU's survey extrudes the Shuto Expressway's viaduct over
+    Route 246 south of Shibuya Station as a building with no record of its own, from the street to the expressway's
+    deck, and the game drew it as a block of offices over the road (the owner's report, 25 November 2026). A solid of
+    a building with no OpenStreetMap record, along which a motorway runs for 10 m or more at its top (from a metre
+    under it to 2 m over it, the deck the page draws: web/game/decks.js), is that: not drawn, kept in the surface model
+    (scene.json hidden_solids), and so is the rest of its building. Their solid indices."""
+    import shapely
+    roads = []
+    for r in (game or {}).get("paths", {}).get("road", []):
+        if r.get("c") not in ("motorway", "motorway_link"):
+            continue
+        p = r["p"]
+        pts = [(p[i] / 10, p[i + 1] / 10, p[i + 2] / 10) for i in range(0, len(p), 3)]
+        roads.append((LineString([q[:2] for q in pts]), pts))
+    if not roads:
+        return []
+    tree = shapely.STRtree([g for g, _ in roads])
+    out = []
+    for si, s in enumerate(B["s"]):
+        if B["b"][s[0]][6] or len(s[4]) < 6:
+            continue
+        F = Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0)
+        top = (s[1] + s[3]) / 10
+        for j in tree.query(F, predicate="intersects"):
+            g, pts = roads[j]
+            zs = [q[2] for q in pts if F.contains(Point(q[:2]))] or [min(q[2] for q in pts)]
+            if g.intersection(F).length >= 10 and top - 1 <= sum(zs) / len(zs) <= top + 2:
+                out.append(s[0])
+                break
+    whole = set(out)   # (and the rest of its building: the survey's one body, cut into pieces by the roads under it)
+    return [si for si, s in enumerate(B["s"]) if s[0] in whole]
+
+
+STRAY_M2 = 15.0     # (a bit of a roof no bigger than this)
+STRAY_DROP_M = 5.0  # (and this far under the rest of its building)
+
+
+def stray_bits(B):
+    """The scraps of a roof left far under it: a small thin solid off the ground whose underside is STRAY_DROP_M or
+    more under its building's largest solid, touching none of them. South of Shibuya Station four
+    strips of the new south exit's platform roof hung at head height over the plaza, 10 m under the roof, drawn as
+    brown boards on posts (the owner's report, 25 November 2026). Not drawn: the solids' indices."""
+    from collections import defaultdict
+    by = defaultdict(list)
+    for si, s in enumerate(B["s"]):
+        by[s[0]].append(si)
+    def plan(s):
+        return Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0)
+    out = []
+    for bi, ss in by.items():
+        if len(ss) < 2:
+            continue
+        for si in ss:
+            s = B["s"][si]
+            if s[2] <= 0 or s[3] - s[2] > 15:
+                continue
+            F = plan(s)
+            if F.area > STRAY_M2:
+                continue
+            rest = [B["s"][j] for j in ss if j != si]
+            main = max(rest, key=lambda r: plan(r).area)   # (the building's body: its largest solid)
+            if main[1] + main[2] - (s[1] + s[2]) < STRAY_DROP_M * 10 or any(plan(r).buffer(0.2).intersects(F) for r in rest if r[2] < s[3]):
+                continue
+            out.append(si)
+    return out
+
+
+def ways_of(game):
+    """The roads' carriageways and the footways, widened by a pier's side: where no pier stands."""
     ways = []
     for r in game.get("paths", {}).get("road", []):
         p = r["p"]
@@ -144,6 +319,14 @@ def piers(B, game):
     for r in game.get("paths", {}).get("foot", []):
         p = r["p"]
         ways.append(LineString([(p[i] / 10, p[i + 1] / 10) for i in range(0, len(p), 3)]).buffer(1.2 + PIER))
+    return ways
+
+
+def piers(B, game):
+    by_b = defaultdict(list)
+    for k, s in enumerate(B["s"]):
+        by_b[s[0]].append(k)
+    ways = ways_of(game)
     out = {}
     for bi, ks in by_b.items():
         if B["b"][bi][1] == "roof" or any(B["s"][k][2] <= 0 for k in ks) and B["b"][bi][6] not in UNDERSIDE:
@@ -202,6 +385,8 @@ def main():
     before = json.dumps(B, sort_keys=True)
     n = restyle(B, typology.region_name(cfg) == "japan")
     raised = over_roads(B, a.city, game)
+    roofs = platform_roofs(B, game)
+    carved = over_tracks(B, a.city, game)
     D = decks(B)
     if D:
         B["decks"] = D
@@ -212,11 +397,20 @@ def main():
         B["piers"] = P
     else:
         B.pop("piers", None)
+    bodies = road_bodies(B, game)
+    strays = stray_bits(B)
+    sp = os.path.join(d, "scene.json")
+    if os.path.exists(sp):
+        scene = json.load(open(sp, encoding="utf8"))
+        hidden = sorted(set(scene.get("hidden_solids") or []) | set(bodies) | set(strays))
+        if hidden != scene.get("hidden_solids"):
+            scene["hidden_solids"] = hidden
+            json.dump(scene, open(sp, "w"), separators=(",", ":"))
     changed = json.dumps(B, sort_keys=True) != before
     if changed:
         with open(path, "w") as f:
             json.dump(B, f, separators=(",", ":"))
-    print(f"{a.city}: {n} stations restyled, {raised} solids raised over a carriageway, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
+    print(f"{a.city}: {n} stations restyled, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs, {len(bodies)} an expressway's own body, {len(strays)} scraps of a roof under it, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
 
 
 if __name__ == "__main__":
