@@ -511,6 +511,12 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
   # rails, bollards and posts as drawn: none drives through one or stops behind one, issue 208's second half)
   if timeout 900 $X node tools/ride_rails.js >"$OUT/ride-rails.log" 2>&1; then echo "ok   ride   $(grep -c '^ok' "$OUT/ride-rails.log") rides ordered round the Scramble pulled in clear of the drawn rails"
   else echo "FAIL ride   $(grep '^FAIL\|pageerror' "$OUT/ride-rails.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride-rails.log)"; fi
+  # (your own car the same: called to the kerb from the paving round the Scramble, it stands in no post or rail and has its
+  # own line in the corner with the way to it; and driven at the drawn rails, it stops at them, the owner's still of 27 Nov)
+  if STEP=20 timeout 1800 $X node tools/car_call.js "$OUT/car-call" >"$OUT/car-call.log" 2>&1; then echo "ok   ride   $(grep -o '[0-9]* calls: median [0-9.]* m' "$OUT/car-call.log"): your car clear of every post and rail, its way in the corner"
+  else echo "FAIL ride   your car called: $(grep '^FAIL\|pageerror' "$OUT/car-call.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/car-call.log)"; fi
+  if timeout 1500 $X node tools/car_rail.js >"$OUT/car-rail.log" 2>&1; then echo "ok   ride   $(grep -o '^[0-9]* rails driven at' "$OUT/car-rail.log"): your car stopped at each"
+  else echo "FAIL ride   your car at the rails: $(grep '^FAIL\|pageerror' "$OUT/car-rail.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/car-rail.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are

@@ -2059,11 +2059,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return OECars.ledgesUnder(nav, pose, hl, hw) > 0;
   }
+  // Whether a car of half length hl and half width hw can stand at a pose with nothing of the street in its body: the
+  // walls and ledges (wedged), the lamp posts, signals and trunks (posts), and a hero level's guard rails (nav.fenceHit,
+  // which the car's own queries of the world leave out, so that a rail beside the kerb is no wall it is wedged against;
+  // a rail through the bonnet is another thing: the owner's still of 27 November 2026, your car called to the kerb by the
+  // scramble with the rail and a post through it). traffic: the cars standing or going there too. Every place a car is
+  // set down at the kerb is asked this, and one that fails it is never used, however far the search has to go
+  function parkClear(pose, hl, hw, traffic = true) {
+    if (traffic && cars.footprint(pose.x, pose.y, pose.z, pose.h, hl, hw, 0.3) > 0) return false;
+    if (wedged(pose, hl, hw)) return false; // (not into a wall nor half over a ledge a car cannot climb: it would stand there wedged)
+    const fx = Math.sin(pose.h), fy = Math.cos(pose.h);
+    let hit = false;
+    posts.near(pose.x, pose.y, hl + 1, p => {
+      const dx = p.x - pose.x, dy = p.y - pose.y;
+      if (Math.abs(dx * fx + dy * fy) < hl + p.r + 0.2 && Math.abs(-dx * fy + dy * fx) < hw + p.r + 0.2) hit = true;
+    }, pose.z);
+    if (hit) return false;
+    if (nav.fenceHit) { // (the body as circles along it, and its four corners; from the sills to the roof)
+      const zlo = pose.z + 0.15, zhi = pose.z + 1.3, run = Math.max(0, hl - hw), r = hw - 0.05;
+      for (const o of [-run, -run / 2, 0, run / 2, run]) if (nav.fenceHit(pose.x + fx * o, pose.y + fy * o, r, zlo, zhi)) return false;
+      for (const a of [-1, 1]) for (const b of [-1, 1]) {
+        const u = a * (hl - 0.2), v = b * (hw - 0.2);
+        if (nav.fenceHit(pose.x + fx * u + fy * v, pose.y + fy * u - fx * v, 0.18, zlo, zhi)) return false;
+      }
+    }
+    return true;
+  }
   function kerbNear(x, y, z, ahead = 9, within = 250) {
     const pl0 = offScramble(roads.place(x, y, within, keepSign, z), true);
     if (!pl0) return null;
     const M = CARS_OK && vlib.info.cars.models[carCfg.model], half = M ? M.length_m / 2 : 2.2, hw = M ? M.width_m / 2 : 0.9;
-    let first = null;
     const along = (pl, s0) => {
       const L = roadNet.L[pl.line].len;
       // (not in a junction, nor so close to one that the traffic turning through it can't get round: at Hong
@@ -2071,32 +2096,31 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       // 12 m clear of one ahead, and 18 m of one behind, where a taxi hailed from beside it pulls in)
       const l0 = roadNet.L[pl.line], n0 = l0.pts.length / 3, jn = k => (roadNet.nodes.get(roadNet.key(l0.pts[3 * k], l0.pts[3 * k + 1])) || []).length > 2;
       const back = d => half + (d ? 18 : 12), nearJ = s => junctions.inner(pl.line) || (jn(0) && s < back(pl.dir > 0)) || (jn(n0 - 1) && L - s < back(pl.dir < 0));
-      for (const d of [0, 6, -6, 12, -12, 18, -18, 24, -24, 30, -30, 36, -36]) {
+      for (const d of [0, 3, -3, 6, -6, 9, -9, 12, -12, 18, -18, 24, -24, 30, -30, 36, -36]) {
         const q = Object.assign({}, pl, { s: Math.max(3, Math.min(L - 3, s0 + d * pl.dir)) });
         if (SCR_AT.length && (inScramble(q.line, q.s) || inScramble(q.line, Math.max(0, Math.min(L, q.s - 15 * q.dir))) || (q.dir > 0 ? L - q.s : q.s) < 12)) continue; // (not back by the scramble's crosswalks, nor the kerb behind it; and with road ahead to drive off along)
+        if (nearJ(q.s)) continue;
         const pose = kerbPose(q);
-        first = first || { pl: q, pose };
-        if (nearJ(q.s) || cars.footprint(pose.x, pose.y, pose.z, pose.h, half, hw, 0.3) > 0) continue;
-        if (wedged(pose, half, hw)) continue; // (not into a wall nor half over a ledge a car cannot climb: it would stand there wedged)
         if (scrambleJ.some(j => Math.hypot(j.x - pose.x, j.y - pose.y) < 36)) continue; // (not at the mouth of a scramble, its crowd crossing every way)
-        let hit = false;
-        const fx = Math.sin(pose.h), fy = Math.cos(pose.h);
-        posts.near(pose.x, pose.y, half + 1, p => {
-          const dx = p.x - pose.x, dy = p.y - pose.y;
-          if (Math.abs(dx * fx + dy * fy) < half + p.r + 0.2 && Math.abs(-dx * fy + dy * fx) < hw + p.r + 0.2) hit = true;
-        }, pose.z);
-        if (!hit) return { pl: q, pose };
+        if (parkClear(pose, half, hw)) return { pl: q, pose };
       }
       return null;
     };
     let got = along(pl0, pl0.s + ahead * pl0.dir);
-    // (by a scramble, its street too short for all that, or a short piece between two junctions: the streets
-    // round, nearest first)
-    if (!got) for (let r = 15; r <= 75 && !got; r += 15) for (let k = 0; k < 12 && !got; k++) {
-      const a = k / 12 * Math.PI * 2, q = roads.place(x + Math.sin(a) * r, y + Math.cos(a) * r, 8, keepSign, z);
-      if (q && q.line !== pl0.line) got = along(q, q.s);
+    // (by a scramble, its street too short for all that, or a short piece between two junctions: the streets round,
+    // ring by ring, and in each ring the place nearest you, not the first found going round it. Nothing that fails
+    // parkClear is ever the answer: where nowhere near is clear, null, and the caller says so)
+    for (let r = 15; r <= 120 && !got; r += 15) {
+      let best = null, bestD = Infinity;
+      for (let k = 0; k < 12; k++) {
+        const a = k / 12 * Math.PI * 2, q = roads.place(x + Math.sin(a) * r, y + Math.cos(a) * r, 8, keepSign, z);
+        const c = q && q.line !== pl0.line ? along(q, q.s) : null;
+        const d = c ? Math.hypot(c.pose.x - x, c.pose.y - y) : Infinity;
+        if (d < bestD) { best = c; bestD = d; }
+      }
+      got = best;
     }
-    return got || first || { pl: pl0, pose: kerbPose(pl0) };
+    return got;
   }
   // where a car is on the roads, going the way it faces
   function placeOf(st) {
@@ -2241,14 +2265,19 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   function bringCar() {
     if (!myCar) { H.toast('Your car is not here yet. Try again in a moment.'); return; }
     if (player.mode !== 'foot') { H.toast('Get out first.'); return; }
-    const k = kerbNear(player.x, player.y, player.z, 10);
-    if (!k) { H.toast('There is no street near enough to bring it to.'); return; }
+    const k = kerbNear(player.x, player.y, player.z, 2); // (beside you, a step ahead: ten metres on, it stood at the next corner, and with the scramble's mouths and the junctions kept clear it was often thirty)
+    if (!k) { H.toast('There is no clear place at a kerb near enough to bring it to.'); return; }
     const st = myCar.D.st, m = Math.round(Math.hypot(k.pose.x - player.x, k.pose.y - player.y));
-    if (Math.hypot(st.x - k.pose.x, st.y - k.pose.y) < 6 && !carCome) { A.honk(0.25, 1.15); H.toast(`Your car is here, ${m} m away.`); return; }
-    const L = roadNet.L[k.pl.line].len, s1 = k.pl.s, s0 = Math.max(3, Math.min(L - 3, s1 - CAR_COME_M * k.pl.dir)), from = Object.assign({}, k.pl, { s: s0 }), p0 = kerbPose(from);
     const M = vlib.info.cars.models[carCfg.model], half = M ? M.length_m / 2 : 2.2, hw = M ? M.width_m / 2 : 0.9;
+    carCall = { t: clockT }; // (from here until you reach it, its own mark and its own line in the corner: carAim)
+    // (already there: unless where it stands has something of the street in it, as a car set down before parkClear could)
+    if (Math.hypot(st.x - k.pose.x, st.y - k.pose.y) < 6 && !carCome && parkClear(st, half, hw, false)) { A.honk(0.25, 1.15); H.toast(`Your car is here, ${m} m away.`); return; }
+    const L = roadNet.L[k.pl.line].len, s1 = k.pl.s, s0 = Math.max(3, Math.min(L - 3, s1 - CAR_COME_M * k.pl.dir)), from = Object.assign({}, k.pl, { s: s0 }), p0 = kerbPose(from);
     // (from where it comes: clear of the traffic and not wedged, or it stands at the kerb at once)
-    const far = Math.abs(s1 - s0) > 4 && !cars.footprint(p0.x, p0.y, p0.z, p0.h, half, hw, 0.3) && !wedged(p0, half, hw);
+    // (and nothing of the street's on its way in: it comes along the kerb's lane, and a post or a rail on that line it
+    // would pass through, every three metres of it asked as the place it stops at is, the traffic aside)
+    let far = Math.abs(s1 - s0) > 4 && parkClear(p0, half, hw);
+    for (let u = 3; far && u < Math.abs(s1 - s0); u += 3) far = parkClear(kerbPose(Object.assign({}, k.pl, { s: s0 + Math.sign(s1 - s0) * u })), half, hw, false);
     parkMyCar(far ? p0 : k.pose);
     carCome = far ? { pl: k.pl, s0, s1, t: 0, dur: 2 * Math.abs(s1 - s0) / 8.5 } : null; // (in at 30 km/h, slowing evenly to the kerb)
     if (!far) A.honk(0.25, 1.15);
@@ -2256,6 +2285,47 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     save();
   }
   const CAR_COME_M = 20;
+  // Where your car is, once called, until you reach it: where the kerb beside you is kept clear (the scramble's mouths,
+  // a junction's box) it stands down the street, and "33 m away" said nothing of which way (the owner, 27 November
+  // 2026). So it has a mark over it in the frame and a line of its own in the walk's corner, with the way to it. Both
+  // are the car's: its outline and its teal (the colour its autopilot speaks in), in a box, never the amber arrow and
+  // metres of what someone on the walk asked of you, nor the story's ring, so that the two are not taken for each other
+  let carCall = null;
+  const CAR_CALL_S = 240, CAR_NEAR_M = 4.5, CAR_MARK_M = 7;
+  const carMarkEl = document.createElement('div');
+  carMarkEl.id = 'g-car-mark'; carMarkEl.setAttribute('aria-hidden', 'true');
+  carMarkEl.innerHTML = '<span><i class="car"></i><b></b></span>';
+  stage.appendChild(carMarkEl);
+  // -> { m, dir (a bearing from north, as the corner's arrows take it), x, y, z } while a called car is still to be
+  // reached on foot; null once you are at it or in it, or four minutes on
+  function carAim() {
+    if (!carCall || !myCar) return null;
+    const st = myCar.D.st;
+    if (player.mode !== 'foot' || clockT - carCall.t > CAR_CALL_S) { carCall = null; return null; }
+    const m = Math.hypot(st.x - player.x, st.y - player.y);
+    if (m < CAR_NEAR_M) { carCall = null; return null; }
+    return { m, dir: Math.atan2(st.x - player.x, st.y - player.y), x: st.x, y: st.y, z: st.z };
+  }
+  // the mark over it: drawn as the story's place to walk to is (marks.js, story.js 'go'), not on you and held over a
+  // figure in front of it, and not hidden by the building it stands behind: it is where you are going, and behind a
+  // station kiosk 28 m off, hidden, it said nothing. Off the frame the corner's arrow is the way. Nothing a frame while
+  // there is no call
+  let carMarkOn = false, carMarkM = '';
+  function carMark(hide) {
+    const a = hide || !carCall ? null : carAim();
+    let on = false;
+    if (a && a.m > CAR_MARK_M) {
+      const v = marks.see(a.x, a.y, a.z + 2.1, { pad: 18, solid: false, lift: true });
+      if (!v.why) {
+        on = true;
+        const mx = Math.max(70, Math.min(stageW - 70, v.x)), my = Math.max(56, v.y); // (its box whole in the frame: at the edge of a phone's it was cut in half)
+        carMarkEl.style.transform = `translate(${mx.toFixed(1)}px, ${my.toFixed(1)}px)`;
+        const t = `${Math.round(a.m)} m`;
+        if (t !== carMarkM) { carMarkM = t; carMarkEl.querySelector('b').textContent = t; }
+      }
+    }
+    if (on !== carMarkOn) { carMarkOn = on; carMarkEl.classList.toggle('on', on); }
+  }
   function carComing(dt) {
     const c = carCome;
     if (!c || !myCar) { carCome = null; return; }
@@ -4936,6 +5006,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       dress: sp => { if (sp.t === 'live') presetTime('live'); else if (sp.t) { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); } else if (sp.min != null) setClock(clock.y, clock.m, clock.d, sp.min); if (sp.w && weather) weather.set(sp.w, { now: true }); if (walk) Object.assign(walk, sp.t ? { t: sp.t } : sp.w ? { w: sp.w } : { t: 'any' }); menuSync(); },
       car: () => bringCar(), // (your car to the kerb nearest you: C, or the corner's button)
       errand: () => (walkTalk ? walkTalk.errand() : null), // (what someone on the walk asked of you, and the metres to it)
+      carAim: () => carAim(), // (your car, once called and until you reach it: the way to it, its own line in the corner)
       yaw: () => (player.mode !== 'heli' ? cam.yaw : cam.mode === 'bird' ? heli.st.h : cam.mode === 'cockpit' ? heli.st.h - cam.lookYaw : cam.yaw), // (the way the view looks, for the corner's arrow: as the minimap turns)
       ride: () => (player.mode === 'car' && myCar ? { mode: 'car', kmh: myCar.D.st.speed * 3.6 }
         : player.mode === 'heli' ? { mode: 'heli', kmh: heli.st.speed * 3.6, up: Math.max(0, heli.st.z - nav.groundBelow(heli.st.x, heli.st.y, heli.st.z)), rotor: heli.st.rotor }
@@ -5315,6 +5386,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (tonight) tonight.tick(dt); // (what the night has at this hour: tonight.js)
     if (walk && walkTalk) walkTalk.tick(dt, paused || photo.on || dlg.open || cine.active || !!closeup); // (who has something to say, and what was asked of you met)
     npcMarks(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
+    carMark(titleOn || paused || photo.on || dlg.open || cine.active || !!closeup || !!(overture && overture.active));
     if (atmos && atmos.composer && 'keepPings' in atmos.composer) atmos.composer.keepPings = !!(story && story.on && story.state && story.state.phase === 'stop'); // (the camera effect's target kept through a Stop: atmosphere.js)
     if (story && !paused) { story.tick(dt); if (stopFx) stopFx.tick(dt, story.scale, W(player.x, player.y, player.z), player.z > 60); if (heliAway) heliAway(dt); if (story.orbit && player.mode === 'foot' && !fpOn) cam.yaw += story.orbit * dt; } // (and what hangs in the stopped air; the first Stop turns the view round you once)
     // the camera of 1964 round your neck, on your own camera's strap, from when Sumiko gives it (the first frame's

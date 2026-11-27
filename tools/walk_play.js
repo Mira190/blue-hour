@@ -953,6 +953,13 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         const c1 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return { xy: [s.x, s.y], d: Math.hypot(s.x - g.player.x, s.y - g.player.y) }; });
         if (c1.d > 45) fail(`Your car: it stopped ${c1.d.toFixed(0)} m away`);
         else ok(`Your car: ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]) > 3 ? `pulled in ${Math.hypot(c1.xy[0] - c0[0], c1.xy[1] - c0[1]).toFixed(0)} m up the kerb` : 'at the kerb (no room to come from)'}, ${c1.d.toFixed(0)} m from you`);
+        // (more than a few steps off, the way to it: a line of its own in the corner, the car's, not the errand's amber one,
+        // with its metres and its arrow; waited for, the corner being the page's own frames to draw: game.js carAim)
+        if (c1.d > 7) {
+          const cl = await p.waitForFunction(() => { const e = document.querySelector('#g-walk-where .c'); return e && !e.hidden && /your car/i.test(e.textContent) && /\d+ m/.test(e.textContent) && e.querySelector('.dir') ? e.textContent : null; }, null, { timeout: 90000, polling: 250 }).then(h => h.jsonValue()).catch(() => null);
+          if (!cl) fail(`Your car: ${c1.d.toFixed(0)} m off, the corner has no line of its own with the way to it`);
+          else ok(`Your car: the corner's own line says "${cl.replace(/^Your car/i, 'Your car ')}"`);
+        }
         await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; g.cam.yaw = Math.atan2(s.x - g.player.x, s.y - g.player.y); for (let i = 0; i < 6; i++) g.frame(0.05); }); // (the still looks at it)
         await p.waitForTimeout(1500);
         await shot('7b-car-called');

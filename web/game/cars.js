@@ -855,6 +855,21 @@ if (uWeave > 0.0 && gl_FrontFacing) {
         const cx = st.x + fx * o, cy = st.y + fy * o, p = nav.push(cx, cy, st.z, rad, 1.6), dx = p.x - cx, dy = p.y - cy;
         if (dx || dy) { what = what || 'wall'; shove(o, dx, dy); }
       }
+      // a hero level's guard rails (nav.fencePush), which the walls above leave out: driven at one, the car stopped at
+      // it, not through it to the paving behind (the owner's still of 27 November 2026, the rail through the bonnet)
+      // (the three circles down the body, and its four corners, which they leave out: a rail is thin, and met at an
+      // angle it stood in a corner of the bonnet)
+      if (nav.fencePush) {
+        for (const o of offs) {
+          const cx = st.x + fx * o, cy = st.y + fy * o, p = nav.fencePush(cx, cy, st.z, rad), dx = p.x - cx, dy = p.y - cy;
+          if (dx || dy) { what = what || 'rail'; shove(o, dx, dy); }
+        }
+        for (const a of [-1, 1]) for (const b of [-1, 1]) {
+          const u = a * (C.half - 0.22), w = b * (C.hw - 0.22), cx = st.x + fx * u + fy * w, cy = st.y + fy * u - fx * w;
+          const p = nav.fencePush(cx, cy, st.z, 0.24), dx = p.x - cx, dy = p.y - cy;
+          if (dx || dy) { what = what || 'rail'; shove(u, dx, dy); }
+        }
+      }
       // lamp posts and tree trunks ({ x, y, z, r, kind }), solid: the body as a box, out of each circle
       // from the nearest point of the box to its centre; again while one moves it, so that out of one
       // post it is not left in another beside it (a signal pole by a trunk at a corner), and the

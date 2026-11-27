@@ -1384,7 +1384,12 @@ window.OENav = (function () {
       }
       return f;
     }
-    const api = { addFences, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    // (a guard rail in a circle of radius r between zlo and zhi: what a car set down at the kerb asks, game.js parkClear)
+    const fenceHit = (x, y, r, zlo, zhi) => !!fence && fence.overlap(x, y, r, zlo, zhi);
+    // (and a car's body out of them, a circle of it at a time, cars.js collide: the rail stops a car driven into it as a
+    // wall does. Nothing else of the car's reads them, so that a rail beside the kerb is still no wall it is wedged against)
+    const fencePush = (x, y, z, r) => (fence ? fence.depenetrate(x, y, r, z + 0.3, z + 1.4) : { x, y });
+    const api = { addFences, fenceHit, fencePush, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   // a ceiling's cells from triangles [[x, y, z] x 3] (local metres) over the square (ax, ay) to + n * cell: each cell keeps the
