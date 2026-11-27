@@ -717,12 +717,13 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       if (G && G.made) {
         // (and his meshes drawn, not only shown: the draw gate holds a whole model's parts together, web/world.js gate,
         // issue 241. The draws asked for under his root in two frames drawn whole, and how many the renderer made)
-        await drawAll(true);
+        // (the frames as they run: under the check's skipped draws three.js still asks for each and the gate still decides; a
+        // frame held for a still never comes, so the reading gives up after 8 s with what it has. drawAll here hung the play)
         Object.assign(G, await p.evaluate(() => new Promise(done => { const g = window.__game, R = g.renderer, d = g.guideMade(), f = R.renderBufferDirect; let asked = 0, drew = 0;
           const under = o => { for (let q = o; q; q = q.parent) if (q === d.root) return true; return false; };
           R.renderBufferDirect = function (cam, sc, geo, mat, obj) { if (!obj || !under(obj)) return f.apply(this, arguments); const n = R.info.render.calls, r = f.apply(this, arguments); asked++; if (R.info.render.calls > n) drew++; return r; };
-          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { R.renderBufferDirect = f; done({ asked, drew, gate: window.__gate ? Object.assign({}, window.__gate.n) : null }); }))); })).catch(e => ({ drawErr: String(e).slice(0, 120) })));
-        await drawAll(false);
+          let over = false; const end = () => { if (over) return; over = true; R.renderBufferDirect = f; done({ asked, drew, gate: window.__gate ? Object.assign({}, window.__gate.n) : null }); };
+          setTimeout(end, 8000); requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(end))); })).catch(e => ({ drawErr: String(e).slice(0, 120) })));
       }
       if (G) {
         const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15 && !(G.asked > 0 && !G.drew); // (asked for and none drawn: held by the gate. None asked: out of the frame, which the distance covers)
