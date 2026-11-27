@@ -708,6 +708,18 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (one light standing in the street at a time: at every beat's still, the story's own and no other; the free game's
   // objective column stood beside it over the Center Gai arch and SHIBUYA SKY's door)
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(MARKWAIT); await snap(`${s.fi + 1}-${name}`);
+    // (the guide beside you in a Stop: once met in the first Stop he walks in every one, ahead of you to whoever is still
+    // moving. Frame 3's Stop was played with no dog anywhere in its stills, issue 157; story.js seek, game.js guideMade)
+    if (s.phase === 'stop' && (s.beat === 'seek' || s.beat === 'talk')) {
+      const G = await p.evaluate(() => { const g = window.__game, st = g.story.state, d = g.guideMade && g.guideMade(); if (!st.dog && st.fi === 0) return null;
+        if (!d) return { made: false, dog: !!st.dog }; let inScene = false; for (let q = d.root; q; q = q.parent) if (q === g.world) inScene = true;
+        return { made: true, dog: !!st.dog, ready: !!d.ready, shown: !!(d.root && d.root.visible), inScene, at: [+(d.x || 0).toFixed(1), +(d.y || 0).toFixed(1)], d: +Math.hypot((d.x || 0) - g.player.x, (d.y || 0) - g.player.y).toFixed(1) }; }).catch(e => ({ err: String(e).slice(0, 120) }));
+      if (G) {
+        const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15;
+        console.log(`${ok ? 'ok  ' : 'FAIL'} ${s.fi + 1}-${name}: the guide ${JSON.stringify(G)}`);
+        if (!ok) errors.push(`${s.fi + 1}-${name}: the guide is not drawn beside you in the Stop (${JSON.stringify(G)})`);
+      }
+    }
     if (s.phase === 'stop' && !seen.has(`heads-${s.fi}`)) { seen.add(`heads-${s.fi}`); // (time held: no head turns by itself; a look laid over a look wound Aoi's head round by the Center Gai arch)
       const hs = await p.evaluate(() => new Promise(r => { const g = window.__game, T = window.THREE, rigs = (g.npcs || []).filter(n => n.rig && n.rig.head && n.rig.root.visible).map(n => [n.id, n.rig]).concat(g.player && g.player.rig && g.player.rig.head ? [['player', g.player.rig]] : []);
         const was = rigs.map(([, q]) => q.head.getWorldQuaternion(new T.Quaternion())), worst = rigs.map(() => 0); let n = 12;
