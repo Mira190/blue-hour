@@ -13,7 +13,10 @@ name: Checks
 
 on:
   push:
-    branches: [main]
+    # (main: the full tier after landing. Any other branch: its checks before landing, the fast tier tools/check.sh
+    # routes for it, a runner a target, so that a session's machine does not play them two at a time; docs/CHECKS.md,
+    # "Before landing, on the runners")
+    branches: ['**', '!live', '!check-passes']
   workflow_dispatch:
     inputs:
       targets:
@@ -25,10 +28,12 @@ permissions:
   actions: read
   issues: write
 
-# one run at a time on a branch; while it goes, only the newest of the pushes behind it waits
+# one run at a time on a branch; on main, while it goes, only the newest of the pushes behind it waits; on any other
+# branch a newer push stops the run of the older one, whose result nobody waits for any more (its session asks for
+# the newest commit's)
 concurrency:
   group: checks-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   PLAYWRIGHT: 1.63.0
@@ -53,6 +58,16 @@ jobs:
           export CHECK_SPLIT=1
           base=
           if [ -n "$TARGETS" ]; then plan=$(tools/check.sh --plan $TARGETS)
+          elif [ "$GITHUB_REF" != refs/heads/main ]; then
+            # A branch before landing: the fast tier, as a session's tools/check.sh routes it against main (its parts
+            # already split, so no CHECK_SPLIT). After a pass of this branch, only what changed since it: that pass's
+            # commit is the stamp tools/check.sh keeps in a clone, and with it a file that is main's as main has it
+            # (main merged in) is left to main's own checks
+            export CHECK_SPLIT=0
+            last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow checks.yml --branch "$GITHUB_REF_NAME" \
+              --event push --status success --limit 1 --json headSha --jq '.[0].headSha // empty' || true)
+            [ -n "$last" ] && git merge-base --is-ancestor "$last" HEAD 2>/dev/null && echo "$last" >"$(git rev-parse --git-dir)/oe-check-pass"
+            plan=$(tools/check.sh --plan)
           else
             # the commit of this workflow's last pass on this branch (of a push: a run by hand of a few targets
             # passing is no pass of what changed before it)
@@ -82,6 +97,13 @@ jobs:
     name: ${{ matrix.target }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # (a branch's shard judges its check against main's passes, which needs main and the history between)
+          fetch-depth: ${{ github.ref == 'refs/heads/main' && 1 || 0 }}
+          filter: ${{ github.ref != 'refs/heads/main' && 'blob:none' || '' }}
+      - name: Main's passes
+        if: github.ref != 'refs/heads/main' && matrix.target != 'static'
+        run: git fetch -q origin check-passes:refs/remotes/origin/check-passes || echo "no passes of main's to start from"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -150,7 +172,18 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           [ "$TARGET" = static ] || export CHECK_STATIC=0
-          CHECK_STORE="$RUNNER_TEMP/passes" CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
+          # (main's shards store their passes to share them; a branch's reads main's, which a store of its own would
+          # shut out: tools/check_cache.py)
+          [ "$GITHUB_REF" = refs/heads/main ] && export CHECK_STORE="$RUNNER_TEMP/passes"
+          CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
+      # (a branch's shard's lines, for the result its session waits on: the job "result" below)
+      - uses: actions/upload-artifact@v4
+        if: always() && github.ref != 'refs/heads/main' && github.event_name == 'push'
+        with:
+          name: summary-${{ matrix.target }}
+          path: ${{ runner.temp }}/check/summary.txt
+          if-no-files-found: ignore
+          retention-days: 3
       # (the shard's pass, as a session keeps its own: what the check read and which functions it ran, for the job below)
       - uses: actions/upload-artifact@v4
         if: success() && matrix.target != 'static' && github.event_name == 'push'
@@ -230,6 +263,48 @@ jobs:
             -m "Main's passes at ${GITHUB_SHA:0:8}" -m "What each of main's checks read and ran at its last pass, for tools/check_cache.py (docs/CHECKS.md, Main's passes, shared)."
           git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" check-passes
           ls -la
+
+  # A branch's result, where its session's tools/check.sh waits for it (docs/CHECKS.md, "Before landing, on the
+  # runners"): every shard's lines and the verdict, one commit under the ref refs/checks/<commit checked>, which a
+  # session fetches with git (no API, no token). Also when the run failed or found nothing to check.
+  result:
+    needs: [plan, shard]
+    if: always() && github.ref != 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: summary-*
+          path: summaries
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PLAN: ${{ needs.plan.result }}
+          SHARD: ${{ needs.shard.result }}
+          SHARDS: ${{ needs.plan.outputs.shards }}
+        run: |
+          run="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          mkdir out && cd out
+          if [ "$PLAN" != success ]; then verdict=failure
+          elif [ "$SHARD" = success ] || [ "$SHARD" = skipped ]; then verdict=success
+          else verdict=$SHARD; fi
+          {
+            echo "result: $verdict"
+            echo "run: $run"
+            echo "targets: $(echo "$SHARDS" | jq -r 'join(" ")' 2>/dev/null)"
+            for f in ../summaries/*/summary.txt; do [ -e "$f" ] && grep -v '^\.\.\. ' "$f"; done
+            # (a shard that left no lines: cancelled, timed out, or its runner lost before the check began)
+            for t in $(echo "$SHARDS" | jq -r '.[]' 2>/dev/null); do [ -e "../summaries/summary-$t/summary.txt" ] || echo "FAIL $t   (the shard left no result: see $run)"; done
+          } >summary.txt
+          [ "$verdict" = success ] && sed -i '/^FAIL .*left no result/d' summary.txt
+          cat summary.txt
+          git init -q
+          git add summary.txt
+          git -c user.name=Mira190 -c user.email=163523387+Mira190@users.noreply.github.com commit -q \
+            -m "Checks of ${GITHUB_SHA:0:8}: $verdict" -m "$run"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}" "HEAD:refs/checks/$GITHUB_SHA"
 
   report:
     needs: [plan, shard]

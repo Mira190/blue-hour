@@ -47,6 +47,8 @@
 #           SKY's hall drawn round you in its lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js), and its memory loop
 #           through a lost context (tools/glcare_phone.js);
+#   ctx     a lost WebGL context at the story's beats and on the walk, on a desktop and a phone (tools/ctx_beats.js):
+#           restored in place, or taken up where it was after a phone's reload; routed with mem, wherever mem goes;
 #   budget  the episode played as an iPhone, every still's frame counted: each beat within a phone's budget of draws,
 #           triangles, passes, pixels and GPU memory (tools/beat_budget.py; the story counts the desktop's as it plays);
 #           before landing in the story's three parts, budget1 to budget3, each where the change reaches it;
@@ -94,6 +96,9 @@
 # kept (tools/check_cache.py, from the server's log of what the page fetched).
 #   tools/check.sh                      # the fast tier: static, and story, walk1 and mem when the page or the map changed;
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
+#                                       # with a browser check in it, the branch is pushed and its checks run on GitHub's
+#                                       # runners, a runner each; this waits for their result (docs/CHECKS.md)
+#   CHECK_REMOTE=0 tools/check.sh       # every check played on this machine, two browsers at a time
 #   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
@@ -116,8 +121,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
-ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look hold launch mem ctx astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
+ALL="look hold launch story storyp storyl budget guide walk ride roads mem ctx audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -154,12 +159,60 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 900 ;; ctx) echo 900 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|walk4|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 3200 ;; budgetm1|budgetm2|budgetm3) echo 1100 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
+# How much memory each target takes on this machine (docs/CHECKS.md, "Memory, by measure"): the peak of its processes'
+# proportional set (PSS: a page shared by Chromium's processes counted once), a line each (kind MB epoch), in this clone
+# only; the largest of its last five, or before any, the 6 GB a page with the map loaded was seen to reach
+MEMH="$(git rev-parse --git-dir)/oe-check-mem"
+mem_need() {
+  local v; v=$(grep "^$1 " "$MEMH" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n | tail -1)
+  echo "${v:-6000}"
+}
+mem_free() { awk '/MemAvailable/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null || echo 100000; }
+# the processes the system killed for memory since boot (/proc/vmstat): a check that failed while this rose did not fail
+# on its own page
+oom_kills() { awk '/^oom_kill / { print $2 }' /proc/vmstat 2>/dev/null || echo 0; }
+# <pid> <file>: every 3 s, the PSS of that process and all it started, in MB, as "now peak", until it ends
+mem_watch() {
+  local root=$1 f=$2 peak=0 now p
+  while kill -0 "$root" 2>/dev/null; do
+    now=0
+    for p in $(ps -e -o pid=,ppid= | awk -v r="$root" '{ kid[$2] = kid[$2] " " $1 } END { q = r; while (q != "") { split(q, a, " "); q = ""; for (i in a) { print a[i]; q = q " " kid[a[i]] } } }'); do
+      now=$(( now + $(awk '/^Pss:/ { print $2; exit }' "/proc/$p/smaps_rollup" 2>/dev/null || echo 0) ))
+    done
+    now=$((now / 1024)); [ "$now" -gt "$peak" ] && peak=$now
+    echo "$now $peak" >"$f.tmp" && mv -f "$f.tmp" "$f"
+    sleep 3
+  done
+}
+# Admission (issue: two lanes and the static checks beside them ran a 16 GB machine out of memory, and the kernel killed a
+# GPU process, failing walk3 or story1's textures for nothing in the change): a check starts only when the memory free
+# now, less what the checks already running are still expected to grow to (each one's peak less what it holds), keeps a
+# margin above what it will itself take. With nothing else running it starts whatever it needs.
+admit() {   # <kind>
+  local need f k now peak grow others said_wait=
+  need=$(( $(mem_need "$1") + ${CHECK_MEM_MARGIN:-1200} ))
+  while :; do
+    grow=0 others=0
+    for f in "$OUT"/mem/run-*; do
+      [ -e "$f" ] || continue
+      others=$((others + 1)); read -r now peak <"$f" 2>/dev/null || continue
+      k=${f##*/run-}; peak=$(mem_need "$k"); [ "${now:-0}" -lt "$peak" ] && grow=$((grow + peak - now))
+    done
+    [ "$others" -eq 0 ] && return 0
+    [ $(( $(mem_free) - grow )) -ge "$need" ] && return 0
+    [ -z "${said_wait:-}" ] && { echo "... $1 waits for memory: $(mem_free) MB free, $grow MB still to come for the checks running, it takes about $(mem_need "$1") MB" >&2; said_wait=1; }
+    sleep 5
+  done
+}
 
-static=0 want= base= looks=
-add() { local k; for k in "$@"; do is_in "$k" "$KINDS" || { echo "unknown target: $k (targets: static $KINDS all)"; exit 2; }; is_in "$k" "$want" || want="$want $k"; done; }
+static=0 want= base= looks= routed=0
+# (mem brings ctx: the lost contexts at the story's beats were the last of mem's plays, 22 of its 38 minutes, and are a
+# runner of their own since 27 November 2026; routed with it wherever it goes. tools/check.sh mem plays mem alone)
+add() { local k; for k in "$@"; do is_in "$k" "$KINDS" || { echo "unknown target: $k (targets: static $KINDS all)"; exit 2; }; is_in "$k" "$want" || want="$want $k"
+  [ "$k" = mem ] && [ "${routing:-0}" = 1 ] && ! is_in ctx "$want" && want="$want ctx"; done; }
 
 if [ $# -gt 0 ]; then
   for t in "$@"; do
@@ -172,6 +225,7 @@ if [ $# -gt 0 ]; then
     esac
   done
 else
+  routed=1 routing=1
   if [ -n "${CHECK_BASE:-}" ]; then base=$(git rev-parse --verify -q "$CHECK_BASE^{commit}") || { echo "CHECK_BASE=$CHECK_BASE is not a commit here"; exit 2; }
   else base=$(git merge-base origin/main HEAD 2>/dev/null) || { echo "no origin/main to compare with: git fetch origin main"; exit 2; }; fi
   # After a pass, only what changed since then. A run with no targets that passes on a clean tree stamps HEAD in
@@ -295,6 +349,58 @@ if [ $static -eq 0 ] && [ -z "$want" ]; then
   stamp "$@"
   exit 0
 fi
+
+# Before landing, on the runners (docs/CHECKS.md): a session's machine has four cores and 16 GB and no GPU, and a page
+# with the map loaded takes 5 to 6 GB under the software renderer, so it played the browser checks two at a time, 35 to
+# 70 minutes for a change to the page, and a third beside them was killed for memory. GitHub's runners give each check
+# a machine of its own (.github/workflows/checks.yml, on a push to any branch but main): the same script, the same
+# routing, the same passes of main's kept, a runner a target, in the time of the longest. So a routed run here with a
+# browser check in it pushes the branch and waits for that run's result, which the workflow leaves under the ref
+# refs/checks/<commit> (read with git: no token, no API). CHECK_REMOTE=0 plays it all here, as before; so does a run of
+# named targets (tools/check.sh walk3), and one with CHECK_TIER, CHECK_FULL, CHECK_BASE or CHECK_CACHE=0, which the
+# runners would not be told of.
+remote_on() { [ -z "${CI:-}" ] && [ "${CHECK_REMOTE:-1}" != 0 ] && [ "$routed" = 1 ] && [ "$TIER" = fast ] && [ -z "${CHECK_FULL:-}${CHECK_BASE:-}" ] && [ "${CHECK_CACHE:-1}" != 0 ] && [ -n "$want" ] && git remote get-url origin 2>/dev/null | grep -q 'github\.com\|/git/'; }
+remote() {
+  local br sha slug t0 waited=0 seen= d line
+  br=$(git symbolic-ref -q --short HEAD)
+  if [ -z "$br" ] || [ "$br" = main ]; then echo "the checks run on GitHub's runners from a branch of yours: commit on a branch other than main (CHECK_REMOTE=0 plays them here)"; exit 2; fi
+  if [ -n "$(git status --porcelain)" ]; then echo "the checks run on GitHub's runners on a commit: commit what is to be checked first (CHECK_REMOTE=0 plays the tree as it is here)"; exit 2; fi
+  sha=$(git rev-parse HEAD)
+  slug=$(git remote get-url origin | sed -E 's#\.git$##; s#.*[/:]([^/]+/[^/]+)$#\1#')
+  if ! git ls-remote --exit-code origin "refs/checks/$sha" >/dev/null 2>&1; then
+    for d in 2 4 8 16 0; do git push -q origin "HEAD:refs/heads/$br" 2>"$OUT/push.log" && break
+      [ "$d" = 0 ] && { echo "FAIL push  the branch could not be pushed for its checks: $(tail -1 "$OUT/push.log")"; exit 1; }; sleep "$d"; done
+  fi
+  echo "checks: on GitHub's runners, a runner a target, for $br at ${sha:0:8}: what the change reaches since the branch's last pass there (from here: static $(echo $want))" >&2
+  t0=$(date +%s)
+  until git ls-remote --exit-code origin "refs/checks/$sha" >/dev/null 2>&1; do
+    waited=$(( $(date +%s) - t0 ))
+    [ "$waited" -gt "${CHECK_REMOTE_WAIT:-9000}" ] && { echo "FAIL remote  no result from the runners in $((waited / 60)) min: see https://github.com/$slug/actions?query=branch%3A$br"; exit 1; }
+    # (each shard as it ends, from the public API: two requests every two minutes, and nothing lost when it does not answer)
+    if [ $((waited % 120)) -lt 20 ]; then
+      line=$(curl -s -m 15 "https://api.github.com/repos/$slug/actions/runs?head_sha=$sha&per_page=1" | python3 -c '
+import json, sys, urllib.request
+try:
+    r = json.load(sys.stdin)["workflow_runs"][0]
+    j = json.load(urllib.request.urlopen(r["jobs_url"] + "?per_page=100", timeout=15))["jobs"]
+except Exception: sys.exit(0)
+print(r["html_url"])
+for x in j:
+    if x["status"] == "completed" and x["name"] not in ("plan", "result", "report", "passes"):
+        print("%s %s" % (x["name"], x["conclusion"]))' 2>/dev/null)
+      for l in $(echo "$line" | tail -n +2 | tr ' ' ':'); do is_in "$l" "$seen" || { echo "... ${l%%:*} ${l#*:} on its runner, $((waited / 60)) min in" >&2; seen="$seen $l"; }; done
+      [ -n "$line" ] && [ -z "${said_url:-}" ] && { echo "... the run: $(echo "$line" | head -1)" >&2; said_url=1; }
+    fi
+    sleep 20
+  done
+  git fetch -q origin "+refs/checks/$sha:refs/checks/$sha"
+  git show "refs/checks/$sha:summary.txt" | tee "$OUT/summary.txt"
+  echo "time: on the runners, $(( ($(date +%s) - t0 + 30) / 60 )) min of the wall"
+  if head -1 "$OUT/summary.txt" | grep -qx 'result: success'; then stamp; exit 0; fi
+  head -1 "$OUT/summary.txt" | grep -qx 'result: cancelled' && echo "the run was cancelled: a newer push to $br replaced it; run tools/check.sh on the newest commit"
+  exit 1
+}
+remote_on && remote
 
 # Lanes: the browser checks side by side, as many as the machine has cores and memory for (CHECK_LANES=n; on a runner
 # one, a target a runner). A check's page takes one core for its script and, drawing, the software renderer's threads,
@@ -525,6 +631,13 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are
 # held at once (docs/HERO.md, "Miyamasu")
+# a lost context at the story's beats and on the walk: restored in place on a desktop, taken up where it was after a
+# phone's reload (issue 118); routed with mem, a runner of its own (issue 118's checks were mem's longest play)
+run_ctx() {
+  if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   ctx    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
+  else echo "FAIL ctx    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
+  return 0
+}
 run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB ([0-9.]* MB under its [0-9]*' "$OUT/mem.log" | head -1)), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
@@ -545,12 +658,9 @@ run_mem() {
   # never from a tab put away (tools/glcare_phone.js, docs/PERFORMANCE.md "Measure, then grant")
   if timeout 900 $X node tools/glcare_phone.js >"$OUT/glcare_phone.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/glcare_phone.log") steps of a phone's lost context and its next load"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/glcare_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/glcare_phone.log)"; fi
-  # a killed page counted with the measurements off (issue 128, web/lifeline.js), and a lost context at the story's beats
-  # and on the walk: restored in place on a desktop, taken up where it was after a phone's reload (issue 118)
+  # a killed page counted with the measurements off (issue 128, web/lifeline.js); a lost context at the story's beats is ctx's
   if timeout 300 $X node tools/killed_check.js >"$OUT/killed.log" 2>&1; then echo "ok   mem    a killed page loads a level lighter next time with the measurements off"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/killed.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/killed.log)"; fi
-  if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
-  else echo "FAIL mem    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
   # (and the set-up's bake, here because mem loads the whole page and so is played wherever the set-up's code changes, against the page computing it, map and district: a change to the code it runs that changes what the set-up
   # computes asks for a rebake, tools/bake_setup.js; issue 194)
   if timeout 900 $X node tools/bake_setup.js --compare >"$OUT/bake.log" 2>&1; then grep '^ok' "$OUT/bake.log"
@@ -713,7 +823,21 @@ run_one() {   # <check> [lane]
   echo "... $k from $(date +%H:%M), about $(( ($(eta "$k") + 30) / 60 )) min here$(sed -n '2s/^\(..*\)$/: \1/p' "$OUT/keep/$k")" >&2
   # (which of the page's functions it runs, counted by the browser: tools/browser_watch.js)
   rm -rf "$OUT/cover/$k"; export COVER="$OUT/cover/$k"
-  res=$("run_$k"); echo "$res"
+  # (its memory watched while it plays, for the admission of the checks after it; and the kernel's kills for memory)
+  local o0 w peak; o0=$(oom_kills); mkdir -p "$OUT/mem"; [ -e "$OUT/mem/run-$k" ] || echo "0 0" >"$OUT/mem/run-$k"
+  mem_watch "$BASHPID" "$OUT/mem/run-$k" & w=$!
+  res=$("run_$k")
+  kill "$w" 2>/dev/null; wait "$w" 2>/dev/null; peak=$(cut -d' ' -f2 "$OUT/mem/run-$k" 2>/dev/null); rm -f "$OUT/mem/run-$k"
+  # A check that failed while the system killed a process for memory failed on the machine, not on its page: its result
+  # is set aside and it is played again alone once the others are done (below), where a failure is its own
+  if [ "$(oom_kills)" -gt "$o0" ] && echo "$res" | grep -q '^FAIL\|^FLAKY' && [ -z "${ALONE:-}" ]; then
+    printf 'again %-6s failed beside other checks while the system killed a process for memory: played again alone after them (%s)\n' "$k" "$(echo "$res" | grep -m1 '^FAIL\|^FLAKY' | cut -c1-120)"
+    mkdir -p "$OUT/again"; : >"$OUT/again/$k"
+    echo "$k $(( $(date +%s) - t0 ))" >>"$OUT/times.txt"
+    return 0
+  fi
+  echo "$res"
+  [ "$(oom_kills)" -eq "$o0" ] && [ "${peak:-0}" -gt 0 ] && echo "$k $peak $(date +%s)" >>"$MEMH"
   echo "$k $(( $(date +%s) - t0 ))" >>"$OUT/times.txt"
   echo "$res" | grep -q '^FAIL\|^FLAKY' || echo "$k $(( $(date +%s) - t0 )) $(date +%s)" >>"$HIST"
   if echo "$res" | grep -q '^FAIL\|^FLAKY'; then python3 tools/check_cache.py drop "$k"
@@ -780,7 +904,8 @@ rm -rf "$OUT/keep"
   ) & fi
   [ -n "${CI:-}" ] && wait
   t_all=$(date +%s)
-  if [ "$L" -le 1 ]; then for k in $KINDS; do is_in "$k" "$want" && run_one "$k"; done; wait
+  rm -rf "$OUT/again" "$OUT/mem"
+  if [ "$L" -le 1 ]; then for k in $KINDS; do is_in "$k" "$want" && ( run_one "$k" ); done; wait
   else
     # the passes kept first (they cost nothing), then the longest first, each in the lane that comes free
     order=$(for k in $KINDS; do is_in "$k" "$want" || continue; if kept "$k"; then echo "0 $k"; else echo "$(( 100000 - $(eta "$k") )) $k"; fi; done | sort -n | cut -d' ' -f2)
@@ -788,10 +913,14 @@ rm -rf "$OUT/keep"
     for i in $(seq 0 $((L - 1))); do echo "$i" >&9; done
     for k in $order; do
       read -r -u 9 lane
+      # (a pass kept costs no memory; a check played waits for the memory it will take, admit above)
+      kept "$k" || { admit "$k"; mkdir -p "$OUT/mem"; echo "0 0" >"$OUT/mem/run-$k"; }
       ( run_one "$k" "$lane" >"$OUT/res-$k.txt"; cat "$OUT/res-$k.txt"; echo "$lane" >&9 ) &
     done
     wait
   fi
+  # the checks that failed while the machine ran out of memory, each played again by itself, with the machine to itself
+  for f in "$OUT"/again/*; do [ -e "$f" ] || continue; ( ALONE=1 run_one "${f##*/}" 0 </dev/null ); done
   [ -s "$OUT/times.txt" ] && echo "time: $(awk '{ printf "%s%s %d s", (NR > 1 ? ", " : ""), $1, $2; t += $2 } END { printf "; %d min of checks", (t + 30) / 60 }' "$OUT/times.txt") in $(( ($(date +%s) - t_static + 30) / 60 )) min of the wall"
 } | tee "$OUT/summary.txt"
 grep -q '^FAIL' "$OUT/summary.txt" && exit 1
