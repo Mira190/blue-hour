@@ -982,7 +982,12 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
           const d = ctx.guide(gd);
           // (from his plinth in the first Stop, where he is met; in a later one he is made only for a case continued there, and
           // stood at his plinth 11 m behind you while you began 4 m from frame 3's detective, out of the picture: by you, issue 157)
-          if (d) { const nearHome = st.fi === 0 && gd.from && near(gd.from, 70), at = nearHome ? gd.from : [ctx.player.x + 3, ctx.player.y + 2.5]; d.place(at[0], at[1], Math.atan2(ctx.player.y - at[1], ctx.player.x - at[0])); st.dog = d; if (st.fi === 0 && gd.line) later(3200, () => ctx.toast(esc(gd.line))); } // (after the goal has been read, not over it)
+          if (d) {
+            const pl = ctx.player, sx = pl.x + Math.sin(pl.h) * 1.1 - Math.cos(pl.h) * 0.6, sy = pl.y + Math.cos(pl.h) * 1.1 + Math.sin(pl.h) * 0.6; // (a pace ahead of you and to one side, as he sits after his film)
+            const nearHome = st.fi === 0 && gd.from && near(gd.from, 70), byYou = !nearHome && st.fi > 0 ? (d.free(sx, sy, 1.5) || null) : null;
+            const at = nearHome ? gd.from : byYou || [pl.x + 3, pl.y + 2.5];
+            if (byYou && ctx.clearRound) ctx.clearRound(at[0], at[1], 1.0); // (on ground he may stand on, and nobody of the crowd there)
+            d.place(at[0], at[1], Math.atan2(ctx.player.y - at[1], ctx.player.x - at[0])); st.dog = d; if (st.fi === 0 && gd.line) later(3200, () => ctx.toast(esc(gd.line))); } // (after the goal has been read, not over it)
         }
         if (st.dog && st.ghost) st.dog.lead([st.ghost.x, st.ghost.y], a.reach_m || 3.2);
         goal(a.seek || 'Someone is still moving. Go to them.');
