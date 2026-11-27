@@ -70,7 +70,8 @@ roads". Three causes, each a matter of what the surface is:
 - *The roads had no paint.* The drawing now carries what a Tokyo road carries, from the road data and nothing else:
   edge lines half a metre in from the kerbs, a broken line between two lanes of one way (`nl`), the centre line of a
   two-way road (unbroken where it has two lanes each way), the bars of a zebra where the data has a crossing
-  (`props.crossing_zebra`, laid across the nearest road), and a junction cleared of the lines that would run through
+  (`props.crossing_zebra`, laid across the nearest road; drawn by the ground's shader filtered to the pixel, `game.js`
+  `zebraDraw`, since their 0.9 m pattern is under two of the drawing's texels), and a junction cleared of the lines that would run through
   it. Each line is drawn at its own width (0.2 m, less than a pixel of the drawing), so from 400 m it is as faint as
   it is from there. The scramble's own paint is the hero level's, as before.
 - *Every flat roof was one grey lid.* Where the photograph is not a deck's colour (round a hero level, and on a
@@ -175,7 +176,11 @@ junction, and its first part is what fills most of the frame from eye level: the
   the south one's at Hachiko Square 2.8 m, where the photograph has the bars end too), stop lines from the dividing
   line to the left kerb as the road pieces' one-ways give them (`stop_line`), the diamonds before them, centre lines,
   and a broken line between two lanes of one way where the survey has room for two, in an even off-white
-  thermoplastic with the grain of its glass beads (`paint_texture`).
+  thermoplastic with the grain of its glass beads (`paint_texture`). The bars are drawn filtered to the pixel
+  (`streets.js` `zebraCells`, `oeZebra`; the owner's still, November 2026: from across the junction they bent into
+  steps and broke into moiré, a 0.9 m pattern finer than a pixel there that no multisampling resolves): as the level
+  loads, each bar is widened to the 0.9 m cell it repeats in and its paint's alpha is the share of the pixel the bar
+  covers, the box-filtered square wave across the bars. Up close that is the bar, far off their mean.
 - **The pavements**: grey blocks (`PavingStones136`), and Hachiko Square in the red-brown block the 2024
   photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks
   with their bars and domes in relief (JIS T 9251's pattern, `tactile_texture`), laid as Japan lays them

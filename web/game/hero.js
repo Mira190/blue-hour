@@ -382,6 +382,17 @@ window.OEHero = (function () {
           }
         });
         root.updateMatrixWorld(true);
+        // the crossings' bars filtered to the pixel (streets.js zebraCells): each widened to the cell it repeats in, its
+        // paint's share of each pixel drawn over the asphalt, so that from across the junction its bars neither step nor
+        // break into moiré. Before the batches are made, which take the attribute with the rest
+        if (window.OEStreets && OEStreets.zebraCells) {
+          const paint = [];
+          root.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && /^ground_paint/i.test(o.material.name || '')) paint.push(o); });
+          if (paint.length && OEStreets.zebraCells(paint)) {
+            for (const m of new Set(paint.map(o => o.material))) OEStreets.zebraMaterial(m);
+            for (const o of paint) o.castShadow = false; // (a cell, whole, would shade the asphalt it lets show: paint a centimetre thick casts none to see)
+          }
+        }
         if (opts.ground) opts.ground(L.h, root); // (where its paving is: game.js heroCover)
         // its squares of one material in one draw, each still culled by itself (batch.js; after the paving is read from them)
         if (window.OEBatch) OEBatch.merge(root, { name: m => `${L.h.id}_${m.name || 'mat'}`, pack: true, unit: ['_bake'] });
