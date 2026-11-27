@@ -898,6 +898,18 @@ The owner played on an M3 MacBook and found it "still very laggy". The telemetry
   or more (not a phone) the floor is now 0.45 and the middle step 0.7 (`game.js` `DENSE`): the scene may come down to
   a little under one pixel to the CSS pixel, half the pixels of the old floor, sharpened up by the lens, before the
   extras go.
+- **The floor in the display's terms, and edges smoothed where the samples are shed** (November 2026, the owner's
+  MacBook: the Scramble's crowd and bars in steps a third of a CSS pixel apart, soft and jagged at once). Two faults
+  under one picture. The floor of 0.45 was a share of the canvas, and the canvas itself is drawn below the display's
+  ratio on the medium and low tiers (their budget of pixels: 1.25 to 1.5 on a Retina display; Safari is medium), so
+  there the scene came down to 0.56 pixels to the CSS pixel. The floor is now set as the display's (`game.js`
+  `floorFor`, again at every resize and tier step): 0.9 pixels to the CSS pixel on a dense display on any tier (0.45 of
+  a canvas at 2, as before; 0.6 to 0.72 of a canvas at 1.25 to 1.5), 0.6 of the canvas elsewhere. And at the floor the
+  governor sheds the multisampling, which the medium tier, Safari and the phones never had: nothing then smoothed an
+  edge, the upscale brought the scene's stairs up to the canvas and the sharpening drew them harder. The lens now
+  smooths the edges itself wherever the scene has no samples (`lens.js` `smoothEdge`, `uAA`: FXAA's directional
+  filter, Lottes 2009, on the scene's own texels, the neighbours shared with the sharpening, which leaves the smoothed
+  pixels alone; `?aa=off` to compare). Its cost is two or four taps on an edge pixel and none elsewhere.
 - **What a street-level frame costs, part by part.** `tools/perf_walk.js` runs `game/perf.js` (`?perf`) on the walk
   from a harness. On the software renderer (shares, not milliseconds), the walk at night, high tier, 960 x 720: the post
   stack 45% of the frame, of which the scene's 4x multisampling 20%; the materials' shading 41% (every material flat);
