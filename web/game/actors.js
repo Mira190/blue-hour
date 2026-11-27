@@ -3816,6 +3816,17 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const h = Math.hypot(look.x, look.z); // (looking down from high up, all round it)
       return d < 12 || (d < 200 && (h < 0.3 ? d < 150 : (dx * look.x - dy * look.z) / (d * h) > 0.3)); // (sim y is -z)
     }
+    // is a car at s on piece `line` inside the box of the junction its movement mv crosses: on a piece inside the junction,
+    // or over the stop line of the arm it went in by, or not yet out past the line of the arm it leaves by (the ends of
+    // those two pieces nearer the junction than their lines). A car keeps the lane it went in by only there: it held it
+    // from one junction's box over the whole piece to the next, where it had its turn there before it let go of the first
+    // one's, and came into a one-lane piece at a second lane's place, 4.7 m off the road's line, its body over the kerb
+    // and stood at the signal pole there: Shibuya's piece 4271 between junction 1978 and the Scramble, every cycle, #224
+    function inBoxOf(mv, line, s) {
+      if (JN.inner(line)) return true;
+      for (const q of [mv.a, mv.e && mv.e.m]) if (q && q.line === line) { const d = q.end ? net.L[line].len - s : s; return d < (q.back || 0) + 1; }
+      return false;
+    }
     // ---- the ring (#204, #220): the traffic is a population held round the player, as an open world keeps a street dense
     // where it is seen and heard and spends nothing on the far map. api.ring: the ring's radius as game.js asks it (on foot
     // the arms round you, from the helicopter the whole of `radius`); a car out past it by a seventh leaves the traffic
@@ -4301,7 +4312,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (g < gap && !(c.postPass > 0)) { gap = g; byCar = true; front = null; why = 'post'; postQ = q; }
         });
         // (postLog: the last cars stood a second for a post, where and for what: tools/junction_flow.js, #224)
-        if (why === 'post' && c.v < 0.3 && (c.postT || 0) < 1 && (c.postT || 0) + dt >= 1 && postQ) { postLog.push({ i, x: +c.x.toFixed(1), y: +c.y.toFixed(1), line: c.line, mv: c.mv ? `${c.mv.j.id} ${c.mv.a.i}>${c.mv.e.m.i}` : '', kind: postQ.kind, at: [+postQ.x.toFixed(1), +postQ.y.toFixed(1)], r: postQ.r }); if (postLog.length > 80) postLog.shift(); }
+        if (why === 'post' && c.v < 0.3 && (c.postT || 0) < 1 && (c.postT || 0) + dt >= 1 && postQ) { postLog.push({ i, x: +c.x.toFixed(1), y: +c.y.toFixed(1), line: c.line, mv: c.mv ? `${c.mv.j.id} ${c.mv.a.i}>${c.mv.e.m.i}` : '', s: +c.s.toFixed(1), dir: c.dir, ln: c.ln, lo: +(c.lo || 0).toFixed(2), off: +(c.off || 0).toFixed(2), np, toLine: c.toLine == null ? null : +(+c.toLine).toFixed(1), kind: postQ.kind, at: [+postQ.x.toFixed(1), +postQ.y.toFixed(1)], r: postQ.r }); if (postLog.length > 80) postLog.shift(); }
         // (stopped for one more than 10 s, a post its way runs into in a junction, say: it edges past it, #144)
         c.postT = why === 'post' && c.v < 0.3 ? (c.postT || 0) + dt : 0;
         if (c.postT > 10 && !inView(c)) { c.postT = 0; respawn(c, cx, cy, radius * 0.6); continue; } // (out of view: it leaves the traffic rather than drive through it)
@@ -4729,7 +4740,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const onto = line !== c.line, nx2 = c.plan && c.plan.length ? [c.plan[0][0], c.plan[0][1] === 0 ? 1 : -1] : null;
         // (across to its lane a little at a time, slowly while it is barely moving, nosing that way)
         // (in a junction it keeps the lane it went in by: its way across is that lane's)
-        const back = line === c.line && dir !== c.dir, keepIt = c.mv && !back, lnNow = keepIt ? c.ln : !back && JN.lanesOf(net.L[line]) > 1 ? c.ln : 0,
+        const back = line === c.line && dir !== c.dir, keepIt = c.mv && !back && inBoxOf(c.mv, line, s), lnNow = keepIt ? c.ln : !back && JN.lanesOf(net.L[line]) > 1 ? c.ln : 0,
           laneLo = side * JN.shiftOf(net.L[line], lnNow), toPark = c.parking && line === c.line && !back ? (c.parking.s - s) * dir : Infinity,
           // (pulling in: across to the kerb over its last 12 m, as far across as its distance from the place says, the
           // way wayIn found clear. Let across at the rate its speed allows, it was at the kerb 9 m short and swept into
