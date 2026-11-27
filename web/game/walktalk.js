@@ -175,13 +175,18 @@ window.OEWalkTalk = (function () {
       if (gate && lineS.npc === id) return gate.ph === 'ask' || gate.ph === 'shown' ? { kind: 'gate' } : null; // (at the gate: her last words, below)
       if (waitOn && lineS.npc === id) return null;
       if (inc && lineS.npc === id && inc.ph !== 'up') return null; // (the walk's line: before she is on her feet again she has nothing to say)
+      // (and once she is, her first part is hers to say whatever story is under way: the incident happens to whoever is
+      // there, and helped up beside a player who had begun Mei's story first she was asked for "the word of someone whose
+      // story is to come", which for her is the wall's wait, not lines; the box opened on her name with nothing in it and
+      // no press passed it. Said, her story is the one under way, as the first in the walk's order, and Mei's waits behind it)
+      if (lineS && lineS.npc === id && !gate && !waitOn) { const k = of(lineS); if (k.inc && k.part === 0 && !k.done) return { kind: 'story', s: lineS, k }; }
       if (ev && ev.e.people[0] === id && (ev.phase === 'waiting' || ev.phase === 'met')) return { kind: 'event' }; // (a street moment's favour, below)
       if (ev && ev.e.people.includes(id) && ev.phase !== 'gone') return null; // (and its others: they are with them)
       const s = current();
       if (s) { const k = of(s); if (speaker(s, k.part) === id && (k.part === 0 || k.met)) return { kind: 'story', s, k }; }
       if (chat[id] && chat[id].length) return { kind: 'chat', lines: chat[id] };
       for (const q of people) if (of(q).done && q.npc === id && q.after) return { kind: 'chat', lines: q.after };
-      for (const q of people) if (!of(q).done && q.npc === id && q.wait) return { kind: 'wait', lines: q.wait };
+      for (const q of people) if (!of(q).done && q.npc === id && Array.isArray(q.wait)) return { kind: 'wait', lines: q.wait }; // (lines only: the walk's line's wait is the wall's, an object)
       return null;
     }
     // the corner's line: what the story under way asks, with the metres to it; before a story is begun, who has it
