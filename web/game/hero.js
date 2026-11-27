@@ -469,7 +469,8 @@ window.OEHero = (function () {
     // anchor: [x, y] where the player will be (or a list of such places), loaded round as the camera is (the title and the opening: the camera
     // is away, and the level the story starts in was fetched and compiled as the opening flew into it, a hitch of
     // most of a second for each few of its shaders on a phone, tools/entry_cost.js); shown by the camera alone
-    function update(camera, dt, anchor = null) {
+    // byCamera false: a level is fetched round the anchors alone, not round the camera (a phone's flights: below)
+    function update(camera, dt, anchor = null, byCamera = true) {
       t += dt || 0;
       const cx = camera.position.x, cy = -camera.position.z, cz = camera.position.y, night = uNight.value;
       const anchors = !anchor ? [] : Array.isArray(anchor[0]) ? anchor.filter(Boolean) : [anchor]; // (one [x, y], or a list of them)
@@ -478,11 +479,11 @@ window.OEHero = (function () {
         // as well: SKY STAGE's roof is 227 m over frame 5's place, which stands within its plan)
         const dz = L.h.zr ? Math.max(0, Math.abs(cz - L.h.z) - L.h.zr) : 0;
         const plan = Math.hypot(cx - L.h.at[0], cy - L.h.at[1]) - (L.h.r || 150), d = dz > 0 ? Math.hypot(Math.max(0, plan), dz) : plan;
-        let near = d;
-        if (!L.h.zr) for (const a of anchors) near = Math.min(near, Math.hypot(a[0] - L.h.at[0], a[1] - L.h.at[1]) - (L.h.r || 150));
+        let near = d, at = byCamera ? d : Infinity;
+        if (!L.h.zr) for (const a of anchors) { const da = Math.hypot(a[0] - L.h.at[0], a[1] - L.h.at[1]) - (L.h.r || 150); near = Math.min(near, da); at = Math.min(at, da); }
         // (a level may be fetched nearer than the default: one that only a frame of the story is played in, h.load_m)
         const loadM = L.h.load_m || LOAD_M, dropM = Math.max(L.h.drop_m || DROP_M, loadM + 20);
-        if (L.state === 'idle' && near < loadM) load(L);
+        if (L.state === 'idle' && at < loadM) load(L);
         else if ((L.state === 'ready' || L.state === 'loading') && near > dropM) drop(L);
         else if (L.state === 'failed' && near > dropM) L.state = 'idle';
         if (L.state !== 'ready') continue;
