@@ -862,7 +862,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // levels a Stop will see are fetched a frame ahead instead, stopAnchor). Not behind the way in's veil, which waits for
   // the level (holdForLevel)
   const stopHeld = () => { try { return !!(story && story.stopped) && !levelHold; } catch (e) { return false; } }; // (the story not made yet)
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => uploadFor(obj, { first: true }).then(() => compileFor(obj, world, { behind: stopHeld, hold: stopHeld })), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
+  // (a level's programs on a phone: a slice of a frame at a time and one program in flight, wherever it is fetched: one that
+  // came in play compiled in 50 ms slices with six in flight, and the frames' own calls waited behind them, issue 327)
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => uploadFor(obj, { first: true }).then(() => compileFor(obj, world, QC.lean ? { behind: true, hold: stopHeld, flight: 1 } : { behind: stopHeld, hold: stopHeld })), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -1524,8 +1526,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
-  const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : lib.require(n.look.character).catch(e => console.warn(`${n.look.character} unavailable:`, e)).then(() => {
-    const old = n.rig, rig = makeRig(npcLook(n));
+  // (one whose load has not settled in NPC_WAIT seconds, a request dropped or held, is asked for afresh: they are people you
+  // meet, never drawn as anyone else, and their talk and mark wait until they are drawn. Their pictures go at the head of
+  // the upload queue (people.js hurry): behind the crowd's and the levels' Nagi waited minutes, the walk's check failing
+  // "Nagi is not drawn ten minutes after setting out" and "Ren is not drawn"; and on a phone, whose loads go one at a time,
+  // everyone after them waited too: tools/npc_stall.js)
+  const NPC_WAIT = 45;
+  // (hurried: someone named within NPC_HURRY m of you once you are out in the game, not the title's; asked again by
+  // npcStream as you come near. All of them hurried put the title's pictures 113 MB over its budget, story1)
+  const NPC_HURRY = 30;
+  const inGame = () => { try { return !preTitle && hud('#g-title').hidden; } catch (e) { return false; } }; // (false while the load is still before them)
+  const npcHurry = n => { if (lib.hurry && inGame() && Math.hypot(n.x - player.x, n.y - player.y) < NPC_HURRY) lib.hurry(n.look.character); };
+  const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : (() => {
+    const name = n.look.character;
+    npcHurry(n);
+    const real = npcPut(n, lib.require(name).catch(e => console.warn(`${name} unavailable:`, e)).then(() => npcLook(n)));
+    return Promise.race([real.then(() => 'in'), new Promise(r => setTimeout(() => r('late'), NPC_WAIT * 1000))]).then(w => {
+      if (w !== 'late' || !n.rig.pending) return;
+      n.loadLate = (n.loadLate || 0) + 1; console.warn(`${name}: not come in ${NPC_WAIT} s; asked for again`);
+      if (lib.forget) lib.forget(name);
+      n.loading = null; // (asked again by the stream: npcStream)
+    });
+  })());
+  // (a rig for look, once it comes, put in n's place)
+  const npcPut = (n, lookP) => lookP.then(look => {
+    if (!n.rig.pending) return; // (put in already, by an earlier ask that came after all)
+    const old = n.rig, rig = makeRig(look);
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
     // (posed before it is put in the world, as the next frame will pose it: come in its bind pose while time was held,
     // the first held frame turned its head 0.055 rad to the clip's, and the Stop's check saw Yuna's head turn by itself
@@ -1537,7 +1563,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (old.root.parent) old.root.parent.remove(old.root);
     world.add(rig.root);
     n.rig = rig;
-  }));
+  });
   let npcBudget = 0;
   function npcStream(dt, cx, cy) { // twice a second: those within NPC_LOAD_M of you
     if ((npcBudget -= dt) > 0) return;
@@ -1558,6 +1584,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return;
     }
     for (const n of npcs) if (n.rig.pending && !n.loading && !n.away && Math.hypot(n.x - cx, n.y - cy) < NPC_LOAD_M) npcLoad(n);
+    for (const n of npcs) if (n.rig.pending && n.loading && !n.away) npcHurry(n); // (on its way, and you near now)
   }
   let npcBusy = false;
   const npcsReady = () => Promise.all(npcs.filter(n => !n.away).map(npcLoad)); // every NPC in place (for the tools that look at them; not the walk's own until it is the walk: a phone's memory check loaded them where play never does)
@@ -5247,7 +5274,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Wd.tick(now, camera);
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
-    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [[player.x, player.y], stopAnchor()] : stopAnchor()); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
+    // (on a phone the opening's flight fetches no level it only passes: the walk's came down over SKY GATE's lobby, Miyamasu and
+    // SHIBUYA SKY's roof, and the three were fetched, sent and compiled in the flight, sixteen programs in ten seconds; the
+    // owner's iPhone, 26 November 2026, drew no frame for 5.1 s and lost its WebGL context, and the page reloaded. The flight
+    // passes them in seconds and the city's own buildings stand there; the levels the player lands in are fetched round
+    // the anchors, as before)
+    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [[player.x, player.y], stopAnchor()] : stopAnchor(), !(QC.lean && ((titleOn && !preTitle) || (overture && overture.active)))); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (HERO_CUT.h) HERO_CUT.box.value.w = HERO_CUT.h.shown && !HERO_CUT.off ? 1 : 0; // (the ground cut under a level's floor only while the floor is drawn)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
@@ -5661,6 +5693,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
     npcStream(dt, cx, cy);
     crowd.bodies = crowdKeep(cx, cy, false, dt);
+    crowd.finder = !!(story && story.finder) && player.mode === 'foot'; // (the finder raised: the crowd gives its view room as it gives the lens behind you, actors.js lensUpdate, issue 232)
     if (regulars && (!story || (walk && walkUi.walking))) regulars.tick(dt); // (before the crowd's step: whoever is lent to a routine knows where to be)
     crowd.update(dt, cx, cy, clockT, player.mode === 'foot' ? player : player.mode === 'car' ? { x: player.x, y: player.y, h: player.h, speed: myCar.D.st.v, r: 1.1 } : null);
     if (colonies.length) {
@@ -6216,6 +6249,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       fp.yaw += angDiff(fp.yawT, fp.yaw) * e; fp.pitch += (fp.pitchT - fp.pitch) * e;
       fp.eyeZ += (eyeZ - fp.eyeZ) * (1 - Math.exp(-dt / 0.08)); // (a step up or down is not a jolt in the finder)
       const hx = Math.sin(fp.yaw), hy = Math.cos(fp.yaw), cp = Math.cos(fp.pitch);
+      // (nobody of the crowd in front of the lens, #232: at frame 7's after the finder stays up for the closing picture, and
+      // the crowd's rules for the lens are the chase view's, so a passer-by stood 2 m in front of it, a third of the frame.
+      // Along the view's line nobody begins to stop while the finder is up, and at each raise and each step of the story
+      // (the shutter's flash, the print) whoever stands there is stepped aside, as the story clears its own sightlines)
+      if (crowd && crowd.keep && clockT - (fp.keepT || -9) > 0.5) { fp.keepT = clockT; crowd.keep(player.x, player.y, player.x + hx * 14, player.y + hy * 14, 2.4); } // (twice a second: a keep lasts 90 frames)
       // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
       // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
       // (and held out as a photographer presses the lens to the glass: to the roof's edge along its heading and a hand's

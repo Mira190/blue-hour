@@ -3045,14 +3045,15 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const props = renderer.properties, draw = renderer.renderBufferDirect, n = { held: 0, made: 0, late: 0, kept: 0 }, late = new Map(), tried = new WeakSet(), drawn = new WeakSet();
     let due = false;
     const own = () => { const t = renderer.getRenderTarget(); if (t === null) return true; const ts = targets ? targets() : null; return !!ts && ts.includes(t); };
-    // (a program still linking holds its draws for 10 s at most: past that it is drawn, and waited for, as before)
-    const since = new WeakMap(), linking = mp => {
+    // (a program still linking holds its draws for 10 s at most: past that it is drawn, and waited for, as before. It is the
+    // ceiling of a whole model's wait too (issue 241): its parts drawn together then, and the program named once in the log)
+    const since = new WeakMap(), overdue = new WeakSet(), linking = mp => {
       let wait = false;
       for (const p of mp.programs.values()) {
         if (!p || !p.program || !p.isReady) continue;
         if (p.isReady()) return false; // (a variant ready: drawn with it, or the one it needs made and waited for, as three.js does)
         const t = since.get(p), t1 = performance.now();
-        if (t === undefined) since.set(p, t1); else if (t1 - t > 10000) continue;
+        if (t === undefined) since.set(p, t1); else if (t1 - t > 10000) { if (!overdue.has(p)) { overdue.add(p); n.overdue = (n.overdue || 0) + 1; console.warn(`draw gate: a program still linking after 10 s (${p.name || 'unnamed'}), drawn and waited for`); } continue; }
         wait = true;
       }
       return wait;
