@@ -172,7 +172,10 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           [ "$TARGET" = static ] || export CHECK_STATIC=0
-          CHECK_STORE="$RUNNER_TEMP/passes" CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
+          # (main's shards store their passes to share them; a branch's reads main's, which a store of its own would
+          # shut out: tools/check_cache.py)
+          [ "$GITHUB_REF" = refs/heads/main ] && export CHECK_STORE="$RUNNER_TEMP/passes"
+          CHECK_JOBS=1 CHECK_OUT="$RUNNER_TEMP/check" tools/check.sh "$TARGET"
       # (a branch's shard's lines, for the result its session waits on: the job "result" below)
       - uses: actions/upload-artifact@v4
         if: always() && github.ref != 'refs/heads/main' && github.event_name == 'push'
