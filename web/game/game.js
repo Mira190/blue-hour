@@ -1167,15 +1167,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   benches.list.forEach((b, i) => { dummy.position.copy(W(b.x, b.y, b.z)); dummy.rotation.y = Math.PI - b.h; dummy.updateMatrix(); benchMesh.setMatrixAt(i, dummy.matrix); });
   benchMesh.castShadow = benchMesh.receiveShadow = true;
   const nl = lamps.length / 3;
-  const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, 6.5, 6).translate(0, 3.25, 0), new THREE.MeshStandardMaterial({ color: lin('#3b4248'), roughness: 0.6, metalness: 0.4 }), nl);
-  const headMat = new THREE.MeshStandardMaterial({ color: lin('#d8d4c8'), emissive: lin('#ffcf8a'), emissiveIntensity: 0 });
-  const headMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.35, 0.18, 0.7).translate(0, 6.5, 0.25), headMat, nl);
+  // a post-top light: its head on the post's axis, its lit panel the underside (night.js lights it, placeMapped: the
+  // housing is not lit, as a cutoff luminaire's is not; without night.js the glow below stands in)
+  const LH = (window.OENight && OENight.MAPPED_H) || 6.5;
+  const poleMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.1, LH, 6).translate(0, LH / 2, 0), new THREE.MeshStandardMaterial({ color: lin('#3b4248'), roughness: 0.6, metalness: 0.4 }), nl);
+  const headMat = new THREE.MeshStandardMaterial({ color: lin('#9ea3a6'), roughness: 0.45, metalness: 0.3, emissive: lin('#ffcf8a'), emissiveIntensity: 0 });
+  const headMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.35, 0.18, 0.7).translate(0, LH - 0.15, 0), headMat, nl);
+  const lampYaw = new Float32Array(nl), lampFeet = new Float32Array(nl * 3);
   const glowPos = new Float32Array(nl * 3);
   for (let i = 0; i < nl; i++) {
     dummy.position.copy(W(lamps[3 * i] / 10, lamps[3 * i + 1] / 10, lamps[3 * i + 2] / 10)); dummy.rotation.y = (i * 1.7) % 6.28; dummy.updateMatrix();
     poleMesh.setMatrixAt(i, dummy.matrix); headMesh.setMatrixAt(i, dummy.matrix);
-    glowPos.set([dummy.position.x, dummy.position.y + 6.35, dummy.position.z], i * 3);
+    glowPos.set([dummy.position.x, dummy.position.y + LH - 0.25, dummy.position.z], i * 3);
+    lampYaw[i] = dummy.rotation.y; lampFeet.set([lamps[3 * i] / 10, lamps[3 * i + 1] / 10, lamps[3 * i + 2] / 10], i * 3);
   }
+  if (Wd.night && Wd.night.placeMapped) Wd.night.placeMapped(lampFeet, lampYaw);
   poleMesh.castShadow = true;
   const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
     gr.addColorStop(0, 'rgba(255,214,150,1)'); gr.addColorStop(0.25, 'rgba(255,190,110,0.45)'); gr.addColorStop(1, 'rgba(255,170,90,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
