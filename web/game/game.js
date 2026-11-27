@@ -1617,6 +1617,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     padCheck = 30; // every half second or so
     const st = heli.st;
     if (!heli.loaded() && Math.hypot(st.x - player.x, st.y - player.y) < (QC.budget && QC.budget.extras === false ? 150 : 800)) heli.want(); // its model, once you are near it
+    if (!heli.loaded() && heli.hurry && Math.hypot(st.x - player.x, st.y - player.y) < 80) heli.hurry(); // (and its pictures first as you come to its pad, or to the foot of the tower it stands on: it is not drawn until warm)
     if (!st.landed || st.on || st.rotor > 0.02 || st.door > 0 || Math.hypot(st.x - player.x, st.y - player.y) < 700) return;
     for (const p of G.helipads) {
       if (Math.hypot(p.at[0] - player.x, p.at[1] - player.y) > 300 || Math.hypot(p.at[0] - st.x, p.at[1] - st.y) < 20) continue;

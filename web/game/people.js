@@ -631,7 +631,12 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
         return tpl;
       });
     };
-    const clipsOf = sex => lib.loading[`clips:${sex}`] || (lib.loading[`clips:${sex}`] = get(NP.clips[sex].file).then(g => g.animations));
+    // (and the run, a clip of its own on the same skeleton (NP.field, ~45 KB): without it a figure asked to run played its
+    // idle, and the man of the walk's incident slid at 4.5 m/s stood upright, as if on a board nobody could see. A file
+    // that does not come leaves the walk and the gestures as they were)
+    const clipsOf = sex => lib.loading[`clips:${sex}`] || (lib.loading[`clips:${sex}`] = Promise.all([get(NP.clips[sex].file),
+      NP.field && NP.field[sex] ? get(NP.field[sex].file).catch(() => null) : null]).then(([g, f]) => (f ? g.animations.concat(f.animations.filter(a => a.name === 'Run')) : g.animations)));
+    const speedsOf = sex => Object.assign({}, NP.field && NP.field[sex] ? NP.field[sex].ground_speed : null, NP.clips[sex].ground_speed);
     // (a load asked for again: one that never answered (a request dropped, a server that went quiet) is fetched afresh,
     // game.js npcLoad; one that came is kept)
     // (and fetched as a request of its own: three.js's loader joins a request for a file to one still on its way, and the
@@ -648,7 +653,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       const h = lib.heroes[name], c = lib.npcs[name];
       if (c) {
         return lib.loading[name] || (lib.loading[name] = Promise.all([get(fresh(name, c.file)), clipsOf(c.sex)]).then(([g, clips]) =>
-          ready(name, { scene: g.scene, textured: true, clips, speeds: NP.clips[c.sex].ground_speed, bones: NP.bones || {}, mask: !!c.mask }, true)));
+          ready(name, { scene: g.scene, textured: true, clips, speeds: speedsOf(c.sex), bones: NP.bones || {}, mask: !!c.mask }, true)));
       }
       if (!h) return plain(name);
       return lib.loading[name] || (lib.loading[name] = get(fresh(name, h.file)).then(g =>
