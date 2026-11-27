@@ -32,6 +32,8 @@ const [,, city = 'shibuya', SECS = '120'] = process.argv;
         const c = C[i];
         if (c.line < 0 || c.bus || c.park || !(c.trip >= 0)) { last.delete(i); continue; }
         const was = last.get(i), cost = T.cost(c.trip, c.line, c.dir);
+        out.seen = (out.seen || 0) + 1; if (cost < Infinity) out.finite = (out.finite || 0) + 1; out.vSum = (out.vSum || 0) + (c.v || 0); if (c.v < 0.3) out.still = (out.still || 0) + 1;
+        if (was && was.line !== c.line) { out.moves = (out.moves || 0) + 1; if (was.trip !== c.trip) out.tripChanged = (out.tripChanged || 0) + 1; else if (!(cost < Infinity) || !(was.cost < Infinity)) { out.infMoves = (out.infMoves || 0) + 1; const pl = T.places[c.trip]; const k = pl ? pl.kind + ' ' + Math.round(pl.x) + ',' + Math.round(pl.y) : '?'; (out.infBy || (out.infBy = {}))[k] = ((out.infBy || {})[k] || 0) + 1; } }
         if (was && was.trip === c.trip && was.line !== c.line && cost < Infinity && was.cost < Infinity) {
           out.legs++;
           // (onto a new piece: nearer when what is left is less than it was coming onto the piece before)
@@ -48,6 +50,7 @@ const [,, city = 'shibuya', SECS = '120'] = process.argv;
   await b.close();
   if (r.none) { console.log(`FAIL the page has no trips (OETrips ${r.has ? 'loaded, never set' : 'not loaded'})`); process.exit(1); }
   console.log(`${r.places.length} places: ` + r.places.map(q => `${q.kind} ${q.c} ${q.x},${q.y}`).join('; '));
+  console.log(`samples ${r.seen}: cost finite ${r.finite || 0}, standing ${r.still || 0}, mean speed ${((r.vSum || 0) / Math.max(1, r.seen)).toFixed(1)} m/s; onto a new piece ${r.moves || 0} times (${r.tripChanged || 0} with a new trip, ${r.infMoves || 0} with no cost by road; by place: ${JSON.stringify(r.infBy || {})})`);
   const share = r.legs ? r.nearer / r.legs : 0;
   const lines = [
     [r.bound >= 0.5 * r.cars, `${r.bound} of ${r.cars} cars bound for a place; ${r.ended} trips ended and begun again in ${SECS} s; ${r.fields} fields worked out`],
