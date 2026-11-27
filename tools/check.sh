@@ -94,6 +94,9 @@
 # kept (tools/check_cache.py, from the server's log of what the page fetched).
 #   tools/check.sh                      # the fast tier: static, and story, walk1 and mem when the page or the map changed;
 #                                       # after a pass, only what changed since it (CHECK_FULL=1: the whole branch)
+#                                       # with a browser check in it, the branch is pushed and its checks run on GitHub's
+#                                       # runners, a runner each; this waits for their result (docs/CHECKS.md)
+#   CHECK_REMOTE=0 tools/check.sh       # every check played on this machine, two browsers at a time
 #   CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 #   tools/check.sh static               # the checks that open no browser only
 #   tools/check.sh story                # the story only (story mem, shibuya:clip,mem ...: several)
@@ -347,9 +350,10 @@ fi
 # a machine of its own (.github/workflows/checks.yml, on a push to any branch but main): the same script, the same
 # routing, the same passes of main's kept, a runner a target, in the time of the longest. So a routed run here with a
 # browser check in it pushes the branch and waits for that run's result, which the workflow leaves under the ref
-# refs/checks/<commit> (read with git: no token, no API). CHECK_REMOTE=0 plays it all here, as before; a run of named
-# targets (tools/check.sh walk3) is played here.
-remote_on() { [ -z "${CI:-}" ] && [ "${CHECK_REMOTE:-1}" != 0 ] && [ "$routed" = 1 ] && [ -n "$want" ] && git remote get-url origin 2>/dev/null | grep -q 'github\.com\|/git/'; }
+# refs/checks/<commit> (read with git: no token, no API). CHECK_REMOTE=0 plays it all here, as before; so does a run of
+# named targets (tools/check.sh walk3), and one with CHECK_TIER, CHECK_FULL, CHECK_BASE or CHECK_CACHE=0, which the
+# runners would not be told of.
+remote_on() { [ -z "${CI:-}" ] && [ "${CHECK_REMOTE:-1}" != 0 ] && [ "$routed" = 1 ] && [ "$TIER" = fast ] && [ -z "${CHECK_FULL:-}${CHECK_BASE:-}" ] && [ "${CHECK_CACHE:-1}" != 0 ] && [ -n "$want" ] && git remote get-url origin 2>/dev/null | grep -q 'github\.com\|/git/'; }
 remote() {
   local br sha slug t0 waited=0 seen= d line
   br=$(git symbolic-ref -q --short HEAD)

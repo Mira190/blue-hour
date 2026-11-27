@@ -283,6 +283,7 @@ CHECK_BASE=<commit> tools/check.sh  # what changed since that commit
 CHECK_FULL=1 tools/check.sh         # the whole branch, not only what changed since the last pass, and no pass kept
 CHECK_CACHE=0 tools/check.sh ...    # every check played, none kept from an earlier pass
 CHECK_STATIC=0 tools/check.sh ...   # without the static checks (a runner's shard)
+CHECK_REMOTE=0 tools/check.sh       # the browser checks played on this machine, not on GitHub's runners
 ```
 
 Logs and stills go to `$CHECK_OUT` (default `/tmp/oe-check`). The free game's clock is pinned
@@ -590,6 +591,53 @@ The pass is of a runner's play, not this machine's. What a check runs is the pag
 differs is timing, and a function one machine's play reaches and the other's does not is the rule's known blind spot
 (above), covered by main's full tier after landing. The job that pushes the branch cannot fail the run, and nothing
 waits for it.
+
+## Before landing, on the runners
+
+Measured on 27 November 2026, a change to `web/world.js` on a session's machine (four cores, 15 GB, no swap, WebGL in
+software): `tools/check.sh` routed it to static and eleven browser checks (story1 to 3, budget1 to 3, walk1, walk3,
+walk4, mem, launch). Each loads the whole map afresh and plays it for 4 to 16 minutes, and a page with the map loaded
+holds 5 to 6 GB, so two play at a time. The run took 70 to 80 minutes of checks in 40 to 50 of the wall, and a
+third page, or the static checks' peak beside two, ran the machine out of memory: the kernel killed a GPU process and
+walk3 or story1's textures failed for nothing in the change, to be played again alone, ten to twenty minutes more.
+Seven sessions did this at once, each on its own machine. What was left to cut here was the machine.
+
+Main's full tier already ran each target on a runner of its own (GitHub's, four cores and 16 GB each), the slowest
+of these eleven in 16 minutes and the runner made ready in 30 to 40 s. The repository is public, so its runners cost
+nothing. So since 27 November the same checks run there before landing too:
+
+- **`.github/workflows/checks.yml` runs on a push to any branch** (but `live` and `check-passes`). Its plan is
+  `tools/check.sh --plan` on the branch, the fast tier routed against main as a session routes it; after a pass of
+  the branch (the workflow's last successful run on it) only what changed since, with a file that is main's as main
+  has it left to main's checks, as a session's stamp does. Each target is a runner, its check judged against main's
+  passes (`check-passes`), so a check the change cannot reach is kept in seconds, as here. A newer push to the branch
+  cancels the older run.
+- **The result comes back by git.** The workflow's job `result` writes every shard's lines and the verdict to one
+  commit under the ref `refs/checks/<commit>`. No token or API is needed to read it.
+- **`tools/check.sh` on a session's machine** routes as before; when a browser check is among its targets it pushes
+  the branch (committed: the runners check a commit, not a tree), waits for that ref and prints its lines, each shard
+  as it ends and the run's address while it waits (GitHub's public API, two requests every two minutes). It exits as
+  the run did, and stamps a pass. A commit already checked is answered at once. Static only, it runs here, in half a
+  minute.
+- **What stays here:** a run of named targets (`tools/check.sh walk3`), `CHECK_REMOTE=0`, and a run with `CHECK_TIER`,
+  `CHECK_FULL`, `CHECK_BASE` or `CHECK_CACHE=0`, which the runners would not be told of. These play as before, with
+  the memory admission below.
+
+What it costs and buys: the same targets, the same script and the same passes, so a check catches what it caught; the
+wall is the slowest shard's plus a minute, 15 to 25 minutes for a change to the page, and no check shares a
+machine's memory with another. The limit is the account's: twenty jobs at once on GitHub's free plan. A page
+change's run is thirteen jobs, and main's full tier twenty-eight at its start, so sessions landing together queue for
+runners; the queue is GitHub's and is shown in the run.
+
+## Memory, by measure
+
+For what still plays here, a lane starts by the memory it will take, not by a count fixed at the start. Each check's
+peak proportional set (PSS: a page Chromium's processes share counted once), summed over everything it started, is
+kept in the clone (`.git/oe-check-mem`, the largest of the last five; 6 GB before any). A check waits for a lane
+until the memory free, less what the checks already running are still expected to grow to, covers its peak and a
+margin (`CHECK_MEM_MARGIN`, 1200 MB); alone, it starts whatever it needs. And a check that failed while the kernel
+killed a process for memory (`oom_kill` in `/proc/vmstat` rose during it) failed on the machine, not on its page: its
+line says so (`again`) and it is played again alone once the others are done, where a failure is its own.
 
 ## The checks faster
 
