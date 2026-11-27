@@ -138,6 +138,7 @@ window.OEWalkTalk = (function () {
         if (inc.man) inc.man.walkTo(n.x, n.y, inc.v);
       } else if (inc.ph === 'come') {
         const m = inc.man;
+        if (m && m.rig && m.rig.clipName) inc.gait = m.rig.clipName() || inc.gait; // (what his legs do as he comes: tools/walk_play.js wants a run)
         if (m && dist(m, n) > 0.78 && m.to) return;
         // the shoulder: she goes the way he was going, and down; he does not turn
         const d = m ? Math.hypot(n.x - I.by.from[0], n.y - I.by.from[1]) || 1 : 1;
@@ -569,7 +570,7 @@ window.OEWalkTalk = (function () {
       },
       helps: id => (inc && inc.ph === 'down' && lineS.npc === id ? lineS.incident.help || 'Help her up' : ''),
       help(n) { if (!inc || inc.ph !== 'down' || busy) return false; getUp(true); return talk(n); },
-      line: () => (lineS ? { ph: inc ? inc.ph : '', ctl: inc ? +(inc.ctl || 0).toFixed(1) : 0, startedAt: inc && inc.at != null ? +inc.at.toFixed(1) : null, v: inc ? inc.v || 0 : 0, inc: of(lineS).inc || '', part: of(lineS).part, done: !!of(lineS).done, man: inc && inc.man ? [+inc.man.x.toFixed(1), +inc.man.y.toFixed(1)] : null, at: (n => (n ? [+n.x.toFixed(1), +n.y.toFixed(1), n.rig && n.rig.pending ? 'pending' : n.sit ? 'down' : 'up'] : null))(ctx.npc(lineS.npc)) , gate: gate ? gate.ph : '', wait: waitOn, w: of(lineS).w || '' } : null),
+      line: () => (lineS ? { ph: inc ? inc.ph : '', ctl: inc ? +(inc.ctl || 0).toFixed(1) : 0, startedAt: inc && inc.at != null ? +inc.at.toFixed(1) : null, v: inc ? inc.v || 0 : 0, inc: of(lineS).inc || '', part: of(lineS).part, done: !!of(lineS).done, man: inc && inc.man ? [+inc.man.x.toFixed(1), +inc.man.y.toFixed(1)] : null, gait: inc ? inc.gait || '' : '', at: (n => (n ? [+n.x.toFixed(1), +n.y.toFixed(1), n.rig && n.rig.pending ? 'pending' : n.sit ? 'down' : 'up'] : null))(ctx.npc(lineS.npc)) , gate: gate ? gate.ph : '', wait: waitOn, w: of(lineS).w || '' } : null),
       // each frame on the walk: what was asked met, and the marks drawn (hide: a talk, a menu, the camera up)
       tick(dt, hide) { if (!on) return; laterTick(dt, hide); incident(dt, hide); check(); street(dt, hide); barkNear(ctx.here(), hide); draw(hide, dt); },
       // the street moments, for the checks: start one now (by its id, at one of event_spots), and where it stands

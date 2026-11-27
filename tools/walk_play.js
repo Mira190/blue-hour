@@ -630,6 +630,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           else if (!go) fail('seated, the scramble never turned to all-walk in two minutes');
           else { ok('the scramble crossing, from the seat'); await shot('4h-sit-go'); }
           await act(); await frames(30);
+          // (g.frame steps the world and the camera, not the HUD: the button's label is set in a drawn frame, and on a
+          // slow runner none may have come in those 30; run 473 read the seat's label after standing. Up to 10 s for one.)
+          if (phone) await p.waitForFunction(() => window.__game.player.mode !== 'foot' || !/Time-lapse/.test(document.getElementById('gt-jump').textContent), null, { timeout: 10000 }).catch(() => {});
           const up = await p.evaluate(() => { const g = window.__game, P = g.perch; return { mode: g.player.mode, seat: !!P.seat, z: g.player.z, ground: g.nav.floorAt(g.player.x, g.player.y, g.player.z + 1), jump: document.getElementById('gt-jump').textContent }; });
           if (up.mode !== 'foot' || up.seat) fail(`E seated does not stand you up (${JSON.stringify(up)})`);
           else ok(`stood up, on foot again${phone ? ` (the button reads "${up.jump}")` : ''}`);
@@ -699,6 +702,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           // (not in the first calm of control, and a man running: issue 229)
           if (l.startedAt == null || l.startedAt < 24.9) fail(`the walk's line began ${l.startedAt} s into control, inside its calm of 25 s`);
           if (!(l.v >= 4)) fail(`the walk's line: he came at ${l.v} m/s, a walk, not a run`);
+          if (l.gait !== 'Run') fail(`the walk's line: he came at ${l.v} m/s playing ${l.gait || 'nothing'}, not running (a figure sliding upright)`);
           if (l.ph !== 'down' || l.at[2] !== 'down') fail(`the walk's line: nobody walked into her, or she is not on the ground (${JSON.stringify(l)})`);
           else {
             ok(`the walk's line: he walked into her and walked on (he is at ${l.man}); she is on the ground`);
