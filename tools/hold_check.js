@@ -94,3 +94,4 @@ function serve() {
   console.log(`\nhold: ${n.length} avatar-clips measured; as the clips were made ${asMade} had a limb or a held thing over ${H.LIMIT} m inside the torso, as the page poses them ${bad} (or a jerk)`);
   process.exit(bad ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });
+// probe
