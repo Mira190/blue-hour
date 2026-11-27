@@ -695,7 +695,14 @@ window.OEJunctions = (function () {
         const ka = Math.max(0, k - 2), kb = Math.min(n - 1, k + 2);
         let hx = Q[2 * kb] - Q[2 * ka], hy = Q[2 * kb + 1] - Q[2 * ka + 1];
         const h = Math.hypot(hx, hy) || 1; hx /= h; hy /= h;
-        const f = Math.min(1, Math.max(0, (k - k0) / Math.max(1, k1 - 1 - k0))), off = off0 + (off1 - off0) * f * f * (3 - 2 * f);
+        // (and it keeps to its own side of the box: out to the keep side early, back towards the middle late. Eased evenly
+        // over the whole way, a car out of a one-way street (its lane in the middle) turning into a two-way road, and one from
+        // that road's lane bound for another one-way street, each came half way to the middle of the box and passed the
+        // other there 1.7 m apart: read as crossing, the Scramble's arms 1 and 4, both of the cross turn, each held the other
+        // out of its green, 9 to 21 s of it, and their queues stood 150 s, main's roads check, run 461; #224)
+        const f = Math.min(1, Math.max(0, (k - k0) / Math.max(1, k1 - 1 - k0))), sm = u => u * u * (3 - 2 * u),
+          early = off0 + (off1 - off0) * sm(Math.min(1, 2 * f)), late = off0 + (off1 - off0) * sm(Math.max(0, 2 * f - 1)),
+          off = a.j.scramble ? ((early - late) * side > 0 ? early : late) : off0 + (off1 - off0) * sm(f);
         out.push(Q[2 * k] - hy * off, Q[2 * k + 1] + hx * off);
       }
       return new Float32Array(out);

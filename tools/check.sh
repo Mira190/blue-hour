@@ -11,6 +11,8 @@
 #           - the visibility sweep against exact rays (tools/vis_unit.js);
 #           - the frame-time governor on modelled devices (tools/governor_unit.js);
 #           - the story's guide round a held crowd and ahead of a running player (tools/guide_unit.js);
+#           - the walk's people talked to in random orders of their stories and the line's incident, each saying words
+#             (tools/walktalk_unit.js);
 #           - the building solids valid polygons on their decimetre grid (pipeline/solid_rings.py --check);
 #           - the ground graded by the method as it is: the streets level across, the lots between them stretched from
 #             the streets, the roads' cross-falls and creases within their limits (pipeline/street_ground.py --check);
@@ -739,6 +741,7 @@ rm -rf "$OUT/keep"
     st budget budget - '^FAIL' budgets_kept
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
+    st walktalk walktalk "everyone on the walk talked to in any order says words, and the line's person speaks once up" '^FAIL' node tools/walktalk_unit.js
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
     st roads roadplan - '^FAIL|Error' python3 pipeline/road_plan.py --city "$MAP" --check

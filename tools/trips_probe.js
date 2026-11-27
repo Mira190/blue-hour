@@ -8,6 +8,9 @@ const { chromium, devices } = require('playwright');
 const { startPlay } = require('./start_play');
 const { pinClock } = require('./pin_clock');
 const [,, city = 'shibuya', SECS = '120'] = process.argv;
+// Judged on a real sample: the world runs on past SECS until NEED cars have come onto a new piece with a cost by road
+// at both ends, to CAP seconds at most (a run of 470 counted none in 120 s by chance and failed on "0% of 0").
+const NEED = +(process.env.TRIPS_NEED || 12), CAP = Math.max(+SECS, +(process.env.TRIPS_CAP || 480));
 (async () => {
   const b = await chromium.launch({ headless: !process.env.DISPLAY, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] });
   const ctx = await b.newContext(process.env.PHONE ? { ...devices['iPhone 13'] } : { viewport: { width: 1100, height: 650 } });
@@ -19,19 +22,22 @@ const [,, city = 'shibuya', SECS = '120'] = process.argv;
   await p.waitForFunction('window.__game && window.__game.cars', null, { timeout: 400000 });
   await p.evaluate(async () => { const g = window.__game; g.hold(true, true); await g.ways.build(); if (g.lateReady) await g.lateReady(); });
   await startPlay(p, { asIs: !!process.env.ASIS });
-  const r = await p.evaluate(secs => {
+  const r = await p.evaluate(([secs, need, cap]) => {
     const g = window.__game, cars = g.cars, C = cars.C, L = cars.netL, T = cars.junctions.trips && cars.junctions.trips();
     if (!T) return { none: true, has: !!window.OETrips };
     for (let t = 0; g.arriving() && t < 10; t += 0.25) g.advance(0.25);
     g.advance(20);
     const out = { places: T.places.map(q => ({ kind: q.kind, c: L[q.line].c, x: Math.round(q.x), y: Math.round(q.y) })), chose: 0, nearer: 0, turnedBack: 0, legs: 0 };
     const last = new Map();   // car -> { line, cost, trip }
-    for (let t = 0; t < secs; t += 0.5) {
+    let t = 0;
+    for (; t < secs || (out.legs < need && t < cap); t += 0.5) {
       g.advance(0.5);
       for (let i = 0; i < Math.min(C.length, cars.active); i++) {
         const c = C[i];
         if (c.line < 0 || c.bus || c.park || !(c.trip >= 0)) { last.delete(i); continue; }
         const was = last.get(i), cost = T.cost(c.trip, c.line, c.dir);
+        out.seen = (out.seen || 0) + 1; if (cost < Infinity) out.finite = (out.finite || 0) + 1; out.vSum = (out.vSum || 0) + (c.v || 0); if (c.v < 0.3) out.still = (out.still || 0) + 1;
+        if (was && was.line !== c.line) { out.moves = (out.moves || 0) + 1; if (was.trip !== c.trip) out.tripChanged = (out.tripChanged || 0) + 1; else if (!(cost < Infinity) || !(was.cost < Infinity)) { out.infMoves = (out.infMoves || 0) + 1; const pl = T.places[c.trip]; const k = pl ? pl.kind + ' ' + Math.round(pl.x) + ',' + Math.round(pl.y) : '?'; (out.infBy || (out.infBy = {}))[k] = ((out.infBy || {})[k] || 0) + 1; } }
         if (was && was.trip === c.trip && was.line !== c.line && cost < Infinity && was.cost < Infinity) {
           out.legs++;
           // (onto a new piece: nearer when what is left is less than it was coming onto the piece before)
@@ -43,14 +49,16 @@ const [,, city = 'shibuya', SECS = '120'] = process.argv;
     }
     let n = 0, bound = 0, ended = 0;
     for (let i = 0; i < Math.min(C.length, cars.active); i++) { const c = C[i]; if (c.line < 0 || c.bus) continue; n++; if (c.trip >= 0) bound++; ended += c.trips || 0; }
-    return Object.assign(out, { cars: n, bound, ended, fields: T.fields() });
-  }, +SECS);
+    return Object.assign(out, { cars: n, bound, ended, fields: T.fields(), t });
+  }, [+SECS, NEED, CAP]);
   await b.close();
   if (r.none) { console.log(`FAIL the page has no trips (OETrips ${r.has ? 'loaded, never set' : 'not loaded'})`); process.exit(1); }
   console.log(`${r.places.length} places: ` + r.places.map(q => `${q.kind} ${q.c} ${q.x},${q.y}`).join('; '));
+  console.log(`samples ${r.seen}: cost finite ${r.finite || 0}, standing ${r.still || 0}, mean speed ${((r.vSum || 0) / Math.max(1, r.seen)).toFixed(1)} m/s; onto a new piece ${r.moves || 0} times (${r.tripChanged || 0} with a new trip, ${r.infMoves || 0} with no cost by road; by place: ${JSON.stringify(r.infBy || {})})`);
   const share = r.legs ? r.nearer / r.legs : 0;
   const lines = [
-    [r.bound >= 0.5 * r.cars, `${r.bound} of ${r.cars} cars bound for a place; ${r.ended} trips ended and begun again in ${SECS} s; ${r.fields} fields worked out`],
+    [r.bound >= 0.5 * r.cars, `${r.bound} of ${r.cars} cars bound for a place; ${r.ended} trips ended and begun again in ${r.t} s; ${r.fields} fields worked out`],
+    r.legs < NEED ? [false, `too few cars came onto a new piece with a cost by road to judge their exits: ${r.legs} in ${r.t} s (${NEED} wanted; ${r.nearer} of them nearer)`] :
     [share >= 0.66, `a car coming onto a new piece is nearer its place by road ${(share * 100).toFixed(0)}% of the time (${r.nearer} of ${r.legs}; two times in three at least)`],
     [r.turnedBack <= 0.02 * Math.max(1, r.legs), `${r.turnedBack} of ${r.legs} moves went back onto the piece the car had just left`],
   ];

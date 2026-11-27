@@ -122,7 +122,7 @@ const phone = !!process.env.PHONE;
       if (!near.length) fail(`nine metres from ${s.name}, nobody sits beside the free place`);
       else ok(`nine metres from ${s.name}: someone sits ${Math.hypot(near[0].x - s.at[0], near[0].y - s.at[1]).toFixed(2)} m from the free place`);
       if (m.marks.some(o => o > 0.05)) fail(`${s.name} is still offered by a mark (${m.marks})`); else ok(`${s.name}: no mark, the person does it`);
-      const nagi = (((G.walk || {}).line || {}).wait || {}).beside;
+      const nagi = (((G.walk || {}).people || []).find(s => s.incident) || {}).wall?.beside;
       if (nagi && near.length && Math.hypot(near[0].x - nagi[0], near[0].y - nagi[1]) < 0.6) fail('the sitter is where Nagi sits to wait with you');
     }
   }
