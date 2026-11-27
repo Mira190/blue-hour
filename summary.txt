@@ -1,0 +1,86 @@
+result: success
+run: https://github.com/Mira190/blue-hour/actions/runs/45991728901
+targets: static story1 story2 story3 budget1 budget2 budget3 walk1 walk3 walk4 mem launch
+ok   budget1 frames 1 to 4 played as a phone plays them; played in 357 s
+ok   budget1 5 beats within the phone budget
+note budget1 hitches, recorded: title p99 138 ms, longest 138; frame 1 p99 51 ms, longest 296; frame 2 p99 57 ms, longest 174; frame 3 p99 52 ms, longest 136; frame 4 p99 56 ms, longest 279
+time: budget1 387 s; 6 min of checks in 6 min of the wall
+ok   budget2 frames 5 and 6 played as a phone plays them, from a case left at frame 5; played in 223 s
+ok   budget2 3 beats within the phone budget
+note budget2 hitches, recorded: title p99 52 ms, longest 52; frame 5 p99 42 ms, longest 329; frame 6 p99 57 ms, longest 306
+time: budget2 248 s; 4 min of checks in 4 min of the wall
+ok   budget3 frame 7 and the last card played as a phone plays them, from a case left at frame 7; played in 132 s
+ok   budget3 2 beats within the phone budget
+note budget3 hitches, recorded: title p99 241 ms, longest 241; frame 7 p99 43 ms, longest 243
+time: budget3 153 s; 3 min of checks in 3 min of the wall
+ok   launch 37 steps: a cache of the commit before, a start that fails, a case of another story, storage full, the page's own keys (stills in /home/runner/work/_temp/check/launch)
+(not kept: no request of launch in the server's log)
+time: launch 375 s; 6 min of checks in 6 min of the wall
+ok   mem    GPU peak 241 MB (28.8 MB under its 270), 289 at the end after a collection heap
+ok   mem    layouts: the walkers 1, the cars 1 (3 at most)
+ok   mem    textures 347 MB at a desktop's title with its pictures in blocks, 182 packed
+ok   mem    a lost context on a phone counts as a death at once, once
+ok   mem    12 steps of a phone's lost context and its next load
+ok   mem    a killed page loads a level lighter next time with the measurements off
+ok   mem    22 steps of a lost context at the story's beats and on the walk, desktop and phone
+ok   order    map: the guide's routes built after the first frame (63.5 s after it)
+ok   bake     map: the bake is what the page computes (it computed it in 2606 ms)
+ok   order    district: the guide's routes built after the first frame (8.4 s after it)
+ok   bake     district: the bake is what the page computes (it computed it in 928 ms)
+time: mem 1272 s; 21 min of checks in 21 min of the wall
+ok   voice  1603 lines the characters say, none about the data or the build
+ok   goals  32 checks: the rules, and 1 live maps' lines played to the last stamp
+ok   pack     the packs up to date
+ok   pack     the packs decode to their JSON
+ok   bake     the set-up's fixed work baked from the packs as they are (BAKE_V 1)
+ok   vis      the sweep hides nothing an exact ray reaches
+ok   0 kept plays' beats within their budgets
+ok   governor a device at its limit settles, gives way and comes back
+ok   guide    the guide goes round a held crowd and keeps in front of a run
+ok   walktalk everyone on the walk talked to in any order says words, and the line's person speaks once up
+ok   rings    the solids valid on their grid
+ok   shibuya: roads over 15 % across 2296 of 367258 m (surveyed 21864), creases over 15 % 507 (surveyed 3272), off a 20 m mean 4.66 cm
+shibuya: road plan ok: 4905 pieces, 17 closed, 362 quiet, 1204 bus streets; ends {'gate': 230, 'dead end': 328, 'closure': 2}
+road widths: 565 pieces carry the surveyed carriageway (41.4 km), 68 single track
+ok   roads    the planned area's ground and every hero level's as the survey has them, every lane inside its kerbs
+bus lines: 51 lines on 308 pieces, each along its one-ways
+road routes: 4 places, every drive between them inside the planned area
+ok   roads    no building stands on a road the survey has: a deck or a bridge over it stands off the ground
+ok   levels   no building stands in a train's way: the Yamanote Line's envelope outside the stations' boxes
+ok   roads    your car's first drive leads on, and every street open to it in the area is one a car can use
+ok slopes: 7946 paved cells steeper than 15% (the budget is 8000)
+ok   float    every landmark stands on something
+ok   signs    no sign or screen behind another landmark
+ok   lobby    nothing stands in a lift's lobby, its hall's posts and belts inside it
+ok   signs    every sign reads the right way round and faces the street
+ok   signs    the vehicles' names read the right way round
+ok   flight   the story's flight clears the buildings
+ok   flight   the story's flight in every frame of its shots, from one side of it and clear of the buildings
+ok: 73 pairs of places in the story of shibuya; 0 inside each other, 2 sharing a ring
+ok   bounds   the planned area's edge as the story's and the walk's places give it
+ok   far crowd: a copy of each of the 20 cast members (crowd_cast.glb)
+ok   meshopt 130 models compressed
+ok   parts    the parts of the shared models up to date
+ok   audio    9 uses of what runs off the audio thread, each where it is allowed
+ok   5 opening scores a phone plays from a file, each up to date
+ok   credits  9 works with their licences, the fonts' OFL, the map's sources, the link's picture and the version
+ok   reach    a pass is kept only where the change cannot reach it
+ok   seams    12 parts, 96 globals, 260 names asked across a seam: each one offered by its part's contract
+ok   people   38 models in use give what the page asks of them: joints, clips, materials, faces, their height and their feet
+ok   vendor   three.js carries its fixes (an ImageBitmap made smaller sent unturned)
+time: static 122 s; 2 min of checks in 2 min of the wall
+ok   story1 frames 1 to 4 played from the title to frame 4's print; played in 506 s
+ok   story1 5 beats within the desktop budget
+time: story1 550 s; 9 min of checks in 9 min of the wall
+ok   story2 frames 5 and 6 played from a case left at frame 5; played in 262 s
+ok   story2 3 beats within the desktop budget
+time: story2 291 s; 5 min of checks in 5 min of the wall
+ok   story3 frame 7 and the last card played from a case left at frame 7; played in 154 s
+ok   story3 2 beats within the desktop budget
+time: story3 179 s; 3 min of checks in 3 min of the wall
+ok   walk   43 beats on a desktop's page, its first part: two ways in, the hour and the sky, out with no story
+time: walk1 303 s; 5 min of checks in 5 min of the wall
+ok   walk   15 beats on a desktop's page, its second part: two ways in, the hour and the sky, out with no story
+time: walk3 1422 s; 24 min of checks in 24 min of the wall
+ok   walk   18 beats on a desktop's page, its third part: two ways in, the hour and the sky, out with no story
+time: walk4 972 s; 16 min of checks in 16 min of the wall
