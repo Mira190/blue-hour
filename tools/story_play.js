@@ -117,7 +117,33 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.PHONE) await p.addInitScript(() => { const M = window.__music = { els: [], offline: 0 }, Au = window.Audio, O = window.OfflineAudioContext;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
-  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; }); // (game.js trunksCheck: a trunk filling the chase view, #233; bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
+  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; });
+  // (whoever of the crowd jumps or leaves the street in view while the finder is up, not under the shutter's flash: a raise
+  // in a living street had a waiter moved out of the view's way in one step and a walker put off the street, #232. Each
+  // frame, the crowd within 20 m and in the frame: drawn more than 0.6 m from where it was drawn the frame before, or gone)
+  await p.addInitScript(() => {
+    const pops = window.__pops = [], was = new Map(); let v = null;
+    const tick = () => {
+      requestAnimationFrame(tick);
+      const g = window.__game, T = window.THREE;
+      if (!g || !T || !g.crowd || !g.story || !g.camera) return;
+      const fd = !!g.story.finder, flash = !!document.querySelector('.game-stage.flash, #g-story-flash.on'), c = g.camera, C = g.crowd;
+      if (!fd) { was.clear(); return; }
+      v = v || new T.Vector3();
+      const now = new Map();
+      for (let i = 0; i < C.active; i++) {
+        const q = C.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y;
+        if (q.line < 0 && !q.pz) { const o = was.get(i); if (o && o.seen && !flash) pops.push({ i, gone: true, m: +o.d.toFixed(1), fi: g.story.state.fi, phase: g.story.state.phase }); continue; }
+        v.set(x, (q.z || 0) + 1, -y); const d = v.distanceTo(c.position); if (d > 20) continue;
+        v.project(c); const seen = v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1.1;
+        const o = was.get(i);
+        if (o && (seen || o.seen) && !flash) { const m = Math.hypot(x - o.x, y - o.y); if (m > 0.6) pops.push({ i, m: +m.toFixed(2), at: +d.toFixed(1), fi: g.story.state.fi, phase: g.story.state.phase }); }
+        now.set(i, { x, y, d, seen });
+      }
+      was.clear(); for (const [k, e] of now) was.set(k, e);
+    };
+    requestAnimationFrame(tick);
+  }); // (game.js trunksCheck: a trunk filling the chase view, #233; bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
@@ -682,6 +708,29 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   // (one light standing in the street at a time: at every beat's still, the story's own and no other; the free game's
   // objective column stood beside it over the Center Gai arch and SHIBUYA SKY's door)
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(MARKWAIT); await snap(`${s.fi + 1}-${name}`);
+    // (the guide beside you in a Stop: once met in the first Stop he walks in every one, ahead of you to whoever is still
+    // moving. Frame 3's Stop was played with no dog anywhere in its stills, issue 157; story.js seek, game.js guideMade)
+    if (s.phase === 'stop' && (s.beat === 'seek' || s.beat === 'talk')) {
+      const G = await p.evaluate(() => { const g = window.__game, st = g.story.state, d = g.guideMade && g.guideMade(); if (!st.dog && st.fi === 0) return null;
+        if (!d) return { made: false, dog: !!st.dog }; let inScene = false; for (let q = d.root; q; q = q.parent) if (q === g.world) inScene = true;
+        return { made: true, dog: !!st.dog, ready: !!d.ready, shown: !!(d.root && d.root.visible), inScene, at: [+(d.x || 0).toFixed(1), +(d.y || 0).toFixed(1)], d: +Math.hypot((d.x || 0) - g.player.x, (d.y || 0) - g.player.y).toFixed(1) }; }).catch(e => ({ err: String(e).slice(0, 120) }));
+      if (G && G.made) {
+        // (and his meshes drawn, not only shown: the draw gate holds a whole model's parts together, web/world.js gate,
+        // issue 241. The draws asked for under his root in two frames drawn whole, and how many the renderer made)
+        // (the frames as they run: under the check's skipped draws three.js still asks for each and the gate still decides; a
+        // frame held for a still never comes, so the reading gives up after 8 s with what it has. drawAll here hung the play)
+        Object.assign(G, await p.evaluate(() => new Promise(done => { const g = window.__game, R = g.renderer, d = g.guideMade(), f = R.renderBufferDirect; let asked = 0, drew = 0;
+          const under = o => { for (let q = o; q; q = q.parent) if (q === d.root) return true; return false; };
+          R.renderBufferDirect = function (cam, sc, geo, mat, obj) { if (!obj || !under(obj)) return f.apply(this, arguments); const n = R.info.render.calls, r = f.apply(this, arguments); asked++; if (R.info.render.calls > n) drew++; return r; };
+          let over = false; const end = () => { if (over) return; over = true; R.renderBufferDirect = f; done({ asked, drew, gate: window.__gate ? Object.assign({}, window.__gate.n) : null }); };
+          setTimeout(end, 8000); requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(end))); })).catch(e => ({ drawErr: String(e).slice(0, 120) })));
+      }
+      if (G) {
+        const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15 && !(G.asked > 0 && !G.drew); // (asked for and none drawn: held by the gate. None asked: out of the frame, which the distance covers)
+        console.log(`${ok ? 'ok  ' : 'FAIL'} ${s.fi + 1}-${name}: the guide ${JSON.stringify(G)}`);
+        if (!ok) errors.push(`${s.fi + 1}-${name}: the guide is not drawn beside you in the Stop (${JSON.stringify(G)})`);
+      }
+    }
     if (s.phase === 'stop' && !seen.has(`heads-${s.fi}`)) { seen.add(`heads-${s.fi}`); // (time held: no head turns by itself; a look laid over a look wound Aoi's head round by the Center Gai arch)
       const hs = await p.evaluate(() => new Promise(r => { const g = window.__game, T = window.THREE, rigs = (g.npcs || []).filter(n => n.rig && n.rig.head && n.rig.root.visible).map(n => [n.id, n.rig]).concat(g.player && g.player.rig && g.player.rig.head ? [['player', g.player.rig]] : []);
         const was = rigs.map(([, q]) => q.head.getWorldQuaternion(new T.Quaternion())), worst = rigs.map(() => 0); let n = 12;
@@ -1389,6 +1438,21 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
     }
     else if (s.phase === 'after') await mark(s, 'after');
+    // (and nobody of the crowd in front of the lens at an after, the finder's picture: frame 7's closing one had a passer-by 2 m in
+    // front of it, a third of the frame, #232. A drawn walker within 5 m along the view and within its width there fails)
+    if (s.phase === 'after' && !seen.has(`lensfront-${s.fi}`) && await p.evaluate(() => !!window.__game.story.finder)) { seen.add(`lensfront-${s.fi}`);
+      const f = await p.evaluate(() => { const g = window.__game, c = g.camera, T = window.THREE, d = c.getWorldDirection(new T.Vector3()), out = [], R = g.crowdDraw && g.crowdDraw();
+        if (R && R.active) for (const [i, r] of R.active) { if (!r.root.visible) continue; const v = r.root.position.clone().add(new T.Vector3(0, 1.2, 0)).sub(c.position), t = v.dot(d), side = v.clone().addScaledVector(d, -t).length();
+          if (t > 0.3 && t < 5 && side < 0.5 + 0.35 * t) out.push(`walker ${i} ${t.toFixed(1)} m ahead, ${side.toFixed(2)} m off the axis`); }
+        return out; });
+      if (f.length) { errors.push(`frame ${s.fi + 1}'s after: someone of the crowd in front of the lens (${f.join('; ')})`); console.log(errors[errors.length - 1]); }
+      else console.log(`frame ${s.fi + 1}'s after: nobody of the crowd within 5 m in front of the lens`);
+    }
+    if (s.phase === 'after' && !seen.has(`pops-${s.fi}`)) { seen.add(`pops-${s.fi}`); // (and nobody seen to jump while the finder was up, to here: #232)
+      const q = await p.evaluate(() => (window.__pops || []).splice(0));
+      if (q.length) { errors.push(`frame ${s.fi + 1}: ${q.length} of the crowd jumped or left the street in view with the finder up (${q.slice(0, 4).map(e => (e.gone ? `walker ${e.i} gone ${e.m} m off` : `walker ${e.i} ${e.m} m at once, ${e.at} m off`) + ` in the ${e.phase}`).join('; ')})`); console.log(errors[errors.length - 1]); }
+      else console.log(`frame ${s.fi + 1}: nobody of the crowd jumped in view with the finder up`);
+    }
     await p.waitForTimeout(500);
   }
   };
@@ -1398,6 +1462,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (+process.env.SPEND && !spent) { errors.push(`frame ${process.env.SPEND}: was to be spent, and was not`); console.log(errors[errors.length - 1]); }
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
+  { const q = await p.evaluate(() => (window.__pops || []).splice(0)); // (and nobody seen to jump with the finder up since the last after's count: the last frame's ends on its after, #232)
+    if (q.length) { errors.push(`${q.length} of the crowd jumped or left the street in view with the finder up (${q.slice(0, 4).map(e => (e.gone ? `walker ${e.i} gone ${e.m} m off` : `walker ${e.i} ${e.m} m at once, ${e.at} m off`) + ` in frame ${e.fi + 1}'s ${e.phase}`).join('; ')})`); console.log(errors[errors.length - 1]); }
+    else console.log('nobody of the crowd jumped in view with the finder up, to the end'); }
   if (done) {
     // under the last card time runs: whoever of tonight's people was on their way as it came up (the old woman, crossing)
     // goes on walking. She stood held in mid-step, and a player who walked on from the card found her so.

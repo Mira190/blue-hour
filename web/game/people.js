@@ -443,7 +443,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // they are a dictionary from the start, one shape however many names come. As plain objects each name was a new
     // shape, and the renderer's begin, which asks lib.tpl for the loaded stand-ins, was thrown out of its optimised code
     // 51 times a minute on a desktop's walk: tools/deopt_survey.js, issue 220)
-    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: Object.create(null), loading: Object.create(null) };
+    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: Object.create(null), loading: Object.create(null), warming: Object.create(null), hurried: Object.create(null) };
     // (lib.setWarm(fn): the game's warm-up, given once its loader has compiled what the first frame shows; lib.warmed
     // resolves with it, for an NPC's character that came before it to wait on: below, ready)
     // (warmLater: the game says it will give one; a page that never does, tools/people_lineup.js, shows them as they come)
@@ -505,6 +505,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // on a phone (quality.js lean) an NPC's pictures go up at LEAN_PX a side: a 1024 one is 5.3 MB of the GPU with its
     // mipmaps, two or three a character and twenty-odd characters a map (130 MB in Tokyo, issue 406), for someone who
     // stands a few hundred pixels tall at most on a phone's canvas. The characters you play keep theirs
+    const WARM_CAP = 20; // (s: the longest a character that has come waits on its warm-up before it is shown, below)
     const QC = window.OEQuality ? OEQuality.city() : null, LEAN_PX = 512 >> ((QC && QC.lighter) ? 1 : 0), lean = !!(QC && QC.lean); // (256 after the map's page died here: quality.js died)
     const smaller = (tpl, only, PX = LEAN_PX) => {
       const jobs = [];
@@ -615,25 +616,42 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // the crowd's cast came between the loader's compile and the title, and the title's first frames linked their
       // programs in a draw, issue 31. Until then the far crowd's copy of each stands in. A main character is wanted by
       // the load itself, and does not wait)
-      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? w0.then(w => Promise.all([w(tpl.scene), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {}) : Promise.resolve(); };
+      // (and shown after WARM_CAP seconds however far the warm-up has come: its pictures go up a frame at a time behind the
+      // crowd's and the levels', and on a slow machine Nagi waited minutes in that queue, never drawn, the walk's check failing
+      // "not drawn ten minutes after setting out". A frame's hitch as the rest go up on its first draw, not someone missing)
+      const warmCap = p => (lib.hurried[name] ? Promise.race([p, new Promise(r => setTimeout(r, WARM_CAP * 1000))]) : p); // (someone named you are near, lib.hurry; the rest wait their turn)
+      lib.warming[name] = tpl; // (lib.hurry: its pictures to the head of the queue, if someone named is waiting on it)
+      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => Promise.all([w(tpl.scene, lib.hurried[name] ? { first: true } : undefined), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {})) : Promise.resolve(); };
       // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not
       // its head's and its hair's at 1024: a phone's canvas is 760 pixels wide and shows that face 300 across at its nearest, in a talk's
       // two-shot, and a texel finer than a pixel is not seen. At 512 a side whatever the phone's level (the cast's go to 256 on the lighter ones): 8 MB of the GPU less: issue 130. ?herotex=full: as they come, to set beside, tools/hero_face_shot.js)
       return (lean && (npc || !/[?&]herotex=full\b/.test(location.search)) ? smaller(tpl, npc ? null : /_head$|_opacity$/, npc ? LEAN_PX : 512) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
-        lib.tpl[name] = tpl;
+        lib.tpl[name] = tpl; delete lib.warming[name];
         if (onMsg) onMsg(name);
         return tpl;
       });
     };
     const clipsOf = sex => lib.loading[`clips:${sex}`] || (lib.loading[`clips:${sex}`] = get(NP.clips[sex].file).then(g => g.animations));
+    // (a load asked for again: one that never answered (a request dropped, a server that went quiet) is fetched afresh,
+    // game.js npcLoad; one that came is kept)
+    // (and fetched as a request of its own: three.js's loader joins a request for a file to one still on its way, and the
+    // second ask waited on the held first)
+    lib.again = Object.create(null); // (one shape however many names, as tpl and loading)
+    lib.forget = name => { if (!lib.tpl[name]) { delete lib.loading[name]; lib.again[name] = (lib.again[name] || 0) + 1; } };
+    const fresh = (name, file) => (lib.again[name] ? `${file}?again=${lib.again[name]}` : file);
+    // (someone named waiting on this character, a person of the story or the walk you meet: its pictures sent at the head of
+    // the upload queue (world.js upload, first), ahead of the crowd's and the levels', from now or as soon as it is warming.
+    // Behind them, Nagi waited minutes to be drawn on a slow machine; she is never drawn as anyone else meanwhile)
+    lib.hurry = name => { if (lib.hurried[name]) return; lib.hurried[name] = true; // (once: asked every half second, it warmed the model again each time and the helicopter's load waited behind it)
+      const t = lib.warming[name]; if (t && lib.warm) lib.warm(t.scene, { first: true }).catch(() => {}); };
     lib.require = name => {
       const h = lib.heroes[name], c = lib.npcs[name];
       if (c) {
-        return lib.loading[name] || (lib.loading[name] = Promise.all([get(c.file), clipsOf(c.sex)]).then(([g, clips]) =>
+        return lib.loading[name] || (lib.loading[name] = Promise.all([get(fresh(name, c.file)), clipsOf(c.sex)]).then(([g, clips]) =>
           ready(name, { scene: g.scene, textured: true, clips, speeds: NP.clips[c.sex].ground_speed, bones: NP.bones || {}, mask: !!c.mask }, true)));
       }
       if (!h) return plain(name);
-      return lib.loading[name] || (lib.loading[name] = get(h.file).then(g =>
+      return lib.loading[name] || (lib.loading[name] = get(fresh(name, h.file)).then(g =>
         ready(name, { scene: g.scene, textured: true, clips: g.animations, speeds: h.ground_speed, bones: H.bones || {} })));
     };
     return lib;

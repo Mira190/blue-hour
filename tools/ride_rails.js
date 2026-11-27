@@ -11,7 +11,7 @@ const { open } = require('./cam_jumps');
 const { railsInPage } = require('./rails_drawn');
 
 // where you stand to order it: on the pavement, round the places the story and the walk take you
-const SPOTS = [[498, -1046], [503.2, -1040.6], [494, -1012], [520, -1030], [372.5, -1042.5], [356, -1030], [385, -1020], [395, -990], [345, -985], [360, -960], [408, -1052], [452, -1018]];
+const SPOTS = process.env.AT ? JSON.parse(process.env.AT) : [[498, -1046], [503.2, -1040.6], [494, -1012], [520, -1030], [372.5, -1042.5], [356, -1030], [385, -1020], [395, -990], [345, -985], [360, -960], [408, -1052], [452, -1018]];
 
 if (require.main === module) (async () => {
   const { b, p } = await open('shibuya', { width: 800, height: 500 });
@@ -40,6 +40,11 @@ if (require.main === module) (async () => {
         if (Math.round(t * 30) % 60 === 0) await new Promise(r => setTimeout(r, 0));
       }
       out.t = +t.toFixed(0); out.phase = o.phase;
+      // (still coming: what holds it, as the ride's check prints a ride's state: its reason, the junction and its light, what
+      // it brakes for, and the head of the queue in front of it)
+      if (o.phase === 'coming') { const d = o.drv.st, a = d.lineAt, bk = d.block; let hd = bk; for (let k = 0; k < 30 && hd && hd.front && (hd.why === 'car' || hd.why === 'held'); k++) hd = hd.front;
+        out.held = { why: d.why, intent: d.intent || '', jn: d.junction || '', sig: a && a.j ? `${a.j.id} arm ${a.i}${a.j.scramble ? ' scr' : ''} ph${a.j.ph}/${a.phase} ${a.j.st} t${(+a.j.t).toFixed(0)}` : '', blk: bk ? `${bk.walker ? 'walker' : 'car'} at ${(+bk.x).toFixed(1)},${(+bk.y).toFixed(1)} v${(+(bk.v || 0)).toFixed(1)} ${bk.why || ''}` : '',
+          head: hd && hd !== bk ? `${(+hd.x).toFixed(1)},${(+hd.y).toFixed(1)} ${hd.why || ''} still ${(+(hd.still || 0)).toFixed(0)} s${hd.lineArm ? ` at ${hd.lineArm.j.id} arm ${hd.lineArm.i}` : ''}` : '' }; }
       const c = o.drv.st, seat = o.C.seats[g.rideSeat(o)], fx = Math.sin(c.h), fy = Math.cos(c.h), l = Math.sign(seat.x || 1) * (o.C.hw + 0.05), f = seat.z;
       const dx = c.x + fx * f - fy * l, dy = c.y + fy * f + fx * l, ox = -fy * Math.sign(l), oy = fx * Math.sign(l);
       out.stop = [+c.x.toFixed(1), +c.y.toFixed(1)];
@@ -50,7 +55,7 @@ if (require.main === module) (async () => {
     }, [x, y, !!process.env.HAIL]);
     const fail = !r.skip && (r.hits.length || r.door.length || r.phase === 'coming');
     if (fail) bad++;
-    console.log(`${fail ? 'FAIL' : r.skip ? 'skip' : 'ok  '} from ${r.at.join(', ')}: ${r.skip || `pick-up ${r.pickup.join(', ')}, ${r.phase} after ${r.t} s, stopped at ${r.stop.join(', ')}${r.hits.length ? `; through a rail ${JSON.stringify(r.hits)}` : ''}${r.door.length ? `; a rail between its door and the pavement at ${JSON.stringify(r.door)} ${JSON.stringify(r.why)}` : ''}`}`);
+    console.log(`${fail ? 'FAIL' : r.skip ? 'skip' : 'ok  '} from ${r.at.join(', ')}: ${r.skip || `pick-up ${r.pickup.join(', ')}, ${r.phase} after ${r.t} s, stopped at ${r.stop.join(', ')}${r.held ? `; held: ${JSON.stringify(r.held)}` : ''}${r.hits.length ? `; through a rail ${JSON.stringify(r.hits)}` : ''}${r.door.length ? `; a rail between its door and the pavement at ${JSON.stringify(r.door)} ${JSON.stringify(r.why)}` : ''}`}`);
   }
   console.log(`rails read: ${await p.evaluate(() => window.__rails.points())} points`);
   await b.close();

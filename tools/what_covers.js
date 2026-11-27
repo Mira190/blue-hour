@@ -24,8 +24,10 @@ const V = JSON.parse(spec), [W, H] = size.split('x').map(Number);
     const g = window.__game;
     g.advance(1); if (g.cine && g.cine.active && g.cine.skip) g.cine.skip(); g.advance(2);
     if (V.time) { const [h, m] = V.time.split(':').map(Number); g.clock.min = h * 60 + m; g.clock.scale = 0; }
-    const [x, y] = V.at, f = g.nav.floorAt(x, y, (V.z ?? 0) + 0.5);
-    Object.assign(g.player, { x, y, z: f ? f.z : V.z, mode: 'foot', speed: 0, vz: 0, ground: true });
+    // (the floor under the point: from the level asked, or from over the ground there: from 0.5 m over the sea's level, a
+    // place 15 m up found none, and the player stood at an undefined height, the sound's mix made from it: not a number)
+    const [x, y] = V.at, f = g.nav.floorAt(x, y, V.z != null ? V.z + 0.5 : Math.max(0, g.nav.terrain(x, y) || 0) + 30);
+    Object.assign(g.player, { x, y, z: f ? f.z : (V.z ?? Math.max(0, g.nav.terrain(x, y) || 0)), mode: 'foot', speed: 0, vz: 0, ground: true });
     if (V.look) g.player.h = Math.atan2(V.look[0] - x, V.look[1] - y);
     Object.assign(g.cam, { mode: 'chase', yaw: g.player.h + (V.yaw || 0), pitch: V.pitch ?? 0.17, dist: V.dist ?? 5.5, distTo: 0, yawTo: null, lastInput: -10 });
     for (let i = 0; i < 20; i++) { g.advance(0.1); await new Promise(r => requestAnimationFrame(r)); }

@@ -3767,8 +3767,17 @@ The rest are once each: a function meeting a new kind of object as the evening g
 the stand-in for a near walker whose own model has not come was picked from a list filtered fresh, an empty one an
 array of another kind. `lib.tpl` and `lib.loading` are now made without a prototype (a dictionary from the start, one
 shape), and the stand-in is picked by counting, the same pick: the walk's minute 98 deopts to 58, `begin` none.
-`unorm8` is the cells' streaming's (#192). `carDepth` and `blocked`, thrown out in the first trace, were not in these
-windows.
+`carDepth` and `blocked`, thrown out in the first trace, were not in these windows.
+
+**`unorm8`: counted, measured, not changed.** Its 44 to 48 a minute are not the cells' streaming but the player's car,
+built once when the cars' library comes (`cars.js` `car()`, 24 parts, each part's colours packed into bytes). Read
+straight from their arrays instead of through `getComponent`, the same bytes (`tools/verts_same.js`, 77,664 bytes of
+the car and of colours on every edge, branch `unorm8-220`), the deopts moved from the range test to the line after the
+loop and stayed 48: the loop runs in code compiled on the stack (OSR) and is thrown out only as it leaves, for the
+few lines after it. The car's build timed in the page, three times each way: 60 to 125 ms on the branch, 60 to 96 on
+main, the packing 1 to 9 ms of it either way; nothing to take. Not landed. **A deopt counted is not a cost**: a
+function thrown out at its loop's exit loses nothing, one thrown out each frame in its body (`sliceAt`, `begin`) runs
+slower every frame. Measure with a switch before changing anything this survey names.
 
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.
@@ -3791,3 +3800,31 @@ Sources: [use-cannon](https://github.com/pmndrs/use-cannon), [@react-three/canno
 [Vercel, cross-origin isolation](https://vercel.com/docs/cdn-security/cross-origin-isolation),
 [web.dev, a guide to cross-origin isolation](https://web.dev/cross-origin-isolation-guide/),
 [Unreal Engine, Mass Gameplay](https://dev.epicgames.com/documentation/unreal-engine/overview-of-mass-gameplay-in-unreal-engine).
+
+## The walk's opening on a phone: levels it only flies past (November 2026)
+
+The owner's iPhone (Safari 27, level 2, parallel compiles on) lost its WebGL context 43 s after setting out on the walk,
+on 26 November 2026, and `glcare.js` reloaded the page. Its `gl_lost`: no frame for 5.1 s before the loss, 16 programs
+linked in the last 10 s, all of them SHIBUYA SKY's roof's and Miyamasu's (`wall_hoard_joint`, `lamp_*`, `metal_*`), and
+14 MB of WebGL memory to spare: not memory, the programs.
+
+The walk's opening flies down over SKY GATE's lobby, Miyamasu and SHIBUYA SKY's roof, and `hero.js` fetched a level round
+the camera: the three were fetched, sent and compiled as the camera passed them (50 ms slices, six programs in flight), and
+one of them, the lobby, stayed held for the rest of the walk. Now, on a phone (`quality.js` lean):
+
+- **The title and the opening's flight fetch a level round the anchors alone** (`hero.update`'s `byCamera`), the player's
+  kerb and the frame's Stop: the levels the player lands in are ready as before, and those it only passes in seconds
+  are drawn by the city's own buildings.
+- **A level's programs are compiled a slice of a frame at a time with one in flight**, wherever it is fetched (in play as
+  well), so a frame's own calls never wait behind a queue of programs.
+
+`tools/flight_cost.js` sets out on the walk as an iPhone and lists the levels fetched in the flight, the programs linked in
+it and the GPU memory (llvmpipe, one device pixel to the point, `DPR=1 xvfb-run -a`):
+
+| | Levels fetched in the flight | Programs linked in the flight | Peak GPU | Held after it |
+|---|---|---|---|---|
+| Before | skylobby, skyroof, miyamasu (at 23 to 24 s of it) | 163 | 242 MB | scramble, ginza, scramblesq, skylobby |
+| After | none | 81 | 233 MB | scramble, ginza, scramblesq |
+
+The Scramble's own level was ready as soon after the flight began as before (51 s here against 55, a software renderer).
+Not measured: a real iPhone, which is the check.
