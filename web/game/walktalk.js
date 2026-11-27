@@ -143,7 +143,15 @@ window.OEWalkTalk = (function () {
         // whoever stands in for him (game.js storyFigure: himself the moment his model comes). Waiting on it alone, a
         // request dropped, the walk's hook never came and the corner went on pointing at her)
         if (ctx.loaded && !ctx.loaded(I.by.character) && (inc.late += hide ? 0 : dt) < (I.model_s || 20)) return;
-        if (inc.ctl < (I.calm_s ?? 25) || (ctx.unseen && ctx.unseen(n))) { inc.t = 0; return; }
+        if (inc.ctl < (I.calm_s ?? 25)) { inc.t = 0; return; }
+        // (out of sight beside you, the view is eased round to her once, as the office's call ends on her (game.js introEnd),
+        // and any turn of the mouse or the stick takes it back; and still kept out of sight for look_s more, he comes all the
+        // same, and what you turn round to is her on the ground. On a phone's narrow frame, a walk taken up again (no call, no
+        // turn to her), she stood five metres off the edge of the picture and it waited for ever: tools/walk_line.js RETURN=1)
+        if (ctx.unseen && ctx.unseen(n)) {
+          if (!inc.looked && ctx.look) { inc.looked = true; ctx.look(n); }
+          if ((inc.away = (inc.away || 0) + dt) < (I.look_s || 30)) { inc.t = 0; return; }
+        }
         if ((inc.t += dt) < (I.after_s || 3)) return;
         inc.ph = 'come'; inc.v = I.by.speed || 1.7; inc.at = inc.ctl;
         if (inc.man) inc.man.walkTo(n.x, n.y, inc.v);

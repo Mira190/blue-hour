@@ -83,17 +83,17 @@ for (let r = 0; r < RUNS; r++) {
 let visits = 0;
 if (line) {
   const I = line.incident, taxi = people.find(s => s.id === 'taxi');
-  for (const [was, how, modelIn] of [['helped', 'helped', true], ['alone', 'alone', true], ['down', 'helped', false], ['helped', 'alone', false]]) {
+  for (const [was, how, modelIn, outOfSight] of [['helped', 'helped', true], ['alone', 'alone', true], ['down', 'helped', false], ['helped', 'alone', false], ['helped', 'helped', true, true]]) {
     for (const k of Object.keys(store)) delete store[k];
     const kept = { [line.id]: { part: 0, met: false, done: false, inc: was } };
     if (taxi) kept[taxi.id] = { part: 1, met: false, done: false };
     store[KEEP] = JSON.stringify(kept);
     const her = npc(line.npc); Object.assign(her, { x: 374, y: -1018, z: 0, h: 0, rig: { root: { visible: true } }, sit: false, fixed: false });
-    let me = { x: 377, y: -1014, z: 0, mode: 'foot' }, hurried = 0;
+    let me = { x: 377, y: -1014, z: 0, mode: 'foot' }, hurried = 0, looked = 0;
     const man = { x: I.by.from[0], y: I.by.from[1], to: null, v: 0, rig: {}, walkTo(x, y, v) { this.to = [x, y]; this.v = v; }, animate(dt) { if (!this.to) return; const dx = this.to[0] - this.x, dy = this.to[1] - this.y, d = Math.hypot(dx, dy), s = this.v * dt; if (d <= s) { this.x = this.to[0]; this.y = this.to[1]; this.to = null; } else { this.x += dx / d * s; this.y += dy / d * s; } }, remove() {} };
-    const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => me, figure: () => man, loaded: () => modelIn, hurry: () => { hurried++; }, thing: () => ({ remove() {} }), shift: (n, x, y, h) => { n.x = x; n.y = y; if (h != null) n.h = h; } }));
+    const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => me, figure: () => man, loaded: () => modelIn, hurry: () => { hurried++; }, look: () => { looked++; }, unseen: () => !!outOfSight, thing: () => ({ remove() {} }), shift: (n, x, y, h) => { n.x = x; n.y = y; if (h != null) n.h = h; } }));
     W.begin();
-    const tag = `returning visit (kept ${was}, ${modelIn ? 'his model in' : 'his model never comes'})`;
+    const tag = `returning visit (kept ${was}, ${modelIn ? 'his model in' : 'his model never comes'}${outOfSight ? ', she kept out of sight' : ''})`;
     if (W.line().ph !== 'wait') { fail(`${tag}: the incident is not played again (${JSON.stringify(W.line())})`); continue; }
     if (!hurried) fail(`${tag}: his pictures are not hurried`);
     if (W.want(line.npc)) fail(`${tag}: before the fall she already has ${W.want(line.npc).kind} to say`);
@@ -104,6 +104,7 @@ if (line) {
     let t = 0;
     for (; t < 400 && W.line().ph !== 'down'; t += 0.1) W.tick(0.1, false);
     if (W.line().ph !== 'down') { fail(`${tag}: after ${t.toFixed(0)} s nobody has walked into her (${JSON.stringify(W.line())})`); continue; }
+    if (outOfSight && looked !== 1) fail(`${tag}: the view was eased round to her ${looked} times, not once`);
     if (W.line().startedAt < (I.calm_s ?? 25)) fail(`${tag}: it began ${W.line().startedAt} s into control`);
     if (!/walked into her/.test(W.errand().text)) fail(`${tag}: she is down and the corner says "${W.errand().text}"`);
     if (how === 'helped') { heard = null; if (!W.help(her)) fail(`${tag}: Help her up did nothing`); }
@@ -122,7 +123,7 @@ if (line) {
   }
 }
 function of(W, s) { return W.state()[s.id] || { part: 0 }; }
-if (line && visits < 4) fail(`returning visits: ${visits} of 4 played through`);
+if (line && visits < 5) fail(`returning visits: ${visits} of 5 played through`);
 else if (line) console.log('returning visits: the incident played again each time, her first words matched it, the fall kept once they were said');
 console.log(`${RUNS} walks of ${STEPS} steps: ${talks} talks heard, the line's person asked ${nagiFirst} times on her feet with her first part unsaid`);
 if (!nagiFirst && line) fail('the line\'s person was never on her feet with her first part unsaid: the check checked nothing');
