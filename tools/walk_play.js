@@ -721,9 +721,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await act();
               await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
               const box = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? document.getElementById('gd-name').textContent : ''; });
-              const words = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? b.textContent : ''; });
+              const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; }); // (typed in: the first word or two)
               const up = await line();
-              if (!/Thank you/.test(words)) fail(`helped up, her first words are not her thanks for it ("${words.slice(0, 120)}")`);
+              if (!/^Thank/.test(words)) fail(`helped up, her first words are not her thanks for it ("${words.slice(0, 120)}")`);
               if (!/Nagi/.test(box) || up.at[2] !== 'up') fail(`helped up, she is not on her feet and speaking ("${box}", ${JSON.stringify(up)})`);
               else ok('Help her up: she is on her feet, and speaks');
               await shot('4a-helped');
