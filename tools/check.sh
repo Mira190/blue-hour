@@ -234,11 +234,12 @@ else
       tools/reverb_check.js|tools/phone_audio.js|tools/audio_graph_check.js|tools/audio_shed_check.js|tools/snd_probe_check.js|tools/snd_guard_check.js|tools/opening_audio.js|tools/tune_levels.js|tools/el_stall_check.js|tools/score_files.js|web/assets/story/late/cue-phone.mp3|web/assets/story/late/scores.json|web/assets/story/late/score-*.mp3|tools/sound_places.js|tools/audio_thread_check.py) static=1; add audio ;;
       web/game/audio.js|web/game/music.js|web/game/overture.js|web/film-score.js|web/game/trains.js|web/game/walkcalls.js) static=1; page; add audio ;;   # (the sound)
       web/game/cars.js|web/game/actors.js) static=1; page; add ride roads walk2 ;;   # (the drivers, the cars, the crowd; and where the traffic is made and goes)
+      web/game/nav.js) static=1; page; add guide ride ;;   # (the walkers' world, and the rails a car is held out of: nav.pushFence)
       # (and the phone's walk for the crowd: there it found what the desktop's did not, a walker pacing on line 2334, #236,
       # and a head in a neighbour's canopy, #238, and a fix to the crowd on the fast tier was not played against it)
       web/game/game.js) static=1; page; add ride ;;
       web/game/junctions.js|web/game/trips.js|web/game/rides.js|web/game/pilot.js|web/game/autopilot.js|cities/$MAP/road_plan.json|cities/$MAP/road_measured.json|cities/$MAP/roads_osm.json|pipeline/road_plan.py|cities/$MAP/rail.py|cities/$MAP/road_surface.json|cities/$MAP/bus_lines.json|pipeline/road_width.py|pipeline/road_survey.py|pipeline/bus_lines.py|pipeline/road_routes.py) static=1; [ "${f#web}" != "$f" ] && page; add roads ;;   # (the road plan and what drives by it)
-      web/game/companion.js|web/game/route.js|web/game/nav.js|web/game/story.js|tools/guide_way.js|tools/guide_own.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
+      web/game/companion.js|web/game/route.js|web/game/story.js|tools/guide_way.js|tools/guide_own.js|tools/guide_body.js|web/assets/animals/*) static=1; [ "${f#tools}" = "$f" ] && page; add guide; [ "$f" = web/game/story.js ] && add launch ;;   # (the guide, the ways, the marks; the story's save)
       # The people's models, their clips and their index, behind their contract (contracts/people.json, held by
       # tools/people_contract.py with the static checks): a model or a whole set replaced by one that gives what the page
       # asks of it is loaded, looked at and weighed, and the story is not played, whatever its nodes are called
@@ -511,6 +512,9 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
   # rails, bollards and posts as drawn: none drives through one or stops behind one, issue 208's second half)
   if timeout 900 $X node tools/ride_rails.js >"$OUT/ride-rails.log" 2>&1; then echo "ok   ride   $(grep -c '^ok' "$OUT/ride-rails.log") rides ordered round the Scramble pulled in clear of the drawn rails"
   else echo "FAIL ride   $(grep '^FAIL\|pageerror' "$OUT/ride-rails.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride-rails.log)"; fi
+  # (and your own car driven at the hero levels' guard rails, every other 3 m of them: it stops at each, as at a wall)
+  if timeout 1200 $X node tools/car_rail.js scramble,miyamasu 2 >"$OUT/car-rail.log" 2>&1; then echo "$(grep '^ok' "$OUT/car-rail.log" | sed 's/^ok   car_rail:/ok   ride  /')"
+  else echo "FAIL ride   $(grep '^FAIL\|pageerror\|Error' "$OUT/car-rail.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/car-rail.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are

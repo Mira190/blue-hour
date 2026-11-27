@@ -806,7 +806,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // frame 5's foot of Scramble Square and frame 6's kerb under the station's deck (the Scramble's own were solid only as
   // far as its landmark lays them, 62 m from the junction). Each FC m cell a rail's body crosses, 0.1 m over the ground
   // under it to its top, is a box, a row of cells one box, in nav's walkers' own world (addFences): what nav.slide
-  // stops you at, the guide's step and his planner's stand too (nav.walk), and no car, lens or sound. Made once, as the
+  // stops you at, the guide's step and his planner's stand too (nav.walk), and the body of a car driven at one (cars.js
+  // collide, nav.pushFence); no lens, sound or search for a kerb. Made once, as the
   // level first comes; tools/rail_walk.js walks into them
   const FC = 0.25;
   function heroFence(h, root) {
