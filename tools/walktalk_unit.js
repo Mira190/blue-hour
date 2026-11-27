@@ -122,6 +122,23 @@ if (line) {
     visits++;
   }
 }
+// The corner's rule (the owner, 27 November 2026: "if I come in right next to Nagi, shouldn't the corner be Nagi's?"):
+// a story begun stays the corner's, whoever is near; with none begun it leads to the one story there is to begin (each
+// later story's first words name the one before: "Mr Oda sent you?", so the next is never a choice); the walk's line's
+// incident takes it while it is to come and while she is down. Nearness shows on the marks, never on the corner.
+if (line) {
+  const mei = people.find(s => s.id === 'hachiko'), taxi = people.find(s => s.id === 'taxi');
+  const corner = (kept, at) => { for (const k of Object.keys(store)) delete store[k]; store[KEEP] = JSON.stringify(kept); const n = npc(line.npc); Object.assign(n, { x: 374, y: -1018, rig: { root: { visible: true } }, sit: false }); const man = { x: 371, y: -1020, rig: {}, walkTo() {}, animate() {}, remove() {} }; const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => at, figure: () => man, loaded: () => true, look() {}, hurry() {}, unseen: () => false })); W.begin(); return W; };
+  const told = s => ({ part: s.parts.length, met: false, done: true, inc: 'helped', rested: true });
+  let W = corner({}, { x: 377, y: -1014, z: 0, mode: 'foot' });
+  if ((W.errand() || {}).text !== line.incident.lead) fail(`nothing begun, beside her: the corner says "${(W.errand() || {}).text}", not the incident's lead`);
+  if (mei) { W = corner({ [line.id]: told(line) }, { x: 377, y: -1014, z: 0, mode: 'foot' }); if (!/^mei has something/i.test((W.errand() || {}).text)) fail(`her story told, nothing else begun: the corner says "${(W.errand() || {}).text}", not Mei's`); }
+  if (mei && taxi) {
+    W = corner({ [line.id]: told(line), [mei.id]: told(mei), [taxi.id]: { part: 1, met: false, done: false } }, { x: 374, y: -1016, z: 0, mode: 'foot' });
+    if ((W.errand() || {}).text !== taxi.parts[0].then.goal) fail(`Oda's story begun, beside Nagi: the corner says "${(W.errand() || {}).text}", not Oda's goal`);
+    const w = W.want(line.npc); if (!w || w.kind !== 'chat') fail(`Oda's story begun, Nagi told: she has ${w ? w.kind : 'nothing'} to say, not a word in passing (her pale mark)`);
+  }
+}
 function of(W, s) { return W.state()[s.id] || { part: 0 }; }
 if (line && visits < 5) fail(`returning visits: ${visits} of 5 played through`);
 else if (line) console.log('returning visits: the incident played again each time, her first words matched it, the fall kept once they were said');

@@ -2447,6 +2447,17 @@ plays it again. Read as a player meets it, the numbers from `walktalk.js` and `g
 | Taro, *Above the crossing* | Yuna's told | Fly the helicopter over the crossing, 60 m over it and within 80 m, and photograph it; back to him on the roof | Part, met | Where it was |
 | Street moments | 75 to 120 s on foot after the walk's start, then 120 to 200 s after each; not while the walk's line has the street (the incident to come, her down, her story under way, the wait, the gate) | Someone 30 to 110 m off and out of sight asks a photograph or the way; unanswered for 150 s, or left 160 m (asked, 70 m) behind, they go unseen | Nothing | Begun afresh |
 
+*The corner's rule*, as an open world keeps a tracked quest against the encounters round it (the owner asked whether
+coming in beside Nagi should make the corner hers): a story begun stays the corner's line, and nearness never takes it
+away; the people near you show on their marks instead (amber for a story's next part, pale for a word in passing). The
+walk's line's incident takes the corner while it is to come (its lead) and while she is down (what he did), then hands
+it back to her first words and the story begun before. With nothing begun the corner leads to the one story there is
+to begin, not to the nearest giver: each later story opens on the one before it (*Mr Oda sent you?*, *Shun sent you?*,
+*Yuna rang up*), so the line has one next person, as it has one thing to do. A nearest-giver rule would have Shun
+thank you for an errand you never ran. The office's call at the first visit turns the view to that same person, who is
+the woman at the kerb a few steps behind you. `tools/walktalk_unit.js` holds the three cases: nothing begun beside her
+(the incident's lead), her story told and nothing begun (Mei's), Oda's begun beside her (Oda's goal, her pale mark).
+
 The holes found and closed in this pass: her first words about a fall the visit never saw (the fall kept too early);
 the incident waiting for ever with her out of the picture (a phone's narrow frame on a walk taken up again, with no call to turn the view to her: never in 15 minutes), and on the man's model (his pictures now go first, and he comes as his stand-in after 20 s);
 two things at once while the incident waited (Mei's amber mark and her call-out beside the corner's lead to Nagi);
