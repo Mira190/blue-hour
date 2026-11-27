@@ -3577,6 +3577,17 @@ of the guide's film 529 to 90 ms, of his sitting 477 to 77, of the step back int
 598 to 53; the warm-up's links moved before it (frame 1's order). The film waits for the guide to be drawable (`d.ready`,
 up to 8 s, else the Stop goes on without it: issue 237).
 
+A level the Stop sees, fetched in it (frame 3, November 2026). Frame 3's police box is 131 m from SKY GATE's lobby, whose
+level (`load_m` 140) was fetched only once the camera reached the box: on a phone's tier its 21 programs linked in the Stop's
+still. The level a frame's Stop will see is now fetched from the frame's start, round its `stop_at` or afterimage
+(`game.js stopAnchor`, passed to `hero.update` as an anchor beside the camera), and a hero level's compile waits while the
+world is stopped (`stopHeld`: sliced, held a frame at a time, not behind the way in's veil, which itself waits for a level
+the frame's Stop is fetching). A story taken up at a frame whose Stop comes at once gets the level after its Stop, not in
+it. Not the next frame's spot as well: Miyamasu's level, kept to frame 4 (`load_m` 60), was then drawn in frame 3's Stop.
+On a phone's tier (llvmpipe, frames 1 to 4 from the title): programs linked in the Stops' beats 21 to 0 (frame 3); on a
+desktop's page none in frames 1 and 3 to 7, and 15 in frame 2's `shown` (the crowd's and the cast's bodies, below).
+`story_play.js BIGUP=1` also prints each hero level's ready line with its steps.
+
 What is left, on the medium tier (a desktop's page on llvmpipe, whose frames there are 7 to 10 s): the late crowd's and
 the helicopter's programs and shadow variants are compiled in the Stop's seek because they arrive in it; the afterimages'
 faded variants at its still. A real device's late models come minutes earlier. Not measured: a real GPU, Safari, an iPhone.
@@ -3722,6 +3733,42 @@ path, the old checks gave exactly that position and pace every time. The neighbo
 2.4 m on the square before `Math.hypot`. Measured in one page with `tools/crowd_cost.js` `AB=` (the change under a
 switch, taken out before it landed): phone frame 1, the crowd's update 3.28 to 2.94 ms a call (−0.32 ± 0.09); phone
 frame 7 −0.15 ± 0.21; desktop frame 1 +0.30 ± 0.37 (no change measured: its plazas' crowd moves more).
+
+**The arms' clearance, optimised again** (25 November, #130's item 1). Switched off in blocks (`tools/crowd_cost.js`
+`AB=` on a temporary switch), `people.js` `armsClear` was 4.5 to 4.9 ms of a desktop's crowd update (some 30 near
+people, 1,060 points asked, 4,000 slice frames read and 345 made a call), not the 8 its profile said: on this machine
+the sampler is starved and books its long gaps to whatever runs. Timed in the page, a slice's frame cost 3.8 µs to
+make, and V8's trace (`--trace-opt --trace-deopt`) said why: `sliceAt` was thrown out of its optimised code 35 times in
+a minute, "wrong map", and ran unoptimised. A new `THREE.Matrix4`'s sixteen numbers are small integers; the first
+fraction written into them changes the array's kind, and every rig loaded as the crowd moved past brought new ones.
+The slices' and the bones' matrices now hold doubles from the start (`Float64Array`, the same numbers): no deopt of
+`sliceAt` in the same minute, a slice's frame 1.1 µs, and the arms' clearance a desktop's 2.9 ± 0.6 ms a call (from 4.5
+to 4.9) and a phone's 0.69 ± 0.09 (from 0.84). Its look is the same: the near crowd's arms over twenty seconds, 828
+readings, none deeper than 2 cm in its own body, the deepest 1.2 cm (main the same run: 858 readings, the deepest 2.3
+cm); stills of the crowd at the kerb before and after show nothing changed. The same trace names other functions of
+the crowd thrown out of their optimised code while it plays (`actors.js` `carDepth`, `blocked`): next to look at.
+
+**Functions thrown out of their optimised code while the player plays** (25 November). `tools/deopt_survey.js` reads
+V8's own trace (`--trace-deopt-verbose`) over a minute of play after the page has settled, and counts every deopt by
+function, place and reason (the loops' on-stack exits left out). A function thrown out again and again runs unoptimised
+in between, as `sliceAt` did. On main at 0e6c3fa9, a session's machine:
+
+| a minute of | deopts | the repeated ones |
+|---|---|---|
+| desktop, frame 1 | 213 | `verts.js` `unorm8` 48 (packing a streamed cell's colours: insufficient feedback at its range test), `trees.js` `sort` 15 |
+| phone, frame 1 | 290 | `unorm8` 44, `junctions.js` `update` and `light` 2 to 5 each, `actors.js` `twin`, `twinOf`, `slotAt` 2 each |
+| desktop, frame 7 | 198 | `unorm8` 48, `unorm16` 5, `people.js` `begin` 7 |
+| phone, frame 7 | 117 | none more than 3 |
+| desktop, the walk | 98 | **`people.js` `begin` 57** (the renderer's, every frame) |
+| phone, the walk | 26 | `game.js` `crowdKeep` 3 |
+
+The rest are once each: a function meeting a new kind of object as the evening goes on, which costs one recompile.
+`begin`'s were two: `lib.tpl`, the loaded cast by name, grew one name at a time and each name was a new shape of it; and
+the stand-in for a near walker whose own model has not come was picked from a list filtered fresh, an empty one an
+array of another kind. `lib.tpl` and `lib.loading` are now made without a prototype (a dictionary from the start, one
+shape), and the stand-in is picked by counting, the same pick: the walk's minute 98 deopts to 58, `begin` none.
+`unorm8` is the cells' streaming's (#192). `carDepth` and `blocked`, thrown out in the first trace, were not in these
+windows.
 
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.

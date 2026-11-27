@@ -1159,8 +1159,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const lx0 = lensAt.x, ly0 = lensAt.y;
       if (!player || !R.lens || !R.lens(lensAt)) return;
       const dx = lensAt.x - player.x, dy = lensAt.y - player.y, d = Math.hypot(dx, dy), up = lensAt.z - (player.z || 0), fl = Math.hypot(lensAt.fx, lensAt.fy);
-      if (d < 0.8 || d > 9 || up > 4.5 || up < -1 || fl < 0.2) return; // (on foot, behind the player: not a view from the air, through someone's eyes, or a car's)
-      lensSeg.ax = lensAt.x; lensSeg.ay = lensAt.y; lensSeg.bx = lensAt.x + lensAt.fx / fl * 1.5; lensSeg.by = lensAt.y + lensAt.fy / fl * 1.5;
+      // (the story's finder raised at the eye, game.js crowd.finder: the way it looks, from half a metre to 5 m out, given
+      // room as the lens behind you is, eased: a raise in a living street had someone moved aside in one step, issue 232)
+      const fd = !!api.finder && fl >= 0.2 && d < 0.8 && up > 0.5 && up < 2.2;
+      if (!fd && (d < 0.8 || d > 9 || up > 4.5 || up < -1 || fl < 0.2)) return; // (on foot, behind the player: not a view from the air, through someone's eyes, or a car's)
+      const a0 = fd ? 0.5 : 0, a1 = fd ? 5 : 1.5;
+      lensSeg.ax = lensAt.x + lensAt.fx / fl * a0; lensSeg.ay = lensAt.y + lensAt.fy / fl * a0; lensSeg.bx = lensAt.x + lensAt.fx / fl * a1; lensSeg.by = lensAt.y + lensAt.fy / fl * a1;
       lensSeg.still = dt > 0 && Math.hypot(lensAt.x - lx0, lensAt.y - ly0) < 0.5 * dt ? Math.min(1, lensSeg.still + dt) : 0;
       LN = lensSeg;
     }
@@ -1891,6 +1895,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return false;
     }
+    // how far a scramble's walker feels its neighbours (m): the spacing, an umbrella's room and the step to the left all
+    // within it; PZ_REACH2 its square, a hair over, for the quick reject before Math.hypot (issue 220)
+    const PZ_REACH = 2.4, PZ_REACH2 = PZ_REACH * PZ_REACH + 0.01;
     function plazaStep(i, q, dt, player) {
       const pz = q.pz, g = q.g;
       // (inside the player or one of those not of the crowd, put down there: out at once, to shoulders brushing)
@@ -2004,9 +2011,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         for (let k = head[bucket(c0 + a, r0 + b)]; k >= 0; k = chain[k]) {
           if (k === i) continue;
           const o = P[k], ex = q.x - o.x, ey = q.y - o.y, e2 = ex * ex + ey * ey;
-          if (e2 > 5.77) continue; // (past 2.4 m on the square first: most of the 9 m square of cells asked is)
+          if (e2 > PZ_REACH2) continue; // (past PZ_REACH on the square first: most of the 9 m square of cells asked is)
           const e = Math.hypot(ex, ey);
-          if (e > 2.4 || e < 1e-4) continue;
+          if (e > PZ_REACH || e < 1e-4) continue; // (every force below, an umbrella's room among them, reaches no farther)
           const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
           if (q.umbR > 0 || o.umbR > 0) { // (of one group too, one under an umbrella and one without: the head's room as for a stranger; #1120 stood 0.42 m from #833 with a head 0.04 m in, issue 238) // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
@@ -3583,6 +3590,9 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     function first(c, o, d, d2, ic, io) {
       const cs = (c.v || 0) * (c.v || 0) / 8 > d + 0.3, os = (o.v || 0) * (o.v || 0) / 8 > d2 + 0.3; // (braking at 4 m/s²)
       if (cs !== os) return cs;
+      // (in one junction's box, at a signalled one in the same turn: a turn across the oncoming traffic gives way to it,
+      // whoever went in first, junctions.js yields; one that can no longer stop went first, above, #224)
+      if (c.mv && o.mv && c.mv.j === o.mv.j && c.mv.j.sig && c.mv.e && o.mv.e && !!c.mv.e.across !== !!o.mv.e.across && c.mv.a.phase === o.mv.a.phase) return !c.mv.e.across;
       if (c.mv && o.mv && c.mv.j === o.mv.j) return c.mvT < o.mvT || (c.mvT === o.mvT && ic < io);
       if (c.mv && !o.mv && o.toLine > 0) return true;
       if (!c.mv && o.mv && c.toLine > 0) return false;
@@ -3610,7 +3620,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // leaves the traffic and comes back elsewhere, as does one asked a second time
     api.unjam = (c, hard) => { // (hard: asked before, and it stands there yet)
       if (!c || c.line < 0 || c.park || !C.includes(c)) return '';
-      if (!hard && reverse(c)) return 'backs out';
+      if (!hard && reverse(c, 'unjam')) return 'backs out';
       respawn(c, centreAt[0], centreAt[1], radius * 0.6);
       return 'gone';
     };
@@ -3705,8 +3715,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return false;
     }
-    function reverse(c) {
+    // (revLog: the last backings out begun, what asked each and how the car stood then: tools/road_drive.js TRACE, #198)
+    const revLog = [], postLog = [];
+    let postQ = null;
+    function reverse(c, tag = '') {
       if (!canReverse(c)) return false;
+      { const f = c.front; revLog.push({ t: +tick, i: C.indexOf(c), tag, line: c.line, why: c.why, q: !!c.q, stuck: +(c.stuck || 0).toFixed(1), front: f ? { i: C.indexOf(f), why: f.why, q: !!f.q, line: f.line, rev: !!f.rev } : null }); if (revLog.length > 60) revLog.shift(); }
       JN.forget(c);
       c.rev = { v: 0, d: 0, wait: 0 }; c.nx = undefined; c.plan = c.ex = c.ex2 = c.exA = null; c.stuck = 0; c.q = false;
       revs++;
@@ -3774,7 +3788,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // behind three cars backing out towards it, one after another, in Fushimi Inari)
         if (bk && !bk.rev && bk.stuck === undefined && R.wait > 1) { c.revBan = 60; c.revEnd = 'a ride or your car behind it'; c.rev = null; }
         // the car behind, stopped on this street and going its way: it backs out first
-        else if (bk && bk.line === c.line && bk.dir === c.dir && !bk.rev && bk.v < 0.5 && (c.s - bk.s) * c.dir > 0) reverse(bk);
+        else if (bk && bk.line === c.line && bk.dir === c.dir && !bk.rev && bk.v < 0.5 && (c.s - bk.s) * c.dir > 0) reverse(bk, 'behind');
         // (one stopped across its way back, at the junction behind or on the piece beyond: after 3 s it is asked to back off
         // a metre or two, as one of two of the traffic is; else the car gave up after 20 s, held by one waiting at a line
         // there that could have made it room, Fushimi Inari's piece 99)
@@ -4306,6 +4320,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // crossed the corner of a turn, and a car braked to a stop in the junction for the walk-signal post
         // on that corner, which its way never comes near, and the cars behind it ran into it; Roppongi,
         // tools/clip_check.js. With no way ahead, straight on as before)
+        postQ = null;
         if (posts) posts.near(c.x + fx * reach / 2, c.y + fy * reach / 2, reach / 2 + 1, q => {
           if (Math.abs(q.z - c.z) >= LEVEL) return;
           const dx = q.x - c.x, dy = q.y - c.y, a = dx * fx + dy * fy, r = c.hw + q.r + 0.1;
@@ -4316,8 +4331,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
             for (let k = 0; k < np; k++) { const ex = P[2 * k] - q.x, ey = P[2 * k + 1] - q.y; if (ex * ex + ey * ey < r2) { g = k * step - q.r; break; } }
             if (g === Infinity && a + q.r >= c.half && a <= c.half + step && Math.abs(-dx * fy + dy * fx) < r) g = a - q.r - c.half; // (between its bumper and the first point)
           } else if (a + q.r >= c.half && a <= reach && Math.abs(-dx * fy + dy * fx) < r) g = a - q.r - c.half;
-          if (g < gap && !(c.postPass > 0)) { gap = g; byCar = true; front = null; why = 'post'; }
+          if (g < gap && !(c.postPass > 0)) { gap = g; byCar = true; front = null; why = 'post'; postQ = q; }
         });
+        // (postLog: the last cars stood a second for a post, where and for what: tools/junction_flow.js, #224)
+        if (why === 'post' && c.v < 0.3 && (c.postT || 0) < 1 && (c.postT || 0) + dt >= 1 && postQ) { postLog.push({ i, x: +c.x.toFixed(1), y: +c.y.toFixed(1), line: c.line, mv: c.mv ? `${c.mv.j.id} ${c.mv.a.i}>${c.mv.e.m.i}` : '', kind: postQ.kind, at: [+postQ.x.toFixed(1), +postQ.y.toFixed(1)], r: postQ.r }); if (postLog.length > 80) postLog.shift(); }
         // (stopped for one more than 10 s, a post its way runs into in a junction, say: it edges past it, #144)
         c.postT = why === 'post' && c.v < 0.3 ? (c.postT || 0) + dt : 0;
         if (c.postT > 10 && !inView(c)) { c.postT = 0; respawn(c, cx, cy, radius * 0.6); continue; } // (out of view: it leaves the traffic rather than drive through it)
@@ -4642,7 +4659,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // a car in 90's box waiting to cross into 91 behind one held at 90's light, #355. It backs out if it can, else it
         // leaves the traffic, in sight or not)
         c.boxHold = c.mv && c.v < 0.1 ? (c.boxHold || 0) + dt : 0;
-        if (c.boxHold > 90) { c.boxHold = 0; if (!reverse(c)) { respawn(c, cx, cy, radius * 0.6); continue; } }
+        if (c.boxHold > 90) { c.boxHold = 0; if (!reverse(c, 'box')) { respawn(c, cx, cy, radius * 0.6); continue; } }
         c.q = atLine || (why === 'person' && walker >= 0 && c.v < 0.5 && lineGap < gap + 4) || (byCar && c.v < 0.5 && (front != null ? !!front.q && !(front.line === c.line && front.dir !== c.dir) : why === 'you' && youQ)); // (not behind one coming the other way, queued at its own line: a wait on that is a narrow street's, turned round in the end, #283) // queueing at a junction (behind a car, or a ride, queueing there; or held by the crowd crossing at its line, not by you, who may stand there for good)
         // counted at its arm for the signals' max-pressure (junctions.js): queued, and whether the head of the queue waits for room beyond
         if (c.q && c.lineArm && c.lineArm.j.sig && c.toLine < 80) { const a = c.lineArm; a.qn1 = (a.qn1 || 0) + 1; if (why === 'room' && c.toLine - c.half < 3) a.full1 = true; if (why === 'cross' && c.toLine - c.half < 3) a.lost1 = true; }
@@ -4702,7 +4719,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           // and cost ten seconds more nose to nose: Shibuya's car 136 stood 31 s at the mouth of piece 1988 for car 182, which
           // waited on it in turn, #454)
           const room = c.dir > 0 ? c.s : l.len - c.s, gained = c.narrowRevS == null || Math.abs(c.s - c.narrowRevS) >= 1;
-          if (!away && room > 2 && gained && reverse(c)) { c.narrowRevS = c.s; reverseStep(c, i, dt, cx, cy); continue; }
+          if (!away && room > 2 && gained && reverse(c, 'narrow')) { c.narrowRevS = c.s; reverseStep(c, i, dt, cx, cy); continue; }
           // (over 90 m off, on its second try, it comes back elsewhere, as a car stuck on a one-way street does there: in sight
           // that far off, it neither backed out nor, out of view, came back elsewhere, and stood 114 s nose to nose at the
           // mouth of Higashiyama's piece 126)
@@ -4716,7 +4733,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           // counted from nothing, round and round; Shibuya's car 101 stood 73 s at the start of piece 1709 so, while car 84,
           // facing it, could have backed out all along, #454)
           const o = (c.narrowTries > 1 || room <= 2) && front && front.line === c.line && front.dir !== c.dir && !front.rev && front.v < 0.3 ? front : null;
-          if (o && reverse(o)) { c.narrowTries = 0; /* it backs out of the way */ }
+          if (o && reverse(o, 'facing')) { c.narrowTries = 0; /* it backs out of the way */ }
           // (the third time, with neither able to back out and no room to turn round in: it comes back elsewhere, in view
           // too. Shibuya's car 84 stood 60 s nose to nose with car 93 on piece 1709, 4 m apart, neither with a way back:
           // 93 not asked again for a minute after it gave up backing out, 84 turned round every 6 s into 93 and held so)
@@ -4725,10 +4742,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         }
         if (c.stuck > (tangled > 0 ? 2 : why === 'narrow' ? 10 : STUCK)) { // a jam that won't clear: turn round, or out of sight on a one-way street, come back elsewhere
           c.stuck = 0;
-          if (!l.ow && !away && why !== 'you' && (why === 'narrow' || c.narrowF > 0.2) && reverse(c)) { reverseStep(c, i, dt, cx, cy); continue; } // (a street with no room to turn round in: backed out to the junction behind, as on a one-way street)
+          if (!l.ow && !away && why !== 'you' && (why === 'narrow' || c.narrowF > 0.2) && reverse(c, 'stuck-narrow')) { reverseStep(c, i, dt, cx, cy); continue; } // (a street with no room to turn round in: backed out to the junction behind, as on a one-way street)
           if (!l.ow) dir = -dir;
           else if (away) { respawn(c, cx, cy, radius * 0.6); continue; }
-          else if (why !== 'you' && reverse(c)) { reverseStep(c, i, dt, cx, cy); continue; } // (in sight on a one-way street: back out to the junction behind, #283; not one held by a ride, or you, which will move on: backing out, it went into a ride's own way back, Sydney)
+          else if (why !== 'you' && reverse(c, 'stuck-oneway')) { reverseStep(c, i, dt, cx, cy); continue; } // (in sight on a one-way street: back out to the junction behind, #283; not one held by a ride, or you, which will move on: backing out, it went into a ride's own way back, Sydney)
         }
         if (s < 0 || s > l.len) {
           if (dir === c.dir && c.nx) { line = nl; dir = nd; s = nd > 0 ? 0 : net.L[line].len; }
@@ -5018,7 +5035,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       }
       return added;
     }
-    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
+    return Object.assign(api, { update, review, take, footprint, reverse, canReverse, upgrade, revLog, postLog, stats: () => Object.assign(JN.stats(), { revs, redRuns, redLog, laneChanges, outOfRing, squeezes, conflicts: JN.conflicts() }) });
   }
 
   // ------------------------------------------------------------ text sprites (names, markers)

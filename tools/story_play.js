@@ -75,7 +75,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const errors = [];
   p.on('pageerror', e => { errors.push(String(e)); console.log('pageerror:', String(e).slice(0, 300), (e.stack || '').split('\n').slice(1, 3).join(' | ').slice(0, 300)); });
   p.on('response', r => { if (r.status() >= 400) console.log('http', r.status(), r.url()); });
-  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:')) console.log(t.slice(0, 600)); });
+  if (process.env.BIGUP) p.on('console', m => { const t = m.text(); if (t.startsWith('bigup:') || /^hero \w+: /.test(t)) console.log(t.slice(0, 600)); }); // (and each hero level made ready, with its steps' times: hero.js)
   fs.mkdirSync(out, { recursive: true });
   // FPS=1: the page's frames a second beat by beat (issues 8 and 206), counted in the page from its animation frames
   // and named as the telemetry names a beat ("frame 3: stop seek"): for each, the frames, the median and the 95th
@@ -117,7 +117,33 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (process.env.PHONE) await p.addInitScript(() => { const M = window.__music = { els: [], offline: 0 }, Au = window.Audio, O = window.OfflineAudioContext;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
-  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; }); // (game.js trunksCheck: a trunk filling the chase view, #233; bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
+  await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; });
+  // (whoever of the crowd jumps or leaves the street in view while the finder is up, not under the shutter's flash: a raise
+  // in a living street had a waiter moved out of the view's way in one step and a walker put off the street, #232. Each
+  // frame, the crowd within 20 m and in the frame: drawn more than 0.6 m from where it was drawn the frame before, or gone)
+  await p.addInitScript(() => {
+    const pops = window.__pops = [], was = new Map(); let v = null;
+    const tick = () => {
+      requestAnimationFrame(tick);
+      const g = window.__game, T = window.THREE;
+      if (!g || !T || !g.crowd || !g.story || !g.camera) return;
+      const fd = !!g.story.finder, flash = !!document.querySelector('.game-stage.flash, #g-story-flash.on'), c = g.camera, C = g.crowd;
+      if (!fd) { was.clear(); return; }
+      v = v || new T.Vector3();
+      const now = new Map();
+      for (let i = 0; i < C.active; i++) {
+        const q = C.P[i], x = q.rx ?? q.x, y = q.ry ?? q.y;
+        if (q.line < 0 && !q.pz) { const o = was.get(i); if (o && o.seen && !flash) pops.push({ i, gone: true, m: +o.d.toFixed(1), fi: g.story.state.fi, phase: g.story.state.phase }); continue; }
+        v.set(x, (q.z || 0) + 1, -y); const d = v.distanceTo(c.position); if (d > 20) continue;
+        v.project(c); const seen = v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1.1;
+        const o = was.get(i);
+        if (o && (seen || o.seen) && !flash) { const m = Math.hypot(x - o.x, y - o.y); if (m > 0.6) pops.push({ i, m: +m.toFixed(2), at: +d.toFixed(1), fi: g.story.state.fi, phase: g.story.state.phase }); }
+        now.set(i, { x, y, d, seen });
+      }
+      was.clear(); for (const [k, e] of now) was.set(k, e);
+    };
+    requestAnimationFrame(tick);
+  }); // (game.js trunksCheck: a trunk filling the chase view, #233; bodiesCheck and bodiesGuard: the crowd inside someone not of it, issue 65)
   await pacing.install(p); // (nobody of the crowd walks to and fro: tools/pacing_watch.js, issue 168)
   await ceilWatch.install(p);
   await clipProbe.install(p); // (every body against every other, its own limbs, the floor and the things of the place: tools/clip_probe.js, issue 126)
@@ -1291,10 +1317,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         seen.add('menu');
         const tap = async sel => { const r = await p.locator(sel).first().boundingBox(); if (!r) return false; const x = r.x + r.width / 2, y = r.y + r.height / 2; if (w < 500) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); return true; };
         await p.waitForFunction(() => { const e = document.getElementById('g-story-menu'); return e && getComputedStyle(e).display !== 'none'; }, null, { timeout: 8000, polling: 200 }).catch(() => {});
+        // (what lies at the button's middle as it is tapped: a card, a folded goal or a note over it is a phone player's tap
+        // lost, and said so; #248)
+        const over = await p.evaluate(() => { const e = document.getElementById('g-story-menu'); if (!e) return ''; const r = e.getBoundingClientRect(), t = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !t || t === e || e.contains(t) ? '' : `${t.tagName.toLowerCase()}${t.id ? '#' + t.id : ''}${t.className && typeof t.className === 'string' ? '.' + t.className.trim().split(/\s+/).join('.') : ''}`; });
+        if (over) { errors.push(`the story's menu button: under ${over} where it is tapped (#248)`); console.log(errors[errors.length - 1]); }
         if (!(await tap('#g-story-menu'))) { errors.push('the story has no menu button to press (issue 48)'); console.log(errors[errors.length - 1]); }
         else {
-          await p.waitForTimeout(600);
-          const open = await p.evaluate(() => !document.getElementById('g-menu').hidden);
+          // (the menu waited for, ten seconds of the wall, not read 600 ms on: on a phone's page at 30 frames a second of a
+          // software renderer's the pause came up after it, #248)
+          const open = await p.waitForFunction(() => !document.getElementById('g-menu').hidden, null, { timeout: 10000, polling: 100 }).then(() => true, () => false);
           if (open) await snap('1-menu');
           // (issue 114: the story's pause is a player's, not the builder's: no hour, date, weather, clock speed or route
           // line; going on, the words' size, the case begun again, and by touch the thumbs' controls in place of keys)
@@ -1304,8 +1335,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
             if (m.tools.length || m.want.length) { errors.push(`the story's pause: ${m.tools.length ? `the map's tools are in it (${m.tools.join(', ')})` : ''}${m.tools.length && m.want.length ? '; ' : ''}${m.want.length ? `it lacks ${m.want.join(', ')}` : ''}`); console.log(errors[errors.length - 1]); }
             else console.log(`the story's pause: "${m.at}", resume, sound, words, frame rate, ${w < 500 ? "the thumbs' controls" : 'the keys'} the case begun again and the Credits; none of the map's tools`);
           }
-          await tap('#g-menu-close'); await p.waitForTimeout(600);
-          const shut = await p.evaluate(() => document.getElementById('g-menu').hidden);
+          await tap('#g-menu-close');
+          const shut = await p.waitForFunction(() => document.getElementById('g-menu').hidden, null, { timeout: 10000, polling: 100 }).then(() => true, () => false);
           if (!open || !shut) { errors.push(`the story's menu button: ${open ? 'the menu opened and its close button did not shut it' : 'the menu did not open'}`); console.log(errors[errors.length - 1]); }
           else console.log(`the menu: opened from the story's own button by ${w < 500 ? 'touch' : 'the mouse'}, and shut again`);
         }
@@ -1384,6 +1415,21 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       }
     }
     else if (s.phase === 'after') await mark(s, 'after');
+    // (and nobody of the crowd in front of the lens at an after, the finder's picture: frame 7's closing one had a passer-by 2 m in
+    // front of it, a third of the frame, #232. A drawn walker within 5 m along the view and within its width there fails)
+    if (s.phase === 'after' && !seen.has(`lensfront-${s.fi}`) && await p.evaluate(() => !!window.__game.story.finder)) { seen.add(`lensfront-${s.fi}`);
+      const f = await p.evaluate(() => { const g = window.__game, c = g.camera, T = window.THREE, d = c.getWorldDirection(new T.Vector3()), out = [], R = g.crowdDraw && g.crowdDraw();
+        if (R && R.active) for (const [i, r] of R.active) { if (!r.root.visible) continue; const v = r.root.position.clone().add(new T.Vector3(0, 1.2, 0)).sub(c.position), t = v.dot(d), side = v.clone().addScaledVector(d, -t).length();
+          if (t > 0.3 && t < 5 && side < 0.5 + 0.35 * t) out.push(`walker ${i} ${t.toFixed(1)} m ahead, ${side.toFixed(2)} m off the axis`); }
+        return out; });
+      if (f.length) { errors.push(`frame ${s.fi + 1}'s after: someone of the crowd in front of the lens (${f.join('; ')})`); console.log(errors[errors.length - 1]); }
+      else console.log(`frame ${s.fi + 1}'s after: nobody of the crowd within 5 m in front of the lens`);
+    }
+    if (s.phase === 'after' && !seen.has(`pops-${s.fi}`)) { seen.add(`pops-${s.fi}`); // (and nobody seen to jump while the finder was up, to here: #232)
+      const q = await p.evaluate(() => (window.__pops || []).splice(0));
+      if (q.length) { errors.push(`frame ${s.fi + 1}: ${q.length} of the crowd jumped or left the street in view with the finder up (${q.slice(0, 4).map(e => (e.gone ? `walker ${e.i} gone ${e.m} m off` : `walker ${e.i} ${e.m} m at once, ${e.at} m off`) + ` in the ${e.phase}`).join('; ')})`); console.log(errors[errors.length - 1]); }
+      else console.log(`frame ${s.fi + 1}: nobody of the crowd jumped in view with the finder up`);
+    }
     await p.waitForTimeout(500);
   }
   };
@@ -1393,6 +1439,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   if (+process.env.SPEND && !spent) { errors.push(`frame ${process.env.SPEND}: was to be spent, and was not`); console.log(errors[errors.length - 1]); }
   { const fm = await p.evaluate(() => window.__findMarked || 0); if (fm) { errors.push(`frame ${fm}: its place is to be found, and a ring stands on it`); console.log(errors[errors.length - 1]); } }
   if (done) { await p.waitForTimeout(3000); await snap('end'); console.log('end', JSON.stringify(await state())); }
+  { const q = await p.evaluate(() => (window.__pops || []).splice(0)); // (and nobody seen to jump with the finder up since the last after's count: the last frame's ends on its after, #232)
+    if (q.length) { errors.push(`${q.length} of the crowd jumped or left the street in view with the finder up (${q.slice(0, 4).map(e => (e.gone ? `walker ${e.i} gone ${e.m} m off` : `walker ${e.i} ${e.m} m at once, ${e.at} m off`) + ` in frame ${e.fi + 1}'s ${e.phase}`).join('; ')})`); console.log(errors[errors.length - 1]); }
+    else console.log('nobody of the crowd jumped in view with the finder up, to the end'); }
   if (done) {
     // under the last card time runs: whoever of tonight's people was on their way as it came up (the old woman, crossing)
     // goes on walking. She stood held in mid-step, and a player who walked on from the card found her so.
