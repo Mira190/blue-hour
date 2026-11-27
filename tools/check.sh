@@ -517,6 +517,10 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
   # (and your own car driven at the hero levels' guard rails, every other 3 m of them: it stops at each, as at a wall)
   if timeout 1200 $X node tools/car_rail.js scramble,miyamasu 2 >"$OUT/car-rail.log" 2>&1; then echo "$(grep '^ok' "$OUT/car-rail.log" | sed 's/^ok   car_rail:/ok   ride  /')"
   else echo "FAIL ride   $(grep '^FAIL\|pageerror\|Error' "$OUT/car-rail.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/car-rail.log)"; fi
+  # (and your own car called to the kerb from the paving round the Scramble: it stands in no post or rail, and there is
+  # one guide to it, its mark over it in the picture or else its own line in the corner, the owner's stills of 27 Nov)
+  if STEP=20 timeout 1800 $X node tools/car_call.js "$OUT/car-call" >"$OUT/car-call.log" 2>&1; then echo "ok   ride   $(grep -o '[0-9]* calls: median [0-9.]* m' "$OUT/car-call.log"): your car clear of every post and rail, one guide to it"
+  else echo "FAIL ride   your car called: $(grep '^FAIL\|pageerror' "$OUT/car-call.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/car-call.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are
