@@ -507,6 +507,10 @@ run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched
 run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
   if CHROME_LOG="$OUT/ride-chrome.log" DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 20)} LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
+  # (and the cars that come for you from twelve kerbs round the Scramble, Hachiko, the station and Miyamasu, against the
+  # rails, bollards and posts as drawn: none drives through one or stops behind one, issue 208's second half)
+  if timeout 900 $X node tools/ride_rails.js >"$OUT/ride-rails.log" 2>&1; then echo "ok   ride   $(grep -c '^ok' "$OUT/ride-rails.log") rides ordered round the Scramble pulled in clear of the drawn rails"
+  else echo "FAIL ride   $(grep '^FAIL\|pageerror' "$OUT/ride-rails.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride-rails.log)"; fi
 }
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are

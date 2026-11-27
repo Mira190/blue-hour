@@ -439,7 +439,11 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // the far crowd's copies of the scanned cast (pipeline/crowd_cast.py, issue 475): none, and the far crowd is the dolls
     const CC = info.crowd_cast, castFile = CC && !/[?&]farcast=off/.test(location.search) ? get(CC.file).catch(e => { console.warn('crowd_cast', e); return null; }) : null;
     const [aM, aW, cr, fc] = await Promise.all([get(info.anims.M), get(info.anims.W), get(info.crowd), castFile]);
-    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: {}, loading: {} };
+    // (tpl and loading, by a character's name, grow one name at a time as the cast streams in: made without a prototype
+    // they are a dictionary from the start, one shape however many names come. As plain objects each name was a new
+    // shape, and the renderer's begin, which asks lib.tpl for the loaded stand-ins, was thrown out of its optimised code
+    // 51 times a minute on a desktop's walk: tools/deopt_survey.js, issue 220)
+    const lib = { info, clips: { M: aM.animations, W: aW.animations }, lod: {}, far: {}, tpl: Object.create(null), loading: Object.create(null) };
     // (lib.setWarm(fn): the game's warm-up, given once its loader has compiled what the first frame shows; lib.warmed
     // resolves with it, for an NPC's character that came before it to wait on: below, ready)
     // (warmLater: the game says it will give one; a page that never does, tools/people_lineup.js, shows them as they come)
@@ -1275,6 +1279,7 @@ ${PAT_GLSL}`)
       mesh.frustumCulled = false;
     }
     const root = new THREE.Group();
+    root.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
     root.add(model);
     const mixer = new THREE.AnimationMixer(model), act = {};
     for (const c of T.clips || lib.clips[T.pack]) act[c.name] = mixer.clipAction(c);
@@ -1527,6 +1532,10 @@ ${PAT_GLSL}`)
     // off before the next frame (keepArm, armBack).
     const CLEAR = 0.02, EASE = 0.02, NEAR = 0.04, SLICE = 0.03, RAYS = 24;
     let clr;
+    // (a matrix whose sixteen numbers are doubles from the start: a new Matrix4's are small integers, and the first fraction
+    // written into them changes the array's kind, so that each rig loaded as the crowd moved threw sliceAt's optimised
+    // code away, every two or three seconds, and it ran unoptimised: issue 220. The same numbers either way)
+    const f64 = m => { m.elements = Float64Array.from(m.elements); return m; };
     function clearBuild() {
       const body = [];
       model.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && o.skeleton.bones.some(b => /Bip01_Spine2$/.test(b.name))) body.push(o); });
@@ -1554,7 +1563,9 @@ ${PAT_GLSL}`)
       }
       if (!tv.length) return null;
       const n = Math.ceil((h1 - h0) / sl) + 1, S = [], at = h => Math.floor((h - h0) / sl);
-      for (let j = 0; j < n; j++) S.push({ x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, r: new Float32Array(RAYS), votes: new Map() });
+      // (every field a slice is ever given, named here in one shape, as the walkers' are (issue 130): sliceAt, asked some
+      // 4,000 times a frame on a desktop, reads them all. cx, cz, k doubles from the start)
+      for (let j = 0; j < n; j++) S.push({ x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, r: new Float32Array(RAYS), votes: new Map(), cx: NaN, cz: NaN, w: null, F: null, I: null, k: NaN, at: -1 });
       // the middle of each slice from the box of the two slices either side as well (a slice of a few vertices had its middle
       // off to one side, and a hand at the chest read 18 cm deep); the bones that carry a quarter of it or more (where the
       // spine bends, a point between two bones' slices was in neither)
@@ -1570,7 +1581,7 @@ ${PAT_GLSL}`)
         const w = new Map(); let all = 0;
         for (let dj = -1; dj <= 1; dj++) { const t = S[j + dj]; if (t) for (const [b, c] of t.votes) { w.set(b, (w.get(b) || 0) + c); all += c; } }
         S[j].w = all ? [...w].map(([b, c]) => [b, c / all]) : null;
-        S[j].F = new THREE.Matrix4(); S[j].I = new THREE.Matrix4(); S[j].k = 1;
+        S[j].F = f64(new THREE.Matrix4()); S[j].I = f64(new THREE.Matrix4()); S[j].k = 1;
       }
       for (let j = 0; j < n; j++) if (!S[j].w) { for (let d = 1; d < n; d++) { const t = S[j - d] || S[j + d]; if (t && t.w) { S[j].w = t.w; break; } } }
       // each ray's radius, the farthest vertex of its slice in that way; a ray without one takes it from the slices over and
@@ -1612,7 +1623,7 @@ ${PAT_GLSL}`)
         const up = []; for (let q = nd; q && q !== root; q = q.parent) up.unshift(q);
         for (const q of up) if (!chain.includes(q)) chain.push(q);
       }
-      return { o, bones, S, h0, sl, upG, rtG, fwG, owners, chain, M: new Map(owners.map(b => [b, new THREE.Matrix4()])), arm, bm: new THREE.Matrix4(), q: new THREE.Vector3(), w: new THREE.Vector3(), mid: n >> 1, frame: 0 };
+      return { o, bones, S, h0, sl, upG, rtG, fwG, owners, chain, M: new Map(owners.map(b => [b, f64(new THREE.Matrix4())])), arm, bm: new THREE.Matrix4(), q: new THREE.Vector3(), w: new THREE.Vector3(), mid: n >> 1, frame: 0 };
     }
     // a vertex's place in the world as its bone carries it now (the skinning matrix of that one bone)
     const skinM = (c, b, out) => out.multiplyMatrices(c.o.matrixWorld, c.o.bindMatrixInverse).multiply(c.bm.multiplyMatrices(c.bones[b].matrixWorld, c.o.skeleton.boneInverses[b])).multiply(c.o.bindMatrix);
@@ -2274,7 +2285,17 @@ transformed = crowdPose(transformed, false);`);
     const bySex = { f: cast.filter(n => lib.npcs[n].sex === 'f'), m: cast.filter(n => lib.npcs[n].sex === 'm') };
     // a loaded cast member of rn's sex, to stand in until rn itself comes (begin, above)
     // (any of those loaded, by the walker's own number: the first loaded for everyone was a crossing of one man)
-    const realStandIn = (rn, i) => { const l = bySex[lib.npcs[rn].sex].filter(n => lib.tpl[n]); return l.length ? l[(Math.imul(i + 3, 2246822519) >>> 17) % l.length] : null; };
+    // (the same pick as from the list of those loaded, without the list: an empty one is an array of another kind, and the
+    // renderer's begin, which asks this of each near walker still waiting for its own, was thrown out of its optimised
+    // code each time it met one: tools/deopt_survey.js, issue 220)
+    const realStandIn = (rn, i) => {
+      const S = bySex[lib.npcs[rn].sex];
+      let n = 0; for (let k = 0; k < S.length; k++) if (lib.tpl[S[k]]) n++;
+      if (!n) return null;
+      let at = (Math.imul(i + 3, 2246822519) >>> 17) % n;
+      for (let k = 0; k < S.length; k++) if (lib.tpl[S[k]] && at-- === 0) return S[k];
+      return null;
+    };
     // load a few of the cast up front so the first near people are real, nearest the camera first as they stream
     // (and then the rest of it, a dozen at most: a walker whose character has not come is someone else's double until it does)
     if (cast.length) { bySex.f.slice(0, 2).concat(bySex.m.slice(0, 2)).forEach(n => lib.require(n)); cast.forEach(n => lib.require(n)); }

@@ -856,7 +856,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const q of G.hero || []) if (q.ceilOver) { const c = q.ceilOver(x, y, z); if (c !== null && (best === null || c < best)) best = c; }
     return best;
   };
-  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => warmFor(obj, { first: true }), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
+  // a hero level's programs are not compiled while the world is stopped: on a phone each is a hitch of its own, and a
+  // Stop is where the player stands looking. Its compile, in slices, waits a frame at a time while a Stop is on and goes
+  // on once the world runs (the
+  // levels a Stop will see are fetched a frame ahead instead, stopAnchor). Not behind the way in's veil, which waits for
+  // the level (holdForLevel)
+  const stopHeld = () => { try { return !!(story && story.stopped) && !levelHold; } catch (e) { return false; } }; // (the story not made yet)
+  const hero = window.OEHero && G.hero ? OEHero.create(Wd, renderer, { hero: G.hero, base: D.DATA, tier: QC.name, mirror, warm: obj => uploadFor(obj, { first: true }).then(() => compileFor(obj, world, { behind: stopHeld, hold: stopHeld })), upload: sendBuffers, ground: (h, root) => { heroCover(h, root); heroSoffit(h, root); } }) : null;
   // the city's shaders compiled from here, behind the rest of the set-up (the surface model, the footways, the
   // people and the traffic: seconds of the CPU's time, issue 327) rather than all after it: where the GPU compiles
   // in parallel (KHR_parallel_shader_compile, or a GPU process of its own) the two overlap. Every light is in place
@@ -4967,6 +4973,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const levelComing = () => !!hero && hero.levels.some(L => (L.state === 'loading' || L.state === 'idle') && Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) <= (L.h.r || 100));
   let levelFirstT = null;
   const levelFirst = () => { if (levelFirstT == null) levelFirstT = performance.now(); return levelComing() && performance.now() - levelFirstT < LEVEL_FIRST_S * 1000; };
+  // where the frame being played stops the world (its stop_at, else its afterimage): the hero level its Stop will see is
+  // fetched, compiled and sent from the frame's start, as the player walks there, not in the Stop itself. Frame 3's police
+  // box is 131 m from SKY GATE's lobby: the lobby (load_m 140) was fetched as the player reached the box, and its 21
+  // programs linked in the Stop's still on a phone's tier (tools/story_play.js BIGUP=1). Not the next frame's: a level
+  // kept to its own frame (h.load_m) would be drawn in the frame before, Miyamasu's in frame 3's Stop
+  const stopSpot = fr => { const a = fr && (fr.stop_at || (fr.afterimage && fr.afterimage.at)); return a && Number.isFinite(a[0]) && Number.isFinite(a[1]) ? a : null; };
+  const stopAnchor = () => { const st = story && story.state; return st && st.phase !== 'idle' && st.phase !== 'done' ? stopSpot(st.fr) : null; };
   const afterLevel = () => new Promise(r => { const t = () => (levelFirst() ? setTimeout(t, 250) : r()); t(); });
   const warmRest = () => Promise.resolve(atmos && atmos.warm ? atmos.warm() : null)
     .then(() => OEWorld.compile(renderer, world, camera, { scene: world, target: atmos && atmos.composer ? atmos.composer.renderTarget1 : null, behind: true, hold: () => levelFirst() || (playing && (!!arriving || cine.active || player.mode === 'lift')) }))
@@ -5234,7 +5247,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Wd.tick(now, camera);
     if (overture) overture.update(dt);
     if (neon) neon.update(camera, dt);
-    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [player.x, player.y] : null); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
+    if (hero) hero.update(camera, dt, (titleOn && !preTitle) || (overture && overture.active) || levelHold ? [[player.x, player.y], stopAnchor()] : stopAnchor()); // (the level the story starts in, fetched behind the title, not the loader, and ready before the opening flies into it)
     if (HERO_CUT.h) HERO_CUT.box.value.w = HERO_CUT.h.shown && !HERO_CUT.off ? 1 : 0; // (the ground cut under a level's floor only while the floor is drawn)
     if (Math.floor(clockT) !== Math.floor(clockT - dt)) applyDensity();
     if (atmos) atmos.update(clockUtc, now / 1000, U);
@@ -6985,7 +6998,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // skip, the crane down from the title, a story taken up again) waits for it behind a veil, the loader's ground with the
   // place's name on it, at most LEVEL_WAIT_S; the shot is held under it, and the camera reaches the player once the level is drawn.
   const LEVEL_WAIT_S = +((location.search.match(/[?&]levelwait=(\d+)/) || [])[1] || 6); // (?levelwait=s: a harness's own bound, tools/level_wait.js)
-  const levelReady = () => !hero || hero.levels.every(L => L.state === 'ready' || L.state === 'failed' || Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) > (L.h.r || 100));
+  // (and a level this frame's Stop will see, already being fetched for it: a story taken up again at a frame whose Stop
+  // comes at once would otherwise compile it inside the Stop, stopAnchor)
+  const forStop = L => { const a = L.state === 'loading' && !L.h.zr && story && story.state && story.state.phase !== 'done' ? stopSpot(story.state.fr) : null; return !!a && Math.hypot(a[0] - L.h.at[0], a[1] - L.h.at[1]) - (L.h.r || 150) < (L.h.load_m || 260); };
+  const levelReady = () => !hero || hero.levels.every(L => L.state === 'ready' || L.state === 'failed' || (Math.hypot(player.x - L.h.at[0], player.y - L.h.at[1]) > (L.h.r || 100) && !forStop(L)));
   let levelHold = null;
   // done: what the way in does once the level is ready (or the wait is over); false when there is nothing to wait for
   // telemetry's level_wait (issue 69): how long a way in waited, whether the level came, and its warm-up's steps so far (hero.js
