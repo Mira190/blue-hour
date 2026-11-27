@@ -910,6 +910,7 @@
     ],
     "OENight": [
      "GLSL",
+     "MAPPED_H",
      "create",
      "uniforms"
     ],

@@ -26,7 +26,7 @@ window.OENight = (function () {
     motorway: [44, 14, 13, true, 1.3, 34], trunk: [40, 12, 12, true, 1.2, 26], primary: [34, 12, 10, true, 1.1, 20],
     secondary: [34, 10, 9.5, true, 1.0, 13], tertiary: [34, 9, 8.5, false, 0.95, 7], residential: [36, 7, 7, false, 0.8, 1.6],
     unclassified: [38, 6, 7, false, 0.75, 1.6], living_street: [28, 5, 5, false, 0.7, 0] };
-  const MAPPED = [6, 0.85]; // a mapped lamp: its height and brightness (a park or footway light)
+  const MAPPED = [6.5, 0.85]; // a mapped lamp: its height and brightness (a park or footway light; the game's post, game.js, is as tall)
   // per way on foot (night.json foot): lamp spacing m, height m, brightness
   const FOOT = { pedestrian: [22, 5.5, 0.85], footway: [28, 4.5, 0.75], steps: [14, 4, 0.75] };
   const ARM = 1.75; // a lamp's arm, from its pole to its head
@@ -79,12 +79,13 @@ vec3 streetLight(vec3 wp) {
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
     return m;
   }
-  // a point of light: a hot core and a soft halo, drawn at least uMinPx across so a far light stays a point
-  const POINT_FRAG = `varying vec3 vC;
+  // a point of light: a hot core and a soft halo, drawn at least uMinPx across so a far light stays a point. vAsp is
+  // its height over its width: a street lamp's lens is a flat panel facing down, which seen from the side is a sliver
+  const POINT_FRAG = `varying vec3 vC; varying float vAsp;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
-  vec2 p = gl_PointCoord - 0.5; float r2 = dot(p, p) * 4.0;
+  vec2 p = gl_PointCoord - 0.5; p.y /= vAsp; float r2 = dot(p, p) * 4.0;
   if (r2 > 1.0) discard;
   gl_FragColor = vec4(vC * (exp(-r2 * 16.0) * 5.0 + exp(-r2 * 4.0) * 0.35) * (1.0 - r2), 1.0);
   ${FOG_FRAG}
@@ -96,7 +97,7 @@ void main() {
   // One shader for the three, each kind's branch as its own shader was: three programs were three pipelines for a phone's GPU
   // to build at the first frame after dark (issue 60)
   const POINT_VERT = `attribute vec3 color; attribute vec2 info; attribute vec3 aB; attribute vec4 aInfo;
-uniform float uKind, uOn, uScale, uMinPx, uTime, uDensity, uNear, uFlash; varying vec3 vC;
+uniform float uKind, uOn, uScale, uMinPx, uTime, uDensity, uNear, uFlash; varying vec3 vC; varying float vAsp;
 #include <common>
 #include <fog_pars_vertex>
 void main() {
@@ -104,14 +105,24 @@ void main() {
   if (uKind > 0.5 && uKind < 1.5) P = mix(position, aB, fract(aInfo.x + uTime * aInfo.y));
   vec4 mvPosition = modelViewMatrix * vec4(P, 1.0);
   float d = max(-mvPosition.z, 1.0);
+  vAsp = 1.0;
   if (uKind < 0.5) {
-    // a lens seen from the side is brighter than its dark housing seen from straight above
-    float side = 1.0 - 0.55 * smoothstep(0.75, 0.98, normalize(cameraPosition - position).y);
+    // A street lamp in Japan is a cutoff luminaire (the MLIT's LED road lighting guideline: cutoff distribution is the
+    // standard): an LED panel about 0.3 by 0.7 m on the underside of a flat housing, its light all below the horizontal.
+    // So it is no ball of light. Seen from below the panel is bright; towards the horizontal it narrows to a sliver
+    // and dims, and from above only its dark housing shows (position: the panel's centre).
+    float below = -normalize(cameraPosition - position).y;
+    float cut = smoothstep(-0.03, 0.16, below);
     // farther is dimmer, more slowly than the inverse square so the far city still sparkles
-    float k = pow(clamp(320.0 / d, 0.04, 2.5), 0.85) * side;
+    float k = pow(clamp(320.0 / d, 0.04, 2.5), 0.85) * cut;
     float tw = 1.0 + 0.06 * sin(uTime * (2.0 + 3.0 * info.y) + info.y * 40.0) * smoothstep(600.0, 2000.0, d);
-    vC = color * uOn * k * tw * 0.9;
-    gl_PointSize = clamp(2.2 * uScale / d, uMinPx, 48.0);
+    // near, the panel is drawn as itself (night.js panels, a lit face that the bloom makes glow by its real size and
+    // shape); the point keeps only a faint glare round it, and takes over as the panel shrinks under a few pixels
+    float panelPx = 0.7 * uScale / d, near = smoothstep(3.0, 9.0, panelPx);
+    vC = color * uOn * k * tw * 0.9 * (1.0 - 0.8 * near);
+    // a flat glare as wide as the panel and its housing, its height the panel's foreshortening
+    vAsp = mix(1.0, clamp(below * 1.8, 0.22, 1.0), smoothstep(1.5, 5.0, panelPx));
+    gl_PointSize = clamp(1.1 * uScale / d, uMinPx, 32.0);
   } else if (uKind < 1.5) {
     float f = fract(aInfo.x + uTime * aInfo.y);
     vec3 dir = normalize(aB - position), toCam = normalize(cameraPosition - P);
@@ -365,6 +376,7 @@ void main() {
 
     // ------------------------------------------------------------ the lamps as points of light
     const common = { uOn: { value: 0 }, uScale: { value: 600 }, uMinPx: { value: 1.6 }, uTime: { value: 0 } }, lights = [];
+    let lampPts = null;
     {
       const pos = new Float32Array(nL * 3), col = new Float32Array(nL * 3), inf = new Float32Array(nL * 2);
       for (let i = 0; i < nL; i++) {
@@ -379,6 +391,7 @@ void main() {
       const pts = new THREE.Points(g, m);
       pts.frustumCulled = false;
       pts.renderOrder = 20;
+      lampPts = g;
       lights.push(pts);
     }
 
@@ -386,19 +399,41 @@ void main() {
     // a shaft, an arm out over the road and a head, in instanced batches of 300 m squares shown
     // within 500 m of the camera (from farther they are under a pixel)
     const CELL = 300, chunks = new Map(), poleMat = new THREE.MeshStandardMaterial({ color: OEWorld.lin('#3d444b'), roughness: 0.55, metalness: 0.5 });
-    const headMat = new THREE.MeshStandardMaterial({ color: OEWorld.lin('#c9ccc9'), roughness: 0.4, emissive: OEWorld.lin('#fff1dc'), emissiveIntensity: 0 });
+    // the housing is dark metal: only the panel under it is lit (a cutoff luminaire's light leaves downwards only)
+    const headMat = new THREE.MeshStandardMaterial({ color: OEWorld.lin('#9ea3a6'), roughness: 0.45, metalness: 0.3 });
     const shaft = new THREE.CylinderGeometry(0.06, 0.1, 1, 6, 1, true).translate(0, 0.5, 0);
     const head = THREE.BufferGeometryUtils.mergeGeometries([
       new THREE.BoxGeometry(0.08, 0.08, 1.7).translate(0, -0.1, 0.85),
       new THREE.BoxGeometry(0.34, 0.12, 0.7).translate(0, -0.18, 1.75)]);
-    for (let i = 0; i < (game ? nGen : nL); i++) {
+    // the lit panel: one face looking down, a little inside the housing's underside, at the end of the arm (a lamp
+    // with a pole beside its way) or on the post's axis (a mapped lamp: a post-top light). Its colour is the lamp's,
+    // in scene units bright enough that the bloom draws the glow round it from the panel's own size and shape
+    const panelArm = new THREE.PlaneGeometry(0.28, 0.64).rotateX(Math.PI / 2).translate(0, -0.242, 1.75);
+    const panelPost = new THREE.PlaneGeometry(0.28, 0.64).rotateX(Math.PI / 2).translate(0, -0.242, 0);
+    const panelMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const PANEL = 14;
+    for (let i = 0; i < nL; i++) {
       const key = `${Math.floor(L.x[i] / CELL)},${Math.floor(L.y[i] / CELL)}`;
       if (!chunks.has(key)) chunks.set(key, []);
       chunks.get(key).push(i);
     }
-    const dummy = new THREE.Object3D(), poles = [], bases = [], slots = [];
-    for (const [key, list] of chunks) {
-      const [cx, cy] = key.split(',').map(Number), s = new THREE.InstancedMesh(shaft, poleMat, list.length), hd = new THREE.InstancedMesh(head, headMat, list.length);
+    const dummy = new THREE.Object3D(), poles = [], bases = [], slots = [], panelSlot = new Array(nL);
+    for (const [key, all] of chunks) {
+      // the poles and heads it draws itself (in the game, the generated lamps': the game draws the mapped ones), and a
+      // panel under every lamp's head
+      const list = all.filter(i => !game || i < nGen), arms = all.filter(i => L.pole[i]), posts = all.filter(i => !L.pole[i]);
+      const [cx, cy] = key.split(',').map(Number), s = new THREE.InstancedMesh(shaft, poleMat, Math.max(1, list.length)), hd = new THREE.InstancedMesh(head, headMat, Math.max(1, list.length));
+      s.count = hd.count = list.length;
+      const pa = new THREE.InstancedMesh(panelArm, panelMat, Math.max(1, arms.length)), pp = new THREE.InstancedMesh(panelPost, panelMat, Math.max(1, posts.length));
+      pa.count = arms.length; pp.count = posts.length;
+      for (const [m, idx] of [[pa, arms], [pp, posts]]) idx.forEach((i, n) => {
+        const yaw = L.pole[i] ? Math.atan2(L.uy[i] * L.pole[i], L.ux[i] * L.pole[i]) : 0; // (as its pole's, below)
+        dummy.position.copy(W(L.x[i], L.y[i], L.z[i])); dummy.rotation.set(0, yaw, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix();
+        m.setMatrixAt(n, dummy.matrix);
+        const c = L.c[i]; m.setColorAt(n, new THREE.Color(c.r * L.b[i], c.g * L.b[i], c.b * L.b[i]));
+        panelSlot[i] = [m, n];
+      });
+      for (const m of [pa, pp]) { m.computeBoundingSphere(); m.userData.noRefl = true; }
       list.forEach((i, n) => {
         const base = L.z[i] - L.h[i], dir = L.ux[i] || L.uy[i];
         // the pole stands at the kerb and its arm reaches back over the road
@@ -411,8 +446,8 @@ void main() {
       });
       s.computeBoundingSphere(); hd.computeBoundingSphere();
       const c = W((cx + 0.5) * CELL, (cy + 0.5) * CELL, 0);
-      poles.push({ c, meshes: [s, hd] });
-      group.add(s, hd);
+      poles.push({ c, meshes: [s, hd, pa, pp] });
+      group.add(s, hd, pa, pp);
     }
 
     // ------------------------------------------------------------ traffic
@@ -616,6 +651,28 @@ void main() {
       // the inland water reflects (inland.js glints)
       heads: () => ({ pos: Float32Array.from({ length: 3 * nL }, (_, k) => (k % 3 === 0 ? L.x : k % 3 === 1 ? L.z : L.y)[(k / 3) | 0] * (k % 3 === 2 ? -1 : 1)), colour: L.c, bright: L.b }),
       poles: bases, // x, y, z of the foot of each pole it draws
+      // the mapped lamps where the game has stood their posts (game.js seats them on its ground, out of the walls and
+      // the roads, and leaves some out): feet, x, y, z local metres, and each head's turn (three.js rotation.y). Each
+      // lamp's point and panel go to the top of its post; the mapped lamps beyond those are put out, so no light hangs
+      // where no post stands
+      placeMapped(feet, yaws) {
+        const pos = lampPts && lampPts.attributes.position, col = lampPts && lampPts.attributes.color, zero = new THREE.Matrix4().makeScale(0, 0, 0), touched = new Set();
+        for (let i = nGen, k = 0; i < nL; i++, k++) {
+          const ps = panelSlot[i], on = 3 * k + 2 < feet.length;
+          if (on) {
+            const p = W(feet[3 * k], feet[3 * k + 1], feet[3 * k + 2] + MAPPED[0]);
+            if (pos) pos.setXYZ(i, p.x, p.y - 0.25, p.z);
+            if (ps) { dummy.position.copy(p); dummy.rotation.set(0, yaws[k] || 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix(); ps[0].setMatrixAt(ps[1], dummy.matrix); }
+          } else {
+            if (col) col.setXYZ(i, 0, 0, 0);
+            if (ps) ps[0].setMatrixAt(ps[1], zero);
+          }
+          if (ps) touched.add(ps[0]);
+        }
+        if (pos) pos.needsUpdate = true;
+        if (col) col.needsUpdate = true;
+        for (const m of touched) { m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); }
+      },
       // take away the poles stand(x, y, z) turns down (one in a wall: the lamp is on its bracket there)
       hidePoles(stand) {
         const keep = [], zero = new THREE.Matrix4().makeScale(0, 0, 0), touched = new Set();
@@ -669,14 +726,14 @@ void main() {
         traffic.uDensity.value = TRAFFIC[h0] * (1 - f) + TRAFFIC[(h0 + 1) % 24] * f;
         // the screens' light while they play (their hours; 24 is midnight)
         if (glowHours) NU.uGlowOn.value = ([hr, hr + 24].some(h => h >= glowHours[0] && h < glowHours[1]) ? 1 : 0) * glowScale;
-        headMat.emissiveIntensity = 2.2 * on;
+        panelMat.color.setScalar(PANEL * on);
         const cp = camera.position;
-        for (const p of poles) { const v = Math.hypot(p.c.x - cp.x, p.c.z - cp.z) < 500 + CELL * 0.71 && cp.y - p.c.y < 900; p.meshes[0].visible = p.meshes[1].visible = v; }
+        for (const p of poles) { const v = Math.hypot(p.c.x - cp.x, p.c.z - cp.z) < 500 + CELL * 0.71 && cp.y - p.c.y < 900; for (const m of p.meshes) m.visible = v; }
       },
       dispose() { map.dispose(); group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); },
     };
     return api;
   }
 
-  return { create, uniforms, GLSL, ROAD };
+  return { create, uniforms, GLSL, ROAD, MAPPED_H: MAPPED[0] };
 })();
