@@ -1524,8 +1524,32 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
   }
   // an NPC's character, loaded and put in their place (or another realistic one if it can't be loaded)
-  const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : lib.require(n.look.character).catch(e => console.warn(`${n.look.character} unavailable:`, e)).then(() => {
-    const old = n.rig, rig = makeRig(npcLook(n));
+  // (one whose load has not settled in NPC_WAIT seconds, a request dropped or held, is asked for afresh: they are people you
+  // meet, never drawn as anyone else, and their talk and mark wait until they are drawn. Their pictures go at the head of
+  // the upload queue (people.js hurry): behind the crowd's and the levels' Nagi waited minutes, the walk's check failing
+  // "Nagi is not drawn ten minutes after setting out" and "Ren is not drawn"; and on a phone, whose loads go one at a time,
+  // everyone after them waited too: tools/npc_stall.js)
+  const NPC_WAIT = 45;
+  // (hurried: someone named within NPC_HURRY m of you once you are out in the game, not the title's; asked again by
+  // npcStream as you come near. All of them hurried put the title's pictures 113 MB over its budget, story1)
+  const NPC_HURRY = 30;
+  const inGame = () => { try { return !preTitle && hud('#g-title').hidden; } catch (e) { return false; } }; // (false while the load is still before them)
+  const npcHurry = n => { if (lib.hurry && inGame() && Math.hypot(n.x - player.x, n.y - player.y) < NPC_HURRY) lib.hurry(n.look.character); };
+  const npcLoad = n => n.loading || (n.loading = !n.rig.pending ? Promise.resolve() : (() => {
+    const name = n.look.character;
+    npcHurry(n);
+    const real = npcPut(n, lib.require(name).catch(e => console.warn(`${name} unavailable:`, e)).then(() => npcLook(n)));
+    return Promise.race([real.then(() => 'in'), new Promise(r => setTimeout(() => r('late'), NPC_WAIT * 1000))]).then(w => {
+      if (w !== 'late' || !n.rig.pending) return;
+      n.loadLate = (n.loadLate || 0) + 1; console.warn(`${name}: not come in ${NPC_WAIT} s; asked for again`);
+      if (lib.forget) lib.forget(name);
+      n.loading = null; // (asked again by the stream: npcStream)
+    });
+  })());
+  // (a rig for look, once it comes, put in n's place)
+  const npcPut = (n, lookP) => lookP.then(look => {
+    if (!n.rig.pending) return; // (put in already, by an earlier ask that came after all)
+    const old = n.rig, rig = makeRig(look);
     rig.root.position.copy(old.root.position); rig.root.rotation.copy(old.root.rotation);
     // (posed before it is put in the world, as the next frame will pose it: come in its bind pose while time was held,
     // the first held frame turned its head 0.055 rad to the clip's, and the Stop's check saw Yuna's head turn by itself
@@ -1537,7 +1561,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (old.root.parent) old.root.parent.remove(old.root);
     world.add(rig.root);
     n.rig = rig;
-  }));
+  });
   let npcBudget = 0;
   function npcStream(dt, cx, cy) { // twice a second: those within NPC_LOAD_M of you
     if ((npcBudget -= dt) > 0) return;
@@ -1558,6 +1582,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       return;
     }
     for (const n of npcs) if (n.rig.pending && !n.loading && !n.away && Math.hypot(n.x - cx, n.y - cy) < NPC_LOAD_M) npcLoad(n);
+    for (const n of npcs) if (n.rig.pending && n.loading && !n.away) npcHurry(n); // (on its way, and you near now)
   }
   let npcBusy = false;
   const npcsReady = () => Promise.all(npcs.filter(n => !n.away).map(npcLoad)); // every NPC in place (for the tools that look at them; not the walk's own until it is the walk: a phone's memory check loaded them where play never does)
