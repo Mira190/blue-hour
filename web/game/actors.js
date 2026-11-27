@@ -4784,10 +4784,20 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // can do so standing, where a car waiting at that road's line would otherwise hold it until it squeezed through)
         const across = !back && !net.L[line].ow && LANE + side * (c.off + c.lo) < c.hw + 0.2;
         // (in to the kerb and out from it, only as far across as it goes forward: a third of its way, never sideways on the spot)
-        const rate = (c.parking || c.pullOut > 0 ? Math.min(1.3, 0.34 * c.v + 0.02) : Math.min(1.3, 0.4 + 0.15 * c.v)) * dt, lo1 = back ? 0 : keepIt && !across ? c.lo : c.lo + Math.max(-rate, Math.min(rate, loT - c.lo));
+        const rate = (c.parking || c.pullOut > 0 ? Math.min(1.3, 0.34 * c.v + 0.02) : Math.min(1.3, 0.4 + 0.15 * c.v)) * dt;
+        let lo1 = back ? 0 : keepIt && !across ? c.lo : c.lo + Math.max(-rate, Math.min(rate, loT - c.lo));
         const pvA = onto ? [c.line, c.dir] : dir === c.dir ? c.pv : null, nxA = onto ? nx2 : dir === c.dir && c.nx ? [nl, nd] : null;
         const sw = c.half > LONG_V && !back ? swingAt(line, s, dir, pvA, nxA) : 0; // (a bus at a tight corner: wide)
         lanePos(line, s, dir, tmp, c.off + lo1 + sw, pvA, nxA);
+        // (just out of a junction's box, still holding its movement, a car easing across to the piece's lane waits while that
+        // would put it deeper into one beside it: out of two lanes onto one, side by side, the outer was eased into the inner,
+        // two buses inside each other for over 3 s by Miyashita Park, main's roads check, run 467)
+        if (c.mv && !keepIt && !back && Math.abs(lo1 - c.lo) > 1e-4) {
+          const dIn = overlaps(c, tmp.x, tmp.y, tmp.hx, tmp.hy, 0.2, 0.15);
+          lanePos(line, s, dir, tmp, c.off + c.lo + sw, pvA, nxA);
+          if (dIn > overlaps(c, tmp.x, tmp.y, tmp.hx, tmp.hy, 0.2, 0.15) + 1e-3) lo1 = c.lo;
+          else lanePos(line, s, dir, tmp, c.off + lo1 + sw, pvA, nxA);
+        }
         let dh = Math.atan2(tmp.hx, tmp.hy) - c.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
         const yaw = !back && dt > 0 ? Math.atan2((lo1 - c.lo) / dt, Math.max(c.v, 1.5)) : 0; // (a lane change: nosing across, left of the way it goes for a shift to the left)
         const turn = line !== c.line || dir !== c.dir, h = c.h + (back ? dh : dh * Math.min(1, dt * 8)) - yaw * Math.min(1, dt * 8); // turning round: at once
