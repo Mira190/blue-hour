@@ -1034,7 +1034,11 @@ camera meets through each point of a grid over a still, and found it.
 **The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
 the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
 with a fine line along the parapet), drawn 0.3 m outside the tower's walls up to the deck, seen through the glass. A
-tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) now has no crown.
+tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) was then given no crown at
+all, and the city's tallest tower, the one the walk's opening names, stood dark among lit crowns from the street and the
+air (the owner, 27 November 2026): the roof's own lights are this level's, fetched only near the roof. Its crown is now
+drawn as any tower's, always lit and in white, as a draw of its own that `night.js` lets go while the camera is up on
+that roof (within 40 m of its top's ring, from 25 m under the deck to 60 m over it), where this level lights the roof.
 
 **Only near, in height too.** The roof stands within 80 m in plan of frame 5's place at the tower's foot, and a level
 was fetched by its distance in plan. `hero.js` now takes a level's `zr` (its half-height about its `z`): the camera's
