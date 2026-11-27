@@ -3061,6 +3061,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     clockMin: () => clock.min,
     snapped: () => { A.shutter(); stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash'); }, // (someone takes your picture: the shutter and the flash, no picture of your own)
     loaded: c => !lib || !!lib.tpl[c], // (a character come: until then whoever is made of it is somebody standing in)
+    hurry: c => { if (lib && lib.hurry) lib.hurry(c); }, // (the walk's line's man: his pictures first, as a named NPC's near you, people.js)
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
     told: (title, n, of) => { if (walkUi && walkUi.told) walkUi.told(title, n, of); },
     view: (v, n, of) => { if (walkUi && walkUi.told) walkUi.told(v.name, n, of, 'view'); A.chime(); }, // (a view of Shibuya found: its name over the street, and a chime)
