@@ -1040,11 +1040,14 @@
     "OEPbr": [],
     "OEQuays": [],
     "OEStreets": [
+     "ZEBRA_GLSL",
      "carriageways",
      "posts",
      "roomForTwo",
      "setback",
-     "widthOf"
+     "widthOf",
+     "zebraCells",
+     "zebraMaterial"
     ],
     "OESurface": [
      "active",
