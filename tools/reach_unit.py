@@ -7,6 +7,7 @@ unplayed, so every rule is held here, in a second, with the static checks.
   python3 tools/reach_unit.py
 """
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -129,6 +130,17 @@ def main():
     if wholes != [True, False, True, False, False]:
         fails += 1
         print(f'FAIL one whole function: {wholes}')
+    # every script a target's run_<name> in tools/check.sh starts with node is in that target's harness: a probe left
+    # out let its own change keep the target's pass (trips_probe.js under roads, run 470's fix)
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'check.sh')).read()
+    for m in re.finditer(r'^run_([a-z0-9]+)\(\) \{(.*?)^\}', src, re.S | re.M):
+        k = m.group(1)
+        if k not in cc.HARNESS:
+            continue
+        miss = sorted(set(re.findall(r'node (?:\S*/)?(tools/[A-Za-z_0-9]+\.js)', m.group(2))) - set(cc.HARNESS[k]))
+        if miss:
+            fails += 1
+            print(f'FAIL {k} runs {", ".join(miss)}, not in its harness (tools/check_cache.py HARNESS)')
     print('ok   reach    a pass is kept only where the change cannot reach it' if not fails else f'FAIL reach    {fails} rules')
     return 1 if fails else 0
 
