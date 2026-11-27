@@ -794,6 +794,29 @@ window.OEJunctions = (function () {
       Z.set(key, v);
       return v;
     }
+    // where two ways across a junction first come within r of each other: how far along the way of movement (k, m), from
+    // its line, its first point within r of the way of (k2, m2) lies (m); -1 where they never come that near
+    function zoneStart(j, k, m, k2, m2, r) {
+      const Z = j.zs || (j.zs = new Map()), key = (((k * 32 + m) * 32 + k2) * 32 + m2) * 2 + (r > 3 ? 1 : 0);
+      if (Z.has(key)) return Z.get(key);
+      const e1 = wayFor(j, k, m), e2 = wayFor(j, k2, m2), A = e1 && e1.ways && e1.ways[e1.lanes.indexOf(m >> 4)], B = e2 && e2.ways && e2.ways[e2.lanes.indexOf(m2 >> 4)];
+      let v = -1;
+      if (A && B) { const r2 = r * r; for (let i = 0; i < A.length && v < 0; i += 2) for (let q = 0; q < B.length; q += 2) { const dx = A[i] - B[q], dy = A[i + 1] - B[q + 1]; if (dx * dx + dy * dy < r2) { v = (i / 2) * PSTEP; break; } } }
+      Z.set(key, v);
+      return v;
+    }
+    // (a turn across the oncoming traffic gives way to it, as the rule of the road has it (Japan's Road Traffic Act art. 37,
+    // and every country's): at a signalled junction, a car turning across that is in the box but short of where its way meets
+    // the oncoming car's, and can still stop short of it, does not hold that car out; it waits there, at the middle, and goes
+    // in a gap or as the green ends. Held out by it, the oncoming queue stood: the Scramble's arms 0 and 3, each the other's
+    // oncoming, lost 15 to 18 s of a 31 s green to it, 4.5 cars a green at headways of 5.5 to 6 s, #224)
+    function yields(j, o, a, e, k, m) {
+      if (!j.sig || !o.c.mv || !o.c.mv.e || !o.c.mv.e.across || (e && e.across) || j.arms[o.k].phase !== a.phase) return false;
+      const z = zoneStart(j, o.k, o.m, k, m, 2.8), p = progress(j, o);
+      if (z < 0 || p < 0) return false;
+      const room = z - (p + (o.c.half || 2.4)) - 0.5, v = o.c.v || 0;
+      return room > 0 && v * v / 8 < room; // (short of it, and able to stop there at 4 m/s²)
+    }
     // how far along its way across the car of movement o (in j.active) is, from its line (m); -1 when it is not on it
     // (followed along its way from one step to the next, never found afresh: the way of a turn that doubles back, the
     // Scramble's from the station's front round into Dogenzaka, passes itself 3 m off, and the nearest of all its
@@ -1024,7 +1047,7 @@ window.OEJunctions = (function () {
         if (o.c === c || behind(o) || waitsOnMe(o) || knot(o) || forYou(o)) continue;
         const long = (o.k !== k || (o.m >> 4) !== (m >> 4)) && (c.half > LONG || o.c.half > LONG) && !stood(o);
         if (long && !j.scramble && !j.wideBox) return 'cross';
-        if (long ? zoneEnd(j, o.k, o.m, k, m, WIDE) >= 0 && !past(j, o, k, m, WIDE) : conflict(j, k, m, o.k, o.m) && !past(j, o, k, m)) return 'cross';
+        if (long ? zoneEnd(j, o.k, o.m, k, m, WIDE) >= 0 && !past(j, o, k, m, WIDE) : conflict(j, k, m, o.k, o.m) && !past(j, o, k, m) && !yields(j, o, a, e, k, m)) return 'cross';
       }
       const mine = j.pend.find(o => o.c === c);
       for (const o of j.pend) {

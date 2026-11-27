@@ -5661,6 +5661,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const cx = player.mode === 'heli' ? heli.st.x : player.x, cy = player.mode === 'heli' ? heli.st.y : player.y;
     npcStream(dt, cx, cy);
     crowd.bodies = crowdKeep(cx, cy, false, dt);
+    crowd.finder = !!(story && story.finder) && player.mode === 'foot'; // (the finder raised: the crowd gives its view room as it gives the lens behind you, actors.js lensUpdate, issue 232)
     if (regulars && (!story || (walk && walkUi.walking))) regulars.tick(dt); // (before the crowd's step: whoever is lent to a routine knows where to be)
     crowd.update(dt, cx, cy, clockT, player.mode === 'foot' ? player : player.mode === 'car' ? { x: player.x, y: player.y, h: player.h, speed: myCar.D.st.v, r: 1.1 } : null);
     if (colonies.length) {
@@ -6216,6 +6217,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       fp.yaw += angDiff(fp.yawT, fp.yaw) * e; fp.pitch += (fp.pitchT - fp.pitch) * e;
       fp.eyeZ += (eyeZ - fp.eyeZ) * (1 - Math.exp(-dt / 0.08)); // (a step up or down is not a jolt in the finder)
       const hx = Math.sin(fp.yaw), hy = Math.cos(fp.yaw), cp = Math.cos(fp.pitch);
+      // (nobody of the crowd in front of the lens, #232: at frame 7's after the finder stays up for the closing picture, and
+      // the crowd's rules for the lens are the chase view's, so a passer-by stood 2 m in front of it, a third of the frame.
+      // Along the view's line nobody begins to stop while the finder is up, and at each raise and each step of the story
+      // (the shutter's flash, the print) whoever stands there is stepped aside, as the story clears its own sightlines)
+      if (crowd && crowd.keep && clockT - (fp.keepT || -9) > 0.5) { fp.keepT = clockT; crowd.keep(player.x, player.y, player.x + hx * 14, player.y + hy * 14, 2.4); } // (twice a second: a keep lasts 90 frames)
       // (a frame taken with the camera held out, over a roof's glass: task.hold, metres forward and up from the eye;
       // from the eye itself a lens pointed sixty degrees down saw the deck's rim and its light, not the street)
       // (and held out as a photographer presses the lens to the glass: to the roof's edge along its heading and a hand's

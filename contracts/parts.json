@@ -1018,7 +1018,9 @@
      "pool"
     ],
     "OEBuildings": [
+     "CANOPY_HIGH",
      "PIER",
+     "PLATFORM_ROOF",
      "POST",
      "SHOP_HOURS",
      "canopyPosts",
