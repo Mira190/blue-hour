@@ -25,7 +25,10 @@ Three things a buildings.json written before typology.facade_style() learned the
   road. Its underside is raised to CLEAR_M (UNDERSIDE where its record is known), and it stands on piers kept off the
   carriageway when nothing of its building touches the ground. Shibuya's west exit deck (しぶにしデッキ, OpenStreetMap
   man_made=bridge) was a two-storey building of shops on the bus terminal's carriageway, with a road through it (the
-  owner's report, 24 November 2026; tools/deck_check.py, issue 196).
+  owner's report, 24 November 2026; tools/deck_check.py, issue 196). A street the survey does not have (one opened after
+  it) is the map's own road where its line runs right through a solid and out of the far side: Shibuya Sakura Stage's
+  covered bridge over SAKURAストリート (OpenStreetMap layer 1) was a house with a hipped roof closing the street, and the
+  game cut the street at its wall (the owner's report, 28 November 2026).
 
 - a solid in a train's way (tools/rail_clear.py: the Yamanote Line's envelope, from the rail to the contact wire,
   outside a station's box) has the envelope carved out of it: what stands beside the tracks keeps its height, what is
