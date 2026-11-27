@@ -330,9 +330,13 @@ window.OpenEarthGame = async function game(cityId) {
   // half a metre a texel their 0.9 m pattern was under two texels and came out as moiré, from the street as from the
   // air (the owner's still of the Scramble, November 2026, whose own bars had the same fault: hero.js). uZebraRec: each
   // crossing as two texels, its start and its way across (x, -y in the world's frame) and its length and half width;
-  // uZebraGrid: the crossings over each cell of uZebraBox (x0, z0, cell, on) as up to four numbers, 1-based
-  const ZEBRA_DRAW = { rec: { value: null }, grid: { value: null }, box: { value: new THREE.Vector4(0, 0, 1, 0) } };
-  { const t = new THREE.DataTexture(new Float32Array(4), 1, 1, THREE.RGBAFormat, THREE.FloatType); t.needsUpdate = true; ZEBRA_DRAW.rec.value = ZEBRA_DRAW.grid.value = t; }
+  // uZebraGrid: the cells of uZebraBox (x0, z0, cell, on) that crossings lie over, as a hash table (uZebraHash: its slots
+  // and its longest probe) whose slot holds the cell, 1-based, and where its crossings start in uZebraList and how many.
+  // A table sized by the cells in use, not by the map: a grid over the whole map was 1673 x 946 texels of 16 bytes,
+  // 25 MB of a phone's memory and past its largest texture. Every texture is wrapped to rows of ZEBRA_ROW texels
+  const ZEBRA_ROW = 1024;
+  const ZEBRA_DRAW = { rec: { value: null }, grid: { value: null }, list: { value: null }, box: { value: new THREE.Vector4(0, 0, 1, 0) }, hash: { value: new THREE.Vector2(1, 0) } };
+  { const t = new THREE.DataTexture(new Float32Array(4), 1, 1, THREE.RGBAFormat, THREE.FloatType); t.needsUpdate = true; ZEBRA_DRAW.rec.value = ZEBRA_DRAW.grid.value = ZEBRA_DRAW.list.value = t; }
   const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
     if (Wd.sea) Wd.sea.patchGround(sh); // the wet band and swash along the shore
@@ -340,26 +344,34 @@ window.OpenEarthGame = async function game(cityId) {
     sh.uniforms.uStreetOn = m.material.userData.streetOn = m.material.userData.streetOn || { value: 0 };
     sh.uniforms.uZone = ZONE;
     sh.uniforms.uHeroCut = HERO_CUT.tex; sh.uniforms.uHeroCut4 = HERO_CUT.box;
-    sh.uniforms.uZebraRec = ZEBRA_DRAW.rec; sh.uniforms.uZebraGrid = ZEBRA_DRAW.grid; sh.uniforms.uZebraBox = ZEBRA_DRAW.box;
+    sh.uniforms.uZebraRec = ZEBRA_DRAW.rec; sh.uniforms.uZebraGrid = ZEBRA_DRAW.grid; sh.uniforms.uZebraList = ZEBRA_DRAW.list; sh.uniforms.uZebraBox = ZEBRA_DRAW.box; sh.uniforms.uZebraHash = ZEBRA_DRAW.hash;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8]; uniform sampler2D uHeroCut; uniform vec4 uHeroCut4;
 #define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
 #define ZEBRA_PAINT vec3(0.776, 0.753, 0.686) // (the drawn paint, linear: streetTexture's #e4e1d8)
-uniform highp sampler2D uZebraRec, uZebraGrid; uniform vec4 uZebraBox;
+uniform highp sampler2D uZebraRec, uZebraGrid, uZebraList; uniform vec4 uZebraBox; uniform vec2 uZebraHash;
+vec4 oeZFetch(highp sampler2D s, int i) { return texelFetch(s, ivec2(i % ${ZEBRA_ROW}, i / ${ZEBRA_ROW}), 0); }
 ${OEStreets.ZEBRA_GLSL}
 // how much of this pixel the bars of the crossings over its cell cover (dpx, dpy: the pixel's sides on the ground)
 float oeZebraAt(vec2 p, vec2 dpx, vec2 dpy) {
   if (uZebraBox.w < 0.5) return 0.0;
-  ivec2 c = ivec2(floor((p - uZebraBox.xy) / uZebraBox.z)), gs = textureSize(uZebraGrid, 0);
-  if (c.x < 0 || c.y < 0 || c.x >= gs.x || c.y >= gs.y) return 0.0;
-  vec4 ids = texelFetch(uZebraGrid, c, 0);
+  ivec2 c = ivec2(floor((p - uZebraBox.xy) / uZebraBox.z));
+  if (c.x < 0 || c.y < 0) return 0.0;
+  int n = int(uZebraHash.x), at = -1, count = 0;
+  uint h = (uint(c.x) * 73856093u ^ uint(c.y) * 19349663u) & uint(n - 1);
+  for (int k = 0; k < 32; k++) {
+    if (float(k) >= uZebraHash.y) break;
+    vec4 e = oeZFetch(uZebraGrid, int((h + uint(k)) & uint(n - 1)));
+    if (e.x < 0.5) break;
+    if (int(e.x) - 1 == c.x && int(e.y) == c.y) { at = int(e.z); count = int(e.w); break; }
+  }
   float cov = 0.0;
-  for (int k = 0; k < 4; k++) {
-    if (ids[k] < 0.5) break;
-    int i = int(ids[k]) - 1;
-    vec4 a = texelFetch(uZebraRec, ivec2(i, 0), 0), b = texelFetch(uZebraRec, ivec2(i, 1), 0);
+  for (int k = 0; k < 8; k++) {
+    if (k >= count) break;
+    int j = at + k, i = int(oeZFetch(uZebraList, j >> 2)[j & 3]);
+    vec4 a = oeZFetch(uZebraRec, i * 2), b = oeZFetch(uZebraRec, i * 2 + 1);
     vec2 n = a.zw, t = vec2(-n.y, n.x), q = p - a.xy;
     float s = dot(q, n), u = dot(q, t);
     float ws = max(abs(dot(dpx, n)) + abs(dot(dpy, n)), 1e-4), wu = max(abs(dot(dpx, t)) + abs(dot(dpy, t)), 1e-4);
@@ -572,17 +584,16 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (RG) for (const z of RG.z || []) lines.push([z[0] / 10, z[1] / 10, z[2] / 10, z[3] / 10]);
     const L = lines.map(([x0, y0, x1, y1]) => ({ x: x0, z: -y0, len: Math.hypot(x1 - x0, y1 - y0), nx: x1 - x0, nz: -(y1 - y0) })).filter(l => l.len > 0.5);
     if (!L.length) return;
-    const HALF = 2, CELL = 16, rec = new Float32Array(L.length * 8);
-    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    const HALF = 2, CELL = 16, rec = [];
+    let x0 = Infinity, z0 = Infinity;
     const corners = l => { const tx = -l.nz, tz = l.nx; return [[0, -HALF], [0, HALF], [l.len, -HALF], [l.len, HALF]].map(([s, u]) => [l.x + l.nx * s + tx * u, l.z + l.nz * s + tz * u]); };
-    L.forEach((l, i) => {
+    L.forEach(l => {
       l.nx /= l.len; l.nz /= l.len;
-      rec.set([l.x, l.z, l.nx, l.nz], i * 4); rec.set([l.len, HALF, 0, 0], (L.length + i) * 4);
-      for (const [cx, cz] of corners(l)) { x0 = Math.min(x0, cx); z0 = Math.min(z0, cz); x1 = Math.max(x1, cx); z1 = Math.max(z1, cz); }
+      rec.push(l.x, l.z, l.nx, l.nz, l.len, HALF, 0, 0);
+      for (const [cx, cz] of corners(l)) { x0 = Math.min(x0, cx); z0 = Math.min(z0, cz); }
     });
     x0 -= CELL; z0 -= CELL;
-    const gw = Math.ceil((x1 - x0) / CELL) + 2, gh = Math.ceil((z1 - z0) / CELL) + 2, grid = new Float32Array(gw * gh * 4);
-    let full = 0;
+    const cells = new Map(); // gx + gz * 65536 -> the crossings over that cell, 0-based
     L.forEach((l, i) => {
       const c = corners(l), cx0 = Math.floor((Math.min(...c.map(q => q[0])) - 1 - x0) / CELL), cx1 = Math.floor((Math.max(...c.map(q => q[0])) + 1 - x0) / CELL);
       const cz0 = Math.floor((Math.min(...c.map(q => q[1])) - 1 - z0) / CELL), cz1 = Math.floor((Math.max(...c.map(q => q[1])) + 1 - z0) / CELL);
@@ -591,16 +602,36 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         const mx = x0 + (gx + 0.5) * CELL - l.x, mz = z0 + (gz + 0.5) * CELL - l.z, r = CELL * 0.7072 + 1;
         const s = mx * l.nx + mz * l.nz, u = -mx * l.nz + mz * l.nx;
         if (s < -r || s > l.len + r || Math.abs(u) > HALF + r) continue;
-        const k = (gz * gw + gx) * 4;
-        let j = 0; while (j < 4 && grid[k + j] > 0) j++;
-        if (j < 4) grid[k + j] = i + 1; else full++;
+        const key = gx + gz * 65536;
+        (cells.get(key) || cells.set(key, []).get(key)).push(i);
       }
     });
-    const tex = (a, w, h) => { const t = new THREE.DataTexture(a, w, h, THREE.RGBAFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; };
-    ZEBRA_DRAW.rec.value = tex(rec, L.length, 2);
-    ZEBRA_DRAW.grid.value = tex(grid, gw, gh);
+    // the table: twice the cells in use, a power of two, probed in turn from the cell's hash (oeZebraAt)
+    let n = 1; while (n < cells.size * 2) n *= 2;
+    const slots = new Float32Array(n * 4), list = [];
+    let probe = 0, full = 0;
+    for (const [key, ids] of cells) {
+      const gx = key % 65536, gz = Math.floor(key / 65536);
+      let h = ((Math.imul(gx, 73856093) ^ Math.imul(gz, 19349663)) >>> 0) & (n - 1), k = 0;
+      while (slots[h * 4] > 0) { h = (h + 1) & (n - 1); k++; }
+      probe = Math.max(probe, k + 1);
+      if (ids.length > 8) full++;
+      slots.set([gx + 1, gz, list.length, Math.min(ids.length, 8)], h * 4);
+      list.push(...ids.slice(0, 8));
+    }
+    // a texture of rows of ZEBRA_ROW texels, of four numbers each
+    const tex = a => {
+      const texels = Math.max(1, Math.ceil(a.length / 4)), w = Math.min(texels, ZEBRA_ROW), h = Math.ceil(texels / w), d = new Float32Array(w * h * 4);
+      d.set(a);
+      const t = new THREE.DataTexture(d, w, h, THREE.RGBAFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+    };
+    ZEBRA_DRAW.rec.value = tex(rec);
+    ZEBRA_DRAW.grid.value = tex(slots);
+    ZEBRA_DRAW.list.value = tex(list);
+    ZEBRA_DRAW.hash.value.set(n, probe);
     ZEBRA_DRAW.box.value.set(x0, z0, CELL, 1);
-    if (full) console.warn(`zebras: ${full} cells with more than four crossings over them`);
+    if (probe > 32) console.warn(`zebras: a probe of ${probe} slots, past the shader's 32`);
+    if (full) console.warn(`zebras: ${full} cells with more than eight crossings over them`);
   }
   function streetTexture(i) {
     const t = scene.ground[i], PX = QC.lean ? 0.75 : 0.5, w = Math.round((t.x1 - t.x0) / PX), h = Math.round((t.y1 - t.y0) / PX);
