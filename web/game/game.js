@@ -1617,6 +1617,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     padCheck = 30; // every half second or so
     const st = heli.st;
     if (!heli.loaded() && Math.hypot(st.x - player.x, st.y - player.y) < (QC.budget && QC.budget.extras === false ? 150 : 800)) heli.want(); // its model, once you are near it
+    if (!heli.loaded() && heli.hurry && Math.hypot(st.x - player.x, st.y - player.y) < 80) heli.hurry(); // (and its pictures first as you come to its pad, or to the foot of the tower it stands on: it is not drawn until warm)
     if (!st.landed || st.on || st.rotor > 0.02 || st.door > 0 || Math.hypot(st.x - player.x, st.y - player.y) < 700) return;
     for (const p of G.helipads) {
       if (Math.hypot(p.at[0] - player.x, p.at[1] - player.y) > 300 || Math.hypot(p.at[0] - st.x, p.at[1] - st.y) < 20) continue;
@@ -1856,7 +1857,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     const isFirst = m >= last && m < first, at = isFirst ? first : last;
     return { first: isFirst, at, in: (at - m + 1440) % 1440 };
   }
-  // Waiting with someone (walktalk.js wait: Nagi, for her train). You sit on Hachiko's wall and they sit beside you, and
+  // Waiting with someone (walktalk.js wall: Nagi, for her train). You sit on Hachiko's wall and they sit beside you, and
   // the night passes by itself while the crossing goes on: faster where nothing happens, slower near the night's moments
   // (`says`: a line at a minute, said over them as it comes round), until a few minutes before the train. Standing up (E)
   // ends it where it is; the wait can be taken up again
@@ -5546,7 +5547,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
     // (on a perch, Space or the Time-lapse button held: the evening runs fast, the crowd at its own pace; perch.js warp)
-    if (waitRun) waitStep(dt); // (waiting with someone on the wall: the night passes by itself, walktalk.js wait)
+    if (waitRun) waitStep(dt); // (waiting with someone on the wall: the night passes by itself, walktalk.js wall)
     { const wm = perch && !clock.frozen && !waitRun ? perch.warp(dt, keys.has('Space')) : 0; if (wm) { clock.own = true; clock.min += wm; if (clock.min >= 1440) setClock(clock.y, clock.m, clock.d, clock.min); } }
     // the controller: its sticks walk and look as the keys and the mouse do (pad.js); its buttons are keys already
     if (gamepad) {
