@@ -1267,9 +1267,15 @@ told apart by value and rhythm, never by hue; colour and detail are kept for the
 - the rows of light deep in a room at a graze, filtered by a guess at their footprint: they broke into dots. They are
   filtered over the pixel's own neighbours (`fwidth` of where the ray ends) and settle into an even glow.
 
-So: one neutral cool white (about 4500 K, the city's offices' and the night's blue) on every storey. Each storey is lit
-by its use's hours: offices empty through the evening as the city's do (buildings.js occupancy, the tower a little
-busier: `busy` 1.15), each lit storey a little brighter or dimmer than the next; shops until 21:00, the restaurants
+So: the rooms plain and of one family. The office storeys are lit by the city's own rule for an office tower's
+windows (`buildings.js`), not a storey at a time: lit a storey whole in one even cool white, nine in ten of them lit at
+the blue hour, the tower read as a grey ribbed column among lit ones, as if dark (the owner, 27 November 2026: "at least
+as the other buildings are"). Now each office floor is lit in runs of 6 m (four panes, cut at the panes' mullions, where
+the glass is), the floors mostly lit or dark together with some runs apart, an odd pane dark, each run at its own
+brightness (most at office light, a few bright) under cool white or, one in four, a warmer white, as the city's towers
+are; what is lit is settled at the glass, not where the ray ends in the room. The other floors are lit a storey whole by
+their hours, as the city's shop floors are. Offices empty through the evening as the city's do (buildings.js occupancy,
+the tower a little busier: `busy` 1.15); shops until 21:00, the restaurants
 until 23:00, the gallery until 22:30, the sky lobby until midnight. The glass in front is the tile's own, drawn again in the same
 places: no light through the spandrel or a mullion (stepping along at each storey as the tile steps them), less through
 the frit and a haze of the room's light on it. Farther off the room settles to its mean, and where a storey is under a
