@@ -176,6 +176,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       else ok(`from the title, the case begins (${await where()})`);
     }
   };
+  // UPTRACE=s: every s seconds of the wall clock, the upload queue (world.js uploadStats): how many wait, how many have gone
+  // by class, the page's age, where you are, the draw gate's counters (the helicopter that never warmed on the roof, #157)
+  if (+process.env.UPTRACE) setInterval(() => p.evaluate(() => { const g = window.__game, u = window.OEWorld && OEWorld.uploadStats ? OEWorld.uploadStats() : null; if (!u) return null;
+    return { s: Math.round(performance.now() / 1000), wait: u.waiting, sent: [u[0].n, u[1].n, u[2].n], p90: [u[0].p90, u[1].p90, u[2].p90], gate: window.__gate ? Object.assign({}, window.__gate.n) : null, at: g && g.player ? [Math.round(g.player.x), Math.round(g.player.y), Math.round(g.player.z)] : null, heli: g && g.heli && g.heli.late ? g.heli.late() : null };
+  }).then(r => r && console.log('uptrace', JSON.stringify(r)), () => {}), +process.env.UPTRACE * 1000);
   if (process.env.WALK_ONLY === 'title') {
     await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await p.evaluate(() => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: 'night', w: 'clear' })); });
