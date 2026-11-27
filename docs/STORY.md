@@ -2434,7 +2434,7 @@ plays it again. Read as a player meets it, the numbers from `walktalk.js` and `g
 | The incident to come | Armed at the walk's start (`begin`, `lineArm`) when her first part is unsaid; the man stands at [371, -1020.7], his pictures first in the upload queue (`ctx.hurry`, people.js `lib.hurry`) | The corner: *A woman is photographing the screens*, with the metres and the arrow to her. No mark over her, nothing to say yet; no other story begun meanwhile (no amber mark, no call-out), and no street moment | Nothing | The same, whatever was kept of the fall: played again |
 | He runs | On foot, 25 s of control counted (`calm_s`, not while a talk, a menu or a film is up), within 16 m of her (`near`), she drawn and in view, his model come (or, everything else ready, after 20 s as whoever stands in for him: `model_s`), then 3 s (`after_s`) | A man in a suit runs (4.5 m/s) into her shoulder and on, via [385, -1012.3] to [401.5, -1029]; she is thrown and sits on the ground, her phone lit a step on; a thud | Nothing that outlives the visit | Played again |
 | She is down | The hit | The corner: *He walked into her and did not stop*. Beside her: *Help her up* (E) | Nothing that outlives the visit | Played again |
-| Helped up, or alone | E beside her; or 24 s down with you more than 6 m off, or 48 s whatever (`down_s`) | Helped: her first part at once (*Thank you. I'm all right...*). Left: on her feet, an amber mark, her `alone` part (*I'm all right. Everyone went round...*). Either way, hers is the story under way whatever had been begun (a story begun before waits behind it) | Nothing until her part is said | Played again |
+| Helped up, or alone | E beside her; or 24 s down with you more than 6 m off, or 48 s whatever (`down_s`) | Helped: her first part at once (*Thank you. I'm all right...*). Left: on her feet, an amber mark and the corner's *Nagi has something to say*, her `alone` part (*I'm all right. Everyone went round...*). Either way, hers is the story under way whatever had been begun (a story begun before waits behind it) | Nothing until her part is said | Played again |
 | Her photograph | Her first part said | *Photograph Nagi, with the crossing behind her* (O): a photograph with her in it, from 1 to 14 m | `inc` (helped or alone) and part 1: from here the fall is kept | Her story where it was: the corner asks for the photograph |
 | Shown it | The photograph; *Back to Nagi* | Her last part: her mother's Saturday photograph, *{train} {train_when}*, *I'll be by Hachiko's wall*. *The last train* is put away, its name over the street. The story before hers (Oda's, in the owner's case) is the one under way again | Done | Told; she goes to the wall unseen (`rest`, when you are 28 m from her and 22 m from the wall, and she is out of sight) |
 | By the wall | Beside her there, told | Pale mark, her `after` words; *Wait with her for {train}* | `rested` | She is at the wall |
@@ -2450,7 +2450,10 @@ plays it again. Read as a player meets it, the numbers from `walktalk.js` and `g
 The holes found and closed in this pass: her first words about a fall the visit never saw (the fall kept too early);
 the incident waiting for ever on the man's model (his pictures now go first, and he comes as his stand-in after 20 s);
 two things at once while the incident waited (Mei's amber mark and her call-out beside the corner's lead to Nagi);
-and the menu's line for a story under way that read the corner's lead to her instead of what it asked.
+the menu's line for a story under way that read the corner's lead to her instead of what it asked; and the corner
+over her once she was up and waiting to speak, which gave the story begun before (*Drive to 109*) instead of *Nagi has
+something to say*. Seen once more in the runners' play and not again: at the line's end the wait once never reached the
+station's front (walk3, 27 November 2026; it passed on the next run and here).
 `tools/walktalk_unit.js` plays the returning visits (the fall kept helped, left or still down; his model come or never
 coming; Oda's story under way) and `tools/walk_play.js` plays the incident as one.
 

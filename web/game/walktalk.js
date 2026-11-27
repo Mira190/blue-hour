@@ -179,6 +179,9 @@ window.OEWalkTalk = (function () {
     // first not yet told. Several begun at once (the owner talked to everyone and could not keep what each had asked) was
     // a list to remember, not a story; now there is always one thing to do and one person with the amber mark
     function current() {
+      // (the walk's line's person on her feet, her first words unsaid: hers is the story now, whatever was begun before. On
+      // a returning visit with Oda's story under way the corner said "Drive to 109" over her, up and waiting to speak)
+      if (lineS && !gate && !waitOn) { const k = of(lineS); if (k.inc && k.part === 0 && !k.done) return lineS; }
       return people.find(s => { const k = of(s); return !k.done && k.part > 0; }) || people.find(s => !of(s).done) || null;
     }
     // what someone has to say now: a part of the story under way ('story'), a word in passing ('chat': a mark of its

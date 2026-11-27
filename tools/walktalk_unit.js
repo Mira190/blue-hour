@@ -107,7 +107,7 @@ if (line) {
     if (W.line().startedAt < (I.calm_s ?? 25)) fail(`${tag}: it began ${W.line().startedAt} s into control`);
     if (!/walked into her/.test(W.errand().text)) fail(`${tag}: she is down and the corner says "${W.errand().text}"`);
     if (how === 'helped') { heard = null; if (!W.help(her)) fail(`${tag}: Help her up did nothing`); }
-    else { me = { x: 400, y: -990, z: 0, mode: 'foot' }; for (let u = 0; u < 120 && W.line().ph === 'down'; u += 0.1) W.tick(0.1, false); me = { x: 375, y: -1016, z: 0, mode: 'foot' }; heard = null; if (W.line().ph !== 'up') fail(`${tag}: left, she does not get up`); else W.talk(her); }
+    else { me = { x: 400, y: -990, z: 0, mode: 'foot' }; for (let u = 0; u < 120 && W.line().ph === 'down'; u += 0.1) W.tick(0.1, false); me = { x: 375, y: -1016, z: 0, mode: 'foot' }; heard = null; if (W.line().ph !== 'up') fail(`${tag}: left, she does not get up`); else { const e = W.errand(); if (!e || !/^nagi has something to say/i.test(e.text)) fail(`${tag}: on her feet with her words unsaid, the corner says "${e && e.text}"`); W.talk(her); } }
     const first = heard && heard[0] && heard[0][1][0], want0 = (how === 'alone' ? line.parts[0].alone : null) || line.parts[0].lines;
     if (first !== want0[0]) fail(`${tag}: ${how}, her first words are "${first}", not "${want0[0]}"`);
     const k = JSON.parse(store[KEEP])[line.id];
