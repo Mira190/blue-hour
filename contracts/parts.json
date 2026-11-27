@@ -650,6 +650,7 @@
     "web/game/style.js",
     "web/game/fx.js",
     "web/game/pad.js",
+    "web/game/mousesteer.js",
     "web/onboard.js",
     "web/plate.js",
     "web/credits.js",
@@ -684,6 +685,9 @@
      "toast"
     ],
     "OEMarks": [
+     "create"
+    ],
+    "OEMouseSteer": [
      "create"
     ],
     "OEOnboard": [

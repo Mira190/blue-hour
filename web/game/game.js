@@ -2338,7 +2338,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     blendFrom(0.8 + turn * 0.16, true); // (round behind the car from where you stood, not swung through it in a frame or two; longer the farther round)
     A.thump();
     if (!walk) H.toast(touch ? 'Your car. Push the stick forward to drive, back to brake and reverse, and to either side to steer. <b>Hand brake</b>, <b>Horn</b>, <b>View</b> and <b>Auto</b> are beside it; <b>E</b> gets out.'
+      : msteer && msteer.enabled ? 'Your car. Click the picture to steer with the mouse (hold the right button to look round, <kbd>Esc</kbd> lets go); <kbd>W</kbd>/<kbd>S</kbd> drive, brake and reverse, <kbd>A</kbd>/<kbd>D</kbd> steer too, <kbd>Space</kbd> handbrake, <kbd>V</kbd> view, <kbd>E</kbd> get out.'
       : 'Your car. <kbd>W</kbd>/<kbd>S</kbd> drive, brake and reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> view, <kbd>E</kbd> get out.');
+    else if (msteer && msteer.enabled) H.toast('Mouse steering: click the picture to steer with the mouse. Hold the right button to look round; <kbd>Esc</kbd> lets go.'); // (on the walk too, once the setting is chosen)
   }
   // out of a car onto the ground beside a door, on foot again
   function stepOut(o, seat, at = null) {
@@ -4064,9 +4066,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   on(window, 'keyup', e => keys.delete(e.code));
   on(window, 'blur', () => keys.clear());
   let drag = null;
-  on(canvas, 'pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); A.start(); if (overture && overture.active) { if (!overture.story || performance.now() - overture.story > 1500) overture.skip(); } else if (arriving) settleArrival(); else if (cine.active) cine.skip(); });
+  on(canvas, 'pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; if (!document.pointerLockElement) canvas.setPointerCapture(e.pointerId); // (none under the pointer lock of mouse steering: the browser refuses it there, and the line threw before the rest)
+  A.start(); if (overture && overture.active) { if (!overture.story || performance.now() - overture.story > 1500) overture.skip(); } else if (arriving) settleArrival(); else if (cine.active) cine.skip(); });
   on(canvas, 'pointermove', e => {
     if (!drag || drag.id !== e.pointerId || fingers.size > 1) return;
+    if (msteer && msteer.locked) return; // (steering with the mouse: its movement is the wheel's, or the free look's, mousesteer.js)
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
     if (photo.on) { photo.az += dx * 0.006; photo.pitch = Math.max(-0.35, Math.min(1.5, photo.pitch + dy * 0.005)); photoSync(); return; }
@@ -4079,6 +4083,14 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     cam.lastInput = clockT;
   });
   on(canvas, 'pointerup', e => { if (drag && drag.moved < 6 && dlg.holds) dlg.next(false, true); drag = null; });
+  // steering your car with the mouse, a setting off by default (mousesteer.js): a click into the picture at the wheel takes
+  // the pointer lock, the mouse's sideways movement the wheel, the right button held the camera; let go by Esc, the menu,
+  // a talk, a scene, the phone or stepping out
+  const msteer = !touch && window.OEMouseSteer ? OEMouseSteer.create({ canvas, on, $, $$,
+    allowed: () => player.mode === 'car' && !!myCar && playing && !uiOpen() && !dlg.holds && !photo.on && !closeup && !cine.active && !(story && story.film) && phone.el.hidden,
+    look: (dx, dy) => { cam.yawTo = cam.pitchTo = null; cam.yaw += dx * 0.006; cam.pitch = Math.max(-0.25, Math.min(1.35, cam.pitch + dy * 0.005)); cam.lastInput = clockT; },
+    changed: v => { if (player.mode === 'car') H.toast(v ? 'Mouse steering on. Click the picture to steer with the mouse; hold the right button to look round, <kbd>Esc</kbd> lets go.' : 'Mouse steering off. The mouse turns the camera again.'); } }) : null;
+  if (touch && $('#gm-steer')) $('#gm-steer').closest('.field').hidden = true; // (a phone steers with its stick)
   on($('#gp-alt'), 'click', () => { const a = altAction(); if (a) { A.start(); a.act(); } });
   // on a phone the prompt is a button too, and two fingers on the picture zoom as the wheel does
   if (touch) on($('#gp-main'), 'click', () => interact());
@@ -5110,7 +5122,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return true;
   }
   if (story && window.OEWalk) {
-    walkUi = OEWalk.create({ stage, touch, place: walkPlace, date: walkDate(), hourAt: walkHour, fmt: fmtMin, whoGate: () => whoGate(),
+    walkUi = OEWalk.create({ stage, touch, mouseSteer: () => !!(msteer && msteer.enabled), place: walkPlace, date: walkDate(), hourAt: walkHour, fmt: fmtMin, whoGate: () => whoGate(),
       preview: sp => { if (!walkWas) walkWas = { w: weather ? weather.state.mode : null }; walkDress(sp); walkFilmReady(); },
       restore: () => { story.dress(); if (weather && walkWas && walkWas.w) weather.set(walkWas.w, { now: true }); walkWas = null; },
       start: startWalk,
@@ -5732,6 +5744,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     for (const r of faceWas) if (!faceWho.has(r)) { faceWas.delete(r); if (r.face && r.face.active) r.face.rest(); }
     for (const r of faceWho.keys()) faceWas.add(r);
   }
+  // the keys at the wheel of your car: a key is all or nothing, and the wheel is not. Held, it turns the wheel in over a
+  // tenth of a second standing and over a third at 16 m/s (a short tap at speed is a correction in the lane, not a swerve);
+  // let go, it comes back in a tenth; the other key brings it through the middle first. The car's own steering then turns
+  // the wheels at its rate, to less lock the faster it goes, and back to the middle when let go (cars.js drive). A
+  // controller's stick and the touch stick are already as far as the thumb pushes them, and pass by this.
+  let keyTurn = 0;
+  function keyWheel(dt, want, v) {
+    const rin = dt / (0.1 + 0.014 * Math.abs(v)), rout = dt * 10;
+    if (want && keyTurn * want >= 0) keyTurn += Math.max(-rin, Math.min(rin, want - keyTurn));
+    else keyTurn += Math.max(-rout, Math.min(rout, -keyTurn));
+    return keyTurn;
+  }
   function simulate(dt) {
     faceChoose();
     if (carCome) carComing(dt); // (your car pulling in at the kerb, called: the world's step, so a harness's advance() moves it too)
@@ -5745,7 +5769,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     if (D.district && playing && (player.mode === 'foot' || player.mode === 'car') && !inFrame(player.x, player.y, 8)) districtEdge(); // (a phone's district: its edge, said)
     const fwd = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0) + joy.y + (gamepad ? gamepad.move.y : 0);
-    const side = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0) + joy.x + (gamepad ? gamepad.move.x : 0);
+    const keySide = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
+    if (msteer) msteer.tick();
+    const atWheel = player.mode === 'car' && !!myCar, carV = atWheel ? myCar.D.st.v : 0;
+    const side = (atWheel ? keyWheel(dt, keySide, carV) : (keyTurn = 0, keySide)) + joy.x + (gamepad ? gamepad.move.x : 0) + (atWheel && msteer ? msteer.step(dt, carV) : 0);
     const held = dlg.holds || !!closeup || cine.label === 'hop' || cine.label === 'survey' || cine.label === 'closer' || (cine.active && cine.label === 'overture') || !!(story && story.film);
     const angling = !!fish && !!fish.api && fish.api.on(); // standing with a line out: the rod has the keys
     if (player.mode === 'foot' && angling) { player.speed = 0; gaitChip(player.walking ? 'walk' : 'run'); player.rig.animate(dt, 0, 'ground', clockT); }
@@ -7832,7 +7859,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   const flyover = { titlePose, marks: { MARK, mark }, camera: o => { flyCam = o ? { pos: W(...o.cam), look: W(...o.look), shadow: o.shadow || 600 } : null; }, restart: () => fromFlyover() };
   // the street's own people (regulars.js, issue 168): a few of the crowd with a routine the clock carries, on the walk
   if (window.OERegulars && G.regulars && crowd.enlist) regulars = OERegulars.create({ data: G.regulars, crowd, redress: (p, d) => !!(crowdDraw && crowdDraw.redress && crowdDraw.redress(crowd.P.indexOf(p), d)), clock: () => clock.min, day: () => clock.y * 372 + clock.m * 31 + clock.d, rain: () => !!(weather && weather.state && weather.state.rain > 0.15), here: () => player, ground: (x, y) => { const w = nav.walk(x, y, nav.terrain(x, y) + 0.6, true); return w.ok ? w.z : null; } }); // (the street's ground there, whatever floor you are on)
-  window.__game = { marks, stopFx, bounds: () => bounds, visitors, speakers, walkStart: sp => startWalk(sp), heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, storyTalking: talking, tonight: () => tonight, regulars: () => regulars, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
+  window.__game = { msteer, get joy() { return joy; }, marks, stopFx, bounds: () => bounds, visitors, speakers, walkStart: sp => startWalk(sp), heroCut: off => { if (off != null) HERO_CUT.off = !!off; return { on: HERO_CUT.box.value.w, box: HERO_CUT.box.value.toArray(), level: HERO_CUT.h && HERO_CUT.h.id }; }, perch, storyTalking: talking, tonight: () => tonight, regulars: () => regulars, regulars: () => regulars, lightShow: () => show, lights: () => ({ objective: beam.visible, story: !!(storyBeacon && storyBeacon.visible), here: !!(storyHere && storyHere.visible) }), storyFigure, faces: () => faceWho, storyFigs: () => storyFigs, playAs: name => setPlayerCharacter(name), titleScreen: s => titleScreen(s), screen: () => screenOf(), talkCam, talkShot: () => talkShot, past, guide: () => ({ key: guide.key, n: guide.pts ? guide.pts.length : 0, fail: guide.fail, ready: ways.ready }), life, hero: () => hero, renderer, trips: () => junctions.trips(), pilot: () => pilot, pilotEnd: () => pilotEnd, pilotTo, pilotOff, pilotAsk, assist, assistToggle, laneHere, destinations, scenicWeights, shows, world, fishing: () => fish, fishLoad: () => (fish ? fishLoad() : Promise.resolve(null)), groundShown: () => { const g = Wd.groundPictures; if (!g || !g.shown) return null; g.release(); return g.shown(); }, // (every aerial tile in, the far ones fetched now if the loader hasn't gone yet: issue 335)
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },

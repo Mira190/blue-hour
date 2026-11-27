@@ -137,7 +137,7 @@ window.OEWalk = (function () {
     const K = k => `<kbd>${ctx.key(k)}</kbd>`;
     const keyLine = (m = 'foot') => {
       if (m === 'car') return ctx.touch ? '<span>The stick drives, brakes and steers</span><span>At the right: the hand brake, the horn, the view</span><span>Stopped: tap Get out</span>'
-        : `<span>${K('W')}${K('S')}drive · brake</span><span>${K('A')}${K('D')}steer</span><span>${K('Space')}hand brake</span><span>${K('H')}horn</span><span>${K('V')}view</span><span>${K('E')}get out</span>`;
+        : `<span>${K('W')}${K('S')}drive · brake</span><span>${K('A')}${K('D')}steer</span>${ctx.mouseSteer && ctx.mouseSteer() ? '<span>click: the mouse steers, right button looks</span>' : ''}<span>${K('Space')}hand brake</span><span>${K('H')}horn</span><span>${K('V')}view</span><span>${K('E')}get out</span>`;
       if (m === 'wait') return ctx.touch ? '<span>The night passes by itself</span><span>Tap Stand up to stop waiting</span>' // (waiting with someone on the wall: nothing to hold, walktalk.js wait)
         : `<span>the night passes by itself</span><span>${K('E')}stand up</span>`;
       if (m === 'seat') return ctx.touch ? '<span>Drag to look round</span><span>Hold Time-lapse: the evening passes</span>' // (on a perch: game.js, perch.js)
@@ -226,7 +226,7 @@ window.OEWalk = (function () {
       [`${K('W')}${K('A')}${K('S')}${K('D')}`, 'Walk; drag to look round, scroll to come closer'], [`${K('Shift')} ${K('X')} ${K('Space')}`, 'Run while held · walk or run · jump'],
       [K('E'), 'Talk, sit down, take a lift, get in or out'], [K('C'), 'Your car, to the kerb nearest you'],
       [K('O'), 'The camera: the street holds still; set the lens and the hour, and keep the picture'],
-      ['In your car', `${K('W')}${K('S')} drive, brake · ${K('A')}${K('D')} steer · ${K('Space')} hand brake · ${K('H')} horn · ${K('V')} the view`],
+      ['In your car', `${K('W')}${K('S')} drive, brake · ${K('A')}${K('D')} steer · ${K('Space')} hand brake · ${K('H')} horn · ${K('V')} the view<span class="gk-mouse"> · with mouse steering on, click the picture and the mouse steers, the right button held looks round, ${K('Esc')} lets go</span>`],
       ['In the helicopter', `${K('Space')} climb · ${K('Shift')} descend · ${K('W')}${K('S')} fly, slow · ${K('A')}${K('D')} turn · ${K('V')} the view`],
       ['On a seat', `Drag to look round · hold ${K('Space')} and the evening passes`], [K('Esc'), 'This menu'],
     ]);
@@ -246,7 +246,7 @@ window.OEWalk = (function () {
 <div class="gw-skies" role="radiogroup" aria-label="The sky">${ANY_SKY.map(([v, l]) => `<button type="button" role="radio" aria-checked="false" data-sky="${v}">${l}</button>`).join('')}</div>
 </div></details>
 <div class="gw-acts"><button type="button" class="btn primary" id="gw-continue"><span>Continue</span>${ctx.touch ? '' : `<kbd>${ctx.key('Esc')}</kbd>`}</button></div>
-<details class="gw-fold" id="gw-opts"><summary><span>Options</span><small>Sound · words · frame rate</small><i aria-hidden="true"></i></summary><div class="gw-fold-in gt-opts-list"></div></details>
+<details class="gw-fold" id="gw-opts"><summary><span>Options</span><small>Sound · words · frame rate${ctx.touch ? '' : ' · steering'}</small><i aria-hidden="true"></i></summary><div class="gw-fold-in gt-opts-list"></div></details>
 <details class="gw-fold" id="gw-keys"><summary><span>${ctx.touch ? 'Controls' : 'Keys'}</span><small>${ctx.touch ? 'Thumbs · car · helicopter' : 'On foot · car · helicopter'}</small><i aria-hidden="true"></i></summary><div class="gw-fold-in"><table class="gw-keys"><tbody>${keyRows().map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('')}</tbody></table></div></details>
 <button type="button" class="gw-row" id="gw-credits" data-credits><span>Credits</span><small>Sources · licences</small><i aria-hidden="true"></i></button>
 </section>
@@ -258,7 +258,7 @@ window.OEWalk = (function () {
       const acts = menu.querySelector('.gw-acts'), side = menu.querySelector('.gw-side'), opts = menu.querySelector('#gw-opts .gw-fold-in');
       for (const id of ['#gm-car', '#gm-story', '#gm-title']) { const e = q(id); if (e) { e.classList.remove('primary'); acts.appendChild(e); } }
       for (const id of ['#gm-tales', '#gm-tonight']) { const e = q(id); if (e) side.appendChild(e); }
-      for (const id of ['#gm-sound', '#gm-words', '#gm-fps']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) opts.appendChild(n); }
+      for (const id of ['#gm-sound', '#gm-words', '#gm-fps', '#gm-steer']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) opts.appendChild(n); }
       menu.addEventListener('click', e => {
         const b = e.target.closest('button');
         if (!b || !menu.contains(b)) return;
