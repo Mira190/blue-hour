@@ -1039,7 +1039,11 @@ camera meets through each point of a grid over a still, and found it.
 **The white bar along the glass.** At night a hard white line ran along every edge of the deck at the glass's foot, on
 the landmark's deck as on this level's: the night's crown wash (`night.js`, a tower's top storeys lit from its setback
 with a fine line along the parapet), drawn 0.3 m outside the tower's walls up to the deck, seen through the glass. A
-tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) now has no crown.
+tower whose roof is walked on (a scene.json landmark with a `deck_z` inside its top's ring) was then given no crown at
+all, and the city's tallest tower, the one the walk's opening names, stood dark among lit crowns from the street and the
+air (the owner, 27 November 2026): the roof's own lights are this level's, fetched only near the roof. Its crown is now
+drawn as any tower's, always lit and in white, as a draw of its own that `night.js` lets go while the camera is up on
+that roof (within 40 m of its top's ring, from 25 m under the deck to 60 m over it), where this level lights the roof.
 
 **Only near, in height too.** The roof stands within 80 m in plan of frame 5's place at the tower's foot, and a level
 was fetched by its distance in plan. `hero.js` now takes a level's `zr` (its half-height about its `z`): the camera's
@@ -1268,9 +1272,15 @@ told apart by value and rhythm, never by hue; colour and detail are kept for the
 - the rows of light deep in a room at a graze, filtered by a guess at their footprint: they broke into dots. They are
   filtered over the pixel's own neighbours (`fwidth` of where the ray ends) and settle into an even glow.
 
-So: one neutral cool white (about 4500 K, the city's offices' and the night's blue) on every storey. Each storey is lit
-by its use's hours: offices empty through the evening as the city's do (buildings.js occupancy, the tower a little
-busier: `busy` 1.15), each lit storey a little brighter or dimmer than the next; shops until 21:00, the restaurants
+So: the rooms plain and of one family. The office storeys are lit by the city's own rule for an office tower's
+windows (`buildings.js`), not a storey at a time: lit a storey whole in one even cool white, nine in ten of them lit at
+the blue hour, the tower read as a grey ribbed column among lit ones, as if dark (the owner, 27 November 2026: "at least
+as the other buildings are"). Now each office floor is lit in runs of 6 m (four panes, cut at the panes' mullions, where
+the glass is), the floors mostly lit or dark together with some runs apart, an odd pane dark, each run at its own
+brightness (most at office light, a few bright) under cool white or, one in four, a warmer white, as the city's towers
+are; what is lit is settled at the glass, not where the ray ends in the room. The other floors are lit a storey whole by
+their hours, as the city's shop floors are. Offices empty through the evening as the city's do (buildings.js occupancy,
+the tower a little busier: `busy` 1.15); shops until 21:00, the restaurants
 until 23:00, the gallery until 22:30, the sky lobby until midnight. The glass in front is the tile's own, drawn again in the same
 places: no light through the spandrel or a mullion (stepping along at each storey as the tile steps them), less through
 the frit and a haze of the room's light on it. Farther off the room settles to its mean, and where a storey is under a
