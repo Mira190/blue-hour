@@ -462,7 +462,7 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const afterSaid = () => { const T = document.getElementById('g-toasts'); return !T || (!T.dataset.next && !T.querySelector('.g-toast:not(.out)')); };
     // (the file's slip stands at the top right; where the goal's words reach under it, a phone's screen or a narrow one, it
     // stands under the goal's box instead, never drawn over the goal: issue 233)
-    const placeSlip = () => { if (!slip.classList.contains('on')) { if (slip.style.top) slip.style.top = ''; return; } let top = ''; if (goalEl.classList.contains('on')) { const g = goalEl.getBoundingClientRect(), right = goalEl.closest('.words-solid') ? g.right : goalBox().right; if (g.height > 0 && slip.getBoundingClientRect().left < right) top = `${Math.round(g.bottom + 8)}px`; } if (slip.style.top !== top) slip.style.top = top; };
+    const placeSlip = () => { if (!slip.classList.contains('on')) return; /* (going, it fades where it stood) */ let top = ''; if (goalEl.classList.contains('on')) { const g = goalEl.getBoundingClientRect(), right = goalEl.closest('.words-solid') ? g.right : goalBox().right; if (g.height > 0 && slip.getBoundingClientRect().left < right) top = `${Math.round(g.bottom + 8)}px`; } if (slip.style.top !== top) slip.style.top = top; };
     const clockOf = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
     // a place as the beacon and the mark want it: [x, y, the height of a head there, the floor]
     const spot = p => { const z = p[2] != null ? p[2] : ctx.floor(p[0], p[1]); return [p[0], p[1], z + 1.2, z]; };
