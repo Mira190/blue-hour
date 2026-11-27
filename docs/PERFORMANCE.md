@@ -3767,8 +3767,17 @@ The rest are once each: a function meeting a new kind of object as the evening g
 the stand-in for a near walker whose own model has not come was picked from a list filtered fresh, an empty one an
 array of another kind. `lib.tpl` and `lib.loading` are now made without a prototype (a dictionary from the start, one
 shape), and the stand-in is picked by counting, the same pick: the walk's minute 98 deopts to 58, `begin` none.
-`unorm8` is the cells' streaming's (#192). `carDepth` and `blocked`, thrown out in the first trace, were not in these
-windows.
+`carDepth` and `blocked`, thrown out in the first trace, were not in these windows.
+
+**`unorm8`: counted, measured, not changed.** Its 44 to 48 a minute are not the cells' streaming but the player's car,
+built once when the cars' library comes (`cars.js` `car()`, 24 parts, each part's colours packed into bytes). Read
+straight from their arrays instead of through `getComponent`, the same bytes (`tools/verts_same.js`, 77,664 bytes of
+the car and of colours on every edge, branch `unorm8-220`), the deopts moved from the range test to the line after the
+loop and stayed 48: the loop runs in code compiled on the stack (OSR) and is thrown out only as it leaves, for the
+few lines after it. The car's build timed in the page, three times each way: 60 to 125 ms on the branch, 60 to 96 on
+main, the packing 1 to 9 ms of it either way; nothing to take. Not landed. **A deopt counted is not a cost**: a
+function thrown out at its loop's exit loses nothing, one thrown out each frame in its body (`sliceAt`, `begin`) runs
+slower every frame. Measure with a switch before changing anything this survey names.
 
 Not measured: a real device, Safari, iOS, the Worker's cost on a phone's slower cores (here it shares four of this
 machine's cores with the software renderer), the second stage.
