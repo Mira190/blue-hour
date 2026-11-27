@@ -254,7 +254,7 @@ def platform_roofs(B, game):
         g = LineString(P[:, :2])
         m = np.concatenate([[0], np.cumsum(np.hypot(*np.diff(P[:, :2], axis=0).T))])
         lines.append((g, m, P))
-    n = 0
+    n, flat = 0, set()
     for s in B["s"]:
         if B["b"][s[0]][1] != "roof":
             continue
@@ -269,13 +269,38 @@ def platform_roofs(B, game):
             continue   # (a canopy over the street under the line, or a roof well over the wire: a station's own)
         m = B["b"][s[0]]   # (a platform's roof is a flat sheet of metal on steel: the record's tiled skillion on a slab
         m[7], m[8], m[13], m[15] = CANOPY_WALL, CANOPY_ROOF, B["roof_materials"].index("metal"), 0   # read as a brown wavy band)
+        flat.add(s[0])
         if lo >= rail + rail_clear.WIRE_M:
             continue
         deep = s[3] - s[2]
         s[2] = math.ceil((rail + rail_clear.WIRE_M) * 10) - s[1]
         s[3] = s[2] + min(CANOPY_DM, max(2, deep))
         n += 1
+    # and none keeps the record's pitched roof (buildings.json "r"): its mesh stands at the record's height, not
+    # the sheet's, and showed as a pale wedge on Shibuya's island platform under the sheet (27 November 2026)
+    if flat and B.get("r"):
+        B["r"] = [r for r in B["r"] if B["s"][r[0]][0] not in flat]
     return n
+
+
+def on_platforms(B, game):
+    """The platform roofs over a platform the railway draws itself (game.json trains "platforms": Shibuya's island
+    out of its box over Route 246, cities/shibuya/rail.py platforms()), by solid: they stand on its columns, and
+    web/buildings-geo.js draws no platform of its own under them nor posts down their sides. Set as
+    buildings.json "on_platforms"; the number."""
+    rings = [Polygon([(p["ring"][i] / 10, p["ring"][i + 1] / 10) for i in range(0, len(p["ring"]), 2)]).buffer(0)
+             for p in ((game or {}).get("trains") or {}).get("platforms", [])]
+    out = []
+    for si, s in enumerate(B["s"]):
+        if rings and B["b"][s[0]][1] == "roof" and s[2] > 0:
+            F = Polygon([(s[4][i] / 10, s[4][i + 1] / 10) for i in range(0, len(s[4]), 2)]).buffer(0)
+            if any(F.intersection(r).area > 20 for r in rings):
+                out.append(si)
+    if out:
+        B["on_platforms"] = out
+    else:
+        B.pop("on_platforms", None)
+    return len(out)
 
 
 ROOM_M = 2.6   # (what is left over a train's wire lower than this is not kept: no room in it)
@@ -475,6 +500,7 @@ def main():
     met = meet_floors(B, a.city)
     raised = over_roads(B, a.city, game)
     roofs = platform_roofs(B, game)
+    plat = on_platforms(B, game)
     carved = over_tracks(B, a.city, game)
     D = decks(B)
     if D:
@@ -499,7 +525,7 @@ def main():
     if changed:
         with open(path, "w") as f:
             json.dump(B, f, separators=(",", ":"))
-    print(f"{a.city}: {n} stations restyled, {met} raised to meet their neighbours' floors, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs, {len(bodies)} an expressway's own body, {len(strays)} scraps of a roof under it, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
+    print(f"{a.city}: {n} stations restyled, {met} raised to meet their neighbours' floors, {raised} solids raised over a carriageway, {carved} carved out of a train's way, {roofs} platforms' roofs ({plat} over a platform the railway draws), {len(bodies)} an expressway's own body, {len(strays)} scraps of a roof under it, {sum(len(v) // 2 for v in P.values())} piers under {len(P)} solids{'' if changed else ' (nothing changed)'}")
 
 
 if __name__ == "__main__":
