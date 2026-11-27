@@ -1151,8 +1151,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const lx0 = lensAt.x, ly0 = lensAt.y;
       if (!player || !R.lens || !R.lens(lensAt)) return;
       const dx = lensAt.x - player.x, dy = lensAt.y - player.y, d = Math.hypot(dx, dy), up = lensAt.z - (player.z || 0), fl = Math.hypot(lensAt.fx, lensAt.fy);
-      if (d < 0.8 || d > 9 || up > 4.5 || up < -1 || fl < 0.2) return; // (on foot, behind the player: not a view from the air, through someone's eyes, or a car's)
-      lensSeg.ax = lensAt.x; lensSeg.ay = lensAt.y; lensSeg.bx = lensAt.x + lensAt.fx / fl * 1.5; lensSeg.by = lensAt.y + lensAt.fy / fl * 1.5;
+      // (the story's finder raised at the eye, game.js crowd.finder: the way it looks, from half a metre to 5 m out, given
+      // room as the lens behind you is, eased: a raise in a living street had someone moved aside in one step, issue 232)
+      const fd = !!api.finder && fl >= 0.2 && d < 0.8 && up > 0.5 && up < 2.2;
+      if (!fd && (d < 0.8 || d > 9 || up > 4.5 || up < -1 || fl < 0.2)) return; // (on foot, behind the player: not a view from the air, through someone's eyes, or a car's)
+      const a0 = fd ? 0.5 : 0, a1 = fd ? 5 : 1.5;
+      lensSeg.ax = lensAt.x + lensAt.fx / fl * a0; lensSeg.ay = lensAt.y + lensAt.fy / fl * a0; lensSeg.bx = lensAt.x + lensAt.fx / fl * a1; lensSeg.by = lensAt.y + lensAt.fy / fl * a1;
       lensSeg.still = dt > 0 && Math.hypot(lensAt.x - lx0, lensAt.y - ly0) < 0.5 * dt ? Math.min(1, lensSeg.still + dt) : 0;
       LN = lensSeg;
     }
