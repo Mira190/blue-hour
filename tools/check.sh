@@ -47,6 +47,8 @@
 #           SKY's hall drawn round you in its lobby; your car driven and called, SKY GATE ridden in the dark, the helicopter flown;
 #   mem     the page as an iPhone on the low tier, inside the memory budget (tools/mem_check.js), and its memory loop
 #           through a lost context (tools/glcare_phone.js);
+#   ctx     a lost WebGL context at the story's beats and on the walk, on a desktop and a phone (tools/ctx_beats.js):
+#           restored in place, or taken up where it was after a phone's reload; routed with mem, wherever mem goes;
 #   budget  the episode played as an iPhone, every still's frame counted: each beat within a phone's budget of draws,
 #           triangles, passes, pixels and GPU memory (tools/beat_budget.py; the story counts the desktop's as it plays);
 #           before landing in the story's three parts, budget1 to budget3, each where the change reaches it;
@@ -119,8 +121,8 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
-ALL="look hold launch story storyp storyl budget guide walk ride roads mem audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
+KINDS="look hold launch mem ctx astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
+ALL="look hold launch story storyp storyl budget guide walk ride roads mem ctx audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
 # docs/CHECKS.md, "A run is a job"): the shell tool stops what it started after 10 to 60 minutes, and a change to the
@@ -157,7 +159,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 200 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 900 ;; ctx) echo 900 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|walk4|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 3200 ;; budgetm1|budgetm2|budgetm3) echo 1100 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 # How much memory each target takes on this machine (docs/CHECKS.md, "Memory, by measure"): the peak of its processes'
@@ -207,7 +209,10 @@ admit() {   # <kind>
 }
 
 static=0 want= base= looks= routed=0
-add() { local k; for k in "$@"; do is_in "$k" "$KINDS" || { echo "unknown target: $k (targets: static $KINDS all)"; exit 2; }; is_in "$k" "$want" || want="$want $k"; done; }
+# (mem brings ctx: the lost contexts at the story's beats were the last of mem's plays, 22 of its 38 minutes, and are a
+# runner of their own since 27 November 2026; routed with it wherever it goes. tools/check.sh mem plays mem alone)
+add() { local k; for k in "$@"; do is_in "$k" "$KINDS" || { echo "unknown target: $k (targets: static $KINDS all)"; exit 2; }; is_in "$k" "$want" || want="$want $k"
+  [ "$k" = mem ] && [ "${routing:-0}" = 1 ] && ! is_in ctx "$want" && want="$want ctx"; done; }
 
 if [ $# -gt 0 ]; then
   for t in "$@"; do
@@ -220,7 +225,7 @@ if [ $# -gt 0 ]; then
     esac
   done
 else
-  routed=1
+  routed=1 routing=1
   if [ -n "${CHECK_BASE:-}" ]; then base=$(git rev-parse --verify -q "$CHECK_BASE^{commit}") || { echo "CHECK_BASE=$CHECK_BASE is not a commit here"; exit 2; }
   else base=$(git merge-base origin/main HEAD 2>/dev/null) || { echo "no origin/main to compare with: git fetch origin main"; exit 2; }; fi
   # After a pass, only what changed since then. A run with no targets that passes on a clean tree stamps HEAD in
@@ -365,7 +370,7 @@ remote() {
     for d in 2 4 8 16 0; do git push -q origin "HEAD:refs/heads/$br" 2>"$OUT/push.log" && break
       [ "$d" = 0 ] && { echo "FAIL push  the branch could not be pushed for its checks: $(tail -1 "$OUT/push.log")"; exit 1; }; sleep "$d"; done
   fi
-  echo "checks: $(echo $want | wc -w) browser checks and the static ones on GitHub's runners, a runner each, for $br at ${sha:0:8}: $(echo $want)" >&2
+  echo "checks: on GitHub's runners, a runner a target, for $br at ${sha:0:8}: what the change reaches since the branch's last pass there (from here: static $(echo $want))" >&2
   t0=$(date +%s)
   until git ls-remote --exit-code origin "refs/checks/$sha" >/dev/null 2>&1; do
     waited=$(( $(date +%s) - t0 ))
@@ -618,6 +623,13 @@ run_ride() {   # frame 6's ride, on a small page: no car in a person on any step
 # the page on a phone's low tier (an iPhone emulated, quality.js lean) must stay inside the memory budget, so that
 # an iPhone's tab is not killed (docs/PERFORMANCE.md, "On a phone"); and at frame 5's place, where two hero levels are
 # held at once (docs/HERO.md, "Miyamasu")
+# a lost context at the story's beats and on the walk: restored in place on a desktop, taken up where it was after a
+# phone's reload (issue 118); routed with mem, a runner of its own (issue 118's checks were mem's longest play)
+run_ctx() {
+  if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   ctx    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
+  else echo "FAIL ctx    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
+  return 0
+}
 run_mem() {
   if AT=${AT:-521.9,-1074.1} timeout 1800 $X node tools/mem_check.js "$MAP" >"$OUT/mem.log" 2>&1; then
     echo "ok   mem    $(grep -o 'GPU peak [0-9]* MB ([0-9.]* MB under its [0-9]*' "$OUT/mem.log" | head -1)), $(grep -o '[0-9]* at the end after a collection' "$OUT/mem.log" | head -1) heap"
@@ -638,12 +650,9 @@ run_mem() {
   # never from a tab put away (tools/glcare_phone.js, docs/PERFORMANCE.md "Measure, then grant")
   if timeout 900 $X node tools/glcare_phone.js >"$OUT/glcare_phone.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/glcare_phone.log") steps of a phone's lost context and its next load"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/glcare_phone.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/glcare_phone.log)"; fi
-  # a killed page counted with the measurements off (issue 128, web/lifeline.js), and a lost context at the story's beats
-  # and on the walk: restored in place on a desktop, taken up where it was after a phone's reload (issue 118)
+  # a killed page counted with the measurements off (issue 128, web/lifeline.js); a lost context at the story's beats is ctx's
   if timeout 300 $X node tools/killed_check.js >"$OUT/killed.log" 2>&1; then echo "ok   mem    a killed page loads a level lighter next time with the measurements off"
   else echo "FAIL mem    $(grep '^FAIL' "$OUT/killed.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/killed.log)"; fi
-  if timeout 2400 $X node tools/ctx_beats.js >"$OUT/ctx_beats.log" 2>&1; then echo "ok   mem    $(grep -c '^ok' "$OUT/ctx_beats.log") steps of a lost context at the story's beats and on the walk, desktop and phone"
-  else echo "FAIL mem    $(grep '^FAIL' "$OUT/ctx_beats.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/ctx_beats.log)"; fi
   # (and the set-up's bake, here because mem loads the whole page and so is played wherever the set-up's code changes, against the page computing it, map and district: a change to the code it runs that changes what the set-up
   # computes asks for a rebake, tools/bake_setup.js; issue 194)
   if timeout 900 $X node tools/bake_setup.js --compare >"$OUT/bake.log" 2>&1; then grep '^ok' "$OUT/bake.log"
