@@ -79,7 +79,7 @@ const PLACES = at.length ? at.map(s => s.split(',').map(Number)) : [[470, -722],
           if (Math.abs(A.z - B.z) > 2.5 || Math.hypot(A.x - B.x, A.y - B.y) > A.half + B.half || !hit(box(A), box(B))) { pairT.delete(k); continue; }
           const s = (pairT.get(k) || 0) + DT;
           pairT.set(k, s);
-          if (s === 3.5) out.inside.push({ t, x: +A.x.toFixed(0), y: +A.y.toFixed(0), a: A.bus ? 'bus' : A.park ? 'parked' : 'car', b: B.bus ? 'bus' : B.park ? 'parked' : 'car' });
+          if (s === 3.5) { const who = o => ({ kind: o.bus ? 'bus' : o.park ? 'parked' : 'car', at: [+o.x.toFixed(1), +o.y.toFixed(1)], h: +o.h.toFixed(2), line: o.line, s: +(+o.s).toFixed(1), dir: o.dir, ln: o.ln, lo: +(o.lo || 0).toFixed(2), off: +(o.off || 0).toFixed(2), v: +(+o.v).toFixed(1), why: o.why || '', mv: o.mv ? `${o.mv.j.id} ${o.mv.a.i}>${o.mv.e.m.i}` : '', rev: !!o.rev }); out.inside.push({ t, x: +A.x.toFixed(0), y: +A.y.toFixed(0), a: A.bus ? 'bus' : A.park ? 'parked' : 'car', b: B.bus ? 'bus' : B.park ? 'parked' : 'car', A: who(A), B: who(B) }); }
         }
       }
       for (let i = 0; i < Math.min(C.length, cars.active); i++) if (C[i].line >= 0) { out.cars++; if (C[i].bus) out.buses++; else { if (C[i].trip >= 0) out.bound++; out.tripsEnded += C[i].trips || 0; } }
