@@ -612,7 +612,10 @@ nothing. So since 27 November the same checks run there before landing too:
   the branch (the workflow's last successful run on it) only what changed since, with a file that is main's as main
   has it left to main's checks, as a session's stamp does. Each target is a runner, its check judged against main's
   passes (`check-passes`), so a check the change cannot reach is kept in seconds, as here. A newer push to the branch
-  cancels the older run.
+  cancels the older run. The fast tier names the story, the budget and the walk in parts already; the guide and the
+  medium tier's budget it names whole, and the plan splits them as main does (`CHECK_SPLIT=parts`: guide1 to 5,
+  budgetm1 to 3), a runner a part. Whole, the guide's four ways played in a row held a branch's run 492 past 72
+  minutes, where main's slowest guide part took 23.
 - **The result comes back by git.** The workflow's job `result` writes every shard's lines and the verdict to one
   commit under the ref `refs/checks/<commit>`. No token or API is needed to read it.
 - **`tools/check.sh` on a session's machine** routes as before; when a browser check is among its targets it pushes

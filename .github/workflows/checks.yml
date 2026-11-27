@@ -60,10 +60,12 @@ jobs:
           if [ -n "$TARGETS" ]; then plan=$(tools/check.sh --plan $TARGETS)
           elif [ "$GITHUB_REF" != refs/heads/main ]; then
             # A branch before landing: the fast tier, as a session's tools/check.sh routes it against main (its parts
-            # already split, so no CHECK_SPLIT). After a pass of this branch, only what changed since it: that pass's
+            # already split, so no CHECK_SPLIT; but the guide's ways and the medium tier's budget, which the fast tier names
+            # whole, split as main splits them, a runner a part: the guide's four ways in a row held a branch's run 492
+            # past 72 minutes, against main's 23 for its slowest). After a pass of this branch, only what changed since it: that pass's
             # commit is the stamp tools/check.sh keeps in a clone, and with it a file that is main's as main has it
             # (main merged in) is left to main's own checks
-            export CHECK_SPLIT=0
+            export CHECK_SPLIT=parts
             last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow checks.yml --branch "$GITHUB_REF_NAME" \
               --event push --status success --limit 1 --json headSha --jq '.[0].headSha // empty' || true)
             [ -n "$last" ] && git merge-base --is-ancestor "$last" HEAD 2>/dev/null && echo "$last" >"$(git rev-parse --git-dir)/oe-check-pass"
