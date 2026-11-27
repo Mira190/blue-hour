@@ -534,6 +534,7 @@ window.OEAtmos = (function () {
       // with it the occlusion and the bloom, are drawn at scale times the canvas's size, and the lens, which
       // writes the canvas at its own size, brings them up with a sharpening (lens.js uSharp).
       let sceneScale = 1, sizedW = 0, sizedH = 0;
+      const aaOff = /[?&]aa=off\b/.test(location.search);
       // (what the frame draws of the bloom and the lens when nothing follows the lens, for the loader's first set: world.js
       // warmPasses. A camera effect after it draws the merge and the plain lens, compiled behind the title with the rest)
       bloom.firstDraws = () => ({ target: [bloom.materialHighPassFilter, ...bloom.separableBlurMaterials.slice(0, bloom.levels), bloom.compositeMaterial] });
@@ -575,6 +576,8 @@ window.OEAtmos = (function () {
           const glow = has(bloom) && bloom.strength > 0 && (!lowBloom || night > 0.02);
           bloom.uniforms.uBloom.value = glow ? 1 : 0;
           if (glow) drawBloom();
+          // (the lens smooths the edges itself where the scene has no samples of its own: lens.js smoothEdge. ?aa=off: not)
+          lens.uniforms.uAA.value = rt.samples > 0 || aaOff ? 0 : 1;
           const tail = passes.filter(p => p !== scenePass && p !== bloom && !(ao && p === ao.pass) && p.enabled !== false);
           if (tail.length === 1 && tail[0] === lens) {
             draw(lens.merged, null, false);

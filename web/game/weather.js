@@ -556,7 +556,8 @@ void main() {
     // trunks, the cars and the street furniture take the same patch without puddles, so snow settles on
     // what faces the sky and walls darken in the rain. Called again as the world fills (dress(obj) for
     // something just loaded, before it is first compiled; a walk of the world every few seconds for the rest).
-    // Left out: what the weather does not touch or what has its own (glass and anything see-through,
+    // Left out: what the weather does not touch or what has its own (glass and anything see-through but paint on the
+    // ground, oeDecal: a zebra's bars drawn as the share of a pixel they cover, streets.js,
     // lit screens, the sea). The near people are skinned: their position and normal are the skinned ones by the
     // time the patch reads them (three.js skins objectNormal and transformed before project_vertex), so they take
     // it too, as the far crowd's instanced copies did (issue 381, item 7), and so do the umbrellas over them.
@@ -569,7 +570,7 @@ void main() {
         if (!o.isMesh || o.userData.oeNoOcc || o === Wd.sky || (Wd.sea && o === Wd.sea.mesh)) return;
         for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
           if (!m || !m.isMeshStandardMaterial || m.userData.oeWeather || m.userData.oeDry) continue;
-          if (m.transparent || m.depthWrite === false || m.side === THREE.BackSide || m.emissiveIntensity > 1.2 || m.transmission > 0) { m.userData.oeDry = true; continue; }
+          if ((m.transparent && !m.userData.oeDecal) || m.depthWrite === false || m.side === THREE.BackSide || m.emissiveIntensity > 1.2 || m.transmission > 0) { m.userData.oeDry = true; continue; }
           const card = /-far$/.test(o.name || '') && o.isInstancedMesh && m.alphaTest > 0; // (a far tree's card)
           if (o.isSkinnedMesh) wrap(m, { porous: 0.12, gloss: '0.15', person: true }, 'person');
           else wrap(m, { porous: 0.26, gloss: '0.4', card }, card ? 'card' : 'dress');

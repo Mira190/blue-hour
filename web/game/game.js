@@ -177,13 +177,20 @@ window.OpenEarthGame = async function game(cityId) {
   // come down to a little under one pixel to the CSS pixel, sharpened up by the lens, before anything else is given up.
   // At the ordinary floor of 0.6 an M3 MacBook drew the story's street at 1.2 pixels to the CSS pixel and thirty frames
   // a second, its GPU's frame growing with the pixels drawn (telemetry, November 2026); at 0.45 it draws half as many)
+  // The floor and the step before it are kept in the display's terms, pixels to the CSS pixel, not the canvas's: the
+  // canvas itself is drawn below the display's ratio on the medium and low tiers (their budget of pixels: 1.25 to 1.5 on
+  // a Retina display), and the floor of 0.45 meant for a canvas at 2 took the scene there to 0.56 pixels to the CSS pixel,
+  // a picture blurred and stepped at once (the owner's MacBook, November 2026). So on a dense display the scene comes down
+  // to 0.9 pixels to the CSS pixel and no further, on any tier, and elsewhere to 0.6 of the canvas as before (floorFor)
   const DENSE = Math.min(window.devicePixelRatio || 1, 2) >= 1.75 && !QC.lean;
-  const gov = OEQuality.governor({ min: DENSE ? 0.45 : 0.6, mid: DENSE ? 0.7 : 0.8, cap: (() => { try { const v = localStorage.getItem('bh-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
+  const MIN0 = DENSE ? 0.45 : 0.6, MID0 = DENSE ? 0.7 : 0.8, FLOOR_PX = DENSE ? 0.9 : 0;
+  const floorFor = pr => { const min = Math.min(1, Math.max(MIN0, FLOOR_PX / Math.max(pr, 0.1))); return { min, mid: Math.max(MID0, min) }; };
+  const gov = OEQuality.governor({ ...floorFor(QC.pixelRatio(stage.clientWidth, stage.clientHeight)), cap: (() => { try { const v = localStorage.getItem('bh-fps'); return v === null ? PHONE_FPS : Math.max(0, +v || 0); } catch (e) { return PHONE_FPS; } })() });
   const GOV_KEY = `bh-gov-${cityId}`;
   // What this device held on this map before ("scale/extras"; a bare scale from before issue 375 kept its extras): it
   // starts there. A device with no record starts low and climbs (quality.js startLow, issue 375), not at its ceiling.
   let govRecord = null;
-  if (gov.auto) try { const v = localStorage.getItem(GOV_KEY); if (v) { const [sc, ex] = v.split('/').map(Number); if (sc >= gov.min && sc <= 1) govRecord = { scale: Math.round(sc * 20) / 20, extras: [0, 0.5, 1].includes(ex) ? ex : 1 }; } } catch (e) { /* storage blocked */ }
+  if (gov.auto) try { const v = localStorage.getItem(GOV_KEY); if (v) { const [sc, ex] = v.split('/').map(Number); if (sc > 0 && sc <= 1) govRecord = { scale: Math.max(gov.min, Math.round(sc * 20) / 20), extras: [0, 0.5, 1].includes(ex) ? ex : 1 }; } } catch (e) { /* storage blocked */ }
   // (a check starts as a device with that record would, ?gov=0.8/0: the governor itself stands still under a harness,
   // so the state an ordinary device opens the map in was one no check played: issue 485)
   const govAsked = /[?&]gov=([\d.]+)\/([\d.]+)/.exec(location.search);
@@ -197,8 +204,10 @@ window.OpenEarthGame = async function game(cityId) {
   function resize() {
     const w = stage.clientWidth, h = stage.clientHeight, pr = QC.pixelRatio(w, h);
     stageW = Math.max(1, w); stageH = Math.max(1, h);
+    Object.assign(gov, floorFor(pr)); // (the canvas's ratio changes with the window and the tier: the floor in the display's terms with it)
     gov.max = QC.sceneScale ? Math.max(gov.min, QC.sceneScale(w * pr, h * pr)) : 1;
     if (gov.scale > gov.max) gov.scale = gov.max;
+    if (gov.scale < gov.min) gov.scale = gov.min;
     // (the post stack draws the scene at the governor's scale into its own target and the lens brings it up to the
     // canvas, sharpened; without the stack the canvas itself is scaled)
     const stack = !!(atmos && atmos.setScale && atmos.composer);
@@ -316,6 +325,18 @@ window.OpenEarthGame = async function game(cityId) {
   // marks the floor's half-metre cells in uHeroCut; uHeroCut4 is (x0, y0, its side, on), on only while the level is drawn
   const HERO_CUT = { tex: { value: new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat) }, box: { value: new THREE.Vector4(0, 0, 0, 0) }, h: null, off: false };
   HERO_CUT.tex.value.needsUpdate = true;
+  // The zebra crossings of the map's data (streetZebras, and the survey's road_ground.z), drawn by the ground's shader as
+  // the share of each pixel their bars cover (streets.js oeZebra) where the drawn streets are. In the street drawing at
+  // half a metre a texel their 0.9 m pattern was under two texels and came out as moiré, from the street as from the
+  // air (the owner's still of the Scramble, November 2026, whose own bars had the same fault: hero.js). uZebraRec: each
+  // crossing as two texels, its start and its way across (x, -y in the world's frame) and its length and half width;
+  // uZebraGrid: the cells of uZebraBox (x0, z0, cell, on) that crossings lie over, as a hash table (uZebraHash: its slots
+  // and its longest probe) whose slot holds the cell, 1-based, and where its crossings start in uZebraList and how many.
+  // A table sized by the cells in use, not by the map: a grid over the whole map was 1673 x 946 texels of 16 bytes,
+  // 25 MB of a phone's memory and past its largest texture. Every texture is wrapped to rows of ZEBRA_ROW texels
+  const ZEBRA_ROW = 1024;
+  const ZEBRA_DRAW = { rec: { value: null }, grid: { value: null }, list: { value: null }, box: { value: new THREE.Vector4(0, 0, 1, 0) }, hash: { value: new THREE.Vector2(1, 0) } };
+  { const t = new THREE.DataTexture(new Float32Array(4), 1, 1, THREE.RGBAFormat, THREE.FloatType); t.needsUpdate = true; ZEBRA_DRAW.rec.value = ZEBRA_DRAW.grid.value = ZEBRA_DRAW.list.value = t; }
   const zoneTile = i => { const t = scene.ground[i]; return ZONE.value.some(z => z.w && Math.hypot(Math.max(t.x0 - z.x, 0, z.x - t.x1), Math.max(t.y0 + z.y, 0, -z.y - t.y1)) < z.z); };
   for (const m of Wd.groundMeshes) m.material.onBeforeCompile = sh => {
     if (Wd.sea) Wd.sea.patchGround(sh); // the wet band and swash along the shore
@@ -323,11 +344,42 @@ window.OpenEarthGame = async function game(cityId) {
     sh.uniforms.uStreetOn = m.material.userData.streetOn = m.material.userData.streetOn || { value: 0 };
     sh.uniforms.uZone = ZONE;
     sh.uniforms.uHeroCut = HERO_CUT.tex; sh.uniforms.uHeroCut4 = HERO_CUT.box;
+    sh.uniforms.uZebraRec = ZEBRA_DRAW.rec; sh.uniforms.uZebraGrid = ZEBRA_DRAW.grid; sh.uniforms.uZebraList = ZEBRA_DRAW.list; sh.uniforms.uZebraBox = ZEBRA_DRAW.box; sh.uniforms.uZebraHash = ZEBRA_DRAW.hash;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vWP; uniform sampler2D uStreet; uniform float uStreetOn; uniform vec4 uZone[8]; uniform sampler2D uHeroCut; uniform vec4 uHeroCut4;
 #define ZONE_PAVE vec3(0.451, 0.418, 0.356) // (the drawn footways' paving, linear: streetTexture's #b3ada1)
+#define ZEBRA_PAINT vec3(0.776, 0.753, 0.686) // (the drawn paint, linear: streetTexture's #e4e1d8)
+uniform highp sampler2D uZebraRec, uZebraGrid, uZebraList; uniform vec4 uZebraBox; uniform vec2 uZebraHash;
+vec4 oeZFetch(highp sampler2D s, int i) { return texelFetch(s, ivec2(i % ${ZEBRA_ROW}, i / ${ZEBRA_ROW}), 0); }
+${OEStreets.ZEBRA_GLSL}
+// how much of this pixel the bars of the crossings over its cell cover (dpx, dpy: the pixel's sides on the ground)
+float oeZebraAt(vec2 p, vec2 dpx, vec2 dpy) {
+  if (uZebraBox.w < 0.5) return 0.0;
+  ivec2 c = ivec2(floor((p - uZebraBox.xy) / uZebraBox.z));
+  if (c.x < 0 || c.y < 0) return 0.0;
+  int n = int(uZebraHash.x), at = -1, count = 0;
+  uint h = (uint(c.x) * 73856093u ^ uint(c.y) * 19349663u) & uint(n - 1);
+  for (int k = 0; k < 32; k++) {
+    if (float(k) >= uZebraHash.y) break;
+    vec4 e = oeZFetch(uZebraGrid, int((h + uint(k)) & uint(n - 1)));
+    if (e.x < 0.5) break;
+    if (int(e.x) - 1 == c.x && int(e.y) == c.y) { at = int(e.z); count = int(e.w); break; }
+  }
+  float cov = 0.0;
+  for (int k = 0; k < 8; k++) {
+    if (k >= count) break;
+    int j = at + k, i = int(oeZFetch(uZebraList, j >> 2)[j & 3]);
+    vec4 a = oeZFetch(uZebraRec, i * 2), b = oeZFetch(uZebraRec, i * 2 + 1);
+    vec2 n = a.zw, t = vec2(-n.y, n.x), q = p - a.xy;
+    float s = dot(q, n), u = dot(q, t);
+    float ws = max(abs(dot(dpx, n)) + abs(dot(dpy, n)), 1e-4), wu = max(abs(dot(dpx, t)) + abs(dot(dpy, t)), 1e-4);
+    float inside = clamp(min(s, b.x - s) / ws + 0.5, 0.0, 1.0) * clamp((b.y - abs(u)) / wu + 0.5, 0.0, 1.0);
+    cov = max(cov, inside * oeZebra(s - 0.225, ws));
+  }
+  return cov;
+}
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
@@ -345,6 +397,7 @@ vec2 pavers(vec2 p) {
       .replace('#include <map_fragment>', `#include <map_fragment>
 if (uHeroCut4.w > 0.5) { vec2 hc = (vec2(vWP.x, -vWP.z) - uHeroCut4.xy) / uHeroCut4.z; if (hc.x > 0.0 && hc.y > 0.0 && hc.x < 1.0 && hc.y < 1.0 && texture2D(uHeroCut, hc).r > 0.5) discard; }
 float camD = distance(vWP, cameraPosition);
+vec2 oeDpx = dFdx(vWP.xz), oeDpy = dFdy(vWP.xz); // (here, where every pixel of the quad takes them: oeZebraAt)
 float near = 1.0 - smoothstep(12.0, 70.0, camD);
 float street = 1.0 - smoothstep(60.0, 420.0, camD); // street level, out to where the photo takes over
 // round a hero level (ZONE): how far the ground is drawn from the street data alone, whatever the height
@@ -433,6 +486,10 @@ if (uStreetOn > 0.5) { // drawn streets near the camera: no blur, no shadows bak
     paved = mix(paved, 1.0 - zr, zn);
     green *= 1.0 - zn;
   }
+  // the zebras' bars, as far as the drawn streets go (ZEBRA_DRAW)
+  float zb = oeZebraAt(vWP.xz, oeDpx, oeDpy) * max(k, zn);
+  diffuseColor.rgb = mix(diffuseColor.rgb, ZEBRA_PAINT, zb);
+  roadway *= 1.0 - zb;
 }
 // paving at the albedo it has, not the photo's near-white: a soft knee from 0.28
 float L = dot(diffuseColor.rgb, LUM);
@@ -520,6 +577,62 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }
     return zebrasMemo = out;
   }
+  // ZEBRA_DRAW's textures: each crossing as the line its bars are laid along from kerb to kerb (the first bar at its start,
+  // as the street drawing laid them), 4 m wide, and a grid of 16 m cells naming the crossings over each
+  function zebraDraw() {
+    const lines = streetZebras().map(([x, y, ux, uy, half]) => [x - uy * half, y + ux * half, x + uy * half, y - ux * half]);
+    if (RG) for (const z of RG.z || []) lines.push([z[0] / 10, z[1] / 10, z[2] / 10, z[3] / 10]);
+    const L = lines.map(([x0, y0, x1, y1]) => ({ x: x0, z: -y0, len: Math.hypot(x1 - x0, y1 - y0), nx: x1 - x0, nz: -(y1 - y0) })).filter(l => l.len > 0.5);
+    if (!L.length) return;
+    const HALF = 2, CELL = 16, rec = [];
+    let x0 = Infinity, z0 = Infinity;
+    const corners = l => { const tx = -l.nz, tz = l.nx; return [[0, -HALF], [0, HALF], [l.len, -HALF], [l.len, HALF]].map(([s, u]) => [l.x + l.nx * s + tx * u, l.z + l.nz * s + tz * u]); };
+    L.forEach(l => {
+      l.nx /= l.len; l.nz /= l.len;
+      rec.push(l.x, l.z, l.nx, l.nz, l.len, HALF, 0, 0);
+      for (const [cx, cz] of corners(l)) { x0 = Math.min(x0, cx); z0 = Math.min(z0, cz); }
+    });
+    x0 -= CELL; z0 -= CELL;
+    const cells = new Map(); // gx + gz * 65536 -> the crossings over that cell, 0-based
+    L.forEach((l, i) => {
+      const c = corners(l), cx0 = Math.floor((Math.min(...c.map(q => q[0])) - 1 - x0) / CELL), cx1 = Math.floor((Math.max(...c.map(q => q[0])) + 1 - x0) / CELL);
+      const cz0 = Math.floor((Math.min(...c.map(q => q[1])) - 1 - z0) / CELL), cz1 = Math.floor((Math.max(...c.map(q => q[1])) + 1 - z0) / CELL);
+      for (let gz = cz0; gz <= cz1; gz++) for (let gx = cx0; gx <= cx1; gx++) {
+        // (a cell its band does not reach, by the band's own axes: a crossing laid askew covers few of the cells round it)
+        const mx = x0 + (gx + 0.5) * CELL - l.x, mz = z0 + (gz + 0.5) * CELL - l.z, r = CELL * 0.7072 + 1;
+        const s = mx * l.nx + mz * l.nz, u = -mx * l.nz + mz * l.nx;
+        if (s < -r || s > l.len + r || Math.abs(u) > HALF + r) continue;
+        const key = gx + gz * 65536;
+        (cells.get(key) || cells.set(key, []).get(key)).push(i);
+      }
+    });
+    // the table: twice the cells in use, a power of two, probed in turn from the cell's hash (oeZebraAt)
+    let n = 1; while (n < cells.size * 2) n *= 2;
+    const slots = new Float32Array(n * 4), list = [];
+    let probe = 0, full = 0;
+    for (const [key, ids] of cells) {
+      const gx = key % 65536, gz = Math.floor(key / 65536);
+      let h = ((Math.imul(gx, 73856093) ^ Math.imul(gz, 19349663)) >>> 0) & (n - 1), k = 0;
+      while (slots[h * 4] > 0) { h = (h + 1) & (n - 1); k++; }
+      probe = Math.max(probe, k + 1);
+      if (ids.length > 8) full++;
+      slots.set([gx + 1, gz, list.length, Math.min(ids.length, 8)], h * 4);
+      list.push(...ids.slice(0, 8));
+    }
+    // a texture of rows of ZEBRA_ROW texels, of four numbers each
+    const tex = a => {
+      const texels = Math.max(1, Math.ceil(a.length / 4)), w = Math.min(texels, ZEBRA_ROW), h = Math.ceil(texels / w), d = new Float32Array(w * h * 4);
+      d.set(a);
+      const t = new THREE.DataTexture(d, w, h, THREE.RGBAFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+    };
+    ZEBRA_DRAW.rec.value = tex(rec);
+    ZEBRA_DRAW.grid.value = tex(slots);
+    ZEBRA_DRAW.list.value = tex(list);
+    ZEBRA_DRAW.hash.value.set(n, probe);
+    ZEBRA_DRAW.box.value.set(x0, z0, CELL, 1);
+    if (probe > 32) console.warn(`zebras: a probe of ${probe} slots, past the shader's 32`);
+    if (full) console.warn(`zebras: ${full} cells with more than eight crossings over them`);
+  }
   function streetTexture(i) {
     const t = scene.ground[i], PX = QC.lean ? 0.75 : 0.5, w = Math.round((t.x1 - t.x0) / PX), h = Math.round((t.y1 - t.y0) / PX);
     const cv = document.createElement('canvas');
@@ -584,17 +697,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     survey(() => { for (const [x, y, rad] of streetNodes()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
       g.beginPath(); g.arc(x, y, rad, 0, 6.2832); g.fillStyle = ASPHALT; g.fill();
     } }, true);
-    g.setLineDash([0.45 / PX, 0.45 / PX]);
-    for (const [x, y, ux, uy, half] of streetZebras()) if (x > t.x0 - 30 && x < t.x1 + 30 && y > t.y0 - 30 && y < t.y1 + 30) {
-      g.beginPath(); g.moveTo((x - uy * half - t.x0) / PX, (t.y1 - (y + ux * half)) / PX); g.lineTo((x + uy * half - t.x0) / PX, (t.y1 - (y - ux * half)) / PX);
-      g.strokeStyle = PAINT; g.lineWidth = 4 / PX; g.stroke();
-    }
-    g.setLineDash([]);
-    survey(() => { // the zebras of the data inside the ring, each from kerb to kerb
-      g.setLineDash([0.45, 0.45]); g.strokeStyle = PAINT; g.lineWidth = 4;
-      for (const z of RG.z || []) { g.beginPath(); g.moveTo(z[0] / 10, z[1] / 10); g.lineTo(z[2] / 10, z[3] / 10); g.stroke(); }
-      g.setLineDash([]);
-    }, true);
+    // (the zebras are the shader's, filtered to the pixel: zebraDraw. Their 0.9 m pattern is under two texels here)
     if (window.OETex && OETex.stats.on && typeof createImageBitmap === 'function') {
       // a phone (tex.js): the overlay in ASTC blocks, a quarter of the GPU's memory; the aerial photo shows until it is in (groundLod)
       const tex = new THREE.Texture();
@@ -661,6 +764,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.farSun) Wd.farSun.init(DSM); // the sun's shadow past the shadow map, from this surface model (world.js, issue 358)
   if (D.navJob) { D.navCells = await D.navJob; D.navJob = null; } // (the landmarks on its grid, from the worker: world.js)
   const tNav = performance.now(), nav = OENav.create(D, DSM);
+  zebraDraw();
   console.info(`nav: ${Math.round(performance.now() - tNav)} ms (the collision world ${nav.col.count} solids; the landmarks' fine cells sorted ${Math.round(nav.startMs)} ms)`);
   if (window.OESurface) OESurface.load(renderer); // the street's scanned surfaces, which the shaders take when they come (surface.js)
   // the big screens light the street, the crowd and the buildings across from them (neon.js)
@@ -806,7 +910,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // frame 5's foot of Scramble Square and frame 6's kerb under the station's deck (the Scramble's own were solid only as
   // far as its landmark lays them, 62 m from the junction). Each FC m cell a rail's body crosses, 0.1 m over the ground
   // under it to its top, is a box, a row of cells one box, in nav's walkers' own world (addFences): what nav.slide
-  // stops you at, the guide's step and his planner's stand too (nav.walk), and no car, lens or sound. Made once, as the
+  // stops you at, the guide's step and his planner's stand too (nav.walk), and the body of a car driven at one (cars.js
+  // collide, nav.pushFence); no lens, sound or search for a kerb. Made once, as the
   // level first comes; tools/rail_walk.js walks into them
   const FC = 0.25;
   function heroFence(h, root) {
@@ -5152,7 +5257,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   if (Wd.sea && Wd.sea.reflections) gov.rung('reflection', [1, 2, 0], v => { Wd.sea.reflEvery = v; });
   if (atmos && atmos.ao && atmos.ao.limit) gov.rung('ao', [2, 1, 0], v => atmos.ao.limit(v));
   // the scene's multisampling: the tier's (four on high) with every extra, two at half, none at the floor, where the
-  // sharpened upscale and the lens's grain hide the edges more cheaply than four samples a pixel
+  // lens smooths the edges itself, more cheaply than four samples a pixel (lens.js smoothEdge: before it, nothing did,
+  // and the sharpened upscale drew the stairs harder)
   // (the tier's: two on a dense display, where the scene has two device pixels or more under each CSS pixel already:
   // quality.js samplesAt; followed when the window changes size, resize())
   if (atmos && atmos.setSamples && QC.samples) { msaaRung = [0, 0, 0]; msaaFor(); gov.rung('msaa', msaaRung, v => atmos.setSamples(v)); }

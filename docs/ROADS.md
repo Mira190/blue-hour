@@ -769,6 +769,45 @@ between its door and the pavement (`tools/ride_people.js`, issue 208's check); o
 ring and the count by the hour and the tier are the mechanism; the count is raised once the Scramble discharges at a
 real stop line's rate, and its queues no longer spill back onto the story's kerbs.
 
+## Knots: who waits on whom (the owner's report, 27 November 2026)
+
+The owner's picture: their car at the kerb by Hachiko at 17:43, and four cars of the traffic standing in the junction
+ahead, nose to side, going nowhere. Counted at 17:43 for five minutes of the game's time at the real rate
+(`tools/jam_probe.js`: every car within 250 m that stood 30 s or more, the chain of cars it waited on, the junction's
+box as it stood), 141 of 198 cars stood 30 s or more, the longest 203 s. Fewer cars did not undo it (120 asked: 90 of
+157 still stood, the longest 106 s), nor did main before the ring (#204: 85 of 200, 160 s). What held them were waits
+that came back round to where they began, which no light and no rule clears:
+
+- two cars on a 7 m piece between 804 and 807, each the other's car ahead (`held`), and dozens like them, two by two;
+- a car let into 817 that queued on its way out, while the car its movement held out of the box was the one its own
+  queue waited on (`cross`);
+- a ring of thirteen, two of them waiting for room on a way out that the other eleven filled (`room`).
+
+The traffic had a rule for each kind found before, each "after so many seconds, go on" (some forty of them through
+`actors.js` and `junctions.js`), and every new kind was a new jam. What a traffic simulator does instead is look at the
+wait itself. Every car standing still now names the one car it waits on: the car ahead (`front`), the car whose
+movement holds it out of a junction (`xBy`, from `junctions.js` `may`), the car whose place leaves it no room on its way
+out (`roomBy`, from `room`). Followed from car to car, a wait ends at a red light, someone on foot, a stop sign or a
+car that moves; one that comes back to a car already on it is a knot (`actors.js` `knots`, every half second, one pass
+over the cars). Once every car of it has stood 6 s, the one that has stood longest goes as if the car it waits on were
+not there (`c.waive`: not braked for, its movement and its room not counted, squeezing past where it must); out of your
+sight one of them leaves the traffic instead. SUMO undoes a deadlock by the vehicle that has waited longest
+(`time-to-teleport`); here it is found as it closes. The old rules stay; this undoes whatever they miss.
+
+And a car that leaves the ring no longer comes back at the tail of a queue: it is made only where nothing stands on the
+40 m ahead of it (`respawn`), so the queues round the Scramble are fed only by what drives into them.
+
+Measured the same way after (17:43, four minutes, your car brought to the kerb by Hachiko and you in it): 51 to 81 cars
+stood 30 s, the longest 90 to 104 s, each at a red light of the Scramble or 109's fork or in the queue behind one
+(the Scramble's cycle is up to 120 s); 11 to 21 knots undone out of sight, 21 in sight with every knot taken as seen.
+
+Your car and the guard rails: the white pipes a hero level draws along its kerbs were solid on foot only (`nav`
+`addFences`), and a car driven at one stood with it through its bonnet (the owner's second picture, Miyamasuzaka's
+kerb). They now hold the car's body as a wall does (`nav.pushFence`, `cars.js` `collide`), and only the body's own step
+asks: the search for a place at the kerb, the camera and the sound read the world without them, as before.
+`tools/car_rail.js` drives your car at the rails of the Scramble and Miyamasu every few metres (in the `ride` check);
+with the rails off it went through five drives of six at Miyamasu, now none.
+
 ## Not done, and why
 
 - **The mounds beside the streets at the embankment** are the survey's ground, left as it is by `street_ground.py`

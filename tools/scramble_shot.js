@@ -6,7 +6,7 @@
 // views.json: {"times": {"day": "13:00", "dusk": "sunset+15", "night": "21:00", "rain": {"time": "21:00", "weather": "rain"}},
 //              "views": [{"name": "hachiko", "eye": [x, y, dz], "look": [x, y, dz], "fov": 50}, ...]}
 // dz is metres over the ground there; "people": [x, y] (with crowd_r, crowd_n) stages the crowd round a point, as a film shot does;
-// "figures": [{"character", "at": [x, y], "face": [x, y]}] stands those people there. "date": [month, day]; TIER=high|medium|low (default high);
+// "figures": [{"character", "at": [x, y], "face": [x, y]}] stands those people there. "date": [month, day]; TIER=high|medium|low (default high); DPR=2 a dense (Retina) display;
 // ONLY=name,name and TIMES=day,night pick some; SETTLE=seconds the world runs before each still (6); SCREEN_T=seconds the screens' programmes held.
 // EVAL=js runs in the page before each still (g: the game), its result printed.
 // QUERY=&a=b is added to the page's address (a switch set beside itself off: &batch=off; the pictures in blocks on a software renderer, &tex=bc7 beside &tex=raw).
@@ -26,7 +26,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, onlyT = proc
     ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
     : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const mobile = w < 600;
-  const p = await b.newPage({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 });
+  const p = await b.newPage({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: +process.env.DPR || (mobile ? 2 : 1) });
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   await p.addInitScript(() => {
     const get = HTMLCanvasElement.prototype.getContext;
