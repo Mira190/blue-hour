@@ -27,6 +27,11 @@ This repository is Blue Hour by itself, split from the Open Earth 3D repository 
 - Work on a branch, run `tools/check.sh` on it (the static checks, and for a change to the page or the map the first
   episode played through), merge it into `main` with a merge commit, and tell the owner in one line: the commit, and
   what the checks covered.
+- Commit before running `tools/check.sh`: with a browser check among its targets it pushes the branch and the checks
+  run on GitHub's runners, a runner each, while it waits for their result (docs/CHECKS.md, "Before landing, on the
+  runners"), 15 to 25 minutes for a change to the page. Don't play them on the session's machine as well
+  (`CHECK_REMOTE=0`) unless the runners cannot be reached; to look into one failed check, run it by name here
+  (`tools/check.sh walk3`).
 - Never rewrite `main`. Publishing (a remote, GitHub Pages, any host) waits for the owner's word.
 - Main is published only where its checks pass: `.github/workflows/pages.yml` runs after
   `.github/workflows/checks.yml` passes on main and publishes that commit (GitHub Pages, and Vercel through the

@@ -1239,7 +1239,7 @@ window.OENav = (function () {
     }
     // push a car's body circle (radius r, its bottom at z) out of the guard rails as drawn (addFences): a car driven at a
     // rail stops at it, as at a wall. Only the body's own step asks this (cars.js collide, follow); the queries that look
-    // for a place at the kerb, the camera's and the sound's keep reading the world without the rails, as above. {x, y}
+    // for a place at the kerb, the camera's and the sound's keep reading the world without the rails, as above (your own car set down at the kerb asks fenceHit, below, on its own). {x, y}
     function pushFence(x, y, z, r, top = HEAD) {
       return fence ? fence.depenetrate(x, y, r, z + KNEE, z + top) : { x, y };
     }
@@ -1390,7 +1390,10 @@ window.OENav = (function () {
       }
       return f;
     }
-    const api = { addFences, pushFence, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    // (a guard rail in a circle of radius r between zlo and zhi: what a car set down at the kerb asks, game.js parkClear,
+    // so that your car called to the kerb is not set down with a rail through it)
+    const fenceHit = (x, y, r, zlo, zhi) => !!fence && fence.overlap(x, y, r, zlo, zhi);
+    const api = { addFences, pushFence, fenceHit, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   // a ceiling's cells from triangles [[x, y, z] x 3] (local metres) over the square (ax, ay) to + n * cell: each cell keeps the
