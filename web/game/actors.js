@@ -672,11 +672,19 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
   // who walk together are left to it on the move: of two friends one carries and the other shares it (people.js
   // wantUmb), and where both carry the canopies lean apart, and stood waiting they stand an umbrella apart
   const UMB_RIM = 0.06;
+  // (one head under another's open canopy, the one rule for the footways and the squares: from HEAD_UNDER under the rim's
+  // height, a canopy tilted to the side is that much lower there, to HEAD_CLEAR beyond the rim from its middle, a head's
+  // half width and its lean. With 0.03 and 0.12 heads stood 0.02 to 0.04 m inside, on footways and in a square, issue 238)
+  const HEAD_UNDER = 0.15, HEAD_CLEAR = 0.25;
+  // (and p's head, umbrella or none, from o's open canopy: two who both hold one keep their canopies' room between the
+  // canopies' middles, and a canopy stands a hand off its holder's head and leans away from the neighbour's (people.js
+  // lean), so a taller holder's head could stay under the shorter one's canopy with the canopies apart, issue 238)
+  const headRoom = (p, o) => (o.umbR > 0 && p.crown > o.umbRim - HEAD_UNDER ? o.umbR + HEAD_CLEAR : 0);
   function umbRoom(p, o) {
     const a = p.umbR || 0, b = o.umbR || 0;
     if (a > 0 && b > 0) return a + b + UMB_RIM / 3;
-    if (a > 0) return o.crown > p.umbRim - 0.03 ? a + 0.12 : 0;
-    if (b > 0) return p.crown > o.umbRim - 0.03 ? b + 0.12 : 0;
+    if (a > 0) return o.crown > p.umbRim - HEAD_UNDER ? a + HEAD_CLEAR : 0;
+    if (b > 0) return p.crown > o.umbRim - HEAD_UNDER ? b + HEAD_CLEAR : 0;
     return 0;
   }
   const umbGap = (p, x, y, o, u, room) => Math.hypot(o.x + (o.umbR > 0 ? o.ucx : 0) - x - (p.umbR > 0 ? p.ucx : 0), o.y + (o.umbR > 0 ? o.ucy : 0) - y - (p.umbR > 0 ? p.ucy : 0)) - u + room;
@@ -723,7 +731,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       held: undefined, umbSlot: undefined, umbChk: undefined, lh: undefined, fx: undefined, fy: undefined,
       gzS: undefined, gzT: undefined, gz: undefined, landT: undefined, gx: undefined, gy: undefined, av: undefined,
       moving: undefined, rx: undefined, ry: undefined, rz: undefined, umbW: undefined, umbT: undefined,
-      umbAt: undefined, umbR: undefined, inPic: undefined, wave: undefined, animF: undefined, animO: undefined,
+      umbAt: undefined, umbR: undefined, cHold: undefined, cDir: undefined, inPic: undefined, wave: undefined, animF: undefined, animO: undefined,
       umbMoved: undefined, lt: undefined, lface: undefined, stop: undefined, stopFace: undefined, arrived: undefined,
       reg: undefined, kerbNext: undefined, kerbBack: undefined, gk: undefined, went: undefined, ga: undefined,
       speed0: undefined, owed: undefined, hx: undefined, hy: undefined, limWant: undefined, lim: undefined,
@@ -1329,6 +1337,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // little more, p.umbW, which the crowd's renderer writes. A crowd under umbrellas stands looser at a kerb, as it
         // does in the rain, and canopies meet at most at their rims; issue 165)
         if (q && q.umbW > 0 && o.umbW > 0) rr = Math.max(rr, q.umbW + o.umbW + UMB_RIM / 3);
+        else if (q && (q.umbW > 0 || o.umbW > 0)) rr = Math.max(rr, Math.max(q.umbW || 0, o.umbW || 0) + HEAD_CLEAR); // (one under an umbrella: the other's head out from under it, issue 238)
         if (Math.abs(ex) < rr && Math.abs(ey) < rr && ex * ex + ey * ey < rr * rr) return false;
       }
       return true;
@@ -1633,8 +1642,8 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     // main's story of 23 November. Kept where it can be stood on; else where the ring put it)
     function mateSpot(L, q, out) {
       mateSpot0(L, q, out);
-      if (q.umbW > 0 && L.umbW > 0 && L.T && L.ph !== 'cross') {
-        const dx = out.x - L.T.x, dy = out.y - L.T.y, d = Math.hypot(dx, dy) || 1e-3, need = q.umbW + L.umbW + UMB_RIM / 3 + 0.04;
+      if ((q.umbW > 0 || L.umbW > 0) && L.T && L.ph !== 'cross') { // (and one under an umbrella, one without: a head's room, issue 238)
+        const dx = out.x - L.T.x, dy = out.y - L.T.y, d = Math.hypot(dx, dy) || 1e-3, need = q.umbW > 0 && L.umbW > 0 ? q.umbW + L.umbW + UMB_RIM / 3 + 0.04 : Math.max(q.umbW || 0, L.umbW || 0) + HEAD_CLEAR;
         if (d < need) { const x = L.T.x + dx / d * need, y = L.T.y + dy / d * need; if (standOk(x, y, L.z, L.pz && L.pz.road)) { out.x = x; out.y = y; } }
       }
       return out;
@@ -1699,7 +1708,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       else if (L.ph === 'linger' && p.ph !== 'linger' && p.ph !== 'cross') { uncount(p); p.ph = 'linger'; p.lst = false; p.g = L.g; moved = true; }
       else if (L.ph !== 'linger' && L.ph !== 'cross' && p.ph === 'linger') { p.ph = 'stroll'; p.g = L.g; if (L.g) count(p, L.g); moved = true; }
       else if (p.ph !== 'cross' && L.ph !== 'cross' && p.g !== L.g) { p.g = L.g; if (p.ph !== 'linger' && L.g) count(p, L.g); moved = true; }
-      const twoUmb = p.umbW > 0 && L.umbW > 0; // (and again as the two umbrellas go up, or down)
+      const twoUmb = (p.umbW > 0) + (L.umbW > 0); // (and again as an umbrella goes up, or down)
       if (moved || p.lTx !== L.T.x || p.lTy !== L.T.y || p.lph !== L.ph || p.lUmb !== twoUmb) {
         p.lTx = L.T.x; p.lTy = L.T.y; p.lph = L.ph; p.lUmb = twoUmb;
         mateSpot(L, p, p.T || (p.T = {}));
@@ -1797,17 +1806,26 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (q.umbR > 0) {
             const ex = mx - o.x - (o.ucx || 0), ey = my - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = q.umbR + o.umbR + UMB_RIM / 3;
             if (ec < u && ec > 1e-4) { const f = (u - ec) / 2 / ec; sx += ex * f; sy += ey * f; }
-          } else if (q.crown > o.umbRim - 0.03) { // (no umbrella of its own, its head as high as the rim and under the canopy: out from under it, the whole way)
-            const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = o.umbR + 0.12;
+            const hu = headRoom(q, o); // (and its own head out from under the other's canopy)
+            if (hu) { const hx = q.x - o.x - (o.ucx || 0), hy = q.y - o.y - (o.ucy || 0), hc = Math.hypot(hx, hy); if (hc < hu && hc > 1e-4) { const f = (hu - hc) / hc; sx += hx * f; sy += hy * f; } }
+          } else if (umbRoom(q, o) > 0) { // (no umbrella of its own, its head near the rim's height and under the canopy: out from under it, the whole way)
+            const ex = q.x - o.x - (o.ucx || 0), ey = q.y - o.y - (o.ucy || 0), ec = Math.hypot(ex, ey), u = umbRoom(q, o);
             if (ec < u && ec > 1e-4) { const f = (u - ec) / ec; sx += ex * f; sy += ey * f; }
           }
         }
       }
       const nx = -q.hy, ny = q.hx; // (across the footway, as p.lat runs)
       let d = sx * nx + sy * ny;
+      // (pushed along the footway and hardly across it, a neighbour stood straight ahead or behind: the step is taken across
+      // all the same, to the side it already stands to, as one under another's umbrella in a queue steps aside. Across alone,
+      // it came to nothing, and a head stood 0.02 m inside the canopy in front of it, main's walk2 twice, issue 238)
+      if (Math.abs(d) < 1e-3 && Number.isFinite(sx) && Math.hypot(sx, sy) >= 1e-3) d = Math.hypot(sx, sy) * ((q.lat || 0) < 0 ? -1 : 1);
       if (!(Math.abs(d) >= 1e-3)) return; // (and nothing where the walker has no heading yet: a NaN taken into its place lost it from the street, issue 187)
       d = Math.sign(d) * Math.min(Math.abs(d), 0.6 * dt);
-      const l = net.L[q.line], hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2), lat = (q.lat || 0) + d;
+      // (within the footway, or at a scramble's kerb within the crosswalk's width the crowd is spread across there, walk():
+      // bounded by the footway's half width at the Scramble's kerb, a stood pair could not step apart, issue 238)
+      const l = net.L[q.line], X = api.crossings && api.crossings.byLine.get(q.line), atScr = X && X.some(x => x.scramble && Math.abs(x.s - q.s) < x.kerb + 5);
+      const hw = Math.max(1, (FOOTW[l && l.c] || 3) / 2, atScr ? SCR_HW : 0), lat = (q.lat || 0) + d;
       if (Math.abs(lat) > hw && Math.abs(lat) > Math.abs(q.lat || 0)) return;
       const x = q.x + nx * d, y = q.y + ny * d;
       if ((clear && !clear(x, y, q.z)) || keepRoom(x, y, 0.5) < Math.min(0.35, keepRoom(q.x, q.y, 0.5)) || !bodyClear(i, q.x, q.y, x, y, 0.42)) return;
@@ -1815,6 +1833,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // western arm stood in the lane, and a car waited on them 150 s, tools/check.sh roads, issue 187)
       { const R = api.crossings && api.crossings.road; if (R && R(x, y) && !R(q.x, q.y)) return; }
       q.lat = lat; if (q.lim != null) q.lim += d; q.x = x; q.y = y;
+      q.cHold = 1; q.cDir = Math.sign(d); // (and kept: walk() pulls it no way back that way for a second, issue 238)
     }
     function bodyClear(self, x0, y0, x, y, r) {
       const c0 = Math.floor(x / CELL), r0 = Math.floor(y / CELL);
@@ -1997,9 +2016,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (e > PZ_REACH || e < 1e-4) continue; // (every force below, an umbrella's room among them, reaches no farther)
           const keep = (q.ph === 'wait' || q.lst) && sp === 0 ? ((o.lead >= 0 ? o.lead : o.id) === gq ? 0.55 : 0.68) : 0.75; // (stood waiting: close, as a crowd at a kerb stands, not shoved about by every neighbour; at 0.55 a kerb's crowd set in a knot two to a square metre; one of its own group closer, issue 75)
           if (e < keep) { const f = (keep - e) / e * 2.2; fx += ex * f; fy += ey * f; }
-          if ((q.umbR > 0 || o.umbR > 0) && ((o.lead >= 0 ? o.lead : o.id) !== gq || (q.umbR > 0 && o.umbR > 0))) { // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
+          if (q.umbR > 0 || o.umbR > 0) { // (of one group too, one under an umbrella and one without: the head's room as for a stranger; #1120 stood 0.42 m from #833 with a head 0.04 m in, issue 238) // (under umbrellas: an umbrella's room between the canopies, issue 165; two of one group who both carry stand that far apart too, as friends under two umbrellas do)
             const u = umbRoom(q, o) + 0.04, cx = ex + (q.umbR > 0 ? q.ucx : 0) - (o.umbR > 0 ? o.ucx : 0), cy = ey + (q.umbR > 0 ? q.ucy : 0) - (o.umbR > 0 ? o.ucy : 0), ec = Math.hypot(cx, cy);
             if (u > 0.1 && ec < u && ec > 1e-4) { const f = (u - ec) / ec * 2.2; fx += cx * f; fy += cy * f; q.umbPush = true; }
+            if (q.umbR > 0 && o.umbR > 0) { const hu = headRoom(q, o) + 0.04, hx = ex - o.ucx, hy = ey - o.ucy, hc = Math.hypot(hx, hy); if (hu > 0.1 && hc < hu && hc > 1e-4) { const f = (hu - hc) / hc * 2.2; fx += hx * f; fy += hy * f; q.umbPush = true; } } // (both under one: its head from the other's canopy too)
           }
           if (vv > 0.3 && e < 2.4 && (o.vx * vx + o.vy * vy) < 0 && (-ex * vx - ey * vy) > 0) { const f = 0.5 * (2.4 - e) / 2.4; fx += -vy / vv * f; fy += vx / vv * f; } // (left: + across the heading)
         }
@@ -2566,6 +2586,15 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         const jam = (p.slow || 0) > 0.4 || (p.still || 0) > 0.2 || (G.slow || 0) > 0.4 || (G.still || 0) > 0.2 || p.blkO || G.blkO || p.oncoming || G.oncoming; // (or someone coming the other way, close: into single file before they meet, issue 85)
         const n = 1 + (G.mates ? G.mates.length : 1), dense = jam ? 1 : Math.max(0, Math.min(1, (nn - 8) / 24));
         const sl = mateSlot(G, p.gk || 1, n, hw, dense), along = (G.x - p.x) * hx + (G.y - p.y) * hy;
+        // (and with an open umbrella between them, room for it: abreast at the canopy's radius and a head's clearance from
+        // its holder, or both canopies' and a rim's where both hold one; where the footway has not that room across, a pace
+        // behind instead. At the slot's 0.57 m the one without stood with a head 0.02 m in the other's canopy, main's walk2
+        // and story3, issue 238)
+        { const need = p.umbW > 0 && G.umbW > 0 ? p.umbW + G.umbW + UMB_RIM / 3 + 0.04 : Math.max(p.umbW || 0, G.umbW || 0) > 0 ? Math.max(p.umbW || 0, G.umbW || 0) + HEAD_CLEAR : 0, gl = G.lat ?? G.side;
+          if (need && Math.hypot(sl.lat - gl, sl.back) < need) {
+            const dir = sl.lat - gl < 0 ? -1 : 1, lat = gl + dir * need;
+            if (lat > -hw + 0.3 && lat < Math.max(hw, side) + 0.2) sl.lat = lat; else sl.back = Math.max(sl.back, need);
+          } }
         if (G.line === p.line && G.dir === p.dir) want = Math.max(-hw + 0.3, Math.min(Math.max(hw, side) + 0.2, sl.lat + p.dodge * (jam ? 1 : 0.5)));
         const err = along - sl.back;
         gcap = Math.max(G.line === p.line && !(nn > 8) && !((G.mgT || 0) > 1) ? 0 : 0.3, (G.v || 0) + Math.max(-1, Math.min(0.8, err * 1.5))); // (in a crowd never stood still in its way, nor waiting on a leader that is itself held: issue 85)
@@ -2643,6 +2672,10 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       // a facade beside the line, here or a little ahead: in towards the line (looked at every few steps)
       if (clear && ((p.wallStep = (p.wallStep || 0) + 1) % 3 === 0 || p.lim == null)) { lineAt(p.line, p.s, tmp); p.lim = wallFree(p, want, hw); p.limWant = want; }
       if (clear && p.lim != null && p.lim !== p.limWant) want = p.limWant >= 0 ? Math.min(want, p.lim) : Math.max(want, p.lim); // (no further out on that side)
+      // (just stepped out from under a canopy or out of a body, canopyAcross: not pulled straight back that way to its place
+      // by its friend. Eased back across at 0.9 m/s, faster than the 0.6 it steps out at, two of a group stood 0.37 m apart
+      // with a head 0.02 m in the other's canopy, main's walk2 and story3, issue 238)
+      if (p.cHold > 0) { p.cHold -= dt; if ((want - p.lat) * (p.cDir || 0) < 0) want = p.lat; }
       const lv = p.v < 0.2 && p.kw > 0.5 ? 0.25 : 0.9; // (stood at a kerb a while: a slow shuffle across, not a slide)
       let dl = Math.max(-lv * dt, Math.min(lv * dt, want - p.lat));
       p.lat += dl;
