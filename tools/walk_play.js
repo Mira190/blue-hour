@@ -1067,7 +1067,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     // the helicopter: up on the roof beside it (as the SKY GATE lift and the escalator bring you), fetched and drawn there
     const pad = await p.evaluate(() => { const g = window.__game, s = g.heli.st, d = g.heli.doorAt(); g.player.x = d.x + (d.x - s.x) * 0.8; g.player.y = d.y + (d.y - s.y) * 0.8; g.player.z = s.z; g.player.speed = 0; g.player.vz = 0; return { z: s.z }; });
     const seen = await p.waitForFunction(() => window.__game.heli.loaded() && window.__game.heli.group.visible, null, { timeout: 240000, polling: 500 }).then(() => true, () => false);
-    if (!seen) fail(`up on the roof beside the helicopter's pad (${pad.z.toFixed(0)} m), it never stands there: ${JSON.stringify(await p.evaluate(() => { const g = window.__game, h = g.heli; return { visible: h.group.visible, late: h.late ? h.late() : null, up: window.OEWorld && OEWorld.uploadStats ? OEWorld.uploadStats() : null, gate: window.__gate ? Object.assign({}, window.__gate.n) : null, player: [g.player.x, g.player.y, g.player.z].map(v => +v.toFixed(1)) }; }))}`);
+    // (and how many Chromium processes the machine runs: all three sightings came in full runs, other parts beside it)
+    const chromes = () => { try { return +require('child_process').execSync('pgrep -c -f chrom || true').toString().trim() || 0; } catch (e) { return null; } };
+    if (!seen) fail(`up on the roof beside the helicopter's pad (${pad.z.toFixed(0)} m), it never stands there: chromium processes ${chromes()}, ${JSON.stringify(await p.evaluate(() => { const g = window.__game, h = g.heli; return { visible: h.group.visible, late: h.late ? h.late() : null, up: window.OEWorld && OEWorld.uploadStats ? OEWorld.uploadStats() : null, gate: window.__gate ? Object.assign({}, window.__gate.n) : null, pageS: Math.round(performance.now() / 1000), player: [g.player.x, g.player.y, g.player.z].map(v => +v.toFixed(1)) }; }))}`);
     else if (!(await waitPrompt(/Board the helicopter/))) fail(`beside the helicopter on the walk, nothing offers to board it ("${await prompt()}")`);
     else {
       await act();
