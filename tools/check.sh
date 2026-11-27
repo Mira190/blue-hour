@@ -743,6 +743,7 @@ rm -rf "$OUT/keep"
     st roads buslines - '^FAIL|Error' python3 pipeline/bus_lines.py --city "$MAP" --check
     st roads routes - '^FAIL|Error' python3 pipeline/road_routes.py "$MAP" --check
     st roads decks "no building stands on a road the survey has: a deck or a bridge over it stands off the ground" '^FAIL|Error' python3 tools/deck_check.py "$MAP"
+    st levels railclear "no building stands in a train's way: the Yamanote Line's envelope outside the stations' boxes" '^FAIL|Error' python3 tools/rail_clear.py "$MAP"
     st roads firstdrive "your car's first drive leads on, and every street open to it in the area is one a car can use" '^FAIL|Error' python3 tools/first_drive.py "$MAP"
     st levels levels - '^FAIL|^  |Error' python3 tools/levels_check.py "$MAP"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"

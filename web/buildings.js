@@ -1154,5 +1154,5 @@ window.OEBuildings = (function () {
     return im;
   }
 
-  return { SHOP_HOURS, create, start, cells, cellInstances, STYLES, guessStyle: GEO.guessStyle, canopyPosts, POST, PIER: GEO.PIER };
+  return { SHOP_HOURS, create, start, cells, cellInstances, STYLES, guessStyle: GEO.guessStyle, canopyPosts, POST, PIER: GEO.PIER, CANOPY_HIGH: GEO.CANOPY_HIGH, PLATFORM_ROOF: GEO.PLATFORM_ROOF };
 })();
