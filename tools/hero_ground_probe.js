@@ -24,7 +24,7 @@ const [,, city = 'shibuya', STEP = '1', MODE = '', OUT = ''] = process.argv;
   for (const id of levels) {
     // stand in its middle until it is shown
     await p.evaluate(id => { const g = window.__game, h = g.G.hero.find(q => q.id === id), pl = g.player; pl.x = h.at[0]; pl.y = h.at[1]; pl.z = g.nav.terrain(pl.x, pl.y); g.advance(0.5); }, id);
-    await p.waitForFunction(id => { const h = window.__game.hero(); const s = h && h.state().find(q => q.id === id); window.__game.advance(0.2); return s && s.shown; }, id, { timeout: 180000, polling: 1000 }).catch(() => {});
+    await p.waitForFunction(id => { const h = window.__game.hero(); const s = h && h.state().find(q => q.id === id); window.__game.advance(0.2); return s && s.shown && (window.__game.G.hero.find(q => q.id === id).cover || s.state !== 'ready' ? !!window.__game.G.hero.find(q => q.id === id).cover : false); }, id, { timeout: 180000, polling: 1000 }).catch(() => {}); // (and its paving read, game.js heroCover: shown before it, the walker stood on the bare ground and the level read 5 cm off it, issue 262)
     const r = await p.evaluate(([id, step, exp]) => {
       const g = window.__game, nav = g.nav, THREE = window.THREE, H = g.G.hero.find(q => q.id === id), hero = g.hero(), L = hero.levels.find(q => q.h.id === id);
       const meshes = [];

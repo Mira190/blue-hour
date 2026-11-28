@@ -112,7 +112,26 @@ if (require.main === module) (async () => {
       for (const [n, T] of rows) console.log(`  ${n.padEnd(34)} ${s(a0, T.ask).padStart(6)} ${s(T.ask, T.glb).padStart(6)} ${s(T.glb, T.hair).padStart(6)} ${s(T.hair, T.warm0).padStart(6)} ${s(T.warm0, T.done).padStart(6)} ${s(a0, T.done).padStart(6)}`);
       if (sm.up) console.log(`  the upload queue: ${JSON.stringify(sm.up)}`);
     }
-    if (process.env.CAST_ONLY) { await b.close(); process.exit(0); } // (CAST_ONLY=1: only how the cast comes in, to measure)
+    // (PAN=seconds: the walker held at the kerb that long while the camera turns round and round, a turn each 40 s of the
+    // game, and every few seconds the heads over HEAD counted that wait on their character: what letting a cast member go
+    // from the GPU costs (people.js lib.letGo, issue 261). Fails on a head over HEAD that waits in the frame's middle)
+    if (+process.env.PAN) {
+      const T0 = Date.now(), n0 = await p.evaluate(() => { const L = window.__game.peopleLib; return [L.letGoN || 0, L.backN || 0]; });
+      let samples = 0, waits = 0, worst = 0, midWaits = 0;
+      while (Date.now() - T0 < +process.env.PAN * 1000) {
+        await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 10; i++) { g.player.speed = 0; g.cam.yaw += (2 * Math.PI / 40) / 30; g.cam.yawTo = null; g.cam.lastInput = g.t ? g.t() : 0; g.frame(1 / 30); } });
+        await p.waitForTimeout(100);
+        if (Date.now() - T0 > samples * 5000) {
+          samples++;
+          const m = await p.evaluate(MEASURE, [HEAD, MX, MY]), w = m.rows.filter(r => r.wait && r.head >= HEAD);
+          waits += w.length; worst = Math.max(worst, w.length); midWaits += w.filter(r => r.mid).length;
+        }
+      }
+      const n1 = await p.evaluate(() => { const L = window.__game.peopleLib; return [L.letGoN || 0, L.backN || 0]; });
+      console.log(`${name} ${size}: ${process.env.PAN} s panning at the kerb: ${n1[0] - n0[0]} cast members let go, ${n1[1] - n0[1]} sent again; heads over ${HEAD} px waiting on their character in ${samples} samples: ${waits} (${midWaits} in the middle, at most ${worst} at once)`);
+      if (midWaits) { fail++; console.log(`  FAIL ${midWaits} heads over ${HEAD} px in the frame's middle waited on their character while panning at the kerb (people.js lib.letGo)`); }
+    }
+    if (process.env.CAST_ONLY) { await b.close(); process.exit(fail ? 1 : 0); } // (CAST_ONLY=1: only how the cast comes in, to measure)
     // the swap in step (STRIDE=0 leaves it out): the walking whole people sent back to their far copies for a few frames
     // and taken over again, and at that frame the foot forward on the whole person (its feet in its own space) set beside
     // the foot the far copy had forward (its shader's sin(ph)): the same foot, or the walk hitches at the swap

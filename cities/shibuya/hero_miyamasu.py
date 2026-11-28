@@ -108,10 +108,12 @@ def materials():
         "stone_collar": {"tex": "granite", "maps": "cn", "rough": 0.45},
         # the linear lights between the girders: on as dusk falls (hero.js lamp*), their light on the street baked
         "lamp_soffit": {"color": (0.95, 0.96, 0.98), "emissive": (1.0, 0.95, 0.88), "glow": 2.0},
-        # the forecourt's planks: honed stone in three close greys laid in stripes, the hall's own (hero_skylobby.py)
-        "ground_plank": {"tex": "granite", "maps": "cn", "rough": 0.5},
-        "ground_plank_dark": {"tex": "granite", "maps": "cn", "rough": 0.5},
-        "ground_plank_pale": {"tex": "granite", "maps": "cn", "rough": 0.5},
+        # the forecourt's planks: honed stone in three close greys laid in stripes, the hall's own stone and tints
+        # (hero_skylobby.py; a coarse scanned granite read as blotches on SKY's floor, issue 239, and here three planks
+        # of one tone met the hall's three at the seam)
+        "ground_plank": {"tex": "honed", "maps": "c", "rough": 0.5},
+        "ground_plank_dark": {"tex": "honed", "maps": "c", "rough": 0.5},
+        "ground_plank_pale": {"tex": "honed", "maps": "c", "rough": 0.5},
         "ground_joint": {"color": (0.1, 0.1, 0.105), "rough": 0.8},
         "glow_strip": {"color": (0.8, 0.82, 0.95), "emissive": (0.62, 0.66, 1.0), "glow": 1.4},
         # the works' hoarding: white flat steel panels, their joints, the striped end posts, the printed boards on it
@@ -240,6 +242,7 @@ class Level(H.Level):
         from shapely.geometry import Point
         from shapely.ops import unary_union
         super().__init__(K, CENTRE, R)
+        K.TEXTURES["honed"] = (HP.honed_texture(K), 0.6)   # (the forecourt's stone, SKY's hall's own: hero_skylobby.py)
         self.deck = _station(self.D)
         self.over = unary_union([p for p, _, _ in self.deck]) if self.deck else None
         self.scramble = Point(*H.CENTRE).buffer(H.R + 15)
@@ -534,7 +537,7 @@ class Level(H.Level):
         G = self.geo
         door, u, n = self.hall()
         xy = lambda a, b: door + u * a + n * b
-        rep = self.K.TEXTURES["granite"][1]
+        rep = self.K.TEXTURES["honed"][1]
         rng = np.random.default_rng(1124)
         mats = ("ground_plank", "ground_plank_dark", "ground_plank_pale")
         j = 0.003
@@ -557,10 +560,21 @@ class Level(H.Level):
                     q(m, pts, uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
                     count += 1
                 v = vb
-            if k % 7 == 3:
-                q("glow_strip", [(ua - 0.006, v0 + 0.6), (ua + 0.006, v0 + 0.6), (ua + 0.006, v1 - 0.6), (ua - 0.006, v1 - 0.6)], dz=0.002, sub=(1, 10))
+            if k % 7 == 3:   # (in 1.2 m pieces laid on the planks' own heights: one strip over the forecourt, its height taken
+                # between its ends, sank under the planks and stood over them by turns)
+                vs = np.linspace(v0 + 0.6, v1 - 0.6, max(2, int(np.ceil((v1 - v0 - 1.2) / 1.2)) + 1))
+                for va, vb in zip(vs[:-1], vs[1:]):
+                    q("glow_strip", [(ua - 0.006, va), (ua + 0.006, va), (ua + 0.006, vb), (ua - 0.006, vb)], dz=0.002)
             ua, k = ua + 0.3, k + 1
-        q("ground_joint", [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], dz=-0.004, sub=(6, 12))
+        # the grout, seen in the joints: in 1.2 m cells on the paving's own heights, 2 cm under it (a 3 m plank, its height
+        # taken between its ends, sags a little under the ground's crease; in a 3 mm joint the grout's depth is not seen). One quad over the
+        # forecourt, its height taken between its four corners, stood up to 5 cm over the planks where the ground rises
+        # between them and covered 81 m2 of them in one dark grey (issue 262, as SKY's hall did: issue 239)
+        us = np.linspace(u0, u1, max(1, int(np.ceil((u1 - u0) / 1.2))) + 1)
+        vs = np.linspace(v0, v1, max(1, int(np.ceil((v1 - v0) / 1.2))) + 1)
+        for ua, ub in zip(us[:-1], us[1:]):
+            for va, vb in zip(vs[:-1], vs[1:]):
+                q("ground_joint", [(ua, va), (ub, va), (ub, vb), (ua, vb)], dz=-0.02)
         print(f"forecourt: {count} planks")
 
     def hoarding(self):
@@ -679,8 +693,8 @@ def build(K):
                            ("wall_white", "tile", (192, 192, 188)), ("wall_cream", "tile", (190, 180, 164)), ("wall_grey", "clad", (158, 160, 162)),
                            ("wall_clad", "clad", (176, 180, 184)), ("wall_char", "clad", (62, 64, 68)),
                            ("stone_collar", "granite", (96, 96, 98)),
-                           ("ground_plank", "granite", (150, 150, 150)), ("ground_plank_dark", "granite", (128, 129, 131)),
-                           ("ground_plank_pale", "granite", (168, 167, 165))):
+                           ("ground_plank", "honed", (150, 150, 150)), ("ground_plank_dark", "honed", (128, 129, 131)),
+                           ("ground_plank_pale", "honed", (168, 167, 165))):
         M[mat]["tint"] = K.tint_to(key, srgb)
     meta = {"id": ID, "at": list(CENTRE), "r": R, "z": 16.0, "glb": f"hero/{ID}.glb", "bake_gain": 1.0, "cell": 24.0,
             "sky_rays": 20, "sky_reach": 9.0, "sky_strength": 1.0}

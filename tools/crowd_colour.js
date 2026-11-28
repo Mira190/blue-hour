@@ -151,7 +151,14 @@ async function swapMode(p, b, size, bad) {
   for (const view of (process.env.VIEWS || 'title,walk').split(',')) {
     if (view === 'walk') await p.evaluate(() => { const g = window.__game; g.walkStart({ t: 'blue', w: 'clear' }); for (let i = 0; i < 40; i++) { g.advance(0.25); if (g.dlg.open) g.dlg.quit(); } });
     // (the cast round the camera come: every near walker's own character, not a far copy waiting on it; ten minutes at most)
-    const came = await until(() => { const g = window.__game, D = g.crowdDraw(); g.frame(1e-4); const n = D.nearInfo(); return n.unloaded === 0 && ![...D.active.values()].some(r => r.cold); }, 600);
+    let came = await until(() => { const g = window.__game, D = g.crowdDraw(); g.frame(1e-4); const n = D.nearInfo(); return n.unloaded === 0 && ![...D.active.values()].some(r => r.cold); }, 600);
+    // (LETGO=1: and then every cast member let go from the GPU and sent again before it is read (people.js lib.letGo, issue
+    // 261): the way back, the bodies kept in the pool and those made new, the same people in the same clothes)
+    if (process.env.LETGO) {
+      const n = await p.evaluate(() => { const g = window.__game, D = g.crowdDraw(), L = g.peopleLib; D.nearCap = 0; g.frame(1e-4); let k = 0; for (const name of Object.keys(L.tpl)) if (L.npcs[name] && L.letGo(name)) k++; D.nearCap = null; return k; });
+      came = await until(() => { const g = window.__game, D = g.crowdDraw(); g.frame(1e-4); const n = D.nearInfo(); return n.unloaded === 0 && ![...D.active.values()].some(r => r.cold); }, 600);
+      console.log(`${view}: ${n} cast members let go and sent again${came ? '' : ' (not all back in ten minutes)'}`);
+    }
     const A = await read(null), B = await read(0), C = await read(null);
     // (and the first frames of people made new, the pool emptied: each drawn as their far copy or whole, never as nobody)
     const F = await p.evaluate(async () => {

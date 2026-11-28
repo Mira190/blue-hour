@@ -905,6 +905,19 @@ wrong, and redone.
   0.6 m under the tiles, whose height where they come down to the floor is no plane over a wider cell), the lines of
   light in 1.2 m pieces on the planks, and those two courses are the hall's own floor (`room_floor_tile`), where the game does not draw
   its ground (game.js heroCover); the model is built from today's terrain, its floor's height unchanged (15.827 m).
+- **The same in the Scramble's level and Miyamasu's** (issue 262, `tools/hero_ground.mjs`): both models were built
+  before the ground was graded again, and the Scramble's paving lay up to 45 cm under the game's ground over 1,140 m2
+  along the rail's bed east of the crossing (the open floor under the station's east side, where frame 6's guide
+  walks), Miyamasu's 15 cm over 38 m2; and Miyamasu's forecourt, which carries SKY's planks on west, had the same one
+  quad of grout over the planks (81 m2 of them in one dark grey) and three planks of one tone in a coarse granite. The
+  cause under the first was in the kit as well as the date: `hero_open.Parts.cover` laid its 2 m grid across the
+  terrain's 5 m one, its height taken between points the ground creased between, so that even built again the paving
+  lay up to 9 cm under the ground on the rail's graded bed. A cover draped on the terrain is now the terrain's own cells
+  divided evenly (2.5 m for 2), aligned to them and split along their diagonal, cut cells too, so each triangle lies in
+  one of the terrain's, parallel to it. Miyamasu's planks are SKY's honed stone in SKY's three tints (`honed_texture`,
+  `OEHoned001`, now in `hero_open.py` and held once by the page for both levels), its grout in 1.2 m cells 2 cm under
+  them, its lines of light in pieces. Both levels built again: 0 m2 under the ground, Miyamasu's grout 0.06 m2 (the
+  joint where the planks meet the pavers), and the check holds every level to that with no allowance.
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up

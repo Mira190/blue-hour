@@ -60,6 +60,33 @@ def _save_set(K, tid, colour, height=None, rough=0.9, normal_k=2.0, size="1K"):
         os.remove(orm)
 
 
+def honed_texture(K, tid="OEHoned001", n=512):
+    """Honed light grey granite of a fine even grain (the Japanese floor stone of Inada's kind, its mica in specks of a
+    millimetre or two): at 0.6 m a repeat a texel is 1.2 mm, and the only changes of tone are the grains,
+    the feldspar's and the quartz's, and the black mica's specks. Nothing coarser than a few millimetres: a scanned
+    granite's crystals of a centimetre and its cloudy patches read from a few metres as blotches on the floor (issue 239),
+    so whatever is wider than 3 cm is taken out of the picture and every hand's breadth of it is one tone.
+    Written as a set fetch_texture finds (its pictures named <tid>_1K-JPG_*, which the page holds once for every level that
+    carries it: hero.js share), a colour map alone in use (honed stone is flat); drawn again at each build. Returns tid."""
+    from PIL import Image
+    from scipy import ndimage
+    rng = np.random.default_rng(239)
+    g = ndimage.gaussian_filter(rng.normal(size=(n, n)), 0.8, mode="wrap")        # the feldspar's grains
+    g = (g - g.mean()) / (g.std() or 1)
+    q = ndimage.gaussian_filter(rng.normal(size=(n, n)), 1.5, mode="wrap")        # the quartz's, a little greyer
+    q = (q > np.quantile(q, 0.86)).astype(float)
+    m = np.zeros((n, n))                                                            # the mica's specks
+    k = int(n * n * 0.0079)
+    m[rng.integers(0, n, k), rng.integers(0, n, k)] = rng.uniform(0.6, 1.0, k)
+    m = ndimage.gaussian_filter(m, 0.7, mode="wrap")
+    m = np.clip(m / (np.quantile(m[m > 0], 0.9) or 1), 0, 1)
+    lum = (1.0 + 0.03 * g) * (1 - 0.07 * ndimage.gaussian_filter(q, 0.6, mode="wrap")) * (1 - 0.62 * m)
+    lum = lum / ndimage.gaussian_filter(lum, 26, mode="wrap") * lum.mean()          # (nothing wider than 3 cm)
+    col = np.dstack([168.0 * lum] * 3) * np.array([1.0, 0.995, 0.985])
+    _save_set(K, tid, Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), "RGB"), rough=0.45)
+    return tid
+
+
 def leaf_texture(K, tid="OELeaf001", n=1024, seed=5, leaf=(26, 11), greens=((38, 70, 30), (66, 104, 44), (96, 134, 58)), count=9000):
     """A hedge's or a shrub's face: small leaves over one another, the deep ones dark, tileable; with the
     height that gives its normal map. Drawn, so that it is ours (CC0 with the project)."""
@@ -201,16 +228,25 @@ class Parts:
     # -- ground
     def cover(self, mat, poly, h, cell=1.0, uvk=1.0, ao=None, zfn=None):
         """Ground draped on the terrain, cut to `poly` (shapely): a grid every `cell` metres, each cell kept
-        whole inside, cut on the outline; uv in metres of the map, so that neighbours meet without a seam."""
+        whole inside, cut on the outline; uv in metres of the map, so that neighbours meet without a seam.
+        Draped on the terrain (no zfn), the grid is the terrain's own cells divided evenly (the nearest even division
+        to `cell`), aligned to them, and every cell split along their diagonal, so that each triangle lies in one of
+        the terrain's and is parallel to it at h over it: a 2 m grid laid across the 5 m one had its height taken
+        between points the ground creased between, and the paving lay up to 9 cm under the game's ground where the
+        rail's bed was graded (issue 262; tools/hero_ground.mjs)."""
         import shapely
-        from shapely.geometry import box
+        from shapely.geometry import Polygon, box
         from shapely.prepared import prep
         if poly.is_empty:
             return
         g = self.geo.part(mat)
         z = zfn or (lambda x, y: self.T(x, y) + h)
         x0, y0, x1, y1 = poly.bounds
-        x0, y0 = math.floor(x0 / cell) * cell, math.floor(y0 / cell) * cell
+        ox = oy = 0.0
+        if zfn is None and all(hasattr(self.T, k) for k in ("x0", "y1", "cell")):
+            cell = self.T.cell / max(1, round(self.T.cell / cell))
+            ox, oy = self.T.x0 % cell, self.T.y1 % cell
+        x0, y0 = math.floor((x0 - ox) / cell) * cell + ox, math.floor((y0 - oy) / cell) * cell + oy
         pp = prep(poly)
         idx = {}
 
@@ -242,8 +278,10 @@ class Parts:
                     a, b, c, d = vert(cx, cy), vert(cx + cell, cy), vert(cx + cell, cy + cell), vert(cx, cy + cell)
                     tri(a, b, c); tri(a, c, d)
                     continue
-                part = poly.intersection(sq)
-                for piece in getattr(part, "geoms", [part]):
+                # (cut on the outline: each half of the cell on its own, so no triangle crosses the terrain's crease)
+                halves = [Polygon([(cx, cy), (cx + cell, cy), (cx + cell, cy + cell)]), Polygon([(cx, cy), (cx + cell, cy + cell), (cx, cy + cell)])]
+                part = shapely.geometry.GeometryCollection([poly.intersection(hf) for hf in halves])
+                for piece in [g2 for q in part.geoms for g2 in getattr(q, "geoms", [q])]:
                     if piece.geom_type != "Polygon" or piece.area < 1e-4:
                         continue
                     for t in shapely.constrained_delaunay_triangles(piece).geoms:
