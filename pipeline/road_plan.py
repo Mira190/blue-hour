@@ -352,6 +352,27 @@ def playable(cid, roads, cfg, measured=None):
             return shut
 
 
+def bus_along(roads, P, why, bus_lines):
+    """The open pieces a bus route runs along (BUS_SHARE of their points within BUS_NEAR_M of a route's line); with no
+    bus data, the pieces marked b already."""
+    if bus_lines is None:
+        return {i for i, o in enumerate(roads) if o.get("b") and i not in why}
+    out = set()
+    if not len(bus_lines):
+        return out
+    tree = shapely.STRtree(bus_lines)
+    for i in range(len(roads)):
+        if i in why or len(P[i]) < 2:
+            continue
+        line = LineString(P[i][:, :2])
+        m = max(2, int(line.length / 5) + 1)
+        qs = [line.interpolate(k / (m - 1), normalized=True) for k in range(m)]
+        near = sum(1 for q in qs if len(tree.query(q, predicate="dwithin", distance=BUS_NEAR_M)))
+        if near >= BUS_SHARE * m:
+            out.add(i)
+    return out
+
+
 def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None, closures=(), keep_closed=False, shut=None):
     """Write x, e, q and b on the road pieces (dicts of game.json paths.road) and return a report.
 
@@ -440,10 +461,18 @@ def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None,
                     seen.add(b)
                     stack.append(b)
         return seen
-    out_gate = [a for a in arcs if kind_at.get((a[0], 1 if a[1] else 0)) == GATE]      # its head is a gate: it leaves
-    in_gate = [a for a in arcs if kind_at.get((a[0], 0 if a[1] else 1)) == GATE]       # its tail is a gate: it comes in
-    leaves = flood(out_gate, lambda a: pred[a])
-    comes = flood(in_gate, lambda a: succ[a])
+    # (a way from gate to gate is over pieces that carry traffic both ways and at every hour: not a single track (st,
+    # pipeline/road_width.py: one car between its kerbs, which the game drives as a quiet street, one way at a time) nor a
+    # street shut to cars at some hours (tb). Through them, the one-way block behind 109 counted as through, its only
+    # ways out two single tracks shut from noon to five: the traffic was made in it and sent into it, it filled faster
+    # than one car at a time let it out, and at the shut hours it had no way out at all; it stood in a ring)
+    # (a bus route along one is the survey's word that it carries traffic through, whatever its width: it stays)
+    on_bus = bus_along(roads, P, why, bus_lines)
+    carries = lambda a: a[0] in on_bus or (not roads[a[0]].get("st") and not roads[a[0]].get("tb"))
+    out_gate = [a for a in arcs if carries(a) and kind_at.get((a[0], 1 if a[1] else 0)) == GATE]      # its head is a gate: it leaves
+    in_gate = [a for a in arcs if carries(a) and kind_at.get((a[0], 0 if a[1] else 1)) == GATE]       # its tail is a gate: it comes in
+    leaves = flood(out_gate, lambda a: [b for b in pred[a] if carries(b)])
+    comes = flood(in_gate, lambda a: [b for b in succ[a] if carries(b)])
     through = leaves & comes
     thru_piece = {a[0] for a in through}
     n_q = 0
@@ -454,17 +483,10 @@ def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None,
     # ---- bus streets
     n_b = None
     if bus_lines is not None:
-        tree = shapely.STRtree(bus_lines) if len(bus_lines) else None
         n_b = 0
         for i, o in enumerate(roads):
             o.pop("b", None)
-            if tree is None or i in why or o.get("q") or len(P[i]) < 2:
-                continue
-            line = LineString(P[i][:, :2])
-            m = max(2, int(line.length / 5) + 1)
-            qs = [line.interpolate(k / (m - 1), normalized=True) for k in range(m)]
-            near = sum(1 for q in qs if len(tree.query(q, predicate="dwithin", distance=BUS_NEAR_M)))
-            if near >= BUS_SHARE * m:
+            if i in on_bus and not o.get("q"):
                 o["b"] = 1
                 n_b += 1
     else:
