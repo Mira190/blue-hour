@@ -119,6 +119,18 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; });
+  // (whoever of the crowd drawn whole stands in the lens's picture nearer than `far`: a body 0.5 m wide from its feet to 1.75 m, any
+  // part of it inside the camera's frustum, in the camera's own space; each with why it stands there)
+  await p.addInitScript(() => { window.__inLens = (far = 5) => { const g = window.__game, c = g.camera, T = window.THREE, out = [], R = g.crowdDraw && g.crowdDraw();
+    if (!R || !R.active) return out;
+    c.updateMatrixWorld(); const inv = c.matrixWorldInverse, ty = Math.tan(c.fov * Math.PI / 360), tx = ty * c.aspect, a = new T.Vector3(), b = new T.Vector3();
+    for (const [i, r] of R.active) { if (!r.root.visible) continue;
+      a.copy(r.root.position).applyMatrix4(inv); b.copy(r.root.position).add(new T.Vector3(0, 1.75, 0)).applyMatrix4(inv);
+      const t = -(a.z + b.z) / 2; if (t < 0.3 || t > far) continue;
+      const x = Math.abs((a.x + b.x) / 2) - 0.25, lo = Math.min(a.y, b.y), hi = Math.max(a.y, b.y);
+      if (x < t * tx && hi > -t * ty && lo < t * ty) { const q = g.crowd.P[i] || {};
+        out.push(`walker ${i} ${t.toFixed(1)} m ahead, ${(x + 0.25).toFixed(2)} m off the axis [the frame ${(t * tx).toFixed(2)} m wide each side there; fov ${c.fov.toFixed(1)}; ${q.pz ? `waiting (${q.ph})` : `${q.state} on line ${q.line}`}, ${(q.v || 0).toFixed(2)} m/s; the crowd ${g.crowd.finder ? 'given' : 'not given'} the finder]`); } }
+    return out; }; });
   // (whoever of the crowd jumps or leaves the street in view while the finder is up, not under the shutter's flash: a raise
   // in a living street had a waiter moved out of the view's way in one step and a walker put off the street, #232. Each
   // frame, the crowd within 20 m and in the frame: drawn more than 0.6 m from where it was drawn the frame before, or gone)
@@ -874,8 +886,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (and whoever the eye makes out is a whole person, not a far copy: a head over 30 px in the frame's middle, issue 174,
       // tools/crowd_whole.js)
       { const m = await p.evaluate(crowdWhole, [30, 0.55, 0.7]), big = m.rows.filter(r => r.head >= 30), bad = wholeJudge(m, { HEAD: 30, late: true }); // (late: minutes into the story, the near cast is due, and one waiting for their character is a far copy, issue 261)
-        console.log(`frame 7, twenty seconds into the rain: ${big.length} people with a head over 30 px in the frame (${big.filter(r => r.mid).length} in its middle), ${big.filter(r => !r.whole).length} of them far copies (${big.filter(r => !r.whole && r.cold).length} waiting or warming); whole drawn ${m.active}, the pick ${m.nNear} (${m.big} by size)`);
-        if (bad.length) { errors.push(`frame 7: ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over 30 px in the frame's middle (${bad.map(r => `${r.head} px at ${r.d} m`).join('; ')}): who is whole goes by size on the screen, people.js crowdRenderer`); console.log(errors[errors.length - 1]); } }
+        console.log(`frame 7, twenty seconds into the rain: ${big.length} people with a head over 30 px in the frame (${big.filter(r => r.mid).length} in its middle), ${big.filter(r => r.copy).length} of them far copies (${big.filter(r => r.copy && r.cold).length} waiting or warming), ${big.filter(r => r.hidden).length} taken out by the game (a talk's shot, the lens: not drawn); whole drawn ${m.active}, the pick ${m.nNear} (${m.big} by size)`);
+        if (bad.length) { errors.push(`frame 7: ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over 30 px in the frame's middle (${bad.map(r => `#${r.i} ${r.head} px at ${r.d} m, rank ${r.rank} in the pick`).join('; ')}): who is whole goes by size on the screen, people.js crowdRenderer`); console.log(errors[errors.length - 1]); } }
       if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
       continue;
     }
@@ -1460,14 +1472,23 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     }
     else if (s.phase === 'after') await mark(s, 'after');
     // (and nobody of the crowd in front of the lens at an after, the finder's picture: frame 7's closing one had a passer-by 2 m in
-    // front of it, a third of the frame, #232. A drawn walker within 5 m along the view and within its width there fails)
+    // front of it, a third of the frame, #232. In the picture means in the lens's own view: a body 0.5 m wide and 1.75 m tall,
+    // nearer than 5 m, any part of it inside the camera's frustum. A cone of the same width at every lens counted, on the medium
+    // tier, a walker 1.69 m off the axis at 4.4 m, outside the 12 degree lens's frame by a metre: issue 232's second sighting)
     if (s.phase === 'after' && !seen.has(`lensfront-${s.fi}`) && await p.evaluate(() => !!window.__game.story.finder)) { seen.add(`lensfront-${s.fi}`);
-      const f = await p.evaluate(() => { const g = window.__game, c = g.camera, T = window.THREE, d = c.getWorldDirection(new T.Vector3()), out = [], R = g.crowdDraw && g.crowdDraw();
-        if (R && R.active) for (const [i, r] of R.active) { if (!r.root.visible) continue; const v = r.root.position.clone().add(new T.Vector3(0, 1.2, 0)).sub(c.position), t = v.dot(d), side = v.clone().addScaledVector(d, -t).length();
-          if (t > 0.3 && t < 5 && side < 0.5 + 0.35 * t) out.push(`walker ${i} ${t.toFixed(1)} m ahead, ${side.toFixed(2)} m off the axis`); }
-        return out; });
+      const f = await p.evaluate(() => window.__inLens());
+      // (the measure measured: one of the crowd drawn whole put, between two frames, on the axis 3 m out, and then where the
+      // medium tier's run had walker 1105, 4.4 m out and 1.69 m to the side; the first is in the picture, the second not)
+      const self = await p.evaluate(() => { const g = window.__game, c = g.camera, T = window.THREE, R = g.crowdDraw && g.crowdDraw(); if (!R || !R.active || !R.active.size) return null;
+        const [i, r] = [...R.active][0], was = r.root.position.clone(), vis = r.root.visible, d = c.getWorldDirection(new T.Vector3()), s = new T.Vector3(-d.z, 0, d.x).normalize(), ground = c.position.y - 1.6;
+        const at = (t, side) => { r.root.position.copy(c.position).addScaledVector(d, t).addScaledVector(s, side); r.root.position.y = ground; r.root.visible = true; r.root.updateMatrixWorld(); return window.__inLens().some(e => e.startsWith(`walker ${i} `)); };
+        const res = { on: at(3, 0), side: at(4.4, 1.69) }; r.root.position.copy(was); r.root.visible = vis; r.root.updateMatrixWorld(); return res; });
+      if (self && !(self.on && !self.side)) { errors.push(`frame ${s.fi + 1}'s after: the lens's measure is wrong (one of the crowd on the axis 3 m out counted: ${self.on}; 4.4 m out and 1.69 m aside counted: ${self.side})`); console.log(errors[errors.length - 1]); }
       if (f.length) { errors.push(`frame ${s.fi + 1}'s after: someone of the crowd in front of the lens (${f.join('; ')})`); console.log(errors[errors.length - 1]); }
       else console.log(`frame ${s.fi + 1}'s after: nobody of the crowd within 5 m in front of the lens`);
+      console.log(`frame ${s.fi + 1}'s after: the lens's field ${await p.evaluate(() => { const g = window.__game, c = g.camera, T = window.THREE, d = c.getWorldDirection(new T.Vector3()), R = g.crowdDraw && g.crowdDraw(), near = [];
+        if (R && R.active) for (const [i, r] of R.active) { if (!r.root.visible) continue; const v = r.root.position.clone().add(new T.Vector3(0, 1.2, 0)).sub(c.position), t = v.dot(d), side = v.clone().addScaledVector(d, -t).length(); if (t > 0.3 && t < 8 && side < 4) near.push(`${t.toFixed(1)}/${side.toFixed(2)}`); }
+        return `${c.fov.toFixed(1)} degrees, ${c.aspect.toFixed(2)} wide; the crowd within 8 m ahead and 4 m off the axis (ahead/off): ${near.join(' ') || 'none'}`; })}`);
     }
     if (s.phase === 'after' && !seen.has(`pops-${s.fi}`)) { seen.add(`pops-${s.fi}`); // (and nobody seen to jump while the finder was up, to here: #232)
       const q = await p.evaluate(() => (window.__pops || []).splice(0));

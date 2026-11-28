@@ -715,6 +715,15 @@ the talk draw from seeded runs, the date is pinned (the weather is a hash of it)
 frame does steps the world. `DIGEST=2` writes a digest after every step of the world, and the first
 one two runs disagree on names the step (`tools/game_soak.sh`).
 
+## Words read off the box
+
+The dialogue box types a line in at 55 letters a second of the game's clock (`hud.js` `dialogue`), and on a software
+renderer that clock runs at a third of the wall's: read a moment after the box opens, it holds "Th" or "Thank yo".
+Twice a walk check failed on it while the game said the right line: Nagi's thanks (27 November 2026) and Shun's cold
+opening (run 560, 28 November, "his opening is not his cold one ('Th')"). A harness that judges what someone says asks
+the game for the whole line, `window.__game.dlg.line.text`, and compares it with the data it came from.
+`tools/typed_box_check.py`, in the static checks, fails a script in `tools/` that reads `#gd-text` and tests the words.
+
 ## A check that fails now and then
 
 A check that fails one run in five costs every session a run of fifty minutes thrown away, and turns main red

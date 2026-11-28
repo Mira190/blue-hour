@@ -38,6 +38,7 @@ const [,, city = 'shibuya', out = 'road_net.json'] = process.argv;
     // (a piece already closed by the plan is not in the game's graph, so not measured again: what was measured stays)
     const m = { source: `The game's own measure of its roads against the built model (tools/road_net_dump.js, ${new Date().toISOString().slice(0, 10)}): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.`,
       cut: process.env.FRESH ? r.measured.cut : merge(was.cut, r.measured.cut), off: process.env.FRESH ? r.measured.off : merge(was.off, r.measured.off) };
+    if (was.steep) { m.steep = was.steep; m.steep_source = was.steep_source; } // (the car's own measure, pipeline/road_steep.py: not this tool's to make again)
     fs.writeFileSync(process.argv[4], JSON.stringify(m, null, 0).replace(/\],\[/g, '],\n[') + '\n');
     console.log(`${city}: measured ${m.cut.length} pieces cut at a wall, ${m.off.length} no car fits along -> ${process.argv[4]}`);
   }
