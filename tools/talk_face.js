@@ -19,7 +19,10 @@ const hook = () => {
     c.updateMatrixWorld();
     const R = cv.getBoundingClientRect(), eye = sp.eye || 1.58;
     // (the face: from the chin, 0.14 m under the eyes, to the crown, 0.16 over them, 0.11 to either side, square to the lens)
-    const at = new T.Vector3(sp.x, sp.z + eye, -sp.y), right = new T.Vector3().setFromMatrixColumn(c.matrixWorld, 0).normalize();
+    // (the face the shot is composed on: the speaker's, or yours in the reverse over their shoulder, game.js talkShot)
+    const ts = g.talkShot && g.talkShot(); if (!ts) return null; // (a shot drawn this frame: a talk camera left on under another view frames nobody)
+    const sub = ts.subject, mine = !!sub && Math.hypot(sub[0] - sp.x, sub[1] - sp.y) > 0.5;
+    const at = sub ? new T.Vector3(sub[0], sub[2], -sub[1]) : new T.Vector3(sp.x, sp.z + eye, -sp.y), right = new T.Vector3().setFromMatrixColumn(c.matrixWorld, 0).normalize();
     const pts = [];
     for (const [dx, dy] of [[-0.11, -0.14], [0.11, -0.14], [-0.11, 0.16], [0.11, 0.16]]) {
       const v = at.clone().addScaledVector(right, dx); v.y += dy; v.project(c);
@@ -43,7 +46,7 @@ const hook = () => {
       took.add(e); if (e.id === 'gd') e.querySelectorAll('*').forEach(x => took.add(x));
       over.push({ what: e.id === 'gd' ? 'the dialogue block' : `${name(e)} "${(e.textContent || '').trim().slice(0, 24)}"`, share: +((ix * iy) / fa).toFixed(2) });
     }
-    return { who: sp.name || sp.id, face: face.map(v => Math.round(v)), over };
+    return { who: mine ? `you (the reverse on ${sp.name || sp.id})` : sp.name || sp.id, face: face.map(v => Math.round(v)), over };
   };
   // (every talk of a play, twice a second: a face covered on two samples running, 0.5 s apart, is written once a talk in
   // window.__talkFaces; one sample alone is a cut or the words growing, not a frame a player reads)

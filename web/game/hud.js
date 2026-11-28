@@ -400,7 +400,7 @@ window.OEHud = (function () {
   const oneAtATime = () => { const s = $('#game-stage'); return !!s && s.classList.contains('story') && !s.classList.contains('walk'); };
   // (a talk is up: a notice waits until it closes, never over the face of whoever speaks: the walk's notice of the lift
   // up to SHIBUYA SKY lay over Taro's face as he spoke, tools/talk_face.js)
-  const talkUp = () => { const st = $('#game-stage'), b = $('#gd'); return !!st && st.classList.contains('talk-on') || (!!b && !b.hidden && !b.classList.contains('free')); };
+  const talkUp = () => { const st = $('#game-stage'); return !!st && st.classList.contains('talk-on'); };
   const held = new Set();
   function toast(text, kind = '') {
     if (talkUp()) {

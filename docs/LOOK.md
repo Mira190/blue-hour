@@ -423,17 +423,21 @@ What the guidelines say, and what was taken:
 Nothing was copied: no code, picture or layout of any of them.
 
 How it is built:
-- **The HUD gives way.** While a talk's box is up (not a call said hands-free, which you walk through), where you are,
+- **The HUD gives way.** While a talk's shot frames a face (game.js marks the stage `talk-on`; a call, hands-free or
+  holding you on the line, has no face to frame and keeps the HUD), where you are,
   the hour, the goal, the walk's line, its marks, the frame counter and the buttons fade out over 0.35 s; the walk's menu
   stays as one small mark in its corner (the story's menu was already put away in a talk). A print still developing
   (story.js showPrint, 6.4 s, while the frame's words begin 4.6 s in) is put down as they begin: it covered Kanbara's face
-  in frame 4.
+  in frame 4. A notice up as the talk begins goes with it, and one said during it waits until it closes (hud.js toast):
+  the walk's notice of the lift to SHIBUYA SKY lay over Taro's face, and the car's over Tanaka's.
 - **The band.** The words lie on a soft dark gradient rising from the frame's foot, the name and role small over the
   line, the line in two lines at most: a longer one is cut into pages where the box as laid out would break onto a third
   line, at a sentence's or a clause's end before it where there is one (hud.js pages; the log and the step back keep it
   whole). To go on is offered once the line is typed out, and the step back and the log sit on its row, small: the block
   is about half the height it was.
-- **The camera** keeps the face over the band (above, issue 76; the portrait frame's upper third).
+- **The camera** keeps the face over the band (above, issue 76; the portrait frame's upper third), the chin clear of
+  the words on every frame, and opens a long lens just enough for the face to fit between the frame's top and the words
+  (a 75 mm close shot over two lines and three answers had the words at Sumiko's chin).
 - **Held by** `tools/talk_face.js`: at every talk, twice a second, the speaker's face (chin to crown, a head's width, as
   the talk camera's subject stands) projected through the camera, and any visible element over it, the words' block or a
   HUD element with something to show; covered on two samples running is a failure. `tools/story_play.js` and

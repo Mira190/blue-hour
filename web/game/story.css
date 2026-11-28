@@ -1826,13 +1826,13 @@ html.bh-leave #g-menu { pointer-events: none; }
   .game-stage.story .g-dialog:not(.free):not(.cut) .gd-head :is(b, span) { font-size: 9px; }
 }
 /* A talk is a conversation mode (The Witcher 3, Red Dead Redemption 2, The Last of Us Part II: the HUD gives way while
-   someone speaks): where you are, the hour, the goal, the walk's line and the buttons fade out while a talk's box is up,
-   and come back when it closes; the walk's menu stays as one small mark at the corner. A call said hands-free keeps
-   them, since you walk while it is said. A print still developing (story.js showPrint, 6.4 s; the words of a frame begin
+   someone speaks): where you are, the hour, the goal, the walk's line and the buttons fade out while a talk's shot frames
+   a face (game.js marks the stage talk-on), and come back when it closes; the walk's menu stays as one small mark at the
+   corner. A call, said hands-free or holding you on the line, has no face to frame and keeps them. A print still developing (story.js showPrint, 6.4 s; the words of a frame begin
    4.6 s in) is put down as they begin. tools/talk_face.js fails a talk whose speaker's face anything covers. */
-.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) :is(#g-walk-where, #g-walk-keys, #g-story-goal, #g-story-frames, #g-story-keys, #g-story-cam, #g-story-chip, .g-walk-mark, #g-walk-acts button:not([data-do="menu"])) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.35s ease; }
-.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) #g-walk-acts button[data-do="menu"] { padding: 7px 9px; opacity: 0.55; transition: opacity 0.35s ease; }
-.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) #g-walk-acts button[data-do="menu"] :is(span, kbd) { display: none; }
+.game-stage.story.talk-on :is(#g-walk-where, #g-walk-keys, #g-story-goal, #g-story-frames, #g-story-keys, #g-story-cam, #g-story-chip, .g-walk-mark, #g-walk-acts button:not([data-do="menu"])) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.35s ease; }
+.game-stage.story.talk-on #g-walk-acts button[data-do="menu"] { padding: 7px 9px; opacity: 0.55; transition: opacity 0.35s ease; }
+.game-stage.story.talk-on #g-walk-acts button[data-do="menu"] :is(span, kbd) { display: none; }
 /* (a print still developing and the notices up as a talk begins: gone at once, on the talk camera's cut, so that no fade
    of theirs runs against the print's own animation; a notice said while it is up waits for it, hud.js toast) */
-.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) :is(#g-story-print, #g-toasts) { visibility: hidden !important; }
+.game-stage.story.talk-on :is(#g-story-print, #g-toasts) { visibility: hidden !important; }
