@@ -1674,7 +1674,11 @@ ${PAT_GLSL}`)
       return { o, bones, S, h0, sl, upG, rtG, fwG, owners, chain, M: new Map(owners.map(b => [b, f64(new THREE.Matrix4())])), arm, bm: new THREE.Matrix4(), q: new THREE.Vector3(), w: new THREE.Vector3(), mid: n >> 1, frame: 0 };
     }
     // a vertex's place in the world as its bone carries it now (the skinning matrix of that one bone)
-    const skinM = (c, b, out) => out.multiplyMatrices(c.o.matrixWorld, c.o.bindMatrixInverse).multiply(c.bm.multiplyMatrices(c.bones[b].matrixWorld, c.o.skeleton.boneInverses[b])).multiply(c.o.bindMatrix);
+    // (attached, as the GPU skins it once the mesh's world is fresh: the mesh's world and its bindMatrixInverse cancel, and are
+    // left out. three.js sets bindMatrixInverse only when it updates the mesh's world, at the frame drawn, so read here the
+    // body's points lay where it stood a frame before while the shoulder and the elbow were where it stands now: a run's
+    // stride off, 10 cm, in every lever the arm was turned by, issue 157)
+    const skinM = (c, b, out) => (c.o.bindMode === 'detached' ? out.multiplyMatrices(c.o.matrixWorld, c.o.bindMatrixInverse) : out.identity()).multiply(c.bm.multiplyMatrices(c.bones[b].matrixWorld, c.o.skeleton.boneInverses[b])).multiply(c.o.bindMatrix);
     // how deep a point of the world is inside the torso (metres; below 0, how far out), and the way out, into hit
     const hit = { d: 0, n: new THREE.Vector3() };
     const ringR = (s, f) => { const a0 = Math.floor(f), t = f - a0; return s.r[((a0 % RAYS) + RAYS) % RAYS] * (1 - t) + s.r[(((a0 + 1) % RAYS) + RAYS) % RAYS] * t; };
