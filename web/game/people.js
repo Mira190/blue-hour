@@ -2644,9 +2644,10 @@ transformed = crowdPose(transformed, false);`);
         // its pictures are on the GPU already) and stay their far copy, the same person in the same clothes, until it is done
         // (cold: place() draws the copy). A person from the pool has been drawn already
         if (!pooled && lib.warm && !NO_WARM) {
-          r.cold = true;
-          const warm = () => { r.cold = false; for (const x of active.values()) if (x === r) { world.add(r.root); break; } };
-          lib.warm(r.root).then(warm, warm);
+          // (not shown while cold, to anyone who asks of the near people, a harness's lens check too: the model under it warmed)
+          r.cold = true; r.root.visible = false;
+          const warm = () => { r.cold = false; r.root.visible = true; for (const x of active.values()) if (x === r) { world.add(r.root); break; } };
+          Promise.all(r.root.children.map(c => lib.warm(c))).then(warm, warm);
         }
         if (!r.cold) world.add(r.root);
         active.set(i, r);
