@@ -808,6 +808,42 @@ asks: the search for a place at the kerb, the camera and the sound read the worl
 `tools/car_rail.js` drives your car at the rails of the Scramble and Miyamasu every few metres (in the `ride` check);
 with the rails off it went through five drives of six at Miyamasu, now none.
 
+## Why the knots kept coming back (the owner's report, 28 November 2026)
+
+The knots were undone as they closed, and closed again: main's roads check stood a queue 150 s two runs in three. Each
+car standing was followed to what held it (in-browser, three kerbs, five minutes each, 17:57): about half of the cars in
+the ring stood at any moment, and the rings that kept re-forming had four causes, each fixed where it starts:
+
+- **The short cycle at the peak.** A junction with signals kept its longest red at RED (10 s) whatever came. Busy, its
+  greens were 5 s, two cars each, and 8 s of an 18 s cycle went on amber and all red: the queues grew without end and
+  spilled back over the junctions before them (issue 175 doubled RED at one junction for it). The cycle now follows the
+  load (`junctions.js` `adapt`, as SCATS follows its degree of saturation): a green that ends with its queue still
+  standing raises the junction's load a step, stretching its greens and its longest red together up to `LOAD_MAX`
+  times; one that empties its queue gives a little back. Quiet, the game's short cycle stays.
+- **Poles where the traffic drives.** Signal poles and walk posts were set clear of the carriageways as drawn, but cars
+  drive their lanes and their ways across, which cut corners, put a second lane 4.7 m off a road's line, and ease across
+  a narrow one-way street a car's width off its middle. 55 poles and posts stood there; a car came to a stand at one in
+  the box and held every way it crossed through their greens (junction 1995's queues, 791's). They are now placed out of
+  every way across a junction and of the first 20 m of each of its pieces as wide as their lanes lie (`driven`), or not
+  at all; `tools/road_traffic_watch.js` fails on any car standing at a signal's pole.
+- **A block that only fills.** Behind 109 three one-way back streets (`road_plan` pieces 1694 to 1696) had for their
+  only ways out two single tracks, shut to cars from noon to five. The plan counted them through roads, so traffic was
+  made in them and sent into them; one car at a time let out, the block went from 11 cars to 20 in four minutes and
+  stood in a ring (13 cars, `room` at 809 and 815), and at the shut hours had no way out at all. A way from gate to gate
+  is now over pieces that carry traffic both ways at every hour (`pipeline/road_plan.py`: not a single track, not shut
+  at some hours, unless a bus route runs along it): 85 more pieces are quiet, the block's among them.
+- **Routes for empty roads, and traffic made into queues.** The trips' fields are worked out once, for empty roads,
+  and the made traffic was drawn by pieces, so the back streets, cut into many short pieces, took a large share of it.
+  A car choosing its exit now counts each car standing on that exit's piece as 18 m more of its way (`choose`, the
+  cars standing counted with the knots, `net.jam`), as route guidance sends traffic round a queue; a car with nowhere
+  to be keeps to roads that carry traffic; a back street costs five times its length in a field, not 2.5; and a car is
+  not made on a piece where cars stand or that leads onto one with two standing, and on a back street one time in four.
+
+Measured the same way, main against this (five minutes, stood 150 s within 250 m): Miyashita Park's kerb 6, 7, 7, 3,
+0, 0 against 0 in five runs, the mean speed 11 to 14 km/h; Dogenzaka's foot 0, 29, 7, 0, 6, 30 against 0, 0, 0, the
+13-car ring gone; the Scramble's kerb 8 against 0. At the Scramble's stop lines (`tools/junction_flow.js`, four
+minutes) 27 vehicles went through on main, 54 now.
+
 ## Not done, and why
 
 - **The mounds beside the streets at the embankment** are the survey's ground, left as it is by `street_ground.py`

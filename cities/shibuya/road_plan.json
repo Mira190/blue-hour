@@ -17,10 +17,10 @@
    "a one-way street into a dead end: no car may leave it": 6,
    "leads only into a lane closed to cars": 2
   },
-  "quiet": 359,
-  "quiet_km": 23.59,
-  "bus": 1204,
-  "bus_km": 97.85,
+  "quiet": 444,
+  "quiet_km": 29.22,
+  "bus": 1203,
+  "bus_km": 97.84,
   "one_way": 1656,
   "node_degrees": {
    "1": 555,
