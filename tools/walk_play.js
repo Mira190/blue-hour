@@ -950,7 +950,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           const st0 = await p.evaluate(() => { const s = window.__game.myCar().D.st; return [s.x, s.y]; });
           await hold('KeyW', 2.5); await p.waitForTimeout(1200);
           const c = await p.evaluate(() => { const s = window.__game.myCar().D.st; return { xy: [s.x, s.y], v: s.speed }; }), drove = Math.hypot(c.xy[0] - st0[0], c.xy[1] - st0[1]), kmh = await corner();
-          if (drove < 3) fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m`);
+          // (and what stood in its way: the people within 8 m of its nose, the walk's line, the car's pose: the run 512 failure, 0.2 m)
+          const why = drove < 3 ? await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st, fx = Math.sin(s.h), fy = Math.cos(s.h), out = []; try { g.nav.posts.near(s.x, s.y, 8, q => { const a = (q.x - s.x) * fx + (q.y - s.y) * fy; out.push(`${q.kind || '?'} ${a.toFixed(1)} ahead ${((q.x - s.x) * fy - (q.y - s.y) * fx).toFixed(1)} across`); }, s.z); } catch (e) { out.push(String(e).slice(0, 60)); } return { car: [+s.x.toFixed(1), +s.y.toFixed(1), +s.h.toFixed(2)], v: +s.speed.toFixed(2), line: g.walkLine ? g.walkLine() : null, near: out.slice(0, 12) }; }).catch(e => String(e)) : null;
+          if (drove < 3) fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m (${JSON.stringify(why)})`);
           else if (!/km\/h/.test(kmh)) fail(`driving, the corner does not say the speed ("${kmh}")`);
           else ok(`drove ${drove.toFixed(1)} m; the corner says "${kmh}"; the keys: "${kl.slice(0, 60)}"`);
           await shot('7a-car');
