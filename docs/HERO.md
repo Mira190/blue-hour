@@ -888,7 +888,7 @@ wrong, and redone.
   over the forecourt, its height taken between its four corners, 2 cm over the planks where the ground rises between them
   (the joints' lines of light drawn across it); the last two courses of tiles before the doors come down to the hall's
   floor, under the ground where it rises to the north, and the ground came through them in grey patches with a slanting
-  edge. Now the grout is laid in 0.6 m cells on the paving's own heights 12 mm under it, the lines of light in 0.6 m
+  edge. Now the grout is laid in 1.2 m cells on the paving's own heights 12 mm under it, the lines of light in 1.2 m
   pieces on the planks, and those two courses are the hall's own floor (`room_floor_tile`), where the game does not draw
   its ground (game.js heroCover); the model is built from today's terrain, its floor's height unchanged (15.827 m).
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),

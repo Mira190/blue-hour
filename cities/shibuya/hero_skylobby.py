@@ -543,7 +543,7 @@ class Level:
         self.slab("ground_tile_joint", HALL_U[0], u1, APRON_V, RAMP_V)
         self.slab("room_floor_tilejoint", HALL_U[0], u1, RAMP_V, 0.0)
 
-    def slab(self, mat, u0, u1, v0, v1, cell=0.6, dz=0.012):
+    def slab(self, mat, u0, u1, v0, v1, cell=1.2, dz=0.012):
         """the grout under the tiles or the planks, seen in their joints: a grid of cells each laid on the paving's own
         height at its corners, dz under it. One quad over the forecourt, its height taken between its four corners, stood
         2 cm over the planks where the ground rises between them and covered them in one flat grey with the joints' lines
@@ -575,7 +575,7 @@ class Level:
                         self.q(m, *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
                     v = vb
                 if k % 7 == 3:
-                    vs = np.linspace(v0 + 0.6, v1 - 0.6, max(2, int(np.ceil((v1 - v0 - 1.2) / 0.6)) + 1))   # (laid on the planks' own heights)
+                    vs = np.linspace(v0 + 0.6, v1 - 0.6, max(2, int(np.ceil((v1 - v0 - 1.2) / 1.2)) + 1))   # (laid on the planks' own heights)
                     for va, vb in zip(vs[:-1], vs[1:]):
                         self.q("glow_strip", (ua - 0.006, va, self.ztile(ua, va) + 0.002), (ua + 0.006, va, self.ztile(ua, va) + 0.002),
                                (ua + 0.006, vb, self.ztile(ua, vb) + 0.002), (ua - 0.006, vb, self.ztile(ua, vb) + 0.002))
