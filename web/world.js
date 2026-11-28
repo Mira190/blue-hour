@@ -3229,7 +3229,10 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // at the kerb, and on a GPU behind the hero level's and the trains' pictures the first seconds of the walk were copies
   // that changed into people one by one. A texel's upload and its mipmaps are the cost the GPU pays, whatever the call
   // returns in: so the budget counts texels (two pictures at 1024 a frame on a desktop, two at 512 on a phone, whose
-  // pictures are half the side), and the clock only stops it early.
+  // pictures are half the side), and the clock only stops it early. Only what is waited for in the view goes faster: the
+  // hero level the player stands in (class 0) and a character someone in the view waits on (0.5, people.js lib.urge);
+  // what is not seen yet keeps a picture a slot, so the memory a beat holds is not filled sooner with what it does not show
+  // (with every class at the budget, the title held 30 MB more of the queue's pictures than its budget allows)
   const UP_MS = 6;
   let UP_TEXELS = 0; // (read at the first slot: the tier is the city's, quality.js)
   const upTexels = () => UP_TEXELS || (UP_TEXELS = (() => { let q = null; try { q = window.OEQuality ? OEQuality.city() : null; } catch (e) { q = null; } return q && q.lean ? 2 * 512 * 512 : 2 * 1024 * 1024; })());
@@ -3261,7 +3264,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
         try { job.renderer.initTexture(job.tex); } catch (e) { /* uploaded on its first draw instead */ }
         px += texels(job.tex); upN++;
         finish(job);
-      } while (queue.length && px + texels(queue[take()].tex) <= upTexels() && performance.now() - t0 < UP_MS);
+      } while (queue.length && queue[take()].cls <= 0.5 && px + texels(queue[take()].tex) <= upTexels() && performance.now() - t0 < UP_MS);
       upSlots++;
       requestAnimationFrame(pump); // (the next ones in another frame)
     });
