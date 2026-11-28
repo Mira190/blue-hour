@@ -28,6 +28,9 @@ const SECS = +(process.env.SECS || 14), EVERY = +(process.env.EVERY || 2);
   p.on('crash', () => { console.log('the page crashed'); process.exit(1); });
   await p.addInitScript(([t, sp, seen]) => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-player', 'W'); if (!sessionStorage.getItem('wl-once')) { sessionStorage.setItem('wl-once', '1'); sessionStorage.setItem('bh-walk-auto', JSON.stringify(sp)); if (seen) localStorage.setItem('bh-walk-talk', JSON.stringify({ last: { part: 2, met: false, done: true, inc: 'helped', rested: true } })); } } catch (e) { /* storage blocked */ } },
     [process.env.TIER || (phone ? 'low' : 'high'), { t: hour, w: sky }, !SETS.includes('open')]);
+  // (RETURN=1: a returning visit, the owner's still of 27 November 2026: this browser kept her fall from a visit before but
+  // not her first words, and Oda's story is under way. The incident is to play again, and her first words to fit it)
+  if (process.env.RETURN === '1') await p.addInitScript(() => { try { if (!sessionStorage.getItem('wl-kept')) { sessionStorage.setItem('wl-kept', '1'); localStorage.setItem('bh-walk-talk', JSON.stringify({ last: { part: 0, met: false, done: false, inc: 'helped' }, taxi: { part: 1, met: false, done: false } })); } } catch (e) { /* storage blocked */ } });
   const t0 = Date.now(), el = () => `${Math.round((Date.now() - t0) / 1000)}s`;
   await p.goto(`http://localhost:${PORT}/?overture=0`, { waitUntil: 'domcontentloaded', timeout: 180000 });
   const set = await p.waitForFunction(() => { const s = document.getElementById('game-stage'); return !!s && /\bwalk-on\b/.test(s.className) && window.__game; }, null, { timeout: 40 * 60000, polling: 250 }).then(() => true, () => false);
