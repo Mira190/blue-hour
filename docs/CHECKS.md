@@ -151,8 +151,9 @@ The static checks:
   stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
 - no hero level's paving more than 5 mm under the game's ground outside a floor level's own floor, and no grout or joint
   mesh 2 mm to 5 cm over its own stone (`tools/hero_ground.mjs`, from the models and the terrain, under a second; issue
-  239: SKY GATE's hall let the ground and its grout over its stone). Levels built before the ground was graded again
-  are held at what they read on 28 November 2026 (issue 262), so anything new fails;
+  239: SKY GATE's hall let the ground and its grout over its stone; issue 262: the Scramble's paving lay up to 45 cm
+  under the ground where the rail's bed was graded, Miyamasu's 15 cm, and Miyamasu's grout covered 81 m2 of its planks).
+  `DUMP=cells.json` writes every faulty cell with the mesh on top;
 - the story's flight: its way clear of the buildings (`tools/flight_clear.py`), and its seven shots as a storyboard,
   on a desktop and a phone: the helicopter in the picture, the lens turning no faster than twelve degrees a second,
   every camera on one side of its way, out of the buildings and with none between it and the helicopter
