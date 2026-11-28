@@ -32,13 +32,14 @@ def main():
     lines = [LineString(np.asarray(o["p"], float).reshape(-1, 3)[:, :2] / 10) if len(o["p"]) >= 6 else None for o in roads]
     mp = os.path.join(ROOT, "cities", a.city, "road_measured.json")
     M = json.load(open(mp, encoding="utf8"))
-    have = {tuple(e) for e in M.get("steep", [])}
+    now = {(o["p"][0], o["p"][1], o["p"][-3], o["p"][-2]) for o in roads if len(o["p"]) >= 6}
+    have = {tuple(e) for e in M.get("steep", []) if tuple(e) in now}   # (a piece whose ends have moved since, by road_fit.py, is found again below)
     added = []
     for f in found:
         if f.get("wall") or f.get("water") or not f.get("met") or not area.contains(Point(f["at"][:2])):   # (met: the car driven through stopped there, or could not start)
             continue
         q = Point(f["at"][:2])
-        best = min(((L.distance(q), i) for i, L in enumerate(lines) if L is not None and not roads[i].get("x") and L.distance(q) < NEAR_M), default=None)
+        best = min(((L.distance(q), i) for i, L in enumerate(lines) if L is not None and L.distance(q) < NEAR_M and (not roads[i].get("x") or (roads[i]["p"][0], roads[i]["p"][1], roads[i]["p"][-3], roads[i]["p"][-2]) in have)), default=None)
         if best is None:
             print(f"  nothing open within {NEAR_M} m of {f['at'][0]:.0f}, {f['at'][1]:.0f}: {f['met']}")
             continue

@@ -819,6 +819,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
 .g-postcards b { color: var(--ink); font-weight: 600; }
 .g-stamps li > span:last-child { display: grid; gap: 2px; font-size: 12px; color: var(--ink-2); }
 .g-settings { display: grid; gap: 16px; }
+.gk-mouse { display: none; } :root.msteer .gk-mouse { display: inline; } /* (the keys' mouse steering, named while it is on: mousesteer.js) */
 .g-settings .field { display: grid; gap: 7px; }
 .g-settings .field > .note { font: 400 9px/1.2 var(--f-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
 .g-settings label.note { color: var(--ink-2); font-size: 12.5px; }
@@ -1031,6 +1032,7 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
           <div class="field gm-map"><span class="note">Play as</span><div class="seg" id="gm-who"><button data-c="W">Kagami (woman)</button><button data-c="M">Kagami (man)</button></div></div>
           <div class="field gm-map"><span class="note">Crowds and traffic</span><div class="seg" id="gm-density"><button data-d="low">Light</button><button data-d="normal" aria-pressed="true">Normal</button></div></div>
           <div class="field"><span class="note">Frame rate</span><div class="seg" id="gm-fps"><button data-f="30">30</button><button data-f="60" aria-pressed="true">60</button><button data-f="0">Display</button></div></div>
+          <div class="field gm-map"><span class="note">Mouse steering</span><div class="seg" id="gm-steer" title="In your car: click the picture and the mouse steers; hold the right button to look round"><button data-m="off" aria-pressed="true">Off</button><button data-m="mouse">On</button></div></div>
           <div class="field gm-map"><span class="note">Route line</span><div class="seg wrap" id="gm-route"><button data-r="on" aria-pressed="true">On</button><button data-r="ask">Only when I ask</button><button data-r="off">Off</button></div></div>
           <label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="gm-sound" checked> Sound</label>
           <div class="field gm-words"><span class="note">Words</span><div class="seg wrap" id="gm-words"><button data-size="0" aria-pressed="true">As set</button><button data-size="1">Larger</button><button data-size="2">Largest</button><button data-solid aria-pressed="false">Backing</button></div></div>
@@ -1043,11 +1045,11 @@ input[type="date"] { border: 1px solid var(--line); border-radius: var(--r); pad
           <tr class="gk-case"><td><kbd>R</kbd> · <kbd>F</kbd></td><td>When the street has stopped: raise or lower the camera · take the picture; the wheel changes the lens</td></tr>
           <tr class="gk-case"><td><kbd>H</kbd></td><td>A hint, while you look for the place a frame is taken from</td></tr>
           <tr class="gk-case"><td><kbd>Tab</kbd> · <kbd>L</kbd></td><td>The roll: the frames taken, and the file · the log: everything said tonight, to read again</td></tr>
-          <tr class="gk-walk"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> hand brake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road, <kbd>E</kbd> get out once stopped</td></tr>
+          <tr class="gk-walk"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> hand brake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road, <kbd>E</kbd> get out once stopped<span class="gk-mouse">; with mouse steering on, click the picture and the mouse steers, the right button held looks round, <kbd>Esc</kbd> lets go</span></td></tr>
           <tr class="gk-walk"><td>Helicopter</td><td><kbd>Space</kbd> climb, <kbd>Shift</kbd> or <kbd>C</kbd> descend, <kbd>W</kbd>/<kbd>S</kbd> fly and slow, <kbd>A</kbd>/<kbd>D</kbd> turn, <kbd>V</kbd> the view, <kbd>E</kbd> get out once landed</td></tr>
           <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>In a conversation: put the hand on an answer, then <kbd>E</kbd> or <kbd>↵</kbd> to give it (or its number)</td></tr>
           <tr class="gk-free"><td><kbd>Y</kbd> · <kbd>N</kbd></td><td>Raise your hand at the kerb for a taxi · the phone: order a ride, bring your car</td></tr>
-          <tr class="gk-free"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road</td></tr>
+          <tr class="gk-free"><td>Car</td><td><kbd>W</kbd>/<kbd>S</kbd> drive, brake, reverse, <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>Space</kbd> handbrake, <kbd>H</kbd> horn, <kbd>V</kbd> from the seat, <kbd>R</kbd> back on the road<span class="gk-mouse">; with mouse steering on, click the picture and the mouse steers, the right button held looks round, <kbd>Esc</kbd> lets go</span></td></tr>
           <tr class="gk-free"><td>Taxi or ride</td><td><kbd>F</kbd> skip the trip, <kbd>V</kbd> from the back seat, <kbd>E</kbd> get out when it stops</td></tr>
           <tr class="gk-free"><td><kbd>Q</kbd></td><td>Survey lens: the building in front of you and where its height comes from</td></tr>
           <tr class="gk-free"><td><kbd>G</kbd></td><td>Height challenge: guess a building's height, then see how good the data is</td></tr>
@@ -1247,6 +1249,7 @@ window.dispatchEvent(new Event('three-ready'));
 <script src="game/companion.js"></script>
 <script src="game/log.js"></script>
 <script src="game/pad.js"></script>
+<script src="game/mousesteer.js"></script>
 <script src="game/story.js"></script>
 <script src="game/walk.js"></script>
 <script src="game/walktalk.js"></script>

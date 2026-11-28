@@ -2,12 +2,12 @@
  "note": "A city's road plan as pipeline/road_plan.py decided it (docs/ROADS.md): the report, and every end of the network that is not a junction.",
  "report": {
   "pieces": 4905,
-  "km": 360.34,
-  "closed": 28,
-  "closed_km": 1.97,
+  "km": 360.35,
+  "closed": 26,
+  "closed_km": 1.73,
   "closed_why": {
-   "the built model stands across it": 7,
-   "no car fits along it": 4,
+   "the built model stands across it": 6,
+   "no car fits along it": 3,
    "your car cannot be driven along it (a drop or a step a car stops at: tools/car_edges.js)": 4,
    "no car fits between its walls: 4.7 m along most of it (a two-way street needs 5.5 m)": 1,
    "no car fits between its walls: 4.6 m along most of it (a two-way street needs 5.5 m)": 1,
@@ -17,22 +17,22 @@
    "a one-way street into a dead end: no car may leave it": 6,
    "leads only into a lane closed to cars": 2
   },
-  "quiet": 359,
-  "quiet_km": 23.59,
+  "quiet": 358,
+  "quiet_km": 23.4,
   "bus": 1204,
   "bus_km": 97.85,
   "one_way": 1656,
   "node_degrees": {
-   "1": 555,
-   "2": 153,
-   "3": 2120,
+   "1": 554,
+   "2": 151,
+   "3": 2123,
    "4": 582,
    "5": 35,
    "6": 5
   },
   "ends": {
    "gate": 230,
-   "dead end": 323,
+   "dead end": 322,
    "closure": 2
   },
   "extent": [
@@ -2314,15 +2314,6 @@
    "kind": "dead end",
    "piece": 4666,
    "class": "residential"
-  },
-  {
-   "at": [
-    594.8,
-    -1408.9
-   ],
-   "kind": "dead end",
-   "piece": 4114,
-   "class": "unclassified"
   },
   {
    "at": [
