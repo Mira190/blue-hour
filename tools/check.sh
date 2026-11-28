@@ -89,6 +89,7 @@
 #           solution said aloud and the lecturer named, frame 5 spent, and frame 3 gone back into from the last card
 #           (PLAYER=M SLIP=3,5,6,7 CHOOSE=3:0,4:0 SPEND=5 BACKTO=3). Both on main's full tier only, a runner each
 #   walk1, walk3, walk2, guide1, guide3, guide4, guide5, guide2  the walk's desktop page in two halves and its phone's, the guide's legs in four parts and his body: a runner each
+#   ride1, ride2  frame 6's ride (ride1), and the called cars at the rails and the posts (ride2): ride in two, a runner each
 #   game    the free game's long scenario (tools/game_check.js: walk, talk, helicopter, car, taxi, trains). It was
 #           written for the game before the story and has not been run since the cut-back, so it runs by name only.
 # Prints one line per check and the time each took, and exits 1 if any failed. Logs and stills go to $CHECK_OUT.
@@ -121,7 +122,7 @@ PORT=${PORT:-8870}
 OUT=${CHECK_OUT:-/tmp/oe-check}
 TIER=${CHECK_TIER:-fast}
 # the browser checks, in the order they run: the quick ones first, so that a failure there is known in minutes
-KINDS="look hold launch mem ctx astc audio ride roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
+KINDS="look hold launch mem ctx astc audio ride ride1 ride2 roads story story1 story2 story3 budget budget1 budget2 budget3 budgetm budgetm1 budgetm2 budgetm3 storyp storyl walk walk1 walk2 walk3 walk4 guide guide1 guide2 guide3 guide4 guide5 clip gl touch game"
 ALL="look hold launch story storyp storyl budget guide walk ride roads mem ctx audio clip gl touch astc"    # "all", and the most the full tier selects: not the game check (see above)
 plan=0; [ "${1:-}" = --plan ] && { plan=1; shift; }
 # On a session's machine a run is a job of the machine, not a child of the shell that asked for it (tools/job.sh;
@@ -159,7 +160,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 900 ;; ctx) echo 900 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 900 ;; ctx) echo 900 ;; ride) echo 290 ;; ride1) echo 150 ;; ride2) echo 150 ;; roads) echo 900 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|walk4|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 3200 ;; budgetm1|budgetm2|budgetm3) echo 1100 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 # How much memory each target takes on this machine (docs/CHECKS.md, "Memory, by measure"): the peak of its processes'
@@ -338,8 +339,8 @@ if [ $plan -eq 1 ]; then   # the targets of this run, each one an argument to th
     # walk a runner for each page, and the guide one for his ways and one for his body: no runner the long pole)
     # (and the story whole on a runner of its own: a case carried in one page from frame 4 to 5 and from 6 to 7, which the
     # fast tier, playing the parts, no longer plays before landing)
-    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget; echo budgetm1; echo budgetm2; echo budgetm3 ;; budgetm) echo budgetm1; echo budgetm2; echo budgetm3 ;; walk) echo walk1; echo walk3; echo walk4; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; *) echo "$k" ;; esac
-    elif [ "${CHECK_SPLIT:-0}" = parts ]; then case $k in guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; budgetm) echo budgetm1; echo budgetm2; echo budgetm3 ;; *) echo "$k" ;; esac
+    if [ "${CHECK_SPLIT:-0}" = 1 ]; then case $k in story) echo story1; echo story2; echo story3; echo story ;; budget) echo budget1; echo budget2; echo budget3; echo budget; echo budgetm1; echo budgetm2; echo budgetm3 ;; budgetm) echo budgetm1; echo budgetm2; echo budgetm3 ;; walk) echo walk1; echo walk3; echo walk4; echo walk2 ;; guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; ride) echo ride1; echo ride2 ;; *) echo "$k" ;; esac
+    elif [ "${CHECK_SPLIT:-0}" = parts ]; then case $k in guide) echo guide1; echo guide3; echo guide4; echo guide5; echo guide2 ;; budgetm) echo budgetm1; echo budgetm2; echo budgetm3 ;; ride) echo ride1; echo ride2 ;; *) echo "$k" ;; esac
     else echo "$k"; fi
   done | awk '!seen[$0]++'   # (each target once: budgetm came both from a change to story_play.js and from the budget's split, two runners played it, and the passes' job read the two files the download joined as one, 19:15 on 24 November)
   exit 0
@@ -614,9 +615,15 @@ run_roads() {   # the road plan in the game (docs/ROADS.md): the traffic watched
   [ $ok -eq 1 ] && echo "ok   roads  no traffic made on a quiet street, at a wall or in sight, buses on their lines, every car bound somewhere and nearer it at each turn, none inside another; the Scramble's cycle within 130 s and its queues passed; 109 reached from three starts and the Scramble crossed back, each within its time"
   return 0
 }
-run_ride() {   # frame 6's ride, on a small page: no car in a person on any step of the way
+# (in two parts, a runner each where the plan splits it, CHECK_SPLIT: the four plays in a row had grown to 29 to 53
+# minutes on main's runners by 27 November, the slowest shard, and a branch's ride was cancelled past 40 with no line
+# printed; issue 250)
+run_ride() { run_ride1; run_ride2; }
+run_ride1() {   # frame 6's ride, on a small page: no car in a person on any step of the way
   if CHROME_LOG="$OUT/ride-chrome.log" DRAW=${DRAW:-$([ "${GPU:-}" = metal ] && echo 0 || echo 20)} LIMIT=2400 timeout 3000 $X node tools/ride_people.js "$OUT/ride" 800x500 >"$OUT/ride.log" 2>&1; then echo "ok   ride   no car in a person along frame 6's ride; $(grep -o 'mean [0-9.]* km/h moving' "$OUT/ride.log" | head -1)"
   else echo "FAIL ride   $(grep '^overlaps\|^ride \|pageerror' "$OUT/ride.log" | head -3 | cut -c1-160 | paste -sd ';' -)   (see $OUT/ride.log)"; fi
+}
+run_ride2() {
   # (and the cars that come for you from twelve kerbs round the Scramble, Hachiko, the station and Miyamasu, against the
   # rails, bollards and posts as drawn: none drives through one or stops behind one, issue 208's second half)
   if timeout 900 $X node tools/ride_rails.js >"$OUT/ride-rails.log" 2>&1; then echo "ok   ride   $(grep -c '^ok' "$OUT/ride-rails.log") rides ordered round the Scramble pulled in clear of the drawn rails"
