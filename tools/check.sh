@@ -884,6 +884,7 @@ rm -rf "$OUT/keep"
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st walktalk walktalk "everyone on the walk talked to in any order says words, and the line's person speaks once up" '^FAIL' node tools/walktalk_unit.js
+    st typed typed "no harness judges a line by what the box has typed of it" '^FAIL' python3 tools/typed_box_check.py
     st zebras zebras "every crossing's bars widened to their cells, their paint where it was laid" '^FAIL' node tools/zebra_unit.js "$MAP"
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check

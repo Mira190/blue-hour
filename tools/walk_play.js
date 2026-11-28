@@ -735,7 +735,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await act();
               await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
               const box = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? document.getElementById('gd-name').textContent : ''; });
-              const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; }); // (typed in: the first word or two)
+              const words = await p.evaluate(() => { const l = window.__game.dlg.line; return l ? l.text : ''; }); // (the line as it is said, not as far as it is typed: hud.js dlg.line)
               const up = await line();
               if (!/^Thank/.test(words)) fail(`helped up, her first words are not her thanks for it ("${words.slice(0, 120)}")`);
               if (!/Nagi/.test(box) || up.at[2] !== 'up') fail(`helped up, she is not on her feet and speaking ("${box}", ${JSON.stringify(up)})`);
@@ -832,8 +832,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           if (!(await waitPrompt(/Talk to Shun/))) fail(`beside Shun with his story open, nothing offers to talk ("${await prompt()}")`);
           else {
             await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
-            const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; });
-            if (!/^That/.test(words) || /sent you/.test(words)) fail(`Shun first, his opening is not his cold one ("${words.slice(0, 80)}")`);
+            const words = await p.evaluate(() => { const l = window.__game.dlg.line; return l ? l.text : ''; }); // (the whole line: read off the box it was "Th", two letters typed, run 560)
+            const cold = await p.evaluate(() => (window.__game.walkTalk().people.find(q => q.npc === 'shun') || { parts: [{ lines: [''] }] }).parts[0].lines[0]);
+            if (!words || words !== cold) fail(`Shun first, his opening is not his cold one ("${words.slice(0, 80)}")`);
             else ok(`a free story first: nearest Shun, the corner his, and he opens cold ("${words.slice(0, 40)}...")`);
             await shot('4a-shun-cold');
             await through();
