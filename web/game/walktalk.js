@@ -48,7 +48,7 @@ window.OEWalkTalk = (function () {
     try { st = JSON.parse(localStorage.getItem(KEEP) || '{}') || {}; } catch (e) { st = {}; }
     const keep = () => { try { localStorage.setItem(KEEP, JSON.stringify(st)); } catch (e) { /* storage blocked */ } };
     const of = s => st[s.id] || (st[s.id] = { part: 0, met: false, done: false });
-    let on = false, busy = false, trainWas = null;
+    let on = false, busy = false, trainWas = null, missedLine = '';
     // ---- the walk's line (docs/STORY.md "The walk's line"): the one story of the walk that happens to you. Its first
     // part is not found but seen: as you come down at the kerb a man walks into its person's shoulder and walks on, and
     // she is on the ground before anyone understands (incident: { by: { character, from, via, to, speed }, after_s, near,
@@ -346,7 +346,9 @@ window.OEWalkTalk = (function () {
         const k = of(lineS);
         if (k.done && !k.w && !waitOn && !gate) {
           const m = ctx.trainIn();
-          if (trainWas != null && trainWas <= 2 && m > trainWas + 30) { k.w = 'missed'; keep(); if (ctx.ended) ctx.ended(lineS.title, ctx.fill(lineS.wall.missed || 'She went home')); }
+          // (gone while it was called: by the clock, or the hour set past it in the menu)
+          if (trainWas != null && trainWas <= (lineS.wall.call_min || 15) && m > trainWas + 30) { k.w = 'missed'; keep(); if (ctx.ended) ctx.ended(lineS.title, missedLine || ctx.fill(lineS.wall.missed || 'She went home')); }
+          else if (m <= (lineS.wall.call_min || 15)) missedLine = ctx.fill(lineS.wall.missed || 'She went home'); // (said with the train it was, read before it goes: after, {train} is the first)
           trainWas = m;
         } else trainWas = null;
         if (k.w === 'missed' && !k.hid) { const n = ctx.npc(lineS.npc); if (n && ctx.hide && (!ctx.unseen || ctx.unseen(n))) { ctx.hide(n); k.hid = true; keep(); } }
@@ -524,7 +526,7 @@ window.OEWalkTalk = (function () {
     function barkNear(me, hide) {
       if (hide || busy || me.mode !== 'foot' || waitOn || gate) return; // (nobody calls you over while you wait with her or walk her to her train)
       const who = [];
-      for (const s of starts()) if (s.bark) who.push([speaker(s, 0), s.bark]); // (every giver open to begin, the nearest first to call: not over the walk's line, starts())
+      if (trainDue() == null) for (const s of starts()) if (s.bark) who.push([speaker(s, 0), s.bark]); // (every giver open to begin, the nearest first to call: not over the walk's line, starts())
       if (ev && ev.phase === 'waiting' && ev.e.bark) who.push([ev.e.people[0], ev.e.bark]);
       for (const [id, text] of who) {
         const n = ctx.npc(id);

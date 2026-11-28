@@ -183,7 +183,7 @@ if (line) {
   trainIn = 10;
   W = W0c(Object.assign({}, nagiMetTold, { taxi: { part: 1, met: false, done: false } }), foot(332, -992));
   if (!/train is at 0:33/.test(corner(W))) fail(`her train ten minutes off: the corner says "${corner(W)}"`);
-  trainIn = 2; ended = null; W.tick(0.1, false); trainIn = 1438; W.tick(0.1, false);
+  trainIn = 9; ended = null; W.tick(0.1, false); trainIn = 1438; W.tick(0.1, false); // (gone while it was called: the hour set past it)
   if ((W.state()[line.id] || {}).w !== 'missed' || !ended) fail(`her train gone without you: ${JSON.stringify(W.state()[line.id])}, said ${JSON.stringify(ended)}`);
   else if (/train is at/.test(corner(W))) fail('her train gone: the corner still calls you to it');
   else orders++;
