@@ -7,6 +7,11 @@ cd "$(dirname "$0")/.."
 C=${1:-shibuya}
 # (the landmarks stand on the ground and the grading keeps the ground under their paving: made in turn until a
 # further grading would move nothing, which the second round does from any start seen so far)
+# (and once more from the top when the buildings' passes after the road plan leave the ground unsettled: a street the
+# plan opens runs under a solid that stations.py then raises over it, and the ground under it is graded again; Sakura
+# Stage's covered bridge after SAKURA Street was opened, 27 November 2026)
+r=0
+while :; do
 n=0
 while :; do
   python3 pipeline/street_ground.py --city "$C" --force >/dev/null
@@ -29,4 +34,10 @@ if curl -s -o /dev/null "http://localhost:${PORT:-8800}/"; then
 else
   echo "FAIL the road plan was not made again: serve web/ on ${PORT:-8800} and run tools/road_plan.sh $C"; exit 1
 fi
+python3 pipeline/stations.py --city "$C" | tail -1
+python3 pipeline/street_ground.py --city "$C" --settled && break
+r=$((r + 1)); [ $r -ge 2 ] && { echo "FAIL the ground did not settle under the road plan's buildings in 2 rounds"; exit 1; }
+echo "the road plan's buildings moved the ground: graded again"
+done
+python3 pipeline/pack.py
 python3 tools/levels_check.py "$C"

@@ -5026,16 +5026,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     else { const [m, d] = walkDate(); setClock(clock.y, m, d, walkHour(sp.t)); }
     if (weather) weather.set(sp.w, { now: true }); // (as it has been for a while: a rainy street already wet)
   };
-  const startWalk = sp => {
+  const startWalk = (sp, o = {}) => {
     if (parked && parkedWay('walk', sp)) return; // (parkTitle below)
     if (playing) return;
+    // (a walk kept in this browser, taken up from the title's Continue: no opening flight and no call, the crane down to
+    // your shoulder, and a card over the street with the story you were in and what it asks: walk.js keptSync, tell)
+    const kept = o.cont && walkTalk ? walkTalk.saved() : null, filmy = walkFilmDue() && !walkNoFilm && !kept;
+    const keptCard = () => { if (kept) setTimeout(() => walkUi.told(kept.title || 'The walk', kept.told, kept.of, 'cont', kept.who ? `${kept.who} · ${kept.goal}` : kept.goal), 700); };
     A.start();
     playing = true; walk = Object.assign({}, sp);
     const R = resumeAt && resumeAt.kind === 'walk' ? resumeAt : null; // (taken up after a lost context: noteResume)
     resumeAt = null;
     if (R) { const was = W(player.x, player.y, player.z); if (resumeSpot(R)) { const dv = W(player.x, player.y, player.z).sub(was); camera.position.add(dv); titleLook.add(dv); } }
     stage.classList.add('walk');
-    if (SND_GUARD && cue && !(walkFilmDue() && !walkNoFilm)) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone with no film to play, the cue plays on until the street does: sndHold. The walk's film has a score of its own)
+    if (SND_GUARD && cue && !filmy) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone with no film to play, the cue plays on until the street does: sndHold. The walk's film has a score of its own)
     walkDress(sp);
     $('#g-title').hidden = true;
     try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: sp.t, sky: sp.w } }); } catch (e) { /* no User Timing */ }
@@ -5044,7 +5048,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the walk's opening (game.walk.overture, docs/STORY.md "The walk's opening"): the city from the air at the hour and under
     // the sky chosen, flown down in one flight to your shoulder at the kerb; any key or a tap eases down to you at once.
     // Not with reduced motion or ?overture=0, where the crane comes down from the title's view as before
-    if (walkFilmDue() && !walkNoFilm) {
+    if (filmy) {
       const film = walkFilmMake(), was = overture;
       overture = film;
       if (film.play(() => { overture = was; walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); })) return; // (and the first time, the office rings as you reach your shoulder: walkIntro)
@@ -5054,7 +5058,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       const j = junctions.J.find(q => q.scramble && Math.hypot(q.x - player.x, q.y - player.y) < 80);
       if (j) { junctions.walkIn(j, OPENING.walkIn); cars.clearBox(j.x, j.y, 45); musterScramble(); }
     }
-    craneIn(() => { walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); }); // (and the first time, the office rings: walkIntro)
+    craneIn(() => { walkUi.begin(); if (walkIntroDue()) setTimeout(walkIntro, 900); else keptCard(); }); // (and the first time, the office rings: walkIntro)
   };
   // the walk's film, made the first time the walk's step opens (its score rendered and its things compiled while the hour
   // and the sky are chosen, so that Set out plays it at once), and played as the walk sets out (startWalk)
@@ -5126,6 +5130,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       preview: sp => { if (!walkWas) walkWas = { w: weather ? weather.state.mode : null }; walkDress(sp); walkFilmReady(); },
       restore: () => { story.dress(); if (weather && walkWas && walkWas.w) weather.set(walkWas.w, { now: true }); walkWas = null; },
       start: startWalk,
+      saved: () => (walkTalk ? walkTalk.saved() : null), // (the walk kept in this browser, for the title's Continue)
+      // Start the walk again (walk.js): the walk's stories forgotten and the office's call to come again, the views and their
+      // photographs kept. On the title before anything has set out, the walk sets out from here as a first visit; from a
+      // walk out on the street or parked under the title, whose people, car and clock have no way back, the page opens
+      // again on the title's walk step (bh-walk-anew), as the menu's Title screen opens it (menus.js)
+      anew: () => {
+        if (walkTalk) walkTalk.clear();
+        try { localStorage.removeItem(WALK_INTRO); } catch (e) { /* storage blocked */ }
+        if (!playing && !parked) return true;
+        try { sessionStorage.setItem('bh-title-auto', '1'); sessionStorage.setItem('bh-walk-anew', '1'); } catch (e) { /* storage blocked: the title on its press */ }
+        const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); u.hash = '';
+        document.documentElement.classList.add('bh-leave');
+        setTimeout(() => { if (u.toString() === location.href.replace(/#$/, '')) location.reload(); else location.href = u.toString(); }, reduced ? 0 : 240);
+        return false;
+      },
       clock: () => ({ m: clock.m, d: clock.d, min: clock.min }),
       sky: () => (weather ? weather.state.kind : 'clear'),
       where: () => { const a = (G.areas || []).filter(q => Math.hypot(q.at[0] - player.x, q.at[1] - player.y) < q.radius).sort((p, q) => Math.hypot(p.at[0] - player.x, p.at[1] - player.y) - Math.hypot(q.at[0] - player.x, q.at[1] - player.y))[0]; return a ? { name: a.romaji, native: a.name } : walkPlace; },
@@ -5227,7 +5246,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
     // (come back from a menu's Title screen, menus.js: the press was made already, so the title opens on its menu)
     { let back = false; try { back = sessionStorage.getItem('bh-title-auto') === '1'; sessionStorage.removeItem('bh-title-auto'); } catch (e) { /* storage blocked */ }
-      if (back) titleScreen('menu'); }
+      if (back) titleScreen('menu');
+      let anew = false; try { anew = sessionStorage.getItem('bh-walk-anew') === '1'; sessionStorage.removeItem('bh-walk-anew'); } catch (e) { /* storage blocked */ }
+      if (anew && walkUi) setTimeout(() => walkUi.open(true), 0); } // (the walk begun again from its menu: its step, as a first visit's)
     $('#g-title').hidden = false;
     // a load after a lost context the page could not redraw: the player taken up where they were (noteResume), no card
     { const R = takeResume();
