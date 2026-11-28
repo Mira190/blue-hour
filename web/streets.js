@@ -252,9 +252,28 @@ float oeZebra(float a, float w) {
       for (let i = 0; i < n; i++) { v.fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld); X[i] = v.x; Y[i] = v.y; Z[i] = v.z; }
       const up = new Int32Array(n).map((_, i) => i), find = i => { while (up[i] !== i) i = up[i] = up[up[i]]; return i; };
       for (let t = 0; t < idx.length; t += 3) { const a = find(idx[t]); for (let j = 1; j < 3; j++) { const b = find(idx[t + j]); if (a !== b) up[b] = a; } }
+      // and the vertices that stand at one place on the ground (to 5 mm) as one: the model's compression split many a quad of
+      // a bar into its two triangles, which share no vertex, and a triangle's own long axis runs askew of its bar's, by
+      // some degrees, so that it was widened and filtered across the wrong way, a wedge of paint in the bar
+      const at1 = new Map();
+      for (let i = 0; i < n; i++) {
+        const k = `${Math.round(X[i] * 200)},${Math.round(Z[i] * 200)}`, j = at1.get(k);
+        if (j === undefined) at1.set(k, i); else { const a = find(j), b = find(i); if (a !== b) up[b] = a; }
+      }
       const comp = new Map();
       for (let t = 0; t < idx.length; t++) { const r = find(idx[t]); let c = comp.get(r); if (!c) comp.set(r, c = new Set()); c.add(idx[t]); }
-      for (const vs of comp.values()) {
+      // each piece's area on the ground, and at each vertex the slope of the ground its triangles were laid on (the
+      // gradient of their height, weighed by their areas)
+      const area = new Map(), GX = new Float64Array(n), GZ = new Float64Array(n), GW = new Float64Array(n);
+      for (let t = 0; t < idx.length; t += 3) {
+        const [a, b, c] = [idx[t], idx[t + 1], idx[t + 2]], r = find(a);
+        const x1 = X[b] - X[a], z1 = Z[b] - Z[a], x2 = X[c] - X[a], z2 = Z[c] - Z[a], d = x1 * z2 - x2 * z1;
+        area.set(r, (area.get(r) || 0) + Math.abs(d) / 2);
+        if (Math.abs(d) < 1e-9) continue;
+        const y1 = Y[b] - Y[a], y2 = Y[c] - Y[a], gx = (y1 * z2 - y2 * z1) / d, gz = (x1 * y2 - x2 * y1) / d, w = Math.abs(d);
+        for (const i of [a, b, c]) { GX[i] += gx * w; GZ[i] += gz * w; GW[i] += w; }
+      }
+      for (const [r, vs] of comp) {
         const ids = [...vs];
         let mx = 0, mz = 0;
         for (const i of ids) { mx += X[i]; mz += Z[i]; }
@@ -262,17 +281,19 @@ float oeZebra(float a, float w) {
         let sxx = 0, szz = 0, sxz = 0;
         for (const i of ids) { const dx = X[i] - mx, dz = Z[i] - mz; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; }
         const th = 0.5 * Math.atan2(2 * sxz, sxx - szz), dx = Math.cos(th), dz = Math.sin(th); // (its long axis)
-        parts.push({ o, ids, X, Y, Z, at, mx, mz, d: [dx, dz], bar: null });
+        parts.push({ o, ids, X, Y, Z, GX, GZ, GW, at, mx, mz, d: [dx, dz], area: area.get(r) || 0, bar: null });
       }
     }
     // a piece's extent across a direction (nx, nz): [lo, hi]
     const span = (q, nx, nz) => { let lo = Infinity, hi = -Infinity; for (const i of q.ids) { const s = q.X[i] * nx + q.Z[i] * nz; if (s < lo) lo = s; if (s > hi) hi = s; } return [lo, hi]; };
     const along = (q, dx, dz) => span(q, dx, dz);
-    // first the pieces that are plainly bars: 45 cm across their long axis, longer than that along it
+    // first the pieces that are plainly bars: 45 cm across their long axis, longer than that along it, and whole oblongs
+    // (their area that width times their length): a bar's end cut askew by a kerb, a triangle or a trapezium, has a long
+    // axis of its own askew of its bar's, and is taken below in its bar's direction
     const cand = [];
     for (const q of parts) {
       const [nx, nz] = [-q.d[1], q.d[0]], s = span(q, nx, nz), l = along(q, q.d[0], q.d[1]);
-      if (Math.abs(s[1] - s[0] - B) < 0.03 && l[1] - l[0] > 0.8) { q.n = [nx, nz]; q.mid = (s[0] + s[1]) / 2; cand.push(q); }
+      if (Math.abs(s[1] - s[0] - B) < 0.03 && l[1] - l[0] > 0.8 && Math.abs(q.area / ((s[1] - s[0]) * (l[1] - l[0])) - 1) < 0.03) { q.n = [nx, nz]; q.mid = (s[0] + s[1]) / 2; cand.push(q); }
     }
     const kin = (q, r) => { // r lies a whole number of 0.9 m (1 to 3) from q across q's bars, parallel, within a crossing's reach
       if (Math.abs(q.n[0] * r.n[1] - q.n[1] * r.n[0]) > 0.02 || Math.hypot(q.mx - r.mx, q.mz - r.mz) > 30) return false;
@@ -299,11 +320,19 @@ float oeZebra(float a, float w) {
       count++;
       const [nx, nz] = q.bar, pa = q.o.geometry.attributes.position;
       inv.copy(q.o.matrixWorld).invert();
+      // the piece stretched across its bar about the bar's middle, from 45 cm to its 90 cm cell, each vertex along the
+      // slope of the ground its triangles were laid on, so that the bar's own 45 cm stays in the plane it was laid in.
+      // Moved across alone, keeping its height, a vertex flattened the bar's slope to half, and a triangle the model's
+      // squares cut from its quad had no vertex facing it across: the painted middle sank as much as 2 cm under the plane
+      // it was laid in, under the asphalt's 12 mm below it, and the asphalt cut a line through the bar (the owner's still
+      // of the Scramble, 28 November 2026)
+      const [lo, hi] = span(q, nx, nz), mid = (lo + hi) / 2, half = Math.max((hi - lo) / 2, 1e-3);
       for (const i of q.ids) {
-        const sg = q.X[i] * nx + q.Z[i] * nz - q.mid >= 0 ? 1 : -1;
-        v.set(q.X[i] + nx * sg * (P - B) / 2, q.Y[i], q.Z[i] + nz * sg * (P - B) / 2).applyMatrix4(inv);
+        const u = q.X[i] * nx + q.Z[i] * nz - mid, a = u / half * P / 2, du = a - u;
+        const slope = q.GW[i] > 0 ? (q.GX[i] * nx + q.GZ[i] * nz) / q.GW[i] : 0;
+        v.set(q.X[i] + nx * du, q.Y[i] + slope * du, q.Z[i] + nz * du).applyMatrix4(inv);
         pa.setXYZ(i, v.x, v.y, v.z);
-        q.at[2 * i] = sg * P / 2; q.at[2 * i + 1] = 1;
+        q.at[2 * i] = a; q.at[2 * i + 1] = 1;
       }
       touched.add(q.o.geometry);
     }
@@ -315,6 +344,10 @@ float oeZebra(float a, float w) {
     if (m.userData.oeZebra) return;
     m.userData.oeZebra = true;
     m.transparent = true; // (over the asphalt, which is drawn first: the ground is opaque)
+    // A decal writes no depth: the asphalt under it has written it already, and a cell's clear half written into the depth
+    // hid whatever see-through was drawn after it there. Drawn first of the see-through (hero.js gives the meshes a
+    // renderOrder of -1), straight after the opaque ground it lies on, so that nothing see-through is ever under it
+    m.depthWrite = false;
     m.userData.oeDecal = true; // (paint on the ground for all that: the rain wets it, weather.js dress)
     const own = m.onBeforeCompile;
     m.onBeforeCompile = (sh, r) => {

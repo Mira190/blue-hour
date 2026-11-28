@@ -156,13 +156,17 @@ def main():
                 raise SystemExit(f"FAIL road fit: {len(w)} vertices of the road pieces have a lane over a surveyed kerb (python pipeline/road_fit.py --city {a.city}, then tools/road_plan.sh's last steps)")
             print("road fit: every lane driven in the planned area has its room inside the surveyed kerbs")
             return
+        # (the pieces are kept in whole decimetres: a shift is what it moves a vertex on that grid. A shift of a few
+        # centimetres moved nothing, or moved by a decimetre one way and asked back the other, and was counted as a move
+        # each time: the fit never reached the state that moves nothing, and the plan read off it differed run to run)
+        w = {ik: d for ik, v in w.items() if (d := np.floor(np.abs(v) * 10 + 0.5) * np.sign(v)).any()}
         if not w:
             break
-        for (i, k), v in w.items():
+        for (i, k), d in w.items():
             p = game["paths"]["road"][i]["p"]
-            p[3 * k] = int(round(p[3 * k] + v[0] * 10))
-            p[3 * k + 1] = int(round(p[3 * k + 1] + v[1] * 10))
-            worst = max(worst, float(np.hypot(*v)))
+            p[3 * k] += int(d[0])
+            p[3 * k + 1] += int(d[1])
+            worst = max(worst, float(np.hypot(*d)) / 10)
         total += len(w)
         road_width.apply(game, road_width.widths(game, geo, ground)[0])
     if total:
