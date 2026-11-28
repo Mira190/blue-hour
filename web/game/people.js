@@ -2339,7 +2339,7 @@ transformed = crowdPose(transformed, false);`);
   // real: the textured Rocketbox characters (the NPCs' cast, build_people.py --npcs) the nearest walkers are drawn
   // as, each the sex of their far figure, instead of the far crowd's own character close up: at eye level a
   // passer-by is a person, with the scanned face, hair and clothes the NPCs have (none: the far crowd's own)
-  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity, headPx = 30, headStill = 16, bigCap = 0, stillCap = 0 } = {}) {
+  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity, headPx = 30, headStill = 16, bigCap = 0, stillCap = 0, inPlay = null } = {}) {
     { const m = /[?&]crowdnear=(\d+)/.exec(location.search); if (m) near = +m[1]; } // (to look at the far copies close up: tools/game_shot.js QUERY=?crowdnear=0)
     // a real person's height: the Japanese adult's mean (MHLW National Health and Nutrition Survey 2019: women
     // 1.58 m, men 1.71 m; a city may say otherwise in game.crowd.height) with the far figure's own spread
@@ -2347,6 +2347,10 @@ transformed = crowdPose(transformed, false);`);
       const w = lib.npcs[rn].sex === 'f', mean = realHeight ? realHeight[w ? 0 : 1] : w ? 1.58 : 1.71;
       return mean / (lib.npcs[rn].height_m || 1.75) * look.scale / (w ? 0.915 : 0.97);
     };
+    // (whether the player is in play: the characters the pick waits on are sent ahead (lib.urge, issue 261) only then. Behind
+    // the title or the loader nobody walks among them, and sent sooner there they only filled the title's memory, a beat
+    // with a budget of its own; inPlay: the game's, read each frame, and a page without one urges always)
+    const urging = () => { if (!inPlay) return true; try { return !!inPlay(); } catch (e) { return false; } };
     const cast = (real || []).filter(n => lib.npcs && lib.npcs[n]);
     const bySex = { f: cast.filter(n => lib.npcs[n].sex === 'f'), m: cast.filter(n => lib.npcs[n].sex === 'm') };
     // a loaded cast member of rn's sex, to stand in until rn itself comes (begin, above)
@@ -2685,6 +2689,7 @@ transformed = crowdPose(transformed, false);`);
       ball.radius = 30;
       want.sort(byPick);
       const keep = pickKeep; keep.clear();
+      const urgeNow = !!lib.urge && urging();
       for (let k = 0; k < nNear && k < want.length; k++) keep.add(want[k]);
       lastPick.nNear = nNear; lastPick.big = nBig; lastPick.culling = culling; lastPick.zoom = zoom; lastPick.want = want.length; lastPick.unloaded = lastPick.capped = 0; // (for the checks: nearInfo, which lists the nearest when asked)
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
@@ -2699,8 +2704,8 @@ transformed = crowdPose(transformed, false);`);
         // (not one who has a far copy of their own: that copy is drawn until they come, the same person in the same clothes.
         // A stand-in there was someone else's body, and the walker changed clothes twice as the cast streamed in, from the
         // copy to the stand-in and from the stand-in to their own: the owner's report of 27 November 2026, tools/crowd_colour.js)
-        if (rn && !lib.tpl[name] && !p.far) { lib.require(name); if (pickD[i] < nearR && lib.urge) lib.urge(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
-        if (!lib.tpl[name]) { lib.require(name); if (pickD[i] < nearR && lib.urge) lib.urge(name); lastPick.unloaded++; p.pickWait = frameNo; continue; } // (pickWait: picked, and drawn as their far copy until their character has come; for the checks, tools/crowd_whole.js)
+        if (rn && !lib.tpl[name] && !p.far) { lib.require(name); if (urgeNow && pickD[i] < nearR) lib.urge(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
+        if (!lib.tpl[name]) { lib.require(name); if (urgeNow && pickD[i] < nearR) lib.urge(name); lastPick.unloaded++; p.pickWait = frameNo; continue; } // (pickWait: picked, and drawn as their far copy until their character has come; for the checks, tools/crowd_whole.js)
         if (stillMade >= 4 && !(free[name] && free[name].length)) { lastPick.capped++; p.pickWait = frameNo; continue; } // (a still frame makes four at most: the rest come in the frames after)
         if (stillMade >= 0 && !(free[name] && free[name].length)) stillMade++;
         const pooled = free[name] && free[name].pop(), r = pooled || person(lib, Object.assign({}, look));
