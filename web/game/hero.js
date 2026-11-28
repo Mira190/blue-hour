@@ -411,7 +411,7 @@ window.OEHero = (function () {
           root.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && /^ground_paint/i.test(o.material.name || '')) paint.push(o); });
           if (paint.length && OEStreets.zebraCells(paint)) {
             for (const m of new Set(paint.map(o => o.material))) OEStreets.zebraMaterial(m);
-            for (const o of paint) o.castShadow = false; // (a cell, whole, would shade the asphalt it lets show: paint a centimetre thick casts none to see)
+            for (const o of paint) { o.castShadow = false; o.renderOrder = -1; } // (a cell, whole, would shade the asphalt it lets show: paint a centimetre thick casts none to see)
           }
         }
         if (opts.ground) opts.ground(L.h, root); // (where its paving is: game.js heroCover)

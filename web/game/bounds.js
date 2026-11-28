@@ -66,7 +66,7 @@ window.OEBounds = (function () {
     api.keep = (list, at = d => d.at, m = 25) => list.filter(d => { const p = at(d); return !p || api.inside(p[0], p[1], 'ground', m); });
 
     // ---------------------------------------------------------------- on foot
-    let press = 0, turn = null, histT = -1e9, wt = 0;
+    let press = 0, turn = null, histT = -1e9, wt = 0, lastS = null;
     const hist = []; // (where the walker was, the last ten seconds: the way back in is the way they came)
     // fwd and side are the stick or the keys (the walk's way is cam.yaw + atan2(side, fwd), game.js walkStep)
     api.walk = (dt, p, cam, fwd, side) => {
@@ -74,7 +74,7 @@ window.OEBounds = (function () {
       const m = Math.min(1, Math.hypot(fwd, side));
       const r = G.sd(p.x, p.y);
       if (!turn && wt - histT > 0.25) { histT = wt; hist.push([p.x, p.y, r.s]); if (hist.length > 40) hist.shift(); }
-      if (r.s < -WS - 2) { press = Math.max(0, press - dt); turn = null; return null; }
+      if (r.s < -WS - 2) { press = Math.max(0, press - dt); turn = null; lastS = null; return null; }
       if (m < 0.05) { press = Math.max(0, press - dt * 2); turn = null; return r.s > 0.2 ? api.walkBack(p, cam) : null; }
       const a = cam.yaw + Math.atan2(side, fwd);
       let dx = Math.sin(a) * m, dy = Math.cos(a) * m;
@@ -86,33 +86,40 @@ window.OEBounds = (function () {
       const rel = Math.atan2(side, fwd);
       if (turn && (r.s < -WS - 1 || wt - turn.t0 > 7 || Math.abs(angDiff(rel, turn.rel)) > 1)) turn = null;
       const h4 = hist.length > 4 ? hist[hist.length - 5] : null, stuck = !!h4 && Math.hypot(h4[0] - p.x, h4[1] - p.y) < 0.8; // (held still a second: in a corner of the edge and a wall)
-      if (!turn && (dn > 0.55 * m || stuck) && r.s > -WS * 0.6) {
+      // (carried out by what they walk along, the key along the edge: a wall that runs out across it, its slide outward each step)
+      const creep = lastS != null && r.s > lastS + 0.002 && r.s > -3;
+      lastS = r.s;
+      if (!turn && (dn > 0.55 * m || stuck || creep) && r.s > -WS * 0.6) {
         press += dt;
         say('foot');
         if (press > 1.1) {
           // (the trail back: the places they walked through, followed one after another, the nearest first)
           turn = { a: Math.atan2(-r.nx, -r.ny), rel, t0: wt, k: 0, i: hist.length - 1 };
-          trail(p);
+          trail(p, r.s);
           cam.yawTo = turn.a; press = 0;
           api.stats.turned++;
         }
       } else if (!turn) press = Math.max(0, press - dt);
       if (turn) {
-        trail(p);
+        trail(p, r.s);
         turn.k = Math.min(1, turn.k + dt / 0.8);
         const k = turn.k * turn.k * (3 - 2 * turn.k), ex = Math.sin(turn.a) * m, ey = Math.cos(turn.a) * m;
         dx = dx * (1 - k) + ex * k; dy = dy * (1 - k) + ey * k;
         const l0 = Math.hypot(dx, dy); if (l0 > 1e-4 && l0 < 0.5 * m) { dx *= 0.5 * m / l0; dy *= 0.5 * m / l0; } // (round, not through a stand)
+        // (the trail back is the way they came, which along the edge can lean out: its outward part eased as a key's is)
+        const dt2 = dx * r.nx + dy * r.ny;
+        if (dt2 > 0) { dx -= r.nx * dt2 * f; dy -= r.ny * dt2 * f; }
       }
       const l = Math.hypot(dx, dy);
       if (l < 1e-4) return { fwd: 0, side: 0 };
       const b = Math.atan2(dx, dy) - cam.yaw;
       return { fwd: Math.cos(b) * l, side: Math.sin(b) * l };
     };
-    function trail(p) { // aim at the next place of the trail at least 2.5 m off, and further in than where they stand
-      while (turn.i > 0 && Math.hypot(hist[turn.i][0] - p.x, hist[turn.i][1] - p.y) < 2.5) turn.i--;
+    function trail(p, s) { // aim at the next place of the trail at least 2.5 m off, and further in than where they stand
+      // (a metre and a half further in at least: a trail that ran along the edge is left for the first place of it that leads in)
+      while (turn.i > 0 && (Math.hypot(hist[turn.i][0] - p.x, hist[turn.i][1] - p.y) < 2.5 || hist[turn.i][2] > s - 1.5)) turn.i--;
       const q = hist[turn.i];
-      if (q && Math.hypot(q[0] - p.x, q[1] - p.y) >= 2.5) turn.a = Math.atan2(q[0] - p.x, q[1] - p.y);
+      if (q && q[2] <= s - 1.5 && Math.hypot(q[0] - p.x, q[1] - p.y) >= 2.5) turn.a = Math.atan2(q[0] - p.x, q[1] - p.y);
     }
     // after the step: a walker the step took past the line (the turn of the body lags the key) is set back on it, a
     // few centimetres a frame, where the ground there lets them stand (ok(x, y) -> may stand there)
