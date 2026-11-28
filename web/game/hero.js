@@ -558,7 +558,7 @@ window.OEHero = (function () {
       group, levels, update, tier, light: { bake: uBake, street: uStreet }, // (its baked light's gain and its share of the street lights, as update() sets them: tools/stop_grade.js)
       probes, glass,
       // (for the harnesses: whether each is loaded and shown, tools/game_check.js)
-      state: () => levels.map(L => ({ id: L.h.id, state: L.state, shown: !!(L.root && L.root.visible), materials: L.mats.length,
+      state: () => levels.map(L => ({ id: L.h.id, state: L.state, shown: !!(L.root && L.root.visible && L.h.shown), /* (and walked as shown, nav.js lift: h.shown is set by the frame's update, and a harness that moved the clock alone read a drawn level its walkers stood 5 cm under, issue 258) */ materials: L.mats.length,
         fine: L.fine, fineShown: L.fineMeshes.filter(o => o.visible).length, fineMeshes: L.fineMeshes.length, probe: L.h._probe ? { res: L.h._probe.rt.width, taken: L.h._probe.n } : null })),
     };
   }
