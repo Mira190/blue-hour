@@ -874,8 +874,8 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (and whoever the eye makes out is a whole person, not a far copy: a head over 30 px in the frame's middle, issue 174,
       // tools/crowd_whole.js)
       { const m = await p.evaluate(crowdWhole, [30, 0.55, 0.7]), big = m.rows.filter(r => r.head >= 30), bad = wholeJudge(m, { HEAD: 30 });
-        console.log(`frame 7, twenty seconds into the rain: ${big.length} people with a head over 30 px in the frame (${big.filter(r => r.mid).length} in its middle), ${big.filter(r => !r.whole).length} of them far copies (${big.filter(r => !r.whole && r.cold).length} waiting or warming); whole drawn ${m.active}, the pick ${m.nNear} (${m.big} by size)`);
-        if (bad.length) { errors.push(`frame 7: ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over 30 px in the frame's middle (${bad.map(r => `${r.head} px at ${r.d} m`).join('; ')}): who is whole goes by size on the screen, people.js crowdRenderer`); console.log(errors[errors.length - 1]); } }
+        console.log(`frame 7, twenty seconds into the rain: ${big.length} people with a head over 30 px in the frame (${big.filter(r => r.mid).length} in its middle), ${big.filter(r => r.copy).length} of them far copies (${big.filter(r => r.copy && r.cold).length} waiting or warming), ${big.filter(r => r.hidden).length} taken out by the game (a talk's shot, the lens: not drawn); whole drawn ${m.active}, the pick ${m.nNear} (${m.big} by size)`);
+        if (bad.length) { errors.push(`frame 7: ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over 30 px in the frame's middle (${bad.map(r => `#${r.i} ${r.head} px at ${r.d} m, rank ${r.rank} in the pick`).join('; ')}): who is whole goes by size on the screen, people.js crowdRenderer`); console.log(errors[errors.length - 1]); } }
       if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
       continue;
     }
