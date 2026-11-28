@@ -122,22 +122,73 @@ if (line) {
     visits++;
   }
 }
-// The corner's rule (the owner, 27 November 2026: "if I come in right next to Nagi, shouldn't the corner be Nagi's?"):
-// a story begun stays the corner's, whoever is near; with none begun it leads to the one story there is to begin (each
-// later story's first words name the one before: "Mr Oda sent you?", so the next is never a choice); the walk's line's
-// incident takes it while it is to come and while she is down. Nearness shows on the marks, never on the corner.
+// The walk's structure (the owner, 28 November 2026): a spine and free stories. The walk's line happens to you as you set
+// out; once her first words are said the other five are open in any order, every giver with an amber mark, each first
+// part standing alone and said warm once the story it names is told. The corner keeps the story you are in; with none it
+// leads to the nearest giver by the walking way, held while another is not clearly nearer; the incident and her train take
+// it when they are due, and her train missed ends her line plainly.
 if (line) {
-  const mei = people.find(s => s.id === 'hachiko'), taxi = people.find(s => s.id === 'taxi');
-  const corner = (kept, at) => { for (const k of Object.keys(store)) delete store[k]; store[KEEP] = JSON.stringify(kept); const n = npc(line.npc); Object.assign(n, { x: 374, y: -1018, rig: { root: { visible: true } }, sit: false }); const man = { x: 371, y: -1020, rig: {}, walkTo() {}, animate() {}, remove() {} }; const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => at, figure: () => man, loaded: () => true, look() {}, hurry() {}, unseen: () => false })); W.begin(); return W; };
+  const byId = id => people.find(s => s.id === id), subs = people.filter(s => s !== line);
+  const where = { nagi: [374, -1018], mei: [360, -1040], riko: [345, -985], oda: [395, -1030], shun: [330, -990], yuna: [420, -1010], taro: [420, -1010, 230] };
+  let trainIn = 600, ended = null;
+  const W0c = (kept, at) => {
+    for (const k of Object.keys(store)) delete store[k];
+    store[KEEP] = JSON.stringify(kept);
+    for (const [id, q] of Object.entries(where)) Object.assign(npc(id), { x: q[0], y: q[1], z: q[2] || 0, rig: { root: { visible: true } }, sit: false });
+    const man = { x: 371, y: -1020, rig: {}, walkTo() {}, animate() {}, remove() {} };
+    let me = at;
+    const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => me, figure: () => man, loaded: () => true, look() {}, hurry() {}, unseen: () => true, hide() {}, project: () => null, trainIn: () => trainIn, ended: (t, l) => { ended = [t, l]; }, fill: t => t.replace('{train_at}', '0:33').replace('{train}', 'the last train') }));
+    W.begin(); W.move = q => { me = q; };
+    return W;
+  };
   const told = s => ({ part: s.parts.length, met: false, done: true, inc: 'helped', rested: true });
-  let W = corner({}, { x: 377, y: -1014, z: 0, mode: 'foot' });
-  if ((W.errand() || {}).text !== line.incident.lead) fail(`nothing begun, beside her: the corner says "${(W.errand() || {}).text}", not the incident's lead`);
-  if (mei) { W = corner({ [line.id]: told(line) }, { x: 377, y: -1014, z: 0, mode: 'foot' }); if (!/^mei has something/i.test((W.errand() || {}).text)) fail(`her story told, nothing else begun: the corner says "${(W.errand() || {}).text}", not Mei's`); }
-  if (mei && taxi) {
-    W = corner({ [line.id]: told(line), [mei.id]: told(mei), [taxi.id]: { part: 1, met: false, done: false } }, { x: 374, y: -1016, z: 0, mode: 'foot' });
-    if ((W.errand() || {}).text !== taxi.parts[0].then.goal) fail(`Oda's story begun, beside Nagi: the corner says "${(W.errand() || {}).text}", not Oda's goal`);
-    const w = W.want(line.npc); if (!w || w.kind !== 'chat') fail(`Oda's story begun, Nagi told: she has ${w ? w.kind : 'nothing'} to say, not a word in passing (her pale mark)`);
+  const foot = (x, y, z = 0) => ({ x, y, z, mode: 'foot' });
+  const corner = W => (W.errand() || {}).text || '';
+  // before her first words: the incident's lead, and the others only a word in waiting
+  let W = W0c({}, foot(377, -1014));
+  if (corner(W) !== line.incident.lead) fail(`nothing begun, beside her: the corner says "${corner(W)}"`);
+  for (const s of subs) { const w = W.want(s.npc); if (w && w.kind === 'story') fail(`before her first words, ${s.npc} offers ${s.id}`); }
+  // her first words said: every substory open, any first, its opening cold; warm after the story it names
+  const metNagi = { [line.id]: { part: 1, met: false, done: false, inc: 'helped' } };
+  let orders = 0;
+  for (const first of subs) {
+    W = W0c(metNagi, foot(where[first.npc][0] + 2, where[first.npc][1]));
+    for (const s of subs) { const w = W.want(s.npc); if (!w || w.kind !== 'story' || w.s !== s) fail(`her first words said: ${s.npc} has ${w ? w.kind : 'nothing'}, not ${s.id} to begin`); }
+    heard = null; W.talk(npc(first.npc));
+    const p0 = first.parts[0];
+    if (!heard || heard[0][1][0] !== p0.lines[0]) fail(`${first.id} begun first: its first words are "${heard && heard[0][1][0]}", not its cold opening`);
+    if ((W.state()[first.id] || {}).part !== 1) fail(`${first.id} begun first: not under way`);
+    else orders++;
+    if (p0.warm) {
+      W = W0c(Object.assign({}, metNagi, { [p0.warm.after]: told(byId(p0.warm.after)) }), foot(where[first.npc][0] + 2, where[first.npc][1]));
+      heard = null; W.talk(npc(first.npc));
+      if (!heard || heard[0][1][0] !== p0.warm.lines[0]) fail(`${first.id} after ${p0.warm.after}: its first words are "${heard && heard[0][1][0]}", not the warm "${p0.warm.lines[0]}"`);
+      else orders++;
+    }
   }
+  // the nearest giver, held: beside Shun the corner is his; a step nearer Mei is not enough; well nearer her, hers
+  const nagiMetTold = { [line.id]: told(line) };
+  W = W0c(nagiMetTold, foot(332, -992));
+  if (!/^shun has something/i.test(corner(W))) fail(`nothing begun, beside Shun: the corner says "${corner(W)}"`);
+  W.move(foot(343, -1015)); // (about halfway: Mei a little nearer)
+  if (!/^shun has something/i.test(corner(W))) fail(`halfway between Shun and Mei: the corner went to "${corner(W)}" (no hold)`);
+  W.move(foot(358, -1036));
+  if (!/^mei has something/i.test(corner(W))) fail(`beside Mei: the corner says "${corner(W)}"`);
+  // a story begun keeps the corner, the others keep their marks
+  const taxi = byId('taxi');
+  W = W0c(Object.assign({}, nagiMetTold, { taxi: { part: 1, met: false, done: false } }), foot(332, -992));
+  if (corner(W) !== taxi.parts[0].then.goal) fail(`Oda's begun, beside Shun: the corner says "${corner(W)}"`);
+  { const w = W.want('shun'); if (!w || w.kind !== 'story') fail(`Oda's begun, beside Shun: Shun has ${w ? w.kind : 'nothing'} (no amber mark)`); }
+  // her train: the corner's from call_min before it, whatever is under way; missed, her line ends plainly
+  trainIn = 10;
+  W = W0c(Object.assign({}, nagiMetTold, { taxi: { part: 1, met: false, done: false } }), foot(332, -992));
+  if (!/train is at 0:33/.test(corner(W))) fail(`her train ten minutes off: the corner says "${corner(W)}"`);
+  trainIn = 9; ended = null; W.tick(0.1, false); trainIn = 1438; W.tick(0.1, false); // (gone while it was called: the hour set past it)
+  if ((W.state()[line.id] || {}).w !== 'missed' || !ended) fail(`her train gone without you: ${JSON.stringify(W.state()[line.id])}, said ${JSON.stringify(ended)}`);
+  else if (/train is at/.test(corner(W))) fail('her train gone: the corner still calls you to it');
+  else orders++;
+  trainIn = 600;
+  console.log(`the walk's structure: ${orders} orders and beats played (each story first, cold and warm, the nearest held, the train and its end)`);
 }
 // The walk kept, for the title's Continue, and Start the walk again (walk.js): nothing begun is no walk to go on with;
 // Oda's story under way is named with what he asked and how many are told; Start again forgets the stories and the

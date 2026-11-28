@@ -94,6 +94,10 @@ jobs:
     timeout-minutes: 150
     strategy:
       fail-fast: false
+      # (a branch's run takes at most 8 runners at once, main's all it asks for: the account's runners are shared, and
+      # at 02:26 on 28 November four branches held 26 of them while main's run 529 waited 17 minutes with 15 shards queued,
+      # its publishing held behind checks that publish nothing; a branch's 14 to 19 targets still end in two waves)
+      max-parallel: ${{ github.ref == 'refs/heads/main' && 64 || 8 }}
       matrix:
         target: ${{ fromJSON(needs.plan.outputs.shards) }}
     name: ${{ matrix.target }}
