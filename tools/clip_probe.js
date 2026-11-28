@@ -221,7 +221,7 @@ function pageSide(NEAR, HOLD) {
           // (each foot over the floor under it: on a slope or a step the floor at the body's middle is not the foot's)
           let y = Infinity;
           let at = '';
-          if (s.skin) for (const [o, q, on, bn] of s.skin) { /* (skinned from the vertex as bound, as three.js skins it: a phone repacks the geometry once loaded) */ const sk = o.skeleton; if (!on.every(([j]) => sk.bones[j])) continue; v.set(0, 0, 0); for (const [j, w] of on) v.addScaledVector(v2.copy(q).applyMatrix4(sk.boneInverses[j]).applyMatrix4(sk.bones[j].matrixWorld), w); v.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) { y = h; at = bn; } }
+          if (s.skin) for (const [o, q, on, bn] of s.skin) { /* (skinned from the vertex as bound, as three.js skins it: a phone repacks the geometry once loaded) */ const sk = o.skeleton; if (!on.every(([j]) => sk.bones[j])) continue; v.set(0, 0, 0); for (const [j, w] of on) v.addScaledVector(v2.copy(q).applyMatrix4(sk.boneInverses[j]).applyMatrix4(sk.bones[j].matrixWorld), w); if (o.bindMode === 'detached') v.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld); /* (attached, the two cancel once fresh: bindMatrixInverse is set only at the frame drawn, and read stale it put each sole where the walker stood then, over another floor, issue 157) */ const h = v.y - floor(v.x, -v.z); if (h < y) { y = h; at = bn; } }
           else for (const [, pt, l] of s.pts) { v.copy(l).applyMatrix4(pt.bone.matrixWorld); const h = v.y - floor(v.x, -v.z); if (h < y) y = h; }
           if (y < low) { low = y; lowName = s.name; }
           if (y < -0.03) note('sunk', a.name, s.name, -y, ctx, a.x, a.y, a.z, `floor ${fz.toFixed(2)}${at ? `, under ${at}` : ''}`);
@@ -302,9 +302,20 @@ function pageSide(NEAR, HOLD) {
       if (ctx.player.mode === 'foot' && ctx.player.rig) add(ctx.player.rig.root, 'you');
       list.sort((a, b) => a[0] - b[0]);
       for (const [, root, name] of list.slice(0, HOLD.n)) {
-        const m = window.__holdDepth.measure(root); if (!m) continue;
+        const H0 = window.__holdDepth; H0.where = true; const m = H0.measure(root); H0.where = false; if (!m) continue;
+        const wh = m.where || {}; delete m.where;
         let deep = 0, part = ''; for (const k in m) if (m[k] > deep) { deep = m[k]; part = k; }
-        if (deep > HOLD.note) note('hold', name.replace(/^walker \d+ /, 'walker '), part.replace('_', ' '), deep, ctx, root.position.x, -root.position.z, root.position.y);
+        // (with what the body was playing, and where the point lay from its feet, turned to the body's own heading: x to its
+        // right, y up, z ahead)
+        let why = '';
+        if (deep > HOLD.note) {
+          const mx = root === (ctx.player.rig && ctx.player.rig.root) ? ctx.player.rig.mixer : null;
+          const clips = mx && mx._actions ? mx._actions.filter(a => a.isRunning() && a.getEffectiveWeight() > 0.05).map(a => `${a.getClip().name} ${a.getEffectiveWeight().toFixed(2)}`).join(', ') : '';
+          const w = wh[part]; let at = '';
+          if (w) { const l = new T.Vector3(w[0], w[1], w[2]); root.worldToLocal(l); at = `at (${l.x.toFixed(2)}, ${l.y.toFixed(2)}, ${l.z.toFixed(2)}) from the feet`; }
+          why = [clips, at].filter(Boolean).join('; ');
+        }
+        if (deep > HOLD.note) note('hold', name.replace(/^walker \d+ /, 'walker '), part.replace('_', ' '), deep, ctx, root.position.x, -root.position.z, root.position.y, why);
         // (the head and its hair in the chest or the back, at the skin, less the model's own pose: tools/hold_depth.js head)
         const h = window.__holdDepth.head && window.__holdDepth.head(root);
         if (h && h.head > HOLD.note) note('head', name.replace(/^walker \d+ /, 'walker '), 'head in own chest', h.head, ctx, root.position.x, -root.position.z, root.position.y);

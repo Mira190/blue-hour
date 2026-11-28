@@ -31,6 +31,7 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - no skin read on the CPU through a stale bindMatrixInverse (tools/skin_fresh_check.py);
 #           - every sky-light map made by the world's generator, whose blur target is let go (tools/pmrem_check.py);
 #           - no place the story sends the player to stand inside one of its people or its things (tools/standpoints.py);
 #           - the credits: every shipped work with its licence text, the fonts' OFL, the map's sources beside the README's,
@@ -913,6 +914,7 @@ rm -rf "$OUT/keep"
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st skin skin_fresh - '^FAIL' python3 tools/skin_fresh_check.py
     st pmrem pmrem - '^FAIL' python3 tools/pmrem_check.py
     st audio score_files - '^FAIL' node tools/score_files.js --check
     st credits credits - '^FAIL' python3 tools/credits_check.py "$MAP"
