@@ -1805,3 +1805,31 @@ html.bh-leave #g-menu { pointer-events: none; }
 @media (pointer: coarse), (max-width: 640px) {
   .game-stage.story:has(:where(#g-walk-keys.on, #g-story-keys.on)) .g-toasts { bottom: max(262px, calc(env(safe-area-inset-bottom) + 262px)); }
 }
+
+/* The words of a talk (docs/LOOK.md "The words of a talk"; the owner's iPhone, 28 November 2026: the block covered
+   the lower third of a portrait frame and the speaker's chest). A subtitle band as film and AAA games lay one: the
+   name and role small over the line, the line two lines at most (hud.js pages), on a soft dark gradient rising from
+   the frame's foot; to go on is offered once the line is whole, and the step back and the log sit on the same small
+   row, so the block is about half the height it was. */
+.game-stage.story .g-dialog:not(.free):not(.cut) { padding-top: 54px; padding-bottom: max(14px, calc(env(safe-area-inset-bottom) + 12px));
+  background: linear-gradient(to top, rgba(4, 8, 18, 0.84), rgba(4, 8, 18, 0.62) 46%, rgba(4, 8, 18, 0.22) 78%, transparent); }
+.game-stage.story .g-dialog:not(.free):not(.cut) p { margin: 8px auto 6px; min-height: 0; }
+.game-stage.story .g-dialog:not(.free):not(.cut) .gd-hint { display: inline-block; vertical-align: middle; min-height: 0; margin: 0 14px 0 0; }
+.game-stage.story .g-dialog:not(.free):not(.cut) .gd-hint:empty { display: none; }
+.game-stage.story .g-dialog:not(.free):not(.cut) .gd-tools { display: inline-flex; vertical-align: middle; gap: 14px; margin-top: 0; }
+.game-stage.story .g-dialog:not(.free):not(.cut) .gd-tools button { padding: 9px 4px; font-size: 8.5px; color: rgba(244, 239, 230, 0.46); border: 0; }
+.game-stage.story .g-dialog:not(.free):not(.cut) .gd-choices { margin-bottom: 6px; }
+@media (max-width: 640px) {
+  .game-stage.story .g-dialog:not(.free):not(.cut) { padding-top: 40px; padding-left: 18px; padding-right: 18px; }
+  .game-stage.story .g-dialog:not(.free):not(.cut) p { font-size: 17px; line-height: 1.45; max-width: 23em; }
+  .game-stage.story .g-dialog:not(.free):not(.cut) .gd-head { gap: 9px; }
+  .game-stage.story .g-dialog:not(.free):not(.cut) .gd-head :is(b, span) { font-size: 9px; }
+}
+/* A talk is a conversation mode (The Witcher 3, Red Dead Redemption 2, The Last of Us Part II: the HUD gives way while
+   someone speaks): where you are, the hour, the goal, the walk's line and the buttons fade out while a talk's box is up,
+   and come back when it closes; the walk's menu stays as one small mark at the corner. A call said hands-free keeps
+   them, since you walk while it is said. A print still developing (story.js showPrint, 6.4 s; the words of a frame begin
+   4.6 s in) is put down as they begin. tools/talk_face.js fails a talk whose speaker's face anything covers. */
+.game-stage.story:has(.g-dialog:not([hidden]):not(.free)) :is(#g-walk-where, #g-walk-keys, #g-story-goal, #g-story-frames, #g-story-keys, #g-story-cam, #g-story-chip, #g-story-print, .g-walk-mark, #g-walk-acts button:not([data-do="menu"])) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.35s ease; }
+.game-stage.story:has(.g-dialog:not([hidden]):not(.free)) #g-walk-acts button[data-do="menu"] { padding: 7px 9px; opacity: 0.55; transition: opacity 0.35s ease; }
+.game-stage.story:has(.g-dialog:not([hidden]):not(.free)) #g-walk-acts button[data-do="menu"] :is(span, kbd) { display: none; }

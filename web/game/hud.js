@@ -268,10 +268,36 @@ window.OEHud = (function () {
     const said = []; // (the lines said, latest last: for the step back, across one speaker's talk and the next)
     const touchy = () => matchMedia('(pointer: coarse)').matches;
     const head = npc => { box.style.setProperty('--npc', npc.color || 'var(--accent)'); box.dataset.era = npc.alive === false ? 'past' : ''; nameEl.textContent = npc.name; roleEl.textContent = npc.role || ''; }; // (someone of another year: a story sets their words in another face)
+    // A line is shown two lines of words at a time (the Xbox Accessibility Guidelines, XAG 104, and the Game Accessibility
+    // Guidelines: no more than two lines of subtitles at once, about 40 characters a line; docs/LOOK.md "The words of a
+    // talk"): a longer one is cut into pages where the box as it is laid out now would break onto a third line, at the
+    // last sentence's or clause's end before it where there is one, else at a word. The log and the step back keep the
+    // line whole.
+    function pages(text) {
+      const lh = parseFloat(getComputedStyle(textEl).lineHeight) || 26, fits = t => { textEl.textContent = t; return textEl.scrollHeight <= lh * 2.35; };
+      const out = [];
+      let rest = text.trim();
+      for (let guard = 0; rest && guard < 12; guard++) {
+        if (fits(rest)) { out.push(rest); break; }
+        const words = rest.split(' ');
+        let lo = 1, hi = words.length - 1;
+        while (lo < hi) { const m = Math.ceil((lo + hi) / 2); if (fits(words.slice(0, m).join(' '))) lo = m; else hi = m - 1; }
+        let cut = lo;
+        for (let k = lo; k > Math.max(1, Math.floor(lo * 0.55)); k--) if (/[.!?…。]["'”’)]?$/.test(words[k - 1])) { cut = k; break; }
+        if (cut === lo) for (let k = lo; k > Math.max(1, Math.floor(lo * 0.6)); k--) if (/[,;:—–]$/.test(words[k - 1])) { cut = k; break; }
+        out.push(words.slice(0, cut).join(' ')); rest = words.slice(cut).join(' ');
+      }
+      textEl.textContent = '';
+      return out.length ? out : [text];
+    }
     function show(npc, lines, choices, done, opts = {}) {
       cur = { npc, lines, choices: choices || [], done, i: 0, typed: 0, full: '', t: 0, free: !!opts.free && !(choices || []).length };
       view = 0; box.hidden = false; box.classList.remove('back', 'cut'); box.classList.toggle('free', cur.free);
       head(npc);
+      // (each line in its pages: whole[i] the line a page begins, null for the pages after its first)
+      const pg = [], whole = [];
+      for (const l of lines) { const ps = pages(l); ps.forEach((t, k) => { pg.push(t); whole.push(k ? null : l); }); }
+      cur.lines = pg; cur.whole = whole;
       next(true);
     }
     const hintFor = () => (cur.free ? '' : cur.i < cur.lines.length - 1 || !cur.choices.length ? (touchy() ? 'Tap to continue' : '<kbd>E</kbd> or click to continue') : ''); // (a call's lines pass by themselves)
@@ -279,16 +305,17 @@ window.OEHud = (function () {
     function next(first, hand) { // (hand: passed by a key or a tap, not by the story or a check)
       if (!cur) return;
       if (!first && view > 0) { view--; return view ? recall() : present(); } // (stepping back: on is forward through what was said, to the line being said)
-      if (!first && cur.typed < cur.full.length) { cur.typed = cur.full.length; textEl.textContent = cur.full; showChoices(); return; } // finish the line at once
+      if (!first && cur.typed < cur.full.length) { cur.typed = cur.full.length; textEl.textContent = cur.full; hint.innerHTML = hintFor(); showChoices(); return; } // finish the line at once
       if (!first) cur.i++;
       if (cur.i >= cur.lines.length) { if (cur.choices.length) return; close(undefined, hand); return; }
       cur.full = cur.lines[cur.i]; cur.typed = 0; cur.t = 0;
       textEl.textContent = '';
       choicesEl.innerHTML = '';
-      hint.innerHTML = hintFor();
-      const ask = cur.i === cur.lines.length - 1 && cur.choices.length > 0;
-      said.push({ npc: cur.npc, text: cur.full }); if (said.length > 60) said.shift();
-      if (cur.npc.log && api.log) api.log.line(cur.npc, cur.full, ask);
+      hint.innerHTML = ''; // (to go on is offered once the line is whole: tick)
+      const line = cur.whole ? cur.whole[cur.i] : cur.full;
+      if (line != null) { said.push({ npc: cur.npc, text: line }); if (said.length > 60) said.shift(); }
+      let last = cur.i; while (cur.whole && last + 1 < cur.lines.length && cur.whole[last + 1] == null) last++; // (the line's last page)
+      if (line != null && cur.npc.log && api.log) api.log.line(cur.npc, line, last === cur.lines.length - 1 && cur.choices.length > 0);
     }
     // the line being said, as it stands (whole, once it has been stepped away from)
     function present() {
@@ -347,7 +374,7 @@ window.OEHud = (function () {
       if (n > before) {
         textEl.textContent = cur.full.slice(0, n);
         if (Math.floor(n / 3) > Math.floor(before / 3) && /\w/.test(cur.full[n - 1] || '')) (cur.npc.voice && audio.voice ? audio.voice(cur.npc.voice) : audio.beep(cur.npc.pitch || 220)); // (a story's people speak in a voice of their own: audio.js voice)
-        if (n >= cur.full.length) showChoices();
+        if (n >= cur.full.length) { hint.innerHTML = hintFor(); showChoices(); }
       }
     }
     // (an answer takes no tap in its first 0.35 s on the screen: a finger tapping the words to hurry them on is over the

@@ -33,7 +33,10 @@
 'use strict';
 window.OETalkCam = (function () {
   const LENS = { two: 48, single: 40, close: 28, reverse: 46 };   // horizontal angle of view (40, 50, 75 mm on a full frame), degrees
-  const PORTRAIT = { two: 50, single: 40, close: 30, reverse: 46 }; // a screen held upright: the vertical angle instead
+  // a screen held upright: the vertical angle instead. A medium close-up for the single, as a portrait frame wants it
+  // (the owner's iPhone, 28 November 2026: at 40 degrees a single from two metres was the speaker whole, small under the
+  // HUD); the two-shot and the reverse a waist shot over the shoulder, the close shot the face
+  const PORTRAIT = { two: 28, single: 34, close: 28, reverse: 28 };
   const BODY_R = 0.3, HEAD_TOP = 1.85;
   const RING = 1.6; // (nobody of the crowd within this of the face a shot is on: a stranger at the shoulder of a close shot reads as one of the talk)
   const HEAD_R = 0.16, FACE_R = 0.1; // (a head over the shoulder, hair and all, from the eye's height; and a face, round its eyes)
@@ -125,8 +128,11 @@ window.OETalkCam = (function () {
       const zc = vx * fx + vy * fy + dz * fz, xc = vx * Math.cos(yw) - vy * Math.sin(yw);
       const yc = -vx * Math.sin(yw) * Math.sin(pitch) - vy * Math.cos(yw) * Math.sin(pitch) + dz * Math.cos(pitch);
       const nx = xc / (Math.max(zc, 1e-3) * tv * aspect), ny = yc / (Math.max(zc, 1e-3) * tv);
-      // the eyes on the upper third of what the words leave above them (from the frame's top, as a share of its height)
-      const want = Math.max(EYE_TOP, (1 - panel) / 3), shift = (1 - ny) / 2 - want;
+      // the eyes on the upper third of what the words leave above them (from the frame's top, as a share of its height).
+      // Upright, on the frame's own upper third, as a portrait is framed, with the chin (0.14 m under the eyes) clear over
+      // the words' band by a margin: the band lies over the body, never the face (docs/LOOK.md "The words of a talk")
+      const chin = 0.14 / Math.max(0.2, 2 * Math.max(zc, 1e-3) * tv);
+      const want = aspect >= 1 ? Math.max(EYE_TOP, (1 - panel) / 3) : Math.max(EYE_TOP * 0.8, Math.min(1 / 3, 1 - panel - chin - 0.05)), shift = (1 - ny) / 2 - want;
       return { yw, pitch, vfov, hfov, shift, x: nx, y: ny + 2 * shift, front: zc > 0 };
     }
     // a face the frame does not show: off it (the eye outside the frame as composed, or under the words), or behind the

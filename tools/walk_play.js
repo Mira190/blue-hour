@@ -128,6 +128,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 226; off by default, the walk check being near its time cap)
   await p.addInitScript(() => { window.__probeOnly = 'seats'; }); await clipProbe.install(p); // (the probe's seat measure alone: tools/clip_probe.js)
   await p.addInitScript(wholeWatch); // (nobody drawn in part: tools/whole_watch.js, issue 241)
+  await p.addInitScript(require('./talk_face').hook); // (no talk's speaker under the words or the HUD: tools/talk_face.js)
   if (process.env.LENSGUARD === '0') await p.addInitScript(() => { window.__lensGuardOff = true; }); // (the game's lens guard off, to weigh its cost)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
   await p.addInitScript(() => { if (!sessionStorage.getItem('wp-once')) { sessionStorage.setItem('wp-once', '1'); try { for (const k of ['bh-player', 'bh-walk', 'bh-story-late', 'bh-story-late-closed']) localStorage.removeItem(k); } catch (e) { /* storage blocked */ } } });
@@ -213,6 +214,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const { hard } = pacing.print(await pacing.report(p), m => console.log(m.replace(/^FAIL /, 'pace ')));
     if (hard.length) fail(`${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y})`).join('; ')})`);
     else ok('nobody of the crowd paced to and fro');
+    // (and at every talk the speaker's face clear of the words and the HUD: the owner's iPhone, 28 November 2026, Mei's
+    // face under the clock and the walk's line)
+    const tf = await p.evaluate(() => ({ bad: window.__talkFaces || [], n: window.__talkFaceSeen || { talks: 0 } })).catch(() => null);
+    if (tf && tf.bad.length) fail(`at ${tf.bad.length} talk(s) the speaker's face was covered (${tf.bad.slice(0, 4).map(e => `${e.who}: ${e.over.map(o => `${o.what} ${Math.round(o.share * 100)}%`).join(', ')}`).join('; ')})`);
+    else if (tf) ok(`at every talk (${tf.n.talks}) the speaker's face clear of the words and the HUD`);
   };
   let s;
   if (PART >= 2) {

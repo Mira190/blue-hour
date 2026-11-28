@@ -119,6 +119,7 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; });
+  await p.addInitScript(require('./talk_face').hook); // (no talk's speaker under the words or the HUD: tools/talk_face.js)
   // (whoever of the crowd drawn whole stands in the lens's picture nearer than `far`: a body 0.5 m wide from its feet to 1.75 m, any
   // part of it inside the camera's frustum, in the camera's own space; each with why it stands there)
   await p.addInitScript(() => { window.__inLens = (far = 5) => { const g = window.__game, c = g.camera, T = window.THREE, out = [], R = g.crowdDraw && g.crowdDraw();
@@ -1512,6 +1513,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   { const q = await p.evaluate(() => (window.__pops || []).splice(0)); // (and nobody seen to jump with the finder up since the last after's count: the last frame's ends on its after, #232)
     if (q.length) { errors.push(`${q.length} of the crowd jumped or left the street in view with the finder up (${q.slice(0, 4).map(e => (e.gone ? `walker ${e.i} gone ${e.m} m off` : `walker ${e.i} ${e.m} m at once, ${e.at} m off`) + ` in frame ${e.fi + 1}'s ${e.phase}`).join('; ')})`); console.log(errors[errors.length - 1]); }
     else console.log('nobody of the crowd jumped in view with the finder up, to the end'); }
+  { const tf = await p.evaluate(() => ({ bad: window.__talkFaces || [], n: window.__talkFaceSeen || { talks: 0 } })); // (and at every talk the speaker's face clear of the words and the HUD: tools/talk_face.js)
+    if (tf.bad.length) { errors.push(`at ${tf.bad.length} talk(s) the speaker's face was covered (${tf.bad.slice(0, 4).map(e => `${e.who} at ${e.at}: ${e.over.map(o => `${o.what} ${Math.round(o.share * 100)}%`).join(', ')}`).join('; ')})`); console.log(errors[errors.length - 1]); }
+    else console.log(`at every talk (${tf.n.talks}) the speaker's face clear of the words and the HUD`); }
   if (done) {
     // under the last card time runs: whoever of tonight's people was on their way as it came up (the old woman, crossing)
     // goes on walking. She stood held in mid-step, and a player who walked on from the card found her so.

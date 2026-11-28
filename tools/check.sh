@@ -39,7 +39,8 @@
 #           - three.js's vendored module with its fixes (pipeline/fetch_vendor.py --check);
 #           - the rules by which a check's pass is kept though a file it read changed (tools/reach_unit.py);
 #           - the seams between the page's parts: each asks another only for what its contract offers (tools/seams.py),
-#             and the people's models give what the page asks of them (tools/people_contract.py);
+#             and the people's models give what the page asks of them (tools/people_contract.py), and a
+#             Rocketbox look names none of its clothes' colours, which it never wears (tools/look_wear.py);
 #   story   the episode played frame by frame to its last card in a browser (tools/story_play.js): the street runs, the Stop
 #           comes, the afterimage speaks, the photograph is taken, the world runs on, the last card, and its Walk Shibuya
 #           taken up in the same night;
@@ -921,6 +922,7 @@ rm -rf "$OUT/keep"
     st reach reach - '^FAIL|Error' python3 tools/reach_unit.py
     st seams seams - '^FAIL|Error' python3 tools/seams.py
     st people people - '^FAIL|Error' python3 tools/people_contract.py
+    st people look_wear - '^FAIL|Error' python3 tools/look_wear.py
     st vendor vendor "three.js carries its fixes (an ImageBitmap made smaller sent unturned)" '^FAIL|Error' python3 pipeline/fetch_vendor.py --check
     echo "static $(( $(date +%s) - t_static ))" >>"$OUT/times.txt"; echo "static $(( $(date +%s) - t_static )) $(date +%s)" >>"$HIST"
   ) & fi

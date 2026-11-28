@@ -1,51 +1,54 @@
-// Stills of a city's first meeting in the game, one per page of the dialogue, and the lines as the
-// player reads them (tokens filled: {season}, {now}, {sun_line}...). For checking what the guides
-// say (tools/voice_check.py checks the words; this shows them on the screen, at an hour and a size).
-//   cd web && python3 -m http.server 8800 &
-//   xvfb-run -a node tools/talk_shot.js sydney out_dir [HH:MM] [WxH] [npc id]   # the first quest giver by default
+// Stills of the walk's talks as a player opens them (the owner's iPhone, 28 November 2026: at Mei's talk the words lay
+// over her chest and the HUD over her face): out on the walk at once at the hour and sky asked, beside each of WHO in turn,
+// the talk opened as a player opens it (E, or a tap on the prompt), and a still once its first line is typed; with
+// tools/talk_face.js's measure of what covers the speaker's face. Exits 1 when anything does.
+//   PORT=8800 xvfb-run -a node tools/talk_shot.js out_dir [WxH] [hour] [sky]      (WHO=mei,nagi by default)
+'use strict';
 const { chromium } = require('playwright');
-const { startPlay } = require('./start_play');
 const fs = require('fs');
-const path = require('path');
-const [,, city = 'shibuya', outDir = '.', hhmm = '10:30', size = '1440x900', who = ''] = process.argv;
+const face = require('./talk_face');
+const [,, out = 'out/talk-shot', size = '1440x900', hour = 'dusk', sky = 'clear'] = process.argv;
+const [w, h] = size.split('x').map(Number), phone = w < 600;
+const WHO = (process.env.WHO || 'mei,nagi').split(',');
 (async () => {
-  const [w, h] = size.split('x').map(Number);
-  const b = await chromium.launch(process.env.DISPLAY
-    ? { headless: false, args: ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] }
-    : { args: ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  const p = await b.newPage({ viewport: { width: w, height: h }, isMobile: w < 600, hasTouch: w < 600 });
-  const logs = [];
-  p.on('pageerror', e => logs.push(`pageerror: ${String(e).slice(0, 300)}`));
-  fs.mkdirSync(outDir, { recursive: true });
-  await p.goto(`http://localhost:${process.env.PORT || 8800}/?walk=1#play-${city}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await p.waitForFunction('window.__game', null, { timeout: 400000 });
-  await p.evaluate(() => window.__game.npcsReady && window.__game.npcsReady()); // (the NPCs' characters load after the game opens)
-  await startPlay(p); // (the title card up, Play pressed and the game started: tools/start_play.js, #423)
-  const [hh, mm] = hhmm.split(':').map(Number);
-  const name = await p.evaluate(([min, who]) => {
-    const g = window.__game, c = g.clock;
-    for (let i = 0; i < 40 && g.cine.active; i++) g.advance(0.25);
-    g.setClock(c.y, c.m, c.d, min);
-    const q = g.quest(), n = g.npcs.find(n => n.id === (who || (q && q.giver)));
-    if (!n) return null;
-    g.player.x = n.x + 1.8; g.player.y = n.y + 0.6; g.player.z = n.z;
-    g.advance(0.6);
-    g.talkTo(n);
-    g.advance(0.6);
-    return n.name;
-  }, [hh * 60 + mm, who]);
-  if (!name) { console.log('no one to talk to'); await b.close(); return; }
-  const tag = `${city}-${hhmm.replace(':', '')}-${size}`;
-  for (let page = 0; page < 12; page++) {
-    await p.waitForTimeout(900);   // the text types itself out
-    await p.evaluate(() => { const g = window.__game; g.advance(1.2); });
-    const st = await p.evaluate(() => ({ open: window.__game.dlg.open, choices: window.__game.dlg.hasChoices, text: (document.getElementById('gd') || {}).innerText || '' }));
-    if (!st.open) break;
-    console.log(`--- ${name}, page ${page + 1}${st.choices ? ' (choices)' : ''}\n${st.text.trim()}`);
-    await p.screenshot({ path: path.join(outDir, `${tag}-${page + 1}.jpg`), quality: 85 });
-    if (st.choices) break;
-    await p.evaluate(() => { window.__game.dlg.next(); window.__game.advance(0.2); });
+  const b = await chromium.launch({ headless: !process.env.DISPLAY, args: process.env.DISPLAY ? ['--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl', '--disable-gpu-sandbox'] : ['--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
+  p.on('pageerror', e => console.log('page error:', String(e).slice(0, 300)));
+  fs.mkdirSync(out, { recursive: true });
+  await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); localStorage.setItem('bh-onboard', JSON.stringify({ done: 1 })); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high'); // (stills on the desktop tier: AGENTS.md)
+  await p.addInitScript(face.hook);
+  const url = `http://localhost:${process.env.PORT || 8800}/`;
+  await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.evaluate(([t, s]) => { sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t, w: s })); }, [hour, sky]);
+  await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await p.waitForFunction(() => { const s = document.getElementById('game-stage'); return s && s.classList.contains('walk-on') && window.__game; }, null, { timeout: 900000, polling: 1000 });
+  await p.waitForTimeout(4000);
+  let bad = 0;
+  for (const id of WHO) {
+    const ok = await p.evaluate(id => { const g = window.__game, n = g.npcs.find(q => q.id === id); if (!n) return false; const a = Math.atan2(g.player.x - n.x, g.player.y - n.y) || 0; g.player.x = n.x + Math.sin(a) * 1.6; g.player.y = n.y + Math.cos(a) * 1.6; g.player.z = n.z; g.player.h = a + Math.PI; g.player.speed = 0; g.cam.yaw = g.player.h; g.cam.snap = true; g.advance(0.3); for (let i = 0; i < 8; i++) g.frame(0.05); return true; }, id);
+    if (!ok) { console.log(`${id}: not on the walk`); continue; }
+    // (the talk opened as the walk opens one, whatever its stories stand at: game.js talkAs; the two lines are the
+    // longest the walk's people say, as long as the box holds)
+    await p.evaluate(id => window.__game.talkAs(id, ['She said Hachiko. Which side of Hachiko, though? There are two of him tonight, and I have been at the wrong one for twenty minutes.']), id);
+    const open = await p.waitForFunction(() => window.__game.dlg.open && window.__game.talkCam.on, null, { timeout: 60000, polling: 300 }).then(() => true, () => false);
+    if (!open) { console.log(`${id}: the talk did not open with its camera`); continue; }
+    // (the first line typed out: its frames drawn, a software renderer's frame being a second or more)
+    await p.waitForFunction(() => { const t = document.getElementById('gd-text'); return t && t.textContent.length > 20; }, null, { timeout: 60000, polling: 300 }).catch(() => {});
+    await p.waitForTimeout(2500);
+    const r = await p.evaluate(() => window.__talkFace());
+    // (DUMP=1: every visible element of the stage with something to show, outside the words: what a talk leaves up)
+    if (process.env.DUMP) console.log('up during the talk:', JSON.stringify(await p.evaluate(() => { const st = document.getElementById('game-stage'), out = new Set();
+      for (const e of st.querySelectorAll('*')) { if (e.closest('#gd') || e.tagName === 'CANVAS') continue; const own = /^(BUTTON|IMG|SVG|KBD)$/i.test(e.tagName) || [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()); if (!own) continue;
+        const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2) continue; let vis = true; for (let x = e; x && x !== document.documentElement; x = x.parentElement) { const s = getComputedStyle(x); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity <= 0.05) { vis = false; break; } } if (!vis) continue;
+        let top = e; while (top.parentElement && top.parentElement !== st) top = top.parentElement; out.add((top.id ? '#' + top.id : '') + '.' + String(top.className).trim().split(/\s+/).join('.')); }
+      return [...out]; })));
+    await p.screenshot({ path: `${out}/${id}-${hour}-${w}x${h}.png` });
+    if (!r) console.log(`${id}: no face measured`);
+    else if (r.over.length) { bad++; console.log(`FAIL ${id}: the face at ${r.face} covered by ${r.over.map(o => `${o.what} (${Math.round(o.share * 100)}%)`).join('; ')}`); }
+    else console.log(`${id}: the face at ${r.face} clear of the words and the HUD`);
+    await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 80 && g.dlg.open; i++) g.dlg.next(false); });
+    await p.waitForTimeout(1500);
   }
-  for (const l of logs) console.log(l);
   await b.close();
-})().catch(e => { console.error(e); process.exit(1); });
+  process.exit(bad ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(2); });

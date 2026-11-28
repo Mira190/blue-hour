@@ -344,7 +344,8 @@ over-the-shoulder two-shot on the speaker as the talk opens (40 mm, the speaker'
 headroom), a cut to the speaker's single on the next line (50 mm, from the player's side, 25 degrees off the
 line between them), a closer single (75 mm) on the line after an answer is judged, and the reverse over the
 speaker's shoulder for the player's own question or the roll. A screen held upright takes the vertical angle
-instead and puts the eyes nearer the middle. Each change is a cut; the chase view comes back eased over half a
+instead (a medium close-up for the single, a waist shot over the shoulder for the two-shot and the reverse: 34 and 28
+degrees) and puts the eyes on the frame's own upper third, the chin clear of the words. Each change is a cut; the chase view comes back eased over half a
 second. The speaker's face is in focus where the tier draws depth of field (f/2.8).
 
 The 180 degree rule is kept for the whole talk: the side of the line is chosen as the talk opens for the one on
@@ -393,6 +394,62 @@ Learnt from, not copied: film grammar's coverage of a dialogue (master, singles,
 the dialogue cameras of *Mass Effect* (2007) and *The Witcher 3* (2015), which cut between a small set of
 framings chosen per line and keep the axis; *Kentucky Route Zero* and *Disco Elysium* for when not to move the
 camera at all (a voice on the telephone keeps the street).
+
+### The words of a talk, and the HUD that gives way (`web/game/hud.js`, `web/game/story.css`, `tools/talk_face.js`)
+
+The owner's iPhone, 28 November 2026, at Mei's talk on the walk: the dialogue's block lay over her chest and covered the
+lower third of the portrait frame, and the clock, the date, the walk's line and three buttons lay over her hair and face.
+Hiding the words is not the fix: subtitles stay on while someone speaks (what AAA games do, and what the guidelines ask).
+The frame is composed for them instead.
+
+What the guidelines say, and what was taken:
+- Xbox Accessibility Guideline 104 (subtitles,
+  https://learn.microsoft.com/en-us/gaming/accessibility/xbox-accessibility-guidelines/104): no more than two lines at a
+  time, lines of no more than about 40 characters, toward the bottom of the screen, not over important UI or play, a
+  background, the speaker's name when the speaker changes. XAG 101 for the size (18 px at 1080p on a PC at least). Taken:
+  two lines at most, the name and role over the line, the band at the foot.
+- The Game Accessibility Guidelines ("present subtitles clearly",
+  https://gameaccessibilityguidelines.com/if-any-subtitles-captions-are-used-present-them-in-a-clear-easy-to-read-way/):
+  40 characters a line and two lines, a solid or semi-opaque background, at the bottom with no other UI overlapping, mixed
+  case. Taken: the line in mixed case on a soft dark band, nothing else over it.
+- *The Last of Us Part II* (its accessibility options, naughtydog.com): subtitles with names, a darkened background, a
+  direction mark for a speaker off the screen. *Red Dead Redemption 2* and *The Witcher 3*: the HUD steps back for a
+  conversation and the camera cuts between a few framings chosen per line, the axis kept (the Witcher 3's GDC 2016 talk
+  on its dialogue system, gdcvault.com/play/1022988; the pipeline set its cameras from the script). Taken: the talk is a
+  conversation mode, and the HUD gives way.
+- Film grammar for a close-up (headroom, the eye line on the upper third, lead room; Wikipedia's "Headroom" and "Lead
+  room") and for a frame held upright (the eyes about 30% from the top, the lower quarter kept for captions). Taken: on a
+  portrait screen the eyes on the frame's upper third, the chin clear of the words.
+Nothing was copied: no code, picture or layout of any of them.
+
+How it is built:
+- **The HUD gives way.** While a talk's box is up (not a call said hands-free, which you walk through), where you are,
+  the hour, the goal, the walk's line, its marks, the frame counter and the buttons fade out over 0.35 s; the walk's menu
+  stays as one small mark in its corner (the story's menu was already put away in a talk). A print still developing
+  (story.js showPrint, 6.4 s, while the frame's words begin 4.6 s in) is put down as they begin: it covered Kanbara's face
+  in frame 4.
+- **The band.** The words lie on a soft dark gradient rising from the frame's foot, the name and role small over the
+  line, the line in two lines at most: a longer one is cut into pages where the box as laid out would break onto a third
+  line, at a sentence's or a clause's end before it where there is one (hud.js pages; the log and the step back keep it
+  whole). To go on is offered once the line is typed out, and the step back and the log sit on its row, small: the block
+  is about half the height it was.
+- **The camera** keeps the face over the band (above, issue 76; the portrait frame's upper third).
+- **Held by** `tools/talk_face.js`: at every talk, twice a second, the speaker's face (chin to crown, a head's width, as
+  the talk camera's subject stands) projected through the camera, and any visible element over it, the words' block or a
+  HUD element with something to show; covered on two samples running is a failure. `tools/story_play.js` and
+  `tools/walk_play.js` carry it on both screens; `tools/talk_shot.js` opens the walk's talks at an hour and a sky and takes
+  their stills (game.js `talkAs`).
+
+### What a speaker wears (`blender/build_people.py`, `tools/look_wear.py`)
+
+A look's top and legs colours reach only the old painted characters (actors.js makePerson, people.js paletteMaterial). A
+Rocketbox character wears its picture, chosen by casting and retouched at the build by its tags (HAIR, CLOTH, TOP, plain;
+a main character's dress parts). Ten looks of the map's people carried colours from when they were painted characters,
+and none was ever drawn: Mei's asked for a blue-grey top over a black hoodie with neon cords, and Riko's for mustard
+over her green top, which the story names ("a green top"). The colours are taken off, and `tools/look_wear.py` (static)
+fails a Rocketbox look that names one. Mei's hoodie was tried at the build, dyed slate by the dress parts with its green
+and purple accents taken flat: at a talk's close-up its painted folds came up as dark streaks, the print as a ghost and
+the hem as a black band, so it was not kept; her cast is the owner's to change (another avatar with a plain top).
 
 ### A lit sign's level (first principles)
 

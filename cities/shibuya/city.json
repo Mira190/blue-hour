@@ -793,10 +793,6 @@
           "character": "R_Female_Adult_14_f016",
           "skin": "#f2cdb4",
           "hair": "#2a1d17",
-          "top": "#a8a39a",
-          "legs": "#cdbf9f",
-          "shirt": "#a8a39a",
-          "pants": "#cdbf9f",
           "clip": "Idle_Neutral"
         },
         "idle": [
@@ -815,11 +811,7 @@
         "look": {
           "character": "R_Male_Adult_09",
           "skin": "#e9bf9d",
-          "hair": "#1b1512",
-          "top": "#23262b",
-          "legs": "#2b3440",
-          "shirt": "#23262b",
-          "pants": "#2b3440"
+          "hair": "#1b1512"
         },
         "idle": [
           "Center Gai never sleeps. It does get quieter around five in the morning.",
@@ -838,11 +830,7 @@
         "look": {
           "character": "R_Business_Female_04_f013",
           "skin": "#f0c7aa",
-          "hair": "#17120f",
-          "top": "#2b2f3a",
-          "legs": "#1f2328",
-          "shirt": "#2b2f3a",
-          "pants": "#1f2328"
+          "hair": "#17120f"
         },
         "idle": [
           "Lifts from 14F to 45F at 360 metres a minute. Your ears may pop.",
@@ -862,10 +850,6 @@
           "character": "R_Male_Adult_05_m008",
           "skin": "#e3b08d",
           "hair": "#141010",
-          "top": "#b8a27a",
-          "legs": "#3a3026",
-          "shirt": "#b8a27a",
-          "pants": "#3a3026",
           "clip": "Photo"
         },
         "idle": [
@@ -885,11 +869,7 @@
         "look": {
           "character": "R_Male_Adult_20_m008",
           "skin": "#e9bf9d",
-          "hair": "#17120f",
-          "top": "#5a3a2a",
-          "legs": "#24384f",
-          "shirt": "#5a3a2a",
-          "pants": "#24384f"
+          "hair": "#17120f"
         },
         "idle": [
           "Sancha, everybody calls it. Three tea houses on the Oyama road, once.",
@@ -908,10 +888,6 @@
           "character": "R_Male_Adult_14_m017_grey",
           "skin": "#e0b392",
           "hair": "#cfcac4",
-          "top": "#8a8f94",
-          "legs": "#2f3a4d",
-          "shirt": "#8a8f94",
-          "pants": "#2f3a4d",
           "clip": "Idle_Neutral"
         },
         "idle": [
@@ -932,10 +908,6 @@
           "character": "R_Female_Adult_12_f013",
           "skin": "#f1cbb0",
           "hair": "#1e1612",
-          "top": "#5d6b7a",
-          "legs": "#2c2f36",
-          "shirt": "#5d6b7a",
-          "pants": "#2c2f36",
           "clip": "LookAround"
         },
         "idle": [
@@ -955,10 +927,6 @@
           "character": "R_Female_Adult_17_f011",
           "skin": "#efc6a8",
           "hair": "#2a1c14",
-          "top": "#c49a2c",
-          "legs": "#2b2a2e",
-          "shirt": "#c49a2c",
-          "pants": "#2b2a2e",
           "clip": "LookAround"
         },
         "idle": [
@@ -978,10 +946,6 @@
           "character": "R_Male_Adult_13_m008_grey",
           "skin": "#e2b392",
           "hair": "#bdb8b2",
-          "top": "#2f3440",
-          "legs": "#2a2e36",
-          "shirt": "#2f3440",
-          "pants": "#2a2e36",
           "clip": "Drink",
           "drink": "can"
         },
@@ -1002,10 +966,6 @@
           "character": "R_Female_Adult_13_f003_brown",
           "skin": "#f1cbb0",
           "hair": "#1c1512",
-          "top": "#e9e4d8",
-          "legs": "#27324a",
-          "shirt": "#e9e4d8",
-          "pants": "#27324a",
           "clip": "LookAround"
         },
         "idle": [
