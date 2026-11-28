@@ -1423,7 +1423,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the walkers there are room for: on the medium and high tiers a city's peak (game.crowd.pedestrians_peak),
   // on the low tier its usual number, so a phone draws no more people than it did
   const crowdPool = QC.name === 'low' ? CR.pedestrians || 300 : CR.pedestrians_peak || CR.pedestrians || 300;
-  const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, stillNear: touch ? 24 : 40, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
+  const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, bigCap: touch ? 16 : QC.name === 'high' ? 40 : 28, stillNear: touch ? 24 : 40, stillCap: touch ? 48 : 80, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
     { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) /* (none at the planned area's edge: the crowd walks on past it, as the traffic drives on: bounds.js) */, posts,
       clear: wellAt ? (x, y, z) => nav.room(x, y, z, 0.3) && !wellAt(x, y) : (x, y, z) => nav.room(x, y, z, 0.3), eye: camera, shut: wellAt, sight: (x, y, z) => nav.solid(x, y, z, 0.2) }); // (a shut well is a wall to the crowd: nobody cuts across its mouth)
   // the side of the road the city keeps to: game.keep, its trams', or the country's rule
@@ -3063,6 +3063,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     clockMin: () => clock.min,
     snapped: () => { A.shutter(); stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash'); }, // (someone takes your picture: the shutter and the flash, no picture of your own)
     loaded: c => !lib || !!lib.tpl[c], // (a character come: until then whoever is made of it is somebody standing in)
+    trainIn: () => trainNext().in, // (minutes to her train: walktalk.js trainDue, the night's clock)
+    ended: (title, line) => { if (walkUi && walkUi.told) walkUi.told(title, 0, 0, 'end', line); }, // (the walk's line over: her train missed)
+    // the way to someone on foot, in metres, for the corner's nearest giver (walktalk.js nearest): in plan on your level;
+    // on another, to the lift's stop on yours and up or down its height; with no lift between, the plan and twice the height
+    walkWay: (me, n) => {
+      const dz = Math.abs((n.z || 0) - (me.z || 0)), plan = Math.hypot(n.x - me.x, n.y - me.y);
+      if (dz <= 12) return plan;
+      let best = null, bd = Infinity;
+      for (const l of lifts) {
+        if (!l.stops.some(q => Math.abs(q.at[2] - (n.z || 0)) < 15 && Math.hypot(q.at[0] - n.x, q.at[1] - n.y) < 80)) continue;
+        for (const q of l.stops) { const d = Math.hypot(q.at[0] - me.x, q.at[1] - me.y); if (Math.abs(q.at[2] - (me.z || 0)) < 15 && d < bd) { bd = d; best = q; } }
+      }
+      return best ? bd + dz + Math.hypot(n.x - best.at[0], n.y - best.at[1]) : plan + dz * 2;
+    },
     look: n => { if (player.mode === 'foot') cam.yawTo = Math.atan2(n.x - player.x, n.y - player.y); }, // (the view eased round to someone, as introEnd does: any turn takes it back)
     hurry: c => { if (lib && lib.hurry) lib.hurry(c); }, // (the walk's line's man: his pictures first, as a named NPC's near you, people.js)
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
