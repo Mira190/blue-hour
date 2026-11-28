@@ -3,7 +3,9 @@
 // its edge): the level's drawn ground (a ray down onto its "ground" materials, the highest hit within 1.5 m of the
 // walked floor) against the floor a walker stands on there (nav.floorAt), where that floor is the ground's. Prints, per level, how many points have drawn
 // ground, the rms and the share off by more than 3, 6 and 15 cm, the worst places, and how even the drawn ground is
-// itself (changes of grade of more than 6 % over STEP either side, along x and y). With "export", writes the drawn
+// itself (changes of grade of more than 6 % over STEP either side, along x and y). The drawn ground the walked floor is measured
+// against is the first surface of anything shown (the city's paving laid over a level too); a level is measured only once it is
+// walked as shown (h.shown), and the run fails on a level off by more than RMS_CM rms (1.5) or OVER6 of its points over 6 cm. With "export", writes the drawn
 // ground as a grid ({id, x0, y0, cell, nx, ny, z: [cm or null], lift}) to OUT for pipeline/hero_floor.py.
 //   xvfb-run -a node tools/hero_ground_probe.js shibuya [step=1] [export out.json]
 const { chromium } = require('playwright');
@@ -24,12 +26,21 @@ const [,, city = 'shibuya', STEP = '1', MODE = '', OUT = ''] = process.argv;
   for (const id of levels) {
     // stand in its middle until it is shown
     await p.evaluate(id => { const g = window.__game, h = g.G.hero.find(q => q.id === id), pl = g.player; pl.x = h.at[0]; pl.y = h.at[1]; pl.z = g.nav.terrain(pl.x, pl.y); g.advance(0.5); }, id);
-    await p.waitForFunction(id => { const h = window.__game.hero(); const s = h && h.state().find(q => q.id === id); window.__game.advance(0.2); return s && s.shown && (window.__game.G.hero.find(q => q.id === id).cover || s.state !== 'ready' ? !!window.__game.G.hero.find(q => q.id === id).cover : false); }, id, { timeout: 180000, polling: 1000 }).catch(() => {}); // (and its paving read, game.js heroCover: shown before it, the walker stood on the bare ground and the level read 5 cm off it, issue 262)
+    // (and its paving read, game.js heroCover: shown before it, the walker stood on the bare ground and the level read 5 cm off it,
+    // issue 262. Shown as the walking floor has it, h.shown, which the frame's update sets: the clock moved alone, advance(), left it
+    // unset, every point read the lift under the paving, 4.7 cm rms, and a wait that timed out measured all the same, issue 258)
+    const shown = await p.waitForFunction(id => { const g = window.__game, h = g.hero(), s = h && h.state().find(q => q.id === id), H = g.G.hero.find(q => q.id === id); g.frame(0.05); return !!(s && s.shown && H.shown && H.cover); }, id, { timeout: 150000, polling: 500 }).then(() => true, () => false);
+    if (!shown && levels.length) { const has = await p.evaluate(id => !!window.__game.G.hero.find(q => q.id === id).glb, id); if (has) { console.log(`${city} ${id}: never shown and walked as shown in 150 s: not measured`); out.push({ id, none: true }); continue; } }
     const r = await p.evaluate(([id, step, exp]) => {
       const g = window.__game, nav = g.nav, THREE = window.THREE, H = g.G.hero.find(q => q.id === id), hero = g.hero(), L = hero.levels.find(q => q.h.id === id);
       const meshes = [];
       if (L && L.root) { L.root.updateMatrixWorld(true); L.root.traverse(o => { if (o.isMesh && /ground/i.test([].concat(o.material).map(m => m && m.name).join(' '))) meshes.push(o); }); }
       if (!meshes.length) return { id, none: true };
+      // (what is drawn there, for the walked floor's measure: the first up-facing surface of anything shown, the city's paving laid
+      // over the level too, Hachiko Square's setts, which a ray onto the level's own ground passed through and read 12 cm under
+      // the walker, issue 258; the export below stays the level's own ground)
+      const shownMeshes = [];
+      g.world.traverse(o => { if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || o.isSprite) return; for (let q = o; q; q = q.parent) if (!q.visible) return; const m = [].concat(o.material)[0]; if (m && (m.transparent || m.depthWrite === false)) return; shownMeshes.push(o); });
       const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), from = new THREE.Vector3();
       ray.layers.enableAll(); // (a level's ground is drawn on a layer of its own since the wet street's mirror: a ray on the default layer met none of it, and the Scramble's floor read as empty, issue 201)
       // (out to the circle itself: over its last 2 m the level's lift comes down to nothing, nav.js lift, but its ground is
@@ -46,7 +57,8 @@ const [,, city = 'shibuya', STEP = '1', MODE = '', OUT = ''] = process.argv;
         const hit = ray.intersectObjects(meshes, false)[0];
         if (!hit) continue;
         z[j * nx + i] = hit.point.y; w[j * nx + i] = f.z;
-        if (f.kind === 'ground') d.push({ x, y, drawn: hit.point.y, walked: f.z, kind: f.kind, off: hit.point.y - f.z }); // (on the ground: a landmark's floor over it, a planter or a platform, is the landmark's)
+        // (on the ground: a landmark's floor over it, a planter or a platform, is the landmark's)
+        if (f.kind === 'ground') { const top = ray.intersectObjects(shownMeshes, false).find(q => q.face && Math.abs(q.face.normal.y) > 0.3 && q.point.y < f.z + 0.3), dz = top ? top.point.y : hit.point.y; d.push({ x, y, drawn: dz, walked: f.z, kind: f.kind, off: dz - f.z }); }
       }
       const abs = d.map(q => Math.abs(q.off));
       const rms = Math.sqrt(d.reduce((a, q) => a + q.off * q.off, 0) / Math.max(1, d.length));
@@ -73,6 +85,12 @@ const [,, city = 'shibuya', STEP = '1', MODE = '', OUT = ''] = process.argv;
     console.log(`${city} ${id}: ${r.points} points on its drawn ground (${r.meshes} meshes); off the walked floor ${r.rms_cm} cm rms, ${r.over3} over 3 cm, ${r.over6} over 6 cm, ${r.over15} over 15 cm; the drawn ground's creases over 6 %: ${r.creases_over_6pc} of ${r.crease_samples}`);
     for (const q of r.worst.slice(0, 6)) console.log(`   ${q.at.map(v => v.toFixed(1))}: drawn ${q.drawn}, walked ${q.walked} (${q.off > 0 ? '+' : ''}${q.off}) on ${q.kind}`);
   }
+  // (a level whose walked floor is off what is drawn over it: more than RMS_CM rms, or more than OVER6 of its points over 6 cm, fails;
+  // a plinth or a planter's edge a walker cannot step onto is among the few left, issue 258)
+  const RMS_CM = +(process.env.RMS_CM || 1.5), OVER6 = +(process.env.OVER6 || 0.002);
+  const bad = out.filter(r => !r.none && r.points && (r.rms_cm > RMS_CM || r.over6 > Math.max(3, OVER6 * r.points)));
+  for (const r of bad) console.log(`FAIL ${city} ${r.id}: the floor walked is ${r.rms_cm} cm rms off the ground drawn, ${r.over6} of ${r.points} points over 6 cm`);
+  process.exitCode = bad.length ? 1 : 0;
   if (OUT) fs.writeFileSync(OUT, JSON.stringify(MODE === 'export' ? out.filter(r => r.grid).map(r => r.grid) : out));
   await b.close();
 })();
