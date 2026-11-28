@@ -48,7 +48,7 @@ window.OEWalkTalk = (function () {
     try { st = JSON.parse(localStorage.getItem(KEEP) || '{}') || {}; } catch (e) { st = {}; }
     const keep = () => { try { localStorage.setItem(KEEP, JSON.stringify(st)); } catch (e) { /* storage blocked */ } };
     const of = s => st[s.id] || (st[s.id] = { part: 0, met: false, done: false });
-    let on = false, busy = false;
+    let on = false, busy = false, trainWas = null, missedLine = '';
     // ---- the walk's line (docs/STORY.md "The walk's line"): the one story of the walk that happens to you. Its first
     // part is not found but seen: as you come down at the kerb a man walks into its person's shoulder and walks on, and
     // she is on the ground before anyone understands (incident: { by: { character, from, via, to, speed }, after_s, near,
@@ -183,14 +183,52 @@ window.OEWalkTalk = (function () {
     }
     // the parts' speakers: the story's own unless a part names another
     const speaker = (s, i) => (s.parts[i] && s.parts[i].npc) || s.npc;
-    // One story at a time, in the walk's order (game.json walk.people), as one night's line: the one under way, else the
-    // first not yet told. Several begun at once (the owner talked to everyone and could not keep what each had asked) was
-    // a list to remember, not a story; now there is always one thing to do and one person with the amber mark
-    function current() {
+    // A spine and free stories, as an open world keeps a main thread with side tales (the owner's structure, 28 November
+    // 2026; docs/STORY.md "The walk's line, beat by beat"). The spine is the walk's line: it happens to you as you set
+    // out, and runs to her train. Once her first words are said the other five are open in any order, each giver with an
+    // amber mark and a first part that stands alone, said warm instead once the story it names is told (talk). The corner
+    // keeps the story you are in (tracked: the last one you moved on); with none, it leads to the nearest giver by the
+    // walking way (nearest). Before, the five were one chain told in order, and a player beside Nagi with Oda's story
+    // under way had the corner on Oda
+    const held = () => !!(inc && inc.ph !== 'up'); // (the incident to come, or her on the ground: the one thing on the street)
+    const opened = () => !lineS || of(lineS).part > 0 || !!of(lineS).done; // (the free stories: once her first words are said)
+    function starts() {
+      if (held()) return [];
+      if (!opened()) return lineS && !of(lineS).done && !inc ? [lineS] : [];
+      return people.filter(s => s !== lineS && !of(s).done && of(s).part === 0);
+    }
+    function tracked() {
       // (the walk's line's person on her feet, her first words unsaid: hers is the story now, whatever was begun before. On
       // a returning visit with Oda's story under way the corner said "Drive to 109" over her, up and waiting to speak)
       if (lineS && !gate && !waitOn) { const k = of(lineS); if (k.inc && k.part === 0 && !k.done) return lineS; }
-      return people.find(s => { const k = of(s); return !k.done && k.part > 0; }) || people.find(s => !of(s).done) || null;
+      const t = st._track && people.find(q => q.id === st._track);
+      if (t && !of(t).done && of(t).part > 0) return t;
+      return people.find(q => { const k = of(q); return !k.done && k.part > 0; }) || null;
+    }
+    // the nearest giver by the walking way (ctx.walkWay: the metres on foot, a lift's stop and its height where they are on
+    // another level), held while another is not clearly nearer, a fifth and five metres: two givers about as far did not
+    // take the corner in turns as you walked between them
+    let aim = null;
+    function nearest(me) {
+      const cost = s => { const n = ctx.npc(speaker(s, 0)); if (!n) return Infinity; return ctx.walkWay ? ctx.walkWay(me, n) : Math.hypot(n.x - me.x, n.y - me.y) + Math.abs((n.z || 0) - (me.z || 0)) * 2; };
+      const list = starts();
+      if (!list.length) { aim = null; return null; }
+      let best = null, bc = Infinity;
+      for (const s of list) { const c = cost(s); if (c < bc) { bc = c; best = s; } }
+      const was = aim && list.find(s => s.id === aim);
+      if (was && was !== best && bc > cost(was) * 0.8 - 5) best = was;
+      aim = best ? best.id : null;
+      return best;
+    }
+    const current = () => tracked() || nearest(ctx.here());
+    // her train, the night's clock (lineS.wall): from call_min minutes before it, once her story is told and while she is
+    // by the wall, the corner is hers whatever else is under way; missed, she has gone home (check)
+    function trainDue() {
+      if (!lineS || !lineS.wall || !ctx.trainIn || waitOn || gate) return null;
+      const k = of(lineS);
+      if (!k.done || k.w) return null;
+      const m = ctx.trainIn();
+      return m <= (lineS.wall.call_min || 15) ? m : null;
     }
     // what someone has to say now: a part of the story under way ('story'), a word in passing ('chat': a mark of its
     // own, pale), the word of someone whose story is still to come ('wait': no mark, but E has it), or nothing
@@ -198,7 +236,7 @@ window.OEWalkTalk = (function () {
       if (gate && lineS.npc === id) return gate.ph === 'ask' || gate.ph === 'shown' ? { kind: 'gate' } : null; // (at the gate: her last words, below)
       if (waitOn && lineS.npc === id) return null;
       if (inc && lineS.npc === id && inc.ph !== 'up') return null; // (the walk's line: before she is on her feet again she has nothing to say)
-      const held = inc && inc.ph !== 'up'; // (and while it is to come or she is down, it is the one thing on the street: no other story is begun)
+      // (and while it is to come or she is down, it is the one thing on the street: no other story is begun, starts())
       // (and once she is, her first part is hers to say whatever story is under way: the incident happens to whoever is
       // there. Helped up beside a player who had begun Mei's story first, she was not the story under way and was asked
       // for a word in waiting instead; the box opened on her name with no line, and no press passed it. Said, her story is
@@ -206,8 +244,8 @@ window.OEWalkTalk = (function () {
       if (lineS && lineS.npc === id && !gate && !waitOn) { const k = of(lineS); if (k.inc && k.part === 0 && !k.done) return { kind: 'story', s: lineS, k }; }
       if (ev && ev.e.people[0] === id && (ev.phase === 'waiting' || ev.phase === 'met')) return { kind: 'event' }; // (a street moment's favour, below)
       if (ev && ev.e.people.includes(id) && ev.phase !== 'gone') return null; // (and its others: they are with them)
-      const s = current();
-      if (s) { const k = of(s); if (speaker(s, k.part) === id && ((k.part === 0 && !held) || k.met)) return { kind: 'story', s, k }; }
+      for (const s of people) { const k = of(s); if (!k.done && k.part > 0 && k.met && speaker(s, k.part) === id) return { kind: 'story', s, k }; } // (a story begun: its next part, once what it asked is done)
+      for (const s of starts()) if (speaker(s, 0) === id) return { kind: 'story', s, k: of(s) }; // (every giver of a story open to begin: an amber mark each)
       if (chat[id] && chat[id].length) return { kind: 'chat', lines: chat[id] };
       for (const q of people) if (of(q).done && q.npc === id && q.after) return { kind: 'chat', lines: q.after };
       for (const q of people) if (!of(q).done && q.npc === id && q.wait) return { kind: 'wait', lines: q.wait };
@@ -238,6 +276,7 @@ window.OEWalkTalk = (function () {
         const me = ctx.here(), n = ctx.npc(ev.e.people[0]);
         if (n) return toward(me, n, { text: ev.phase === 'met' ? ev.e.back : ev.e.goal, key: ev.phase === 'asked' ? 'O' : '' });
       }
+      if (trainDue() != null) { const n = ctx.npc(lineS.npc), me = ctx.here(); if (n) return toward(me, n, { text: ctx.fill(lineS.wall.call || "Nagi's train is at {train_at}. She's by Hachiko's wall"), key: '' }); }
       const s = current();
       if (!s) return null;
       const k = of(s), me = ctx.here(), who = ctx.npc(speaker(s, k.part));
@@ -256,8 +295,9 @@ window.OEWalkTalk = (function () {
     function said(s) {
       const k = of(s), part = s.parts[k.part], then = part.then;
       k.part++; k.met = !!(then && then.talk);
+      st._track = s.id; // (the story you moved on is the one the corner keeps)
       if (k.part >= s.parts.length) {
-        k.done = true; k.met = false;
+        k.done = true; k.met = false; delete st._track;
         const n = people.filter(q => of(q).done).length;
         if (ctx.told) ctx.told(s.title, n, people.length);
       } else if (then && then.meet) k.meet = then.meet;
@@ -273,7 +313,8 @@ window.OEWalkTalk = (function () {
       if (w.kind === 'gate') { busy = false; return gateTalk(n); }
       if (w.kind === 'story') {
         const part = w.s.parts[w.k.part], runs = [];
-        for (const l of (w.k.inc === 'alone' && part.alone) || part.lines) { // (alone: what she says to someone who did not stop)
+        const warm = w.k.part === 0 && part.warm && people.some(q => q.id === part.warm.after && of(q).done) ? part.warm.lines : null; // (warm: the story it names told, its first words say so: "Mr Oda sent you?")
+        for (const l of (w.k.inc === 'alone' && part.alone) || warm || part.lines) { // (alone: what she says to someone who did not stop)
           const who = typeof l === 'string' ? n : ctx.npc(l.npc) || n, text = ctx.fill(typeof l === 'string' ? l : l.text);
           if (runs.length && runs[runs.length - 1][0] === who) runs[runs.length - 1][1].push(text); else runs.push([who, [text]]);
         }
@@ -300,11 +341,23 @@ window.OEWalkTalk = (function () {
         else if (then.up != null) met = me.z > then.up;
         if (met) { k.met = true; keep(); if (ctx.met) ctx.met(s, ctx.npc(speaker(s, k.part))); }
       }
+      // her train missed (trainDue): gone home, said plainly over the street (ctx.ended), and away once nobody sees her
+      if (lineS && lineS.wall && ctx.trainIn) {
+        const k = of(lineS);
+        if (k.done && !k.w && !waitOn && !gate) {
+          const m = ctx.trainIn();
+          // (gone while it was called: by the clock, or the hour set past it in the menu)
+          if (trainWas != null && trainWas <= (lineS.wall.call_min || 15) && m > trainWas + 30) { k.w = 'missed'; keep(); if (ctx.ended) ctx.ended(lineS.title, missedLine || ctx.fill(lineS.wall.missed || 'She went home')); }
+          else if (m <= (lineS.wall.call_min || 15)) missedLine = ctx.fill(lineS.wall.missed || 'She went home'); // (said with the train it was, read before it goes: after, {train} is the first)
+          trainWas = m;
+        } else trainWas = null;
+        if (k.w === 'missed' && !k.hid) { const n = ctx.npc(lineS.npc); if (n && ctx.hide && (!ctx.unseen || ctx.unseen(n))) { ctx.hide(n); k.hid = true; keep(); } }
+      }
       // a story told whose person goes somewhere else for the rest of the night (rest: [x, y], facing `rest_to`): there
       // when you next come, never seen going
       for (const s of people) {
         const k = of(s);
-        if (!k.done || !s.rest || k.rested || k.w === 'gone') continue;
+        if (!k.done || !s.rest || k.rested || k.w) continue;
         const n = ctx.npc(s.npc);
         if (n && Math.hypot(n.x - me.x, n.y - me.y) > 28 && Math.hypot(s.rest[0] - me.x, s.rest[1] - me.y) > 22 && ctx.unseen(n) && ctx.put && ctx.put(n, s.rest, s.rest_to)) { k.rested = true; keep(); }
       }
@@ -472,9 +525,8 @@ window.OEWalkTalk = (function () {
     }
     function barkNear(me, hide) {
       if (hide || busy || me.mode !== 'foot' || waitOn || gate) return; // (nobody calls you over while you wait with her or walk her to her train)
-      const cur = current(), k = cur ? of(cur) : null;
       const who = [];
-      if (cur && k.part === 0 && cur.bark && !(inc && inc.ph !== 'up')) who.push([cur.npc, cur.bark]); // (not over the walk's line: Mei calling you over while a woman lies on the ground)
+      if (trainDue() == null) for (const s of starts()) if (s.bark) who.push([speaker(s, 0), s.bark]); // (every giver open to begin, the nearest first to call: not over the walk's line, starts())
       if (ev && ev.phase === 'waiting' && ev.e.bark) who.push([ev.e.people[0], ev.e.bark]);
       for (const [id, text] of who) {
         const n = ctx.npc(id);
@@ -572,7 +624,7 @@ window.OEWalkTalk = (function () {
           const k = of(s), id = k.moved || k.meet, m = id && ctx.npc(id), to = ctx.npc(speaker(s, k.part));
           if (m && to) { ctx.move(m, to, id); k.moved = id; delete k.meet; }
           if (k.rested && s.rest && ctx.put) { const n = ctx.npc(s.npc); if (n) ctx.put(n, s.rest, s.rest_to); }
-          if (s === lineS && k.w === 'gone' && ctx.hide) { const n = ctx.npc(s.npc); if (n) ctx.hide(n); } // (gone home on her train: not on the walk again)
+          if (s === lineS && (k.w === 'gone' || k.w === 'missed') && ctx.hide) { const n = ctx.npc(s.npc); if (n) ctx.hide(n); } // (gone home on her train: not on the walk again)
         }
         // the walk's line: its incident still to come (never seen in this browser), or seen and left (she got up alone)
         lineArm();
@@ -584,7 +636,7 @@ window.OEWalkTalk = (function () {
       again(kept) { lineOff(); if (kept) st = JSON.parse(JSON.stringify(kept)); else { try { st = JSON.parse(localStorage.getItem(KEEP) || '{}') || {}; } catch (e) { st = {}; } } if (lineS) { const n = ctx.npc(lineS.npc); if (n && ctx.put) ctx.put(n, lineS.at || [n.x, n.y]); } lineArm(); keep(); return this.line(); },
       lineAgain() { lineOff(); if (lineS) { delete st[lineS.id]; const n = ctx.npc(lineS.npc); if (n && ctx.put) ctx.put(n, lineS.at || [n.x, n.y]); } lineArm(); keep(); }, // (for the checks: the incident from its start)
       // beside her by the wall once her story is told: wait with her for her train (the words of the prompt), and taking it
-      waits: id => (lineS && lineS.wall && id === lineS.npc && of(lineS).done && (of(lineS).rested || (n => n && lineS.rest && Math.hypot(n.x - lineS.rest[0], n.y - lineS.rest[1]) < 3)(ctx.npc(id))) && !waitOn && !gate && of(lineS).w !== 'gone' ? ctx.fill(lineS.wall.verb) : ''),
+      waits: id => (lineS && lineS.wall && id === lineS.npc && of(lineS).done && (of(lineS).rested || (n => n && lineS.rest && Math.hypot(n.x - lineS.rest[0], n.y - lineS.rest[1]) < 3)(ctx.npc(id))) && !waitOn && !gate && !of(lineS).w ? ctx.fill(lineS.wall.verb) : ''),
       wait(n) {
         if (!ctx.waitWith || waitOn || gate || busy) return false;
         const W = lineS.wall;
@@ -614,8 +666,8 @@ window.OEWalkTalk = (function () {
       // photographs, and Start the walk again keeps them (clear)
       saved() {
         if (!people.some(s => { const k = st[s.id]; return k && (k.part > 0 || k.done); })) return null;
-        const cur = current(), told = people.filter(s => of(s).done).length;
-        if (!cur) return { title: '', who: '', goal: 'Every story told', told, of: people.length };
+        const cur = tracked(), told = people.filter(s => of(s).done).length;
+        if (!cur) return { title: '', who: '', goal: told >= people.length ? 'Every story told' : 'Someone in the street has a story', told, of: people.length };
         const k = of(cur), n = ctx.npc(speaker(cur, k.part)), who = n ? first(n.name) : '';
         const then = k.part > 0 ? cur.parts[k.part - 1].then || {} : null;
         const goal = cur === lineS && k.part === 0 ? (lineS.incident && lineS.incident.lead) || cur.hint || ''
@@ -630,13 +682,14 @@ window.OEWalkTalk = (function () {
       count: () => ({ done: people.filter(s => of(s).done).length, of: people.length }),
       // the walk's stories for its menu, as a game's list of side stories: told, under way (what was asked), or not yet met
       // (where to look: the story's hint, never its giver on a map)
-      // (one under way, or the next with where to look; the rest later tonight, in their order)
+      // (each begun with what it asked, each open with where to look; before her first words, the others later tonight)
       list() {
-        const cur = current();
+        const cur = tracked(), open = starts();
         return people.map(s => {
           const k = of(s);
           if (k.done) return { title: s.title, state: 'told', text: 'Told' };
-          if (s !== cur) return { title: s.title, state: 'later', text: 'Later tonight' };
+          if (k.part > 0 && s !== cur) { const t = s.parts[k.part - 1].then || {}; return { title: s.title, state: 'asked', text: k.met ? t.next || 'Go back to them' : t.goal || '' }; }
+          if (s !== cur && !open.includes(s)) return { title: s.title, state: 'later', text: 'Later tonight' };
           if (k.part > 0) { const e = inc && inc.ph !== 'up' ? s.parts[k.part - 1].then : errand(); return { title: s.title, state: 'asked', text: (e && (e.goal || e.text)) || '' }; } // (with the walk's line on the street the corner is hers; the list keeps what this story asked)
           return { title: s.title, state: 'next', text: s.hint || '' };
         });

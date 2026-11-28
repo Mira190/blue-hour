@@ -352,6 +352,12 @@ window.OEWalk = (function () {
     ctx.stage.append(told);
     let toldT = 0; // (the seconds its name has left over the street: the walk's own frames count them, tick)
     function tell(title, n, of, kind = 'story', line = '') {
+      if (kind === 'end') { // (the walk's line over without you: her train gone, said plainly; walktalk.js check)
+        told.innerHTML = `<small>${esc(title)}</small><b>${esc(line)}</b>`;
+        told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
+        toldT = 7;
+        return;
+      }
       if (kind === 'cont') { // (the walk taken up: where you left it, its story's name, and what it asks; game.js startWalk)
         told.innerHTML = `<small>Where you left it · ${n} of ${of} told</small><b>${esc(title)}</b>${line ? `<span>${esc(line)}</span>` : ''}`;
         told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');

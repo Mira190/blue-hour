@@ -55,6 +55,7 @@ const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
 const ceilWatch = require('./ceiling_watch'); // (the lens under the passage's ceiling on frame 4's way to SKY's lift: issue 208)
 const { measure: umbrellaHeld } = require('./umbrella_held'); // (frame 7's rain: every umbrella held, issue 165)
+const { MEASURE: crowdWhole, judge: wholeJudge } = require('./crowd_whole'); // (frame 7's rain: whoever the eye makes out is whole, issue 174)
 const pacing = require('./pacing_watch');
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
 const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
@@ -875,6 +876,11 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       // (and each umbrella is held: its handle at its hand, its shaft clear of the body under it, no canopy in another
       // or in a head, measured of everyone drawn near the lens: issue 165, tools/umbrella_held.js)
       { const U = await umbrellaHeld(p, { label: 'frame 7, twenty seconds into the rain', held: true, loose: true, within: 14 }); for (const l of U.lines) console.log(l); if (U.none) errors.push('frame 7: the page has no umbrella report to measure'); for (const b of U.bad) errors.push(`frame 7's rain: ${b}`); }
+      // (and whoever the eye makes out is a whole person, not a far copy: a head over 30 px in the frame's middle, issue 174,
+      // tools/crowd_whole.js)
+      { const m = await p.evaluate(crowdWhole, [30, 0.55, 0.7]), big = m.rows.filter(r => r.head >= 30), bad = wholeJudge(m, { HEAD: 30 });
+        console.log(`frame 7, twenty seconds into the rain: ${big.length} people with a head over 30 px in the frame (${big.filter(r => r.mid).length} in its middle), ${big.filter(r => !r.whole).length} of them far copies (${big.filter(r => !r.whole && r.cold).length} waiting or warming); whole drawn ${m.active}, the pick ${m.nNear} (${m.big} by size)`);
+        if (bad.length) { errors.push(`frame 7: ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over 30 px in the frame's middle (${bad.map(r => `${r.head} px at ${r.d} m`).join('; ')}): who is whole goes by size on the screen, people.js crowdRenderer`); console.log(errors[errors.length - 1]); } }
       if (R[5].up > 0.5 * R[20].up) { errors.push(`frame 7: ${R[5].up} umbrellas up five seconds after the first drops, of ${R[20].up} at twenty: all at once, not one by one`); console.log(errors[errors.length - 1]); }
       continue;
     }

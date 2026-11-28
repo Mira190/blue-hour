@@ -1,7 +1,6 @@
-// The walk's storyline without a browser (web/game/walktalk.js, game.json walk): its stories played through in their
-// order by talking to whoever has the part, meeting what each asks the way the game would report it (arrived by car, up
-// on the roof, a photograph from the helicopter over the crossing), and checked at every step: exactly one person with
-// the story's amber mark, nobody else's story begun meanwhile, the corner's line saying what to do next, the menu's
+// The walk's storyline without a browser (web/game/walktalk.js, game.json walk): its stories played through, the walk's
+// line and then the five free stories in the data's order, by talking to whoever has the part, meeting what each asks the way the game would report it (arrived by car, up
+// on the roof, a photograph from the helicopter over the crossing), and checked at every step: nobody else's story begun meanwhile, the corner's line saying what to do next, the menu's
 // list told / under way / next / later in order, a photograph from the roof on foot not taken for the helicopter's,
 // and at the end every story told and nobody with a part left; the corner's arrow pointing the way; and the views of
 // Shibuya each found once, by a photograph from where it is seen, with its picture kept for the album.
@@ -12,7 +11,7 @@ const root = path.join(__dirname, '..');
 const G = JSON.parse(fs.readFileSync(path.join(root, 'web/data/shibuya/game.json'), 'utf8'));
 const store = {};
 global.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
-const el = () => ({ className: '', style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, appendChild() {}, querySelector: () => el(), innerHTML: '', textContent: '' });
+const el = () => ({ className: '', style: {}, dataset: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, appendChild() {}, querySelector: () => el(), innerHTML: '', textContent: '' });
 global.document = { createElement: el };
 global.window = global;
 eval(fs.readFileSync(path.join(root, 'web/game/walktalk.js'), 'utf8')); // (a classic script: it sets window.OEWalkTalk)
@@ -34,7 +33,6 @@ const begun = () => Object.entries(T.state()).filter(([k, v]) => k !== '_chat' &
 const at = id => { const n = byId[id]; Object.assign(me, { x: n.x + 1, y: n.y, z: n.z, mode: 'foot' }); };
 function step(label) {
   const a = amber(), b = begun(), e = T.errand();
-  if (a.length > 1) fail(`${label}: ${a.length} people with a part for you (${a.join(', ')})`);
   if (b.length > 1) fail(`${label}: ${b.length} stories begun at once (${b.join(', ')})`);
   if (T.count().done < T.count().of && !(e && e.text)) fail(`${label}: nothing in the corner`);
   return { a, e };
@@ -56,11 +54,9 @@ if (!(T.state().last || {}).done) fail('The last train is not put away after her
 Object.assign(me, { x: byId.mei.x + 9, y: byId.mei.y, z: byId.mei.z }); T.tick(0.1, false); T.tick(0.1, false);
 if (!T.barked.includes('mei')) fail('nine metres from Mei, she does not call out');
 Object.assign(me, { x: 376.9, y: -1013.1, z: 15, mode: 'foot' });
-// the start: one person with the amber mark, and the corner says who, and which way (Mei is south of the start)
-{ const r = step('the start'); if (r.a.join() !== 'mei') fail(`at the start the amber mark is over ${r.a.join(', ') || 'nobody'}, not Mei`); if (!/Mei has something to say/.test(r.e && r.e.text)) fail(`at the start the corner says "${r.e && r.e.text}"`);
-  if (!(r.e && typeof r.e.dir === 'number' && Math.cos(r.e.dir) < -0.7)) fail(`at the start the corner's arrow does not point south to Mei (${r.e && r.e.dir})`); }
-// a story to come is not begun by talking to its giver early: a word, and no part
-{ const w = T.want('taro'); if (!w || w.kind !== 'wait') fail(`Taro before his turn: ${w ? w.kind : 'nothing'} (want a word in passing)`); at('taro'); T.talk(byId.taro); if (begun().length) fail(`talking to Taro early began ${begun().join(', ')}`); }
+// her story told: the five free stories open, every giver with an amber mark, and the corner leads to the nearest of
+// them with the way to them (walktalk.js nearest; the orders and the hold: tools/walktalk_unit.js)
+{ const r = step('the start'); const five = ['mei', 'oda', 'shun', 'yuna', 'taro']; if (five.some(id => !r.a.includes(id))) fail(`her story told, the amber marks are over ${r.a.join(', ') || 'nobody'}, not the five givers`); if (!/has something to say/.test(r.e && r.e.text) || !(r.e && typeof r.e.dir === 'number')) fail(`her story told, the corner says "${r.e && r.e.text}" (${r.e && r.e.dir})`); }
 // 1. Which Hachiko
 talkTo('mei', 'Mei'); talkTo('riko', 'Riko'); talkTo('mei', 'back to Mei');
 // 2. Once round by car: the drive met as check() sees it, in the car at 109
@@ -101,7 +97,7 @@ if (T.errand()) fail(`at the end the corner still says "${T.errand().text}"`);
 if (told.length !== c.of) fail(`${told.length} stories put away, of ${c.of}: ${told.join('; ')}`);
 // the menu's list mid-way: told, then the one under way, then later
 T.startAt('shot');
-{ const L = T.list().map(t => t.state).join(' '); if (L !== 'told told told next later later') fail(`the menu's list at Shun's turn: ${L}`); }
+{ const L = T.list().map(t => t.state).join(' '); if (L !== 'told told told next next next') fail(`the menu's list at Shun's turn: ${L}`); }
 // the views of Shibuya: each found once, by a photograph with it in frame from where it is seen, with its picture kept
 T.reset();
 const pic = 'data:image/jpeg;base64,AAAA', only = (px, py) => (x, y) => Math.hypot(x - px, y - py) < 1;
@@ -137,7 +133,7 @@ Object.assign(me, { x: byId.endo.x + 4, y: byId.endo.y }); T.photo({ z: 16.5, se
 at('endo'); T.talk(byId.endo);
 if (!T.events.moving) fail('Mrs Endo thanked, she does not walk off');
 for (let i = 0; i < 80 && T.events.now; i++) { Object.assign(me, { x: 600, y: -1300 }); T.tick(1, false); }
-{ const e = T.errand(); if (T.events.now) fail('Mrs Endo thanked, the moment is not over'); if (!/Mr Oda/.test(e && e.text)) fail(`after the favour the corner does not give the story back ("${e && e.text}")`); }
+{ const e = T.errand(); if (T.events.now) fail('Mrs Endo thanked, the moment is not over'); if (!/has something to say/.test(e && e.text)) fail(`after the favour the corner does not give the story back ("${e && e.text}")`); }
 Object.assign(me, { x: 376.9, y: -1013.1, z: 15 });
 if (!T.events.start('way-sky', 2)) fail('way-sky did not start');
 arrive(); at('ren'); T.talk(byId.ren);

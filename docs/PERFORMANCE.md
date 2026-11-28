@@ -3269,7 +3269,8 @@ frame 3 296 to 288. What is left is seen: trees, the traffic's kinds, the people
 
 - **The landmarks and the hero levels, a draw a material** (25 and 20 by Hachiko): an atlas or a texture array, above.
 - **The near people, three draws each** (body, head, hair), 38 to 50 a frame; who is drawn whole and at what detail
-  is issue 174's and issue 130's (a level of detail by size on the screen), not this section's.
+  is issue 174's and issue 130's (a level of detail by size on the screen), not this section's. Who is whole now goes
+  by size on the screen ("Who is whole: what the eye resolves", below).
 - **Instanced meshes with nothing in them** (38 by Hachiko: the trees' and the traffic's sets with a count of 0) make
   no draw call but are still given their program and uniforms each frame; hidden while empty they would cost nothing.
 
@@ -3878,3 +3879,40 @@ it and the GPU memory (llvmpipe, one device pixel to the point, `DPR=1 xvfb-run 
 
 The Scramble's own level was ready as soon after the flight began as before (51 s here against 55, a software renderer).
 Not measured: a real iPhone, which is the check.
+
+## Who is whole: what the eye resolves (issue 174, November 2026)
+
+A far copy (`crowd_cast.glb`: about 1,200 triangles and one 128 x 192 picture) has a blurred face and a hand of a few
+facets. Which people are whole skinned characters was a fixed count, the nearest ten on a phone (14 on medium, 24 on
+the high tier), whatever the screen showed. Now it goes by what the eye resolves (`people.js` crowdRenderer `begin`):
+
+- **A head over 30 CSS pixels in the view is whole.** Its height on the screen is worked from its depth along the
+  view (`0.14 x crown x innerHeight x P[5] / 2 / depth`, the head being a seventh of the height to the crown). Those
+  over it rank first, by that height times a weight for where they stand in the frame (1 in its middle, 0.6 at its
+  edge), up to a tier's cap (`game.js` `bigCap`: 16 on a phone, 28 on medium, 40 on high). The rest of the near count
+  goes by distance as before.
+- **No swapping at the threshold.** A whole person stays whole down to 85% of it, and keeps a slot of the near count
+  until outranked by 0.6 m.
+- **The swap in step.** The first frame a person is drawn whole after their far copy, their walk is set to the copy's
+  stride, the same foot forward (`rig.walkAt`: where in the walk clip the left foot is furthest forward is found once
+  a clip, by posing it). Measured at the kerb on a desktop: 12 of 12 walkers taken over mid-stride had the copy's
+  foot forward.
+- **A still** (the photograph mode, a close lens with the world held) asks it of everyone in the frame whose head is
+  over 16 px, at least `stillNear` (24 on a phone, 40 on a desktop) and up to `stillCap` (48, 80). Four new people
+  are made a frame, warmed off the frame; the pick settled in 17 frames at every view measured.
+
+Measured at the Scramble's kerb at 17:53 in rain (`tools/crowd_whole.js`, the walker among twelve and more waiting,
+software WebGL): on a phone, 3 to 5 heads over 30 px in the frame and none a far copy, before and after; on a desktop
+6 to 12 from the walker's camera, 10 to 27 in the photograph mode and through a close or a long lens, none a far copy
+once the cast has come. Main already held this there: its fixed count covered the heads over 30 px when the kerb was
+measured with everyone's character loaded. The pick by size counts 19 to 21 heads on a desktop from the walker's
+camera (the body in view, some of it out of the frame) against the fixed 24, and 36 to 40 at 16 px in a still, so a
+denser kerb would have outrun the fixed count; it no longer can below the cap. What did leave people over 30 px as
+far copies was the cast still streaming: a page that had stepped frames back to back had 20 of 24 such people on a
+desktop and 4 on a phone waiting for their character, and a desktop's cast took six minutes to come in that harness.
+That is the cast's streaming order and pace, not the pick (the pick asks for the biggest on the screen first).
+
+The check: frame 7 of `tools/story_play.js` fails, twenty seconds into the rain, on a far copy with a head over 33 px
+(30 and a tenth for a frame's lag) in the frame's middle that is not waiting for its character, being warmed, or
+past the tier's cap. `tools/crowd_whole.js` holds the photograph mode and the lenses to everyone in the frame.
+
