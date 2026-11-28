@@ -1244,7 +1244,7 @@
           }
         ]
       },
-      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): one storyline of a night's small stories, told one at a time in this order, each ending on the person the next is with. Only the story under way (else the first not yet told) has a part for you; its speaker has the amber mark, and the others say their \"wait\" line until their turn; bark: what a giver calls out when you first come near. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it; from \"heli\": from the helicopter, within r and above); meet: someone who, unseen, goes to stand by the next part's speaker; next: the words once it is done, when the next part is someone else's. Nothing of the case is in any of them.",
+      "note": "The walk's people with something to say (web/game/walktalk.js; docs/STORY.md \"The walk\", \"People with something to say\"): a spine and five free stories (docs/STORY.md \"The walk's line, beat by beat\"): the first, the walk's line, happens to you as you set out and runs to her train; once her first words are said the other five are open in any order, each giver with an amber mark and a first part that stands alone (lines), said warm instead (warm: { after, lines }) once the story it names is told; a story's last words may tip you towards another, never send you. Before her first words the others say their \"wait\" line; bark: what a giver calls out when you first come near. A part's \"then\" is what has to happen before the next is said: talk (the next speaker, at once), go (on foot), drive (in your car), up (higher than, as on the roof), photo (a photograph with the point in it, from within r or from above metres over it; from \"heli\": from the helicopter, within r and above); meet: someone who, unseen, goes to stand by the next part's speaker; next: the words once it is done, when the next part is someone else's. Nothing of the case is in any of them.",
       "people": [
         {
           "id": "last",
@@ -1323,6 +1323,9 @@
           "wall": {
             "note": "The line's end (walktalk.js wall, gate; game.js waitWith): beside her by Hachiko's wall once her story is told, the prompt (verb) sits you on the wall and her beside you (beside: on the wall's end block, three quarters of a metre in from the seat's corner) while the night passes by itself until `before` minutes before her train (the last, or after it the first: game.json tonight.trains); says: a line over her as each minute comes round in the wait; up: as she stands. Then she walks to the station's front, where the way in runs along the works' hoarding (gate: the station's own entrance is behind the hoarding in the hero level, so she stops where the walkway along it begins), asks for one more photograph (ask, goal), shown it takes yours (shown, then the shutter), says one thing (last), goes a few steps along the walkway with the people going in (turn), turns round, and goes (gone). Once in a browser. The point is on the drawn stone, read by a ray down through the meshes (tools/drawn_seat.js), not by the walking grid, which round Hachiko's bed is a metre wider than the stone: at [370.91, -1045.03] she sat in the air beside it (issue 171).",
             "verb": "Wait with her for {train}",
+            "call": "Nagi's train is at {train_at}. She's by Hachiko's wall",
+            "call_min": 15,
+            "missed": "She went home on {train}, on her own",
             "beside": [
               370.7,
               -1045.22
@@ -1420,7 +1423,7 @@
                   "text": "Three years in Tokyo, and I still wait at the wrong one."
                 },
                 "Thank you. We'd have stood all night on two sides of one name.",
-                "The old man with the coffee by the station watched all of it. I think he wants a word with you."
+                "The old man with the coffee by the station watched all of it. If you've a minute, he likes a chat."
               ]
             }
           ],
@@ -1441,11 +1444,20 @@
           "parts": [
             {
               "lines": [
-                "I watched you go back and forth across that crossing.",
+                "Evening. You've the look of someone with nowhere to be.",
                 "Thirty years I drove these streets. On foot you only see the bottoms of the signs.",
                 "Take your car up to 109 once, where Dogenzaka forks. At night it's another town.",
                 "Yours is at a kerb somewhere, isn't it? It'll come to you."
               ],
+              "warm": {
+                "after": "hachiko",
+                "lines": [
+                  "I watched you go back and forth across that crossing.",
+                  "Thirty years I drove these streets. On foot you only see the bottoms of the signs.",
+                  "Take your car up to 109 once, where Dogenzaka forks. At night it's another town.",
+                  "Yours is at a kerb somewhere, isn't it? It'll come to you."
+                ]
+              },
               "then": {
                 "drive": [
                   268.0,
@@ -1461,7 +1473,7 @@
                 "Well?",
                 "109 lit up at the fork, the two roads going up either side of it like a ship's wake.",
                 "On the way back, mind the scramble. Green there means the people, not you.",
-                "You've a camera on you, too. Go and see Shun at the old-clothes shop in Center Gai. He'll tell you what to shoot."
+                "If you want something to point that camera at, Shun at the old-clothes shop in Center Gai has opinions."
               ]
             }
           ],
@@ -1482,11 +1494,19 @@
           "parts": [
             {
               "lines": [
-                "Mr Oda sent you? He sends me everyone with a camera.",
-                "That's a working one on your chest. Not a phone on a strap.",
+                "That's a working camera on your chest. Not a phone on a strap.",
                 "Everybody shoots the crossing from the café upstairs. The same picture, ten thousand times a day.",
                 "Bring me a different one. From right in it, on the green. Or from somewhere higher than the café."
               ],
+              "warm": {
+                "after": "taxi",
+                "lines": [
+                  "Mr Oda sent you? He sends me everyone with a camera.",
+                  "That's a working one on your chest. Not a phone on a strap.",
+                  "Everybody shoots the crossing from the café upstairs. The same picture, ten thousand times a day.",
+                  "Bring me a different one. From right in it, on the green. Or from somewhere higher than the café."
+                ]
+              },
               "then": {
                 "photo": [
                   368.0,
@@ -1504,7 +1524,7 @@
                 "Let me see.",
                 "Huh. Nobody in it is looking at the camera.",
                 "That's the one. Everyone else's has somebody doing a peace sign.",
-                "Want higher than the café? Yuna runs the lift at SKY GATE. Tell her I sent you."
+                "If you want higher than the café, Yuna runs the lift at SKY GATE. Say I sent you."
               ]
             }
           ],
@@ -1525,10 +1545,18 @@
           "parts": [
             {
               "lines": [
-                "Shun sent you? Then you'll want the roof.",
+                "Going up? The roof's open late tonight.",
                 "Forty-five floors in the lift, then an escalator out into the air.",
                 "Taro's up there most nights with his tripod, by SKY EDGE. Say hello from me."
               ],
+              "warm": {
+                "after": "shot",
+                "lines": [
+                  "Shun sent you? Then you'll want the roof.",
+                  "Forty-five floors in the lift, then an escalator out into the air.",
+                  "Taro's up there most nights with his tripod, by SKY EDGE. Say hello from me."
+                ]
+              },
               "then": {
                 "up": 238,
                 "goal": "Up to the roof: the lift is behind Yuna",
