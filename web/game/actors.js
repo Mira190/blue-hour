@@ -3357,6 +3357,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
     const parkedN = () => { let k = 0; for (let j = 0; j < api.active; j++) if (C[j].park && C[j].line >= 0) k++; return k; };
     // (never nearer you than MADE_NEAR, however small the ring: tools/road_traffic_watch.js, nothing made within 120 m)
     const MADE_NEAR = 125;
+    const endKey = (line, end) => { const p = net.L[line].pts, k = end ? p.length - 3 : 0; return net.key(p[k], p[k + 1]); };
     function respawn(c, cx, cy, rMin) {
       const cand = net.near(cx, cy, rMin, radius), T = JN.trips && JN.trips();
       JN.forget(c);
@@ -3373,7 +3374,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
           if (kerbFree(c, line, s, dir) && clear(tmp.x, tmp.y, 5.2, c, tmp.z) && !(rMin > 0 && (Math.hypot(tmp.x - cx, tmp.y - cy) < Math.max(MADE_NEAR, rMin * 0.8) || (crowd && crowd.seen(tmp.x, tmp.y, tmp.z))))) { parkNow(c, line, s, dir, dwell() * rnd()); return; }
         }
       }
-      for (let k = 0; k < 4 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
+      for (let k = 0; k < 8 && cand.length; k++) { // somewhere no other car is, the way the street goes, not inside a junction
         // (on a two-way street it sets out the way its place lies, four times in five: trips.js facing)
         // (and it comes in along a main road more often than a back street, as the cars that come into a part of town do:
         // of two streets drawn, the bigger one four times in five)
@@ -3406,6 +3407,14 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         // through the junctions behind them; made where the street moves, it joins the traffic as one more car on the
         // move. The queues are fed only by what drives into them)
         if (rMin > 0 && (onLine.get(line) || []).some(j => { const o = C[j]; if (o === c || o.dir !== dir || o.v >= 1) return false; const d = (o.s - s) * dir; return d > -6 && d < 40; })) continue;
+        // (nor where the road it leads onto stands: a car made on a piece whose next pieces hold a queue is one more in
+        // that queue a moment later. A block of back streets that had stood was fed four cars in ten this way, the rest
+        // by what drove in, and never emptied; the traffic comes into a part of town by the roads that move, as a
+        // perimeter controller holds back what would enter a zone that is full)
+        if (rMin > 0 && net.jam && (net.jam[line] > 0 || ((net.nodes.get(endKey(line, dir > 0 ? 1 : 0)) || []).some(q => q[0] !== line && net.jam[q[0]] >= 2)))) continue;
+        // (and the back streets take a share of the made traffic by what they carry, not by how many pieces they are cut
+        // into: a back street drawn is kept one time in four, and the next try is on another street)
+        if (rMin > 0 && (OEJunctions.RANK[L1.c] || 2) < OEJunctions.RANK.tertiary && rnd() > 0.25) continue;
         c.z = tmp.z;
         if (!clear(tmp.x, tmp.y, 12, c, tmp.z) || overlaps(c, tmp.x, tmp.y, tmp.hx, tmp.hy, 3, 1) > 0 || peopleIn(c, tmp.x, tmp.y, tmp.hx, tmp.hy) > 0) continue; // (and not on your car or a ride)
         c.line = line; c.s = s; c.dir = dir; c.v = L1.v * 0.7; c.stuck = 0; c.dodgeT = 0; c.dodgeBrake = false; c.rev = null; c.vBend = Infinity; c.nx = undefined; c.plan = c.ex = c.ex2 = c.exA = c.pv = null; c.halt = false; c.q = false; c.off = 0;
@@ -3600,7 +3609,12 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
       const w = c.why, o = w === 'car' || w === 'held' || w === 'narrow' ? c.front : w === 'cross' || w === 'turn' || w === 'give' ? c.xBy : w === 'room' ? c.roomBy : null;
       return o && o !== c && o.line >= 0 && o.kM !== undefined ? o : null; // (a car of the traffic: kM is set on each, below)
     };
+    // the cars standing on each road piece, counted with the knots every half second: what a driver sees of the road ahead
+    // as it chooses its way at a junction (junctions.js choose)
+    const jam = net.jam = new Uint16Array(net.L.length);
     function knots(cx, cy) {
+      jam.fill(0);
+      for (const c of live) if (c.line >= 0 && !c.park && c.v < 0.3 && jam[c.line] < 65535) jam[c.line]++;
       for (const c of live) c.kM = 0;
       for (const c of live) c.kOn = waitsOn(c);
       for (const c0 of live) {
@@ -3619,7 +3633,7 @@ totalEmissiveRadiance += vCol * vLamp; // (brake lights and indicators: lit by d
         if (unseen.length) { const x = unseen.reduce((a, b) => ((b.still || 0) > (a.still || 0) ? b : a)); x.still = x.idle = 0; JN.forget(x); respawn(x, cx, cy, radius * 0.6); knotsGone++; continue; }
         go.waive = go.kOn; go.waiveT = WAIVE_T; knotsUndone++;
         if (go.why === 'car' || go.why === 'held' || go.why === 'narrow') { go.passBy = go.kOn; go.passFace = true; go.faceSq = 5; }
-        if (knotLog.length < 40) knotLog.push(`undone: ring of ${ring.length} (${ring.map(x => x.why).join(' ')}), the car stood ${(go.still || 0).toFixed(0)} s goes`);
+        if (knotLog.length < 40) knotLog.push(`undone: ring of ${ring.length} (${ring.map(x => x.why + (x.why === 'room' && x.lineArm ? '@' + x.lineArm.j.id + ':' + x.lineArm.i : '')).join(' ')}), the car stood ${(go.still || 0).toFixed(0)} s goes`);
       }
     }
     const redLog = []; // (the last few cars over a crossing's line on red, how: tools/traffic_why.js)

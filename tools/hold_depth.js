@@ -30,7 +30,9 @@ function pageSide() {
   // a model's skinned meshes, its torso vertices and its limb vertices (a fifth of them: enough points, a fifth the time)
   function build(root) {
     const T = window.THREE, meshes = [];
-    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && o.geometry.attributes.normal) meshes.push(o); });
+    // (only what is drawn: the one you play carries a hidden copy of each of their meshes on the same skeleton)
+    const shown = o => { for (let q = o; q && q !== root; q = q.parent) if (!q.visible) return false; return true; };
+    root.traverse(o => { if (o.isSkinnedMesh && o.skeleton && o.geometry.attributes.skinIndex && o.geometry.attributes.normal && shown(o)) meshes.push(o); });
     if (!meshes.length || !meshes.some(o => o.skeleton.bones.some(b => /Bip01/.test(b.name)))) return null;
     const out = { meshes: [] };
     for (const o of meshes) {
@@ -52,7 +54,13 @@ function pageSide() {
       const tri = [], ix = g.index ? g.index.array : null, nt = (ix ? ix.length : g.attributes.position.count) / 3;
       const chestTri = [];
       for (let t = 0; t < nt; t++) { const a = slot[ix ? ix[t * 3] : t * 3], b = slot[ix ? ix[t * 3 + 1] : t * 3 + 1], c = slot[ix ? ix[t * 3 + 2] : t * 3 + 2]; if (a >= 0 && b >= 0 && c >= 0) { tri.push(a, b, c); if (chest[a] && chest[b] && chest[c]) chestTri.push(a, b, c); } }
-      out.meshes.push({ o, torso, limb, head, tri: Int32Array.from(tri), chestTri: Int32Array.from(chestTri), pos: new Float32Array(torso.length * 3), M: bones.map(() => new T.Matrix4()) });
+      // (a mesh every vertex of which the trunk carries, with nothing of a limb, the head or the legs, is a thing worn on the
+      // trunk, not its skin: the camera the one you play wears on its strap, its strap, a bag. Counted as the torso, the
+      // player's running hand between the camera at the hip, its strap and the body read 10 cm "inside the torso" on a
+      // phone, main's run 578, issue 157. Its triangles are kept apart, wornTri, and a hand inside one of them is its own
+      // reading, worn)
+      const worn = torso.length === g.attributes.position.count && torso.length > 0;
+      out.meshes.push({ o, torso, limb, head, tri: Int32Array.from(worn ? [] : tri), chestTri: Int32Array.from(worn ? [] : chestTri), wornTri: Int32Array.from(worn ? tri : []), pos: new Float32Array(torso.length * 3), M: bones.map(() => new T.Matrix4()) });
     }
     return out;
   }
@@ -78,8 +86,14 @@ function pageSide() {
     const BAND = 0.02, bands = new Map();
     for (const m of r.meshes) {
       const o = m.o, bones = o.skeleton.bones, inv = o.skeleton.boneInverses;
-      bi.copy(o.bindMatrixInverse);
-      for (let b = 0; b < bones.length; b++) if (rest) m.M[b].copy(o.matrixWorld); else m.M[b].multiplyMatrices(o.matrixWorld, bi).multiply(tmp.multiplyMatrices(bones[b].matrixWorld, inv[b])).multiply(o.bindMatrix);
+      // (as the GPU skins it once the mesh's matrices are fresh: attached, the mesh's world and its bind matrix's inverse are
+      // one and the same and cancel, and a vertex is the bones' world times their inverses times the bind matrix. Read
+      // through o.bindMatrixInverse, which three.js sets only when it updates the mesh's world (the renderer, once a drawn
+      // frame), every point lay where the body was at the last frame drawn: 1.7 m off after a short run with frames not
+      // drawn, and off by another distance on each mesh brought up to date at another time, so that one mesh's hand was
+      // measured against another's chest, issue 157)
+      if (o.bindMode === 'detached') bi.multiplyMatrices(o.matrixWorld, tmp.copy(o.bindMatrix).invert()); else bi.identity();
+      for (let b = 0; b < bones.length; b++) if (rest) m.M[b].copy(o.matrixWorld); else m.M[b].copy(bi).multiply(tmp.multiplyMatrices(bones[b].matrixWorld, inv[b])).multiply(o.bindMatrix);
       const q = { x: 0, y: 0, z: 0 };
       m.torso.forEach((i, k) => { skin(m, i, q); m.pos[k * 3] = q.x; m.pos[k * 3 + 1] = q.y; m.pos[k * 3 + 2] = q.z; });
       const tri = m[key];
@@ -121,8 +135,9 @@ function pageSide() {
     if (r === undefined) { r = build(root); cache.set(root, r); }
     if (!r) return null;
     root.updateWorldMatrix(true, true);
-    const res = { R_forearm: 0, R_hand: 0, L_forearm: 0, L_hand: 0, held: 0 };
+    const res = { R_forearm: 0, R_hand: 0, L_forearm: 0, L_hand: 0, held: 0, worn: 0 };
     const where = {};
+    const wornAt = r.meshes.some(m => m.wornTri.length) ? shape(r, 'wornTri', false) : null;
     const depth = shape(r, 'tri', false);
     const p = { x: 0, y: 0, z: 0 };
     // (not the forearm's first ELBOW from the elbow: an elbow against one's side, or under a vest's armhole, is the body's own
@@ -133,6 +148,7 @@ function pageSide() {
       skin(m, i, p);
       const e = part.endsWith('forearm') && elbow[part[0]]; if (e && Math.hypot(p.x - e.x, p.y - e.y, p.z - e.z) < ELBOW) continue;
       const d = depth(p.x, p.y, p.z); if (d > res[part]) { res[part] = d; where[part] = [p.x, p.y, p.z]; }
+      if (wornAt) { const dw = wornAt(p.x, p.y, p.z); if (dw > res.worn) { res.worn = dw; where.worn = [p.x, p.y, p.z]; } }
     }
     const v = new T.Vector3();
     // what is held in a hand, as the rig holds it now: a mesh that is no part of the skin, hung under a hand (the phone,

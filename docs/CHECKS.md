@@ -61,7 +61,8 @@ again in the evening, or the menu has no timetable; and takes a still of each (`
 The walk's opening (`game.walk.overture`, STORY.md "The walk's opening") is looked at shot by shot: `tools/walk_open.js out
 [WxH] [hour] [sky]` sets out as the story's last card does on a fresh page, holds the film on a virtual clock, takes a still at
 a few points of each shot (`K`, `SHOTS`) with the bars, the title and the names, prints the camera's clearance over the
-roofs and from the trees' crowns (failing under 4 m) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
+roofs and from the trees' crowns (failing under 4 m), reads the land shot whole and fails where its look is more than 20
+degrees down (`tools/land_pitch.js`, issue 239; `tools/walk_play.js` reads it too) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
 cameras over the walk for scouting. Nobody drawn in part (issue 241): `tools/whole_watch.js` watches every draw of the
 scene from the page's start, and a frame that draws one mesh of a person, the guide or a car and holds another (the draw
 gate in `web/world.js`, which lets a mesh whose shader is still linking come late) fails `tools/walk_play.js` through the
@@ -148,6 +149,10 @@ The static checks:
   operator, the ferries' names);
 - no building solid standing in a lift's street lobby or through the lift's portal set in it (`tools/lobby_check.py`;
   stills of the lobbies and the guide dog at heel by their queue belts: `tools/lobby_shot.js`);
+- no hero level's paving more than 5 mm under the game's ground outside a floor level's own floor, and no grout or joint
+  mesh 2 mm to 5 cm over its own stone (`tools/hero_ground.mjs`, from the models and the terrain, under a second; issue
+  239: SKY GATE's hall let the ground and its grout over its stone). Levels built before the ground was graded again
+  are held at what they read on 28 November 2026 (issue 262), so anything new fails;
 - the story's flight: its way clear of the buildings (`tools/flight_clear.py`), and its seven shots as a storyboard,
   on a desktop and a phone: the helicopter in the picture, the lens turning no faster than twelve degrees a second,
   every camera on one side of its way, out of the buildings and with none between it and the helicopter

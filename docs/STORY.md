@@ -1396,7 +1396,10 @@ first principles:
   its lit parapet ahead, and over it. `dive` (9.6 s): down the tower's face and out over the crossing to
   above where you stand, the crowd gathered at every kerb, and the walk turns green under you. `land` (6.5 s): straight
   down into the surge onto your shoulder, still looking across the crossing until the last second (`lookHold`), never
-  tipped onto the tops of heads. Its way keeps clear of the roofs and of the trees' crowns: a first way down from the
+  tipped onto the tops of heads: its look at most 20 degrees under the horizon all the way down (overture.js
+  `LAND_DOWN`), or the chase camera's own where that is steeper. Without the bound the look mixed toward the chase
+  camera passed 61 degrees down from 21 m at k 0.68 (issue 239); `tools/walk_open.js` and `tools/walk_play.js` read the
+  whole shot at every hundredth of it and fail past it (`tools/land_pitch.js`). Its way keeps clear of the roofs and of the trees' crowns: a first way down from the
   station's side passed through the twenty-metre zelkova on that corner.
 - *A map without a map.* A few of the places the walk can take you are named as the camera passes over them
   (SHIBUYA SKY at 229 m, Hikarie, Cerulean Tower, Dogenzaka's 109, Center Gai, Hachiko): a point on
