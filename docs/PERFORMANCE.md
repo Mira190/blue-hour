@@ -1136,6 +1136,18 @@ program the warm-ups did make, but in another variant, or made too late:
   copy of the body's material, a program of its own (`dress6`) that no warm-up made. It is now compiled once a library
   with the first cast member to come (`warmDress`), and the copy takes the weather's patch as it is made
   (`lib.dressNew`), as the warmed one had: drawn first without it, it was still another program.
+  **And the copy itself is warmed before the person is shown** (27 November 2026, the owner on a desktop with a real
+  GPU: "as you go in, the passers-by's clothes change colour"). The program was warm, but each new person's copy had
+  none yet, and the draw gate (world.js `gate`, issue 241) holds a model whole until every part has one: the walker
+  was taken out of the far copies in the frame it was made and drawn as nobody for the frames that took, the street
+  showing through where its clothes had been, every near walker at once as the cast came in behind the title
+  (`tools/crowd_colour.js`, a still of that frame: only the player stood on the crossing). A person made new is now
+  warmed off the frame (`lib.warm`, a lookup of the template's programs; its pictures are on the GPU already) and drawn
+  as its far copy until it is done (people.js `begin`, `r.cold`). A walker whose own character has not come is its far
+  copy too, the same person in the same clothes, not a stand-in of another cast member: that was a second change of
+  clothes, from the copy to the stand-in and from the stand-in to their own. Measured: a far copy and its whole person
+  read a median 3 and at most 17 apart (sRGB 0..255, a box at the chest) on a desktop, 4 and 10 on a phone, so the
+  step from one to the other sharpens detail and keeps the colour, as streaming a level's picture mip by mip does.
 - **The trees' defines.** The trees' patch (trees.js `shader`) added its atlas's defines to the material's own
   `defines` object in `onBeforeCompile`, so the next time three.js keyed the material it was another program with the
   same text: every crown linked twice, the second time by a draw in the opening. It now patches a copy (as world.js's
