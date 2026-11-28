@@ -87,7 +87,7 @@ was finished; now there is one thing to finish.
 The owner has asked for these things again and again. They are standing rules; don't ask again.
 
 - **Desktop and phone by default.** A fix or a feature goes to both, unless the owner names
-  one. A reported bug is a class of bugs: find and fix the others like it.
+  one. A reported bug is a class of bugs: fix its cause ("Fix the cause, not the case" below).
 - **Decide, don't offer a menu.** If you would recommend an option, do it. For an open ask
   ("keep optimising", "push to your limit") do your best ideas in order and report them. Never
   end a turn on a question that a sensible default answers ("shall I open a PR?", "shall I fix
@@ -109,6 +109,26 @@ The owner has asked for these things again and again. They are standing rules; d
   and its licence. Learn from a work's design without copying its look.
 - **Show the real thing.** When the owner wants to see or test something, give them the
   playable page or a recording of it, not a progress report.
+
+# Fix the cause, not the case
+
+The owner's standing rule (November 2026), for every fix in every session: treat the root, not
+the symptom. A patch on the one place that was reported is not a fix.
+
+- **Find the root cause first.** Before changing anything, trace the fault back to the rule,
+  data, pipeline step or process that produced it, and say why it happened, not only where. If
+  you cannot name the cause yet, keep looking; do not ship a guess.
+- **Find every place it shows.** Search the code, the data and the map for everything the same
+  cause produces (other buildings, streets, beats, tiers, sounds, both desktop and phone), not
+  only the case in the report.
+- **Fix it at the source.** Change the rule, the generator, the data pipeline or the process
+  itself so that every instance is fixed at once. No special case for one id, one coordinate
+  or one asset unless the thing itself is truly unique, and then say so.
+- **Stop it coming back.** Add a check that fails on this class of fault (a tool in `tools/`
+  run by `tools/check.sh`, a data assertion, a rule in this file or the docs) in the same branch.
+- **Report the cause and the reach.** The report to the owner, the commit message and any issue
+  state the root cause, list every place it affected, and say for each whether it is fixed and
+  how it was checked. Anything left open goes into a GitHub issue, named in the report.
 
 # The bar
 
