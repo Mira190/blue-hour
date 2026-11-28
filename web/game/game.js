@@ -1752,7 +1752,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // outside the tap that began it. In every other frame it is not asked for and is let go (storyHeliDrop). The walk, and
   // the title before a case is chosen (storyCase), keep it as before. true while the story has it put away
   let storyFlown = -1;
-  const storyCase = () => !!(story && story.state && story.state.phase !== 'idle'); // (from its first card to its last, the last card's too)
+  const storyCase = () => !!(story && story.state && story.state.phase !== 'idle' && story.state.phase !== 'dressed'); // (from its first card to its last, the last card's too; not under the title, 'dressed', where the frame a case will be taken up at is not yet known)
   // (a flight in this frame not yet flown, or in the next: fetched as ever then, by being near and from the title, so that it
   // is warm by the flight; in every other frame of a case it is put away)
   const storyHeliFlies = () => { const s = story && story.state, F = s && s.ep && s.ep.frames; if (!F) return true; const fl = f => !!(f && f.flight && f.flight.craft !== false); return (fl(F[s.fi]) && storyFlown !== s.fi) || fl(F[s.fi + 1]); };
