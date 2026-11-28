@@ -684,12 +684,12 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       for (const t of T) if (!kept(t)) return false; // (one whose pixels went with its upload cannot come back: kept as it is)
       for (const t of T) t.dispose();
       delete lib.tpl[name]; delete lib.loading[name]; delete lib.urged[name];
-      tpl.warmGo = false; lib.parked[name] = tpl;
+      tpl.warmGo = false; lib.parked[name] = tpl; lib.letGoN = (lib.letGoN || 0) + 1; // (letGoN, backN: for the checks, tools/crowd_whole.js PAN)
       return true;
     };
     const rewarm = name => {
       const tpl = lib.parked[name]; delete lib.parked[name];
-      lib.warming[name] = tpl; tpl.warmGo = true;
+      lib.warming[name] = tpl; tpl.warmGo = true; lib.backN = (lib.backN || 0) + 1;
       return Promise.resolve(lib.warm(tpl.scene, lib.hurried[name] ? { first: true } : lib.urged[name] ? URGE : undefined)).catch(() => {})
         .then(() => { lib.tpl[name] = tpl; delete lib.warming[name]; return tpl; });
     };
@@ -2653,18 +2653,24 @@ transformed = crowdPose(transformed, false);`);
     let lastBegin = null, stillMade = -1; // (stillMade: how many people made in this still frame, still(); -1 in play)
     const lastPick = { nNear: 0, culling: false, zoom: 1, want: 0, unloaded: 0, capped: 0, big: 0 }, pickI = [], pickD = new Float64Array(P.length), pickKeep = new Set(), byPick = (a, b) => pickD[a] - pickD[b];
     let umbAny = false, umbUp = 0, easeK = 1;
-    // (the cast let go from the GPU once none of a character's bodies has been in the picture for IDLE_S, lib.letGo: asked
-    // once a second of the wall's clock, the world's may be held; a still's frame lets nothing go)
-    const IDLE_S = 20, lastShown = Object.create(null);
+    // (the cast let go from the GPU once none of a character's bodies has been in the picture for IDLE_S of the wall's clock and
+    // IDLE_F frames (on a slow device a frame is longer than a second), lib.letGo: asked once a second; a still lets nothing go)
+    // (on a phone only, whose memory is the tightest: there the beat it was for, frame 5 at the tower's foot, holds the
+    // pictures of characters worn by walkers about but by nobody drawn whole. A desktop keeps its cast: panning at the kerb
+    // for five minutes a desktop let go four and sent three again, a head waiting on its pictures as its walker came near,
+    // and a phone none (tools/crowd_whole.js PAN): the coming back is what letting go costs, and a desktop does not need it)
+    const LEAN_Q = window.OEQuality ? OEQuality.city() : null, LET_GO = !!(LEAN_Q && LEAN_Q.lean), IDLE_S = 20, IDLE_F = 600, lastShown = Object.create(null);
     let idleAt = 0;
     function idle() {
+      if (!LET_GO || !lib.letGo) return;
       const now = performance.now() / 1000;
-      if (now - idleAt < 1 || !lib.letGo) return;
+      if (now - idleAt < 1) return;
       idleAt = now;
       for (const n of cast) {
         if (!lib.tpl[n]) { delete lastShown[n]; continue; }
-        if (lastShown[n] == null || lib.shown(n)) lastShown[n] = now;
-        else if (now - lastShown[n] > IDLE_S && lib.letGo(n)) delete lastShown[n];
+        const L = lastShown[n];
+        if (!L || lib.shown(n)) { if (L) { L.t = now; L.f = frameNo; } else lastShown[n] = { t: now, f: frameNo }; }
+        else if (now - L.t > IDLE_S && frameNo - L.f > IDLE_F && lib.letGo(n)) delete lastShown[n];
       }
     }
     function begin(dt, cx, cy, t, nActive, count = 0) {
