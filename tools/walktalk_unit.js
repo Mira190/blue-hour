@@ -139,6 +139,26 @@ if (line) {
     const w = W.want(line.npc); if (!w || w.kind !== 'chat') fail(`Oda's story begun, Nagi told: she has ${w ? w.kind : 'nothing'} to say, not a word in passing (her pale mark)`);
   }
 }
+// The walk kept, for the title's Continue, and Start the walk again (walk.js): nothing begun is no walk to go on with;
+// Oda's story under way is named with what he asked and how many are told; Start again forgets the stories and the
+// incident's fall, and keeps the views found (their photographs are kept in bh-walk-roll)
+{
+  const taxi = people.find(s => s.id === 'taxi'), mei = people.find(s => s.id === 'hachiko');
+  for (const k of Object.keys(store)) delete store[k];
+  let W = OEWalkTalk.create(ctx);
+  if (W.saved()) fail(`nothing kept: the walk offers to go on (${JSON.stringify(W.saved())})`);
+  if (line && taxi && mei) {
+    store[KEEP] = JSON.stringify({ [line.id]: { part: line.parts.length, done: true, inc: 'helped' }, [mei.id]: { part: mei.parts.length, done: true }, [taxi.id]: { part: 1, met: false, done: false }, _views: { scramble: { when: 'x' } } });
+    store['bh-walk-roll'] = '{"scramble":"data:x"}';
+    W = OEWalkTalk.create(ctx);
+    const k = W.saved();
+    if (!k || k.title !== taxi.title || k.goal !== taxi.parts[0].then.goal || k.told !== 2 || k.of !== people.length) fail(`Oda's story under way: the walk kept reads ${JSON.stringify(k)}`);
+    W.clear();
+    const after = JSON.parse(store[KEEP]);
+    if (W.saved() || after[line.id] || after[taxi.id] || !after._views || store['bh-walk-roll'] !== '{"scramble":"data:x"}') fail(`Start the walk again: kept ${JSON.stringify(after)}, roll ${store['bh-walk-roll']}`);
+    else console.log('the walk kept: none with nothing begun; Oda\'s story named with what he asked; Start again forgets the stories and keeps the views and their photographs');
+  }
+}
 function of(W, s) { return W.state()[s.id] || { part: 0 }; }
 if (line && visits < 5) fail(`returning visits: ${visits} of 5 played through`);
 else if (line) console.log('returning visits: the incident played again each time, her first words matched it, the fall kept once they were said');
