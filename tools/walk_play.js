@@ -65,6 +65,7 @@ const { skip, whole } = require('./draw_skip');
 const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
+const clipProbe = require('./clip_probe'); // (seated in your car and in the helicopter: the seat, the floor, the roof and the limbs against the vehicle's own model, issue 157)
 const { drawnSeat } = require('./drawn_seat'); // (the seated sat on something drawn, not on the walking grid: issue 171)
 const { measure: umbrellaHeld } = require('./umbrella_held'); // (in the rain: every umbrella held, issue 165)
 const { dump: uiDump } = require('./ui_dump'); // (UI_DUMP=dir: the interface at each still, for tools/ui_fit.js)
@@ -106,12 +107,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       .then(s => { if (s && !stuck) { stuck = s; console.log(`(the walk is stuck after that: ${s.slice(0, 200)}; the beats after it are given 20 s each)`); } }).catch(() => {});
   };
   const ok = m => console.log(`ok   ${m}`);
+  // seated (issue 157): the probe reads the seat under the pelvis, the floor under the feet, the roof over the head and each
+  // limb against the vehicle's own model once a second; the head through the roof past 3 cm fails, the rest print
+  // (tools/clip_probe.js fails)
+  const seatsSeen = new Set();
+  const seatsRead = async what => {
+    const R = await clipProbe.report(p);
+    if (!R || R.err || !R.seatN) { fail(`${what}: the seat measure did not run (${R ? R.err || 'no reading' : 'no probe in the page'})`); return; }
+    const cases = R.cases.filter(c => c.kind === 'seat' && !seatsSeen.has(c.b)); cases.forEach(c => seatsSeen.add(c.b));
+    for (const c of cases) (clipProbe.fails(c) ? fail : m => console.log(`note ${m}`))(`seated, ${c.b}: ${c.depth} m, ${c.n} readings`);
+    if (!cases.some(clipProbe.fails)) ok(`${what}: seated, the head under the roof (${R.seatN} readings so far${cases.length ? `; ${cases.length} more printed` : ''})`);
+  };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
   fs.mkdirSync(out, { recursive: true });
   await pacing.install(p);
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'high');
   if (process.env.CAM_IN === '1') await require('./cam_intrude').install(p); // (CAM_IN=1: the camera's window in nobody's body, on foot, by car and in the helicopter, issue 226; off by default, the walk check being near its time cap)
+  await p.addInitScript(() => { window.__probeOnly = 'seats'; }); await clipProbe.install(p); // (the probe's seat measure alone: tools/clip_probe.js)
   await p.addInitScript(wholeWatch); // (nobody drawn in part: tools/whole_watch.js, issue 241)
   if (process.env.LENSGUARD === '0') await p.addInitScript(() => { window.__lensGuardOff = true; }); // (the game's lens guard off, to weigh its cost)
   // someone who has never played: nothing kept (once: the page opened again from the last card keeps what it was given)
@@ -722,7 +735,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await act();
               await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
               const box = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? document.getElementById('gd-name').textContent : ''; });
-              const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; }); // (typed in: the first word or two)
+              const words = await p.evaluate(() => { const l = window.__game.dlg.line; return l ? l.text : ''; }); // (the line as it is said, not as far as it is typed: hud.js dlg.line)
               const up = await line();
               if (!/^Thank/.test(words)) fail(`helped up, her first words are not her thanks for it ("${words.slice(0, 120)}")`);
               if (!/Nagi/.test(box) || up.at[2] !== 'up') fail(`helped up, she is not on her feet and speaking ("${box}", ${JSON.stringify(up)})`);
@@ -819,8 +832,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           if (!(await waitPrompt(/Talk to Shun/))) fail(`beside Shun with his story open, nothing offers to talk ("${await prompt()}")`);
           else {
             await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
-            const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; });
-            if (!/^That/.test(words) || /sent you/.test(words)) fail(`Shun first, his opening is not his cold one ("${words.slice(0, 80)}")`);
+            const words = await p.evaluate(() => { const l = window.__game.dlg.line; return l ? l.text : ''; }); // (the whole line: read off the box it was "Th", two letters typed, run 560)
+            const cold = await p.evaluate(() => (window.__game.walkTalk().people.find(q => q.npc === 'shun') || { parts: [{ lines: [''] }] }).parts[0].lines[0]);
+            if (!words || words !== cold) fail(`Shun first, his opening is not his cold one ("${words.slice(0, 80)}")`);
             else ok(`a free story first: nearest Shun, the corner his, and he opens cold ("${words.slice(0, 40)}...")`);
             await shot('4a-shun-cold');
             await through();
@@ -986,6 +1000,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           else if (!/km\/h/.test(kmh)) fail(`driving, the corner does not say the speed ("${kmh}")`);
           else ok(`drove ${drove.toFixed(1)} m; the corner says "${kmh}"; the keys: "${kl.slice(0, 60)}"`);
           await shot('7a-car');
+          await seatsRead('at the wheel of your car');
           await hold('Space', 4); await hold('KeyS', 0.2); await p.waitForTimeout(800);
           if (!(await waitPrompt(/Get out/))) fail(`stopped at the wheel, nothing offers to get out ("${await prompt()}"): stuck in the car`);
           else { await act(); await p.evaluate(() => window.__game.advance(0.5)); if ((await mode()) !== 'foot') fail(`Get out: still ${await mode()}`); else ok('stopped and got out'); }
@@ -1164,6 +1179,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else if (!/m up/.test(up)) fail(`in the air, the corner does not say the height ("${up}")`);
         else ok(`flew: climbed ${(z1 - z0).toFixed(0)} m off the roof; the corner says "${up}"`);
         await shot('7c-heli');
+        await seatsRead('at the helicopter\'s stick');
         // over the crossing with the camera up (photo mode holds the world): Taro's photograph from the air, then back
         // over the roof to set down
         const overCrossing = () => p.evaluate(() => {
