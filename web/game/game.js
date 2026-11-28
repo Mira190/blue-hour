@@ -3068,7 +3068,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     // the walk's line (walktalk.js, its incident): someone who walks (the story's own figure, alive), a small thing lying
     // on the ground, and one of the walk's people moved a step or stood somewhere else
-    figure: (a, at) => storyFigure(Object.assign({ alive: true }, a), [at[0], at[1], at[2] != null ? at[2] : Math.max(0, nav.terrain(at[0], at[1]))]), // (where the line puts them exactly: a place found for them was four metres off, in the road)
+    figure: (a, at) => storyFigure(Object.assign({ alive: true }, a), [at[0], at[1], at[2] != null ? at[2] : null], true), // (where the line puts them exactly: a place found for them was four metres off, in the road; on the floor there, storyFigure)
     thing: (x, y, o = {}) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(o.w || 0.075, o.h || 0.009, o.d || 0.152), new THREE.MeshStandardMaterial({ color: o.color || 0x14171c, emissive: o.glow || 0x8fa6d8, emissiveIntensity: o.glow === 0 ? 0 : 0.85, roughness: 0.25 }));
       m.position.copy(W(x, y, Math.max(0, nav.terrain(x, y)) + (o.h || 0.009) / 2 + 0.004)); m.rotation.y = o.yaw || 0;
@@ -3179,7 +3179,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }).catch(() => null); }
     return p;
   };
-  const storyFigure = (a, at) => {
+  const storyFigure = (a, at, exact = false) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
     const old = a.alive && a.age >= 70, bend = [], look = [];
     let rig = makeRig({ character: a.character, scale: old ? 0.93 : 1 }), gone = false;
@@ -3197,7 +3197,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
     };
     dress(rig);
-    const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+    const p = at[2] != null || exact ? { x: at[0], y: at[1], z: at[2] != null ? at[2] : Math.max(0, nav.terrain(at[0], at[1])) } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+    // (on the floor that is walked and drawn there, not the bare ground: inside a hero level nav.terrain is its drawn floor
+    // less its lift, and frame 7's old woman stood 6 cm into the Scramble's paving at the kerb, issue 258. Read again as she
+    // stands, since the level that draws that floor may come after she is put there; a place the line gives exactly, at[2],
+    // is kept)
+    const ground = (x, y, z) => { const t = Math.max(0, nav.terrain(x, y)), fl = nav.floorAt(x, y, Math.max(t, z) + 0.5); return fl && Math.abs(fl.z - t) < 0.5 ? fl.z : t; };
+    if (at[2] == null) p.z = ground(p.x, p.y, p.z);
     const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', character: a.character, id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1), ghost: !a.alive };
     storyFigs.add(f);
     // (and nobody of the crowd where they are put: in a Stop the held crowd cannot step out of them, and one stood inside
@@ -3256,9 +3262,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           f.held = on < 0.3 * v * dt ? (f.held || 0) + dt : 0; // (not getting nearer: someone holds the way, or the place)
           if (f.held > 0.8 && (d < 1.3 || f.held > 4)) { f.to = null; f.held = 0; }
           if (dt > 0) v = Math.min(v, went / dt);
-          f.z = Math.max(0, nav.terrain(f.x, f.y)); put();
+          f.z = ground(f.x, f.y, f.z); put();
         }
-      }
+      } else if (at[2] == null) { const z = ground(f.x, f.y, f.z); if (Math.abs(z - f.z) > 0.002) { f.z = z; put(); } }
       // (the bend is laid over the clip's pose, and taken off again before the clip is asked for the next: with time
       // held the clip does not move the bones, and a bend added every frame turned her round and round)
       for (const b of bend) if (b.userData.bent && b.quaternion.equals(b.userData.bent)) b.quaternion.copy(b.userData.raw);
