@@ -732,13 +732,8 @@
 .game-stage.story .gt-walk-acts .btn:not(.primary) { border: 1px solid rgba(244, 239, 230, 0.32); background: transparent; color: rgba(244, 239, 230, 0.75); font-size: 10px; letter-spacing: 0.26em; }
 .game-stage.story .gt-walk-acts .btn:not(.primary):is(:hover, :focus-visible) { border-color: var(--paper); color: var(--paper); }
 .gt-walk-acts kbd { font: inherit; letter-spacing: 0.06em; opacity: 0.8; }
-/* (a walk kept in this browser: where you were, over the hour and the sky; and Start the walk again asked first, in the
-   step's place, as the story's Start the evening again is: its question, Keep my walk and Start again) */
-.gt-walk-was { display: grid; gap: 8px; margin: 2px 0 4px; padding: 14px 16px; border-left: 1px solid var(--amber); background: rgba(4, 8, 18, 0.42); }
-.gt-walk-was[hidden] { display: none; }
-.gt-walk-was small { font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
-.gt-walk-was b { font: 300 18px/1.15 var(--f-display); letter-spacing: 0.06em; color: var(--paper); }
-.gt-walk-was span { font: 300 13px/1.45 var(--f-body); color: rgba(244, 239, 230, 0.78); }
+/* (Start the walk again: a new walk's step, and its Set out over a walk kept asks once, in the step's place, as the story's
+   Start the evening again does: its question, Keep my walk and Start again) */
 .gt-walk-sure { display: none; }
 .gt-walk.sure > :not(.gt-walk-sure, .eyebrow) { display: none !important; }
 .gt-walk.sure .gt-walk-sure { display: grid; gap: 12px; }

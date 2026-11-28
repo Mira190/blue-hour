@@ -67,18 +67,16 @@ const PORT = process.env.PORT || 8800;
     else ok(`a walk kept: "${go}"`);
     if (!/^Start the walk again/.test(an)) fail(`a walk kept: no Start the walk again under it ("${an}")`); else ok(`and under it "${an}"`); }
   await shot('2-title-kept');
-  await press('#gt-walk-go'); await until(() => { const e = document.getElementById('gt-walk'); return e && !e.hidden; }, null, 20000);
-  { const was = await text('#gt-walk-was'), set = await text('#gt-walk-set');
-    if (!/Once round by car/.test(was) || !/Drive to 109/.test(was) || !/^Continue/.test(set)) fail(`the step with a walk kept: "${was}", its button "${set}"`);
-    else ok(`the step says where you were: "${was}"; its button "${set}"`); }
-  await p.waitForTimeout(1800); await shot('3-step-kept'); // (the step slides in)
-  await press('#gt-walk-back'); await p.waitForTimeout(800);
-
-  // 3. Start the walk again asks first; Keep my walk loses nothing
-  await press('#gt-walk-anew'); await p.waitForTimeout(800);
+  // 3. Start the walk again: the new walk's step (the hour, the sky), and what is lost said once, on its Set out; Keep my
+  // walk loses nothing
+  await press('#gt-walk-anew'); await until(() => { const e = document.getElementById('gt-walk'); return e && !e.hidden; }, null, 20000);
+  { const set = await text('#gt-walk-set'), q = await text('#gt-walk-sure-l');
+    if (!/^Set out/.test(set) || q) fail(`Start the walk again: the step's button "${set}", asked already "${q.slice(0, 40)}"`); else ok('Start the walk again: the new walk\'s step, the hour and the sky, nothing asked yet'); }
+  await p.waitForTimeout(1800); await shot('3-step-new');
+  await press('#gt-walk-set'); await p.waitForTimeout(800);
   { const q = await text('#gt-walk-sure-l');
-    if (!/will be lost/.test(q) || !/photographs are kept/.test(q)) fail(`Start the walk again did not ask first ("${q}")`);
-    else ok(`Start the walk again asks first: "${q.slice(0, 70)}..."`); }
+    if (!/will be lost/.test(q) || !/photographs are kept/.test(q)) fail(`a new walk's Set out over a kept one did not ask ("${q}")`);
+    else ok(`its Set out asks, once: "${q.slice(0, 70)}..."`); }
   await p.waitForTimeout(1200); await shot('4-sure');
   if (phone) await press('#gt-walk-keep'); else await p.keyboard.press('Escape');
   await p.waitForTimeout(800);
@@ -86,9 +84,10 @@ const PORT = process.env.PORT || 8800;
     if (!k.talk.taxi || !/^Continue the walk/.test(go)) fail(`Keep my walk lost it (${JSON.stringify(k.talk)}, "${go}")`); else ok('Keep my walk: the walk as it was, the title\'s list back'); }
 
   // 4. Continue: no flight, no call, a card with the story and what it asks, the corner Oda's
-  await press('#gt-walk-go'); await until(() => { const e = document.getElementById('gt-walk'); return e && !e.hidden; }, null, 20000);
-  await press('#gt-walk-set');
-  if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 10 * 60000))) fail('Continue: the walk did not set out');
+  await press('#gt-walk-go');
+  if (await until(() => { const e = document.getElementById('gt-walk'); return e && !e.hidden; }, null, 3000)) fail('Continue the walk opened the step page: Continue asked twice');
+  if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 10 * 60000))) fail('Continue: the walk did not set out at one press');
+  else ok('Continue the walk: one press, straight in');
   const film = await p.evaluate(() => { const g = window.__game, o = typeof g.overture === 'function' ? g.overture() : g.overture; return !!(o && o.active); });
   if (film) fail('Continue played the opening flight');
   await until(() => { const e = document.getElementById('g-walk-told'); return e && e.classList.contains('on'); }, null, 60000);
@@ -102,6 +101,7 @@ const PORT = process.env.PORT || 8800;
 
   // 5. the menu's Start the walk again: asked on its first press, the page opened again on a first visit's step
   await press('#g-walk-acts [data-do="menu"]'); await until(() => !document.getElementById('g-menu').hidden, null, 20000);
+  { const r = await text('#gw-continue'); if (!/^Resume/.test(r)) fail(`the walk's menu closes on "${r}", not Resume`); else ok('the walk\'s menu: Resume'); }
   await p.evaluate(() => { const e = document.getElementById('gw-anew'); if (e) e.scrollIntoView({ block: 'center' }); });
   await press('#gw-anew'); await p.waitForTimeout(600);
   { const n = await text('#gw-anew-note'), bt = await text('#gw-anew');
@@ -111,7 +111,7 @@ const PORT = process.env.PORT || 8800;
   await p.waitForEvent('load', { timeout: 120000 }).catch(() => {});
   await title(false);
   await until(() => { const e = document.getElementById('gt-walk'); return e && !e.hidden; }, null, 60000);
-  { const k = await kept(), set = await text('#gt-walk-set'), was = await text('#gt-walk-was');
+  { const k = await kept(), set = await text('#gt-walk-set'), was = '';
     const stories = Object.keys(k.talk).filter(id => !id.startsWith('_'));
     if (stories.length || !k.talk._views || !k.roll || k.intro) fail(`begun again: kept ${JSON.stringify(k)}`);
     else ok('begun again: no story kept, the office\'s call to come, the views and their photographs kept');
