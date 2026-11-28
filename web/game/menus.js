@@ -19,18 +19,18 @@ window.OEGameMenus = function (g) {
     // (the title screen: the case is kept as each frame begins, so a frame left part-way is taken up from its beginning;
     // a first frame is not kept at all, and the case begins again at its first card)
     const tn = g.$('#gm-title-note');
-    if (tn) { tn.textContent = !at || !/[?&]inplace=0\b/.test(location.search) ? '' : // (in place the case waits under the title as it is: nothing to say, game.js parkTitle)
+    if (tn) { tn.textContent = !at ? '' : // (in place or by a page load alike: the case is made again from what it keeps, game.js putAway)
  at.fi > 0 ? `Continue, on the title, takes up frame ${at.fi + 1} from its beginning.` : 'The case is kept from its second frame: from here it begins again at its first card.'; tn.hidden = !tn.textContent; }
   }
   g.on(g.$('#gm-resume'), 'click', () => { g.$('#g-menu').hidden = true; });
-  // back to the title, from the case or the walk: the page opened again on the title's menu, past its press (game.js reads
-  // bh-title-auto). Not in place: a case's people, its guide and its timers, and the walk's people, car and helicopter,
-  // have no way off the street, and the ways between the two were page loads already (#gm-story, the case begun again).
-  // What is kept is kept as the case goes (story.js keep), the walk's stories as they are told (walktalk.js)
+  // back to the title, from the case or the walk: in place, the mode put away and the title over the street on its menu
+  // (game.js parkTitle, putAway); where that cannot be, the page opened again on the title's menu, past its press
+  // (game.js reads bh-title-auto). What is kept is kept as the case goes (story.js keep), the walk's stories as they are
+  // told (walktalk.js), so either way the title's ways in take them up as they were left
   g.on(g.$('#gm-title'), 'click', e => {
     const b = e.currentTarget;
     if (b.disabled) return;
-    if (g.parkTitle && g.parkTitle()) return; // (the mode parked under the title, no page load; the page load where it cannot be: game.js parkTitle)
+    if (g.parkTitle && g.parkTitle()) return; // (the mode put away in place, no page load; the page load where it cannot be: game.js parkTitle)
     b.disabled = true;
     try { sessionStorage.setItem('bh-title-auto', '1'); } catch (err) { /* storage blocked: the title opens on its press */ }
     const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); u.hash = '';

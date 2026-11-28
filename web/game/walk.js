@@ -258,6 +258,8 @@ window.OEWalk = (function () {
     const ANY_SKY = [['clear', 'Clear'], ['overcast', 'Overcast'], ['fog', 'Fog'], ['drizzle', 'Drizzle'], ['rain', 'Rain'], ['storm', 'Thunderstorm'], ['snow', 'Snow']];
     const menuEl = q('#g-menu');
     let menu = null, skyNow = '';
+    const homes = []; // (the page's own controls the walk's menu took in, and where each stood: given back when the walk is put away, away())
+    const take = (e, to) => { homes.push([e, e.parentNode, e.nextSibling]); to.appendChild(e); };
     const keyRows = () => (ctx.touch ? [
       ['Left thumb', 'Walk; pushed further, run'], ['Drag', 'Look round'],
       ['The words over someone', 'Tap them to talk, to sit down, to take a lift, to get in or out'],
@@ -299,7 +301,7 @@ window.OEWalk = (function () {
       // (what the page keeps one of: your car and the way into the story, with their handlers; the stories and tonight,
       // which game.js fills; the sound, the frame rate and the words)
       const acts = menu.querySelector('.gw-acts'), side = menu.querySelector('.gw-side'), opts = menu.querySelector('#gw-opts .gw-fold-in');
-      for (const id of ['#gm-car', '#gm-story', '#gm-title']) { const e = q(id); if (e) { e.classList.remove('primary'); acts.appendChild(e); } }
+      for (const id of ['#gm-car', '#gm-story', '#gm-title']) { const e = q(id); if (e) { homes.push([e, e.parentNode, e.nextSibling, e.classList.contains('primary')]); e.classList.remove('primary'); acts.appendChild(e); } }
       // (Start the walk again, beside the title screen: asked on its first press, as the case's Start the case again is,
       // with what goes and what stays; the second forgets the walk's stories and opens the page again on a first visit)
       const again = document.createElement('button');
@@ -313,11 +315,11 @@ window.OEWalk = (function () {
         again.disabled = true;
         if (ctx.anew) ctx.anew();
       });
-      for (const id of ['#gm-tales', '#gm-tonight']) { const e = q(id); if (e) side.appendChild(e); }
-      for (const id of ['#gm-sound', '#gm-words', '#gm-fps', '#gm-steer']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) opts.appendChild(n); }
+      for (const id of ['#gm-tales', '#gm-tonight']) { const e = q(id); if (e) take(e, side); }
+      for (const id of ['#gm-sound', '#gm-words', '#gm-fps', '#gm-steer']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) take(n, opts); }
       menu.addEventListener('click', e => {
         const b = e.target.closest('button');
-        if (!b || !menu.contains(b)) return;
+        if (!b || !menu || !menu.contains(b)) return; // (no menu: the walk put away by the press itself, its Title screen: away())
         if (b.id === 'gw-continue') return ctx.menu();
         const s = b.closest('[data-k]');
         if (s && b.dataset.v) { if (s.dataset.k === 'w') skyNow = b.dataset.v; ctx.dress(s.dataset.k === 't' ? { t: b.dataset.v } : { w: b.dataset.v }); return menuSync(); }
@@ -377,6 +379,15 @@ window.OEWalk = (function () {
       get isOpen() { return isOpen; }, get walking() { return walking; }, get spec() { return spec; },
       // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
       takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },
+      // (put away from the street, the menus' Title screen in place, game.js putAway: its corner, its keys and its menu off
+      // the page, the controls its menu took in back where they were, and the title's way in saying what is kept now)
+      away() {
+        walking = false; isOpen = false; sure = false; step.hidden = true; step.classList.remove('sure'); title.removeAttribute('data-walk');
+        ctx.stage.classList.remove('walk-on'); hud.classList.remove('on', 'new'); acts.classList.remove('on'); keys.classList.remove('on'); told.classList.remove('on'); toldT = 0; highlight(null);
+        for (const [e, p, n, primary] of homes.splice(0).reverse()) { p.insertBefore(e, n && n.parentNode === p ? n : null); if (primary) e.classList.add('primary'); }
+        if (menu) { menu.remove(); menu = null; }
+        keptSync();
+      },
       // (set out at once from a fresh page, with the hour and sky given: the story's last card where it could not go on in place, or a harness)
       auto(s) { if (s) spec = { t: HOURS.some(h => h[0] === s.t) ? s.t : 'night', w: SKIES.some(k => k[0] === s.w) ? s.w : 'clear' }; isOpen = true; setOut(); },
     };

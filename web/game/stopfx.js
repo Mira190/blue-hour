@@ -137,7 +137,7 @@ window.OEStopFX = (function () {
     // (it makes no sound of its own: a tone falling away was tried here and was a telephone running out of battery; the
     // story's own sound has the Stop's: audio.js)
     const drop = o => { if (!o) return; world.remove(o); o.traverse(q => { if (q.geometry && !q.isInstancedMesh) q.geometry.dispose(); if (q.material) q.material.dispose(); if (q.isInstancedMesh) q.dispose(); }); }; // (the models' geometry is kept)
-    function dispose() { drop(g); drop(amb); g = amb = leaves = birds = motes = drops = ring = splash = null; }
+    function dispose() { drop(g); drop(amb); g = amb = leaves = birds = motes = drops = ring = splash = null; want = null; } // (want: an air asked for before the models came is not made after)
     // the scene's air: made once per scene, round the player, and running from then on
     let want = null;
     function air(centre, { leaves: nl = 110, birds: nb = 11 } = {}) {

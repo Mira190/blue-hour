@@ -630,6 +630,16 @@ window.OEWalkTalk = (function () {
         lineArm();
         keep();
       },
+      // off the walk (the menus' Title screen, game.js putAway): the marks taken down, the walk's line and a street moment
+      // under way ended where they stand, its people put away, and nothing waiting to happen; what this browser keeps of
+      // the walk stays kept, and begin() takes it up again as a new visit does
+      end() {
+        on = false; busy = false; layer.classList.remove('on');
+        for (const el of marks.values()) fade(el, 0);
+        lineOff();
+        if (ev) { for (const id of ev.e.people) { const n = ctx.npc(id); if (n && ctx.hide) ctx.hide(n); } ev = null; evNext = 75 + rnd() * 45; }
+        moving.clear(); later.length = 0;
+      },
       want, talk, photo, errand,
       // someone on the ground beside you: what is offered (the words of the prompt), and taking it
       // (for the checks: a new visit with what this browser has kept, or with `kept` in its place, as begin() takes it up)

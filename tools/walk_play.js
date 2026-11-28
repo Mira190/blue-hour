@@ -64,7 +64,7 @@ const { landPitch } = require('./land_pitch');
 const { wholeWatch, wholeReport } = require('./whole_watch.js');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
-const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload, loadsOf } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const pacing = require('./pacing_watch'); // (nobody of the crowd walks to and fro: issue 168)
 const fs = require('fs');
 const clipProbe = require('./clip_probe'); // (seated in your car and in the helicopter: the seat, the floor, the roof and the limbs against the vehicle's own model, issue 157)
@@ -171,24 +171,26 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (!t.on) fail('the walk\'s menu has no Title screen'); else if (!t.first && t.tall) fail('the walk\'s Title screen is below its first screen');
     await shot('9-menu-title');
     await p.locator('#gm-title').scrollIntoViewIfNeeded().catch(() => {});
-    await press('#gm-title'); // (in place: the walk parked under the title, game.js parkTitle)
+    const loads0 = loadsOf(p); // (in place: the same page from the press to the case begun from the title, any load fails)
+    await press('#gm-title'); // (in place: the walk put away and the title over the street, game.js parkTitle and putAway)
     if (!(await until(() => { const t = document.getElementById('g-title'), l = document.getElementById('g-loader'); return window.__game && t && !t.hidden && t.dataset.screen === 'menu' && l && l.hidden; }, null, 900000))) fail('Title screen: the title never opened on its menu');
     else {
       await p.waitForTimeout(2500);
-      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }; const st = document.getElementById('game-stage'); return [st.classList.contains('walk') && !st.classList.contains('parked-walk') && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line'].filter(Boolean); });
+      const left = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }; const st = document.getElementById('game-stage'); const g = window.__game; return [(st.classList.contains('walk') || st.classList.contains('walk-on')) && 'the walk\'s stage', v('#g-walk-acts') && 'the walk\'s corner', v('#g-walk-where') && 'the walk\'s hour', v('#g-menu') && 'the menu', v('#g-story-goal.on') && 'the goal line', g.npcs.some(n => n.walk && !n.away) && 'the walk\'s people', g.player.mode !== 'foot' && `you in ${g.player.mode}`].filter(Boolean); });
       if (left.length) fail(`back at the title, left over: ${left.join(', ')}`); else ok('Title screen: the title on its menu, nothing of the walk left');
       await shot('9-title-back');
       await press('#gt-story-go'); await until(() => document.getElementById('g-title').dataset.screen === 'story', null, 20000);
-      expectReload(p, 'the case from a parked walk'); await press('#gt-play');
+      await press('#gt-play');
       if (await until(() => document.getElementById('g-title').dataset.screen === 'who', null, 5000)) { await press('#gt-who [data-c="W"]'); await p.waitForTimeout(500); await press('#gt-who-go'); }
       // (begun: the title gone and the street not the walk's; the opening's film, where it plays, is the case's first minutes)
       const where = () => p.evaluate(() => { const s = window.__game.story.state, t = document.getElementById('g-title'); return `${s.phase}/${s.beat}, title ${t.hidden ? 'gone' : t.dataset.screen}, walk ${document.getElementById('game-stage').classList.contains('walk')}`; }).catch(e => String(e).slice(0, 80));
-      // (from a parked walk the case opens on a page of its own, game.js parkedWay: a wait cut off by the load is waited again)
-      let begun = false;
-      for (const t0 = Date.now(); !begun && Date.now() - t0 < 900000;) { begun = await until(() => !!window.__game && document.getElementById('g-title').hidden && !document.getElementById('game-stage').classList.contains('walk'), null, 30000); if (!begun) await p.waitForTimeout(1000); }
+      // (from the walk put away, the case begins on the same page, game.js putAway)
+      const begun = await until(() => !!window.__game && document.getElementById('g-title').hidden && !document.getElementById('game-stage').classList.contains('walk'), null, 600000);
       if (!begun)
         fail(`from the title, the case did not begin (${await where()})`);
       else ok(`from the title, the case begins (${await where()})`);
+      if (loadsOf(p) !== loads0) fail(`the page loaded again ${loadsOf(p) - loads0} time(s) between the walk's Title screen and the case begun: it is to stay in place`);
+      else ok('Title screen in place: no page load from the walk to the case begun');
     }
   };
   // UPTRACE=s: every s seconds of the wall clock, the upload queue (world.js uploadStats): how many wait, how many have gone

@@ -106,6 +106,9 @@ window.OEStory = (function () {
   function create(ctx) {
     const S = ctx.story, eps = S.episodes || [], N = S.frames || 7;
     let enterLater = () => {}; // (going back into a frame from the title: set once the case's functions exist, below)
+    // (what this case hangs on the page outside its own elements, the title's buttons and a key held while the order is
+    // read, let go with it: dispose(), when the menus' Title screen puts the case away and makes it again, game.js putAway)
+    const ac = new AbortController(), sig = { signal: ac.signal };
     // the story's own interface (story.css): the map's instruments are put away for as long as the story is here
     ctx.stage.classList.add('story');
     { // the title (story.css "the title in three screens"; docs/STORY.md "The title, as a game opens"): the story's name and
@@ -192,12 +195,13 @@ window.OEStory = (function () {
         if (anew) {
           anew.hidden = !going;
           const sure = on => { E.classList.toggle('sure', on); const f = q(on ? '#gt-anew-no' : '#gt-anew'); if (f) f.focus({ preventScroll: true }); };
-          anew.addEventListener('click', () => sure(true));
-          q('#gt-anew-no').addEventListener('click', () => sure(false));
-          q('#gt-anew-yes').addEventListener('click', () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`bh-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }); // (who you play chosen first)
+          // (as properties, not listeners: a case made again on the same page puts its own in their place, game.js putAway)
+          anew.onclick = () => sure(true);
+          q('#gt-anew-no').onclick = () => sure(false);
+          q('#gt-anew-yes').onclick = () => { if (ctx.whoGate && !ctx.whoGate()) return; try { localStorage.removeItem(`bh-story-${ep0.id}`); } catch (e) { /* storage blocked */ } E.classList.remove('sure'); play.click(); }; // (who you play chosen first)
           E.sure = () => E.classList.contains('sure') && (sure(false), true); // (Esc or B on the question: keep the case; game.js)
         }
-        E.querySelector('.gt-roll').addEventListener('click', e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); });
+        E.querySelector('.gt-roll').onclick = e => { const b = e.target.closest('button[data-back]'); if (b && (!ctx.whoGate || ctx.whoGate())) enterLater(+b.dataset.back); };
       }
     }
     const el = (id, html, tag = 'div') => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; ctx.stage.appendChild(e); return e; };
@@ -637,11 +641,11 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         over = true; clearTimeout(tm); removeEventListener('keydown', key, true); pre.removeEventListener('pointerdown', end);
         pre.classList.remove('on'); st.beat = '';
         st.file.unshift({ at: '', text: [O.head, O.to].concat(O.lines).filter(Boolean).join(' '), kind: 'order' }); // (the file begins with what the player was sent out with)
-        setTimeout(done, 500);
+        later(500, done);
       };
       const key = e => { if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Escape') { e.preventDefault(); e.stopPropagation(); end(); } };
-      const tm = setTimeout(end, total + 14000); // (read at leisure; the Stop waits for it)
-      addEventListener('keydown', key, true); pre.addEventListener('pointerdown', end);
+      const tm = setTimeout(end, total + 14000); timers.push(tm); // (read at leisure; the Stop waits for it)
+      addEventListener('keydown', key, { capture: true, signal: ac.signal }); pre.addEventListener('pointerdown', end);
     }
     // tonight's own set dressing (an episode's `set`: things only tonight has, past.js models drawn always): put up as the
     // player is given the street, in the story or on the walk (game.js startWalk), once. (SKY GATE's lobby was the first;
@@ -709,7 +713,7 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
         // a frame reached by car: one is sent, the goal is the car until you are in it, and the frame goes on where it sets you down
         // (or where you walk to: nobody has to take it)
         const sent = fr.ride && ctx.ride && !st.rode ? ctx.ride(fr.ride) : false;
-        if (sent === 'wait' && (st.rideAsk = (st.rideAsk || 0) + 1) < 240) { goal(fr.ride.line || 'A car is coming for you.'); setTimeout(go, 500); return; } // (the cars still coming in: asked again, for up to two minutes)
+        if (sent === 'wait' && (st.rideAsk = (st.rideAsk || 0) + 1) < 240) { goal(fr.ride.line || 'A car is coming for you.'); later(500, go); return; } // (the cars still coming in: asked again, for up to two minutes)
         st.rideAsk = 0;
         if (sent && sent !== 'wait') { st.rode = true; st.beat = 'ride'; st.rideGo = go; goal(fr.ride.line || 'A car is coming for you.'); return; }
         st.rode = false;
@@ -1662,13 +1666,19 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         if (document.activeElement && endEl.contains(document.activeElement)) document.activeElement.blur();
         return true;
       },
+      // the case let go from the page: its elements, its timers and listeners, and everything it stood in the street (the
+      // cast and the afterimages, the thing of the other year and tonight's set, the guide and the one coming). What it
+      // kept in this browser stays kept (kept()), so a case made again on the same page takes it up as a fresh page
+      // would (game.js putAway). A callback still in flight finds a case with no frame and goes no further (st.fr).
       dispose() {
-        timers.forEach(clearTimeout); removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null);
+        timers.forEach(clearTimeout); timers.length = 0; clearTimeout(foldT); clearInterval(slipT); ac.abort();
+        removeEventListener('keydown', onKey, true); ctx.beacon(null); if (ctx.board) ctx.board(null); if (ctx.here) ctx.here(null); if (ctx.finder) ctx.finder(null);
         ctx.stage.classList.remove('story', 'story-on', 'story-stop');
         for (const e of [frames, card, veil, flash, goalEl, mark, keys, finder, shutter, endEl, album, printEl, camBtn, chip, pre, failEl, slip, movEl, hintBtn, menuBtn, spendEl]) e.remove();
-        if (st.dogNext) st.dogNext.remove();
-        for (const k of ['ghost', 'ghost2']) if (st[k]) st[k].remove();
+        for (const k of ['dogNext', 'dog', 'gone', 'ghost', 'ghost2', 'relic', ...Object.keys(st).filter(q => /^set\d+$/.test(q))]) { const o = st[k]; st[k] = null; if (o && o.remove) o.remove(); }
         for (const id in st.cast) st.cast[id].remove();
+        st.cast = {}; st.fr = null; st.ep = null; st.phase = 'idle'; st.beat = ''; st.mov = null; st.disposed = true;
+        const E = ctx.stage.querySelector('#gt-eps'); if (E) { delete E.sure; E.classList.remove('sure'); }
       },
     };
   }
