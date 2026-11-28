@@ -29,16 +29,19 @@ const MEASURE = ([HEAD, MX, MY]) => {
     // Run 552 failed frame 7 on one taken out so, 2.09 m from the lens, counted as a copy)
     const head = 0.14 * crown * H * Math.abs(proj) / 2 / depth, r = R.active.get(i), whole = !!(r && !r.cold && r.root.visible);
     const copy = !whole && !(r && !r.cold) && !!(q.mesh && q.slot < q.mesh.count), top = I.top || [];
-    rows.push({ i, head: +head.toFixed(1), d: +depth.toFixed(2), mid: Math.abs(V.x) < MX && Math.abs(V.y) < MY, whole, copy, hidden: !whole && !copy, cold: !!(r && r.cold) || (q.pickWait != null && q.pickWait >= (I.frame || 0) - 1), rank: top.findIndex(t => t[0] === i) });
+    const warming = !!(r && r.cold), wait = !warming && q.pickWait != null && q.pickWait >= (I.frame || 0) - 1; // (warming: made, its programs looked up off the frame; wait: its character not come)
+    rows.push({ i, head: +head.toFixed(1), d: +depth.toFixed(2), mid: Math.abs(V.x) < MX && Math.abs(V.y) < MY, whole, copy, hidden: !whole && !copy, cold: warming || wait, warming, wait, rank: top.findIndex(t => t[0] === i) });
   }
   return { rows, nNear: I.nNear, active: I.active, want: I.want, unloaded: I.unloaded, capped: I.capped, big: I.big, fov: +cam.fov.toFixed(1), heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null };
 };
 // the far copies that should not be: over HEAD (in play over a tenth more, a frame's lag and the pick's HOLD), in the
-// frame's middle (strict: anywhere in the frame), not waiting for their character or being warmed, and not past the
-// pick's cap (more people over HEAD in view than a tier draws whole: the middle's go first, so only then may one be a copy)
-function judge(m, { HEAD = 30, strict = false } = {}) {
+// frame's middle (strict: anywhere in the frame), not being warmed, and not past the pick's cap (more people over HEAD in
+// view than a tier draws whole: the middle's go first, so only then may one be a copy). One waiting for their character
+// is let off only while the cast may still be on its way (late: false); once it is due, waiting is a far copy like any
+// other (issue 261: at the kerb on a desktop twenty of twenty-four such heads waited six minutes, and passed as waiting)
+function judge(m, { HEAD = 30, strict = false, late = false } = {}) {
   if (!strict && m.big != null && m.big > m.nNear) return [];
-  return m.rows.filter(r => r.copy && !r.cold && (strict || r.mid) && r.head >= HEAD * (strict ? 1 : 1.1));
+  return m.rows.filter(r => r.copy && !r.warming && (late || !r.wait) && (strict || r.mid) && r.head >= HEAD * (strict ? 1 : 1.1));
 }
 if (require.main === module) (async () => {
   const { chromium } = require('playwright');
@@ -64,7 +67,7 @@ if (require.main === module) (async () => {
   const shot = async (name, label, strict) => {
     await p.screenshot({ path: `${out}/${tag}-${name}.png`, timeout: 180000 });
     const m = await p.evaluate(MEASURE, [HEAD, MX, MY]);
-    const big = m.rows.filter(r => r.head >= HEAD), copies = big.filter(r => r.copy), bad = judge(m, { HEAD, strict });
+    const big = m.rows.filter(r => r.head >= HEAD), copies = big.filter(r => r.copy), bad = judge(m, { HEAD, strict, late: true }); // (late: the stills come after the cast's way in, below, which holds its own deadline)
     console.log(`${label}: ${m.rows.length} in the frame, ${big.length} with a head over ${HEAD} px (${big.filter(r => r.mid).length} in the middle), ${copies.length} of those far copies${copies.length ? ` (${copies.map(r => `${r.head} px at ${r.d} m${r.mid ? ', middle' : ''}${r.cold ? ', warming' : ''}, rank ${r.rank}`).join('; ')})` : ''}${big.some(r => r.hidden) ? `, ${big.filter(r => r.hidden).length} taken out by the game (not drawn)` : ''}; whole drawn ${m.active}, the pick ${m.nNear}${m.big != null ? ` (${m.big} by size)` : ''}, waiting ${m.unloaded}, fov ${m.fov}, heap ${m.heapMB} MB`);
     if (bad.length) { fail++; console.log(`  FAIL ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over ${HEAD} px ${strict ? 'in the frame' : "in the frame's middle"}`); }
     report.push({ name, label, ...m });
@@ -85,12 +88,31 @@ if (require.main === module) (async () => {
     // the near cast's characters streamed in (the frames above run back to back, with no time for a load between them):
     // up to two minutes of the page's own time, frames with the page's tasks between them, until none is waited for
     const t0 = Date.now();
+    let st0 = 0;
     for (let k = 0; k < 240; k++) {
-      const st = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 3; i++) { g.player.speed = 0; g.frame(1 / 30); } const R = g.crowdDraw(), I = R.nearInfo(); let cold = 0; for (const r of R.active.values()) if (r.cold) cold++; return I.unloaded + cold; });
+      const st = st0 = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 3; i++) { g.player.speed = 0; g.frame(1 / 30); } const R = g.crowdDraw(), I = R.nearInfo(); let cold = 0; for (const r of R.active.values()) if (r.cold) cold++; return I.unloaded + cold; });
       if (!st) break;
       await p.waitForTimeout(500);
     }
-    console.log(`${name} ${size}: the near cast in after ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+    // (and the cast is due within CAST_SLOTS of the upload queue's slots since the page opened (world.js upload: one a
+    // frame, a few pictures each): a measure of the pace and order the cast streams in that a software renderer's slow
+    // frames do not change. On a display at 60 Hz a hundred slots are under two seconds. Before issue 261 the queue sent
+    // a picture a slot, in the order the cast was asked for, and the desktop's twenty characters of five pictures each
+    // took 134 slots and more behind the hero level's; with the texel budget and the pick's order, 57. A phone's eight, 15)
+    const slots = await p.evaluate(() => (window.OEWorld && OEWorld.uploadStats ? OEWorld.uploadStats().slots : null)), CAST_SLOTS = +(process.env.CAST_SLOTS || 100), late = st0 > 0;
+    console.log(`${name} ${size}: the near cast in after ${((Date.now() - t0) / 1000).toFixed(0)} s${late ? `, ${st0} still waited for or warming` : ''}, ${slots ?? '?'} slots of the upload queue since the page opened`);
+    if (late) { fail++; console.log(`  FAIL the near cast not in after ${((Date.now() - t0) / 1000).toFixed(0)} s: ${st0} near people still far copies (people.js lib.require, world.js upload)`); }
+    if (slots != null && slots > CAST_SLOTS) { fail++; console.log(`  FAIL the near cast took ${slots} slots of the upload queue (over ${CAST_SLOTS}): the cast streams too slowly or out of the pick's order (world.js upload, people.js lib.urge)`); }
+    // where each character's time went (people.js lib.stream, ms of the page's clock): its file, its parse and hair, the
+    // wait for its warm-up, the warm-up (its pictures up, a frame each, and its programs)
+    const sm = await p.evaluate(() => { const g = window.__game, S = g.peopleLib && g.peopleLib.stream; if (!S) return null; const up = window.OEWorld && OEWorld.uploadStats ? OEWorld.uploadStats() : null; return { S, up }; });
+    if (sm) {
+      const rows = Object.entries(sm.S).filter(([, T]) => T.ask != null).sort((a, b) => a[1].ask - b[1].ask), a0 = rows.length ? rows[0][1].ask : 0, s = (x, y) => (x != null && y != null ? ((y - x) / 1000).toFixed(1) : '-');
+      console.log(`${name} ${size}: the cast's way in, s (asked at / file / parse+hair / to the warm-up / warm-up / in at):`);
+      for (const [n, T] of rows) console.log(`  ${n.padEnd(34)} ${s(a0, T.ask).padStart(6)} ${s(T.ask, T.glb).padStart(6)} ${s(T.glb, T.hair).padStart(6)} ${s(T.hair, T.warm0).padStart(6)} ${s(T.warm0, T.done).padStart(6)} ${s(a0, T.done).padStart(6)}`);
+      if (sm.up) console.log(`  the upload queue: ${JSON.stringify(sm.up)}`);
+    }
+    if (process.env.CAST_ONLY) { await b.close(); process.exit(0); } // (CAST_ONLY=1: only how the cast comes in, to measure)
     // the swap in step (STRIDE=0 leaves it out): the walking whole people sent back to their far copies for a few frames
     // and taken over again, and at that frame the foot forward on the whole person (its feet in its own space) set beside
     // the foot the far copy had forward (its shader's sin(ph)): the same foot, or the walk hitches at the swap

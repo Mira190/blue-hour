@@ -1444,7 +1444,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // the walkers there are room for: on the medium and high tiers a city's peak (game.crowd.pedestrians_peak),
   // on the low tier its usual number, so a phone draws no more people than it did
   const crowdPool = QC.name === 'low' ? CR.pedestrians || 300 : CR.pedestrians_peak || CR.pedestrians || 300;
-  const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, bigCap: touch ? 16 : QC.name === 'high' ? 40 : 28, stillNear: touch ? 24 : 40, stillCap: touch ? 48 : 80, style: CR.style, camera, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
+  const crowd = OEActors.crowd(world, crowdNet, U, crowdPool, CR.radius_m || 450, lib && (P => (crowdDraw = OEPeople.crowdRenderer(world, lib, U, P, { near: touch ? 10 : QC.name === 'high' ? 24 : 14, bigCap: touch ? 16 : QC.name === 'high' ? 40 : 28, stillNear: touch ? 24 : 40, stillCap: touch ? 48 : 80, style: CR.style, camera, inPlay: () => playing, real: realCast(), realHeight: CR.height, ...(QC.lean ? { coarseM: 24, farM: 260 } : {}) }))),
     { benches: lib ? benches : null, ground: lineGround, wall: (x, y, z) => nav.solid(x, y, z, 0.2) || (wellAt && wellAt(x, y)) /* (none at the planned area's edge: the crowd walks on past it, as the traffic drives on: bounds.js) */, posts,
       clear: wellAt ? (x, y, z) => nav.room(x, y, z, 0.3) && !wellAt(x, y) : (x, y, z) => nav.room(x, y, z, 0.3), eye: camera, shut: wellAt, sight: (x, y, z) => nav.solid(x, y, z, 0.2) }); // (a shut well is a wall to the crowd: nobody cuts across its mouth)
   // the side of the road the city keeps to: game.keep, its trams', or the country's rule
@@ -1744,11 +1744,31 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // another pad while it stands shut down far out of sight, and it is waiting there when you
   // arrive, as a pilot's quest expects (the pad within 300 m of you, it more than 700 m away).
   let padCheck = 0;
+  // In a story the helicopter is seen only on its pad through the frame before its flight and in that flight (ctx.board,
+  // ctx.film), and was held all the same in every other frame, out of sight: 9.5 MB of a phone's GPU through frame 5's
+  // Stop and frames 6 and 7 (main red, run 529), and from the title through frames 1 to 3. Through those two frames it is
+  // fetched as ever (by being near, and from the title on a desktop), so that it is warm by the flight: asked for later, a
+  // case taken up at frame 5 on the street flew before it was, and the film's wait for it started the flight's score
+  // outside the tap that began it. In every other frame it is not asked for and is let go (storyHeliDrop). The walk, and
+  // the title before a case is chosen (storyCase), keep it as before. true while the story has it put away
+  let storyFlown = -1;
+  const storyCase = () => !!(story && story.state && story.state.phase !== 'idle' && story.state.phase !== 'dressed'); // (from its first card to its last, the last card's too; not under the title, 'dressed', where the frame a case will be taken up at is not yet known)
+  // (a flight in this frame not yet flown, or in the next: fetched as ever then, by being near and from the title, so that it
+  // is warm by the flight; in every other frame of a case it is put away)
+  const storyHeliFlies = () => { const s = story && story.state, F = s && s.ep && s.ep.frames; if (!F) return true; const fl = f => !!(f && f.flight && f.flight.craft !== false); return (fl(F[s.fi]) && storyFlown !== s.fi) || fl(F[s.fi + 1]); };
+  const storyHeliAway = () => storyCase() && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active && overture.story) && !storyHeliFlies(); // (overture.story: a flight's film, ctx.film; the opening's film flies no helicopter)
+  let heliAwayAt = 0; // (since when it has stood put away and hidden: storyHeliDrop)
+  function storyHeliDrop() {
+    if (!storyHeliAway() || heli.group.visible || !heli.drop || !(heli.late && heli.late().real)) { heliAwayAt = 0; return; } // (real: made, warm or still warming)
+    const now = performance.now();
+    if (!heliAwayAt) heliAwayAt = now;
+    else if (now - heliAwayAt > 2000) { heliAwayAt = 0; if (heli.drop()) console.info('helicopter: let go, the story has put it away'); }
+  }
   function heliToPad() {
     if ((padCheck -= 1) > 0) return;
     padCheck = 30; // every half second or so
     const st = heli.st;
-    if (!heli.loaded() && Math.hypot(st.x - player.x, st.y - player.y) < (QC.budget && QC.budget.extras === false ? 150 : 800)) heli.want(); // its model, once you are near it
+    if (!heli.loaded() && !storyHeliAway() && Math.hypot(st.x - player.x, st.y - player.y) < (QC.budget && QC.budget.extras === false ? 150 : 800)) heli.want(); // its model, once you are near it (in a story, only for the frames that show it: storyHeliAway)
     if (!heli.loaded() && heli.hurry && Math.hypot(st.x - player.x, st.y - player.y) < 80) heli.hurry(); // (and its pictures first as you come to its pad, or to the foot of the tower it stands on: it is not drawn until warm)
     if (!st.landed || st.on || st.rotor > 0.02 || st.door > 0 || Math.hypot(st.x - player.x, st.y - player.y) < 700) return;
     for (const p of G.helipads) {
@@ -3578,9 +3598,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         film.f = f;
         if (f && craft) set = heliSetDown(f, sp);
         // (and whatever the film did, you are let go standing outside it: a skip ends it with the helicopter wherever it was)
-        const done = () => { overture = was; clearOfHeli(); then(); };
+        const done = () => { overture = was; clearOfHeli(); if (craft && story && story.state) storyFlown = story.state.fi; then(); };
         if (f) { overture = f; f.story = performance.now(); if (f.play(done)) return; overture = was; }
         if (sp.end && sp.end.at) spawn(sp.end.at.slice(0, 2), undefined, sp.end.facing);
+        if (story && story.state) storyFlown = story.state.fi; // (the flight skipped: flown all the same)
         then();
       };
       const film = { f: null };
@@ -3595,7 +3616,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // you are nowhere near it (a case taken up again at that frame, on the street: the flight alone); board(null) puts it away
     board: (then, how = null) => {
       const st = heli.st;
-      if (!then) { heliWait = how ? { then: null, idle: how === 'idle' } : null; return null; }
+      if (!then) { heliWait = how ? { then: null, idle: how === 'idle' } : null; if (how && !heli.loaded()) heli.want(); return null; } // (parked or turning over: seen, so its model; the frames before it never asked: storyHeliAway)
       if (player.mode !== 'foot' || Math.hypot(st.x - player.x, st.y - player.y) > 150 || Math.abs(st.z - player.z) > 30) { heliWait = null; return null; }
       if (!heli.loaded()) heli.want();
       heliWait = { then, idle: true };
@@ -5594,6 +5615,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         player.rig.setLook({ acc: holds ? ['camera1964'] : null, neckcam: (h && h.neck_camera) || null });
       }
     }
+    storyHeliDrop(); // (a story's helicopter, put away and out of sight, let go: storyHeliAway)
     if (story && heli.group && !heli.st.on) {
       // (the story's helicopter is seen only on its pad before the flight it plays, and in that flight: story ctx board,
       // film. On the walk it stands on its pad, or wherever you set it down, for anyone to fly: fetched once you are near
