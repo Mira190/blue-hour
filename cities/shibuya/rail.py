@@ -562,8 +562,12 @@ def meshes(Mesh):
         # its outer sides: a side with no other track beside it (the Yamanote's and the freight line's four tracks
         # share one bed between two walls); free[i, 0] the side at -nrm, free[i, 1] at +nrm
         # (nor a side with a platform on it: the masts stood on the island's tactile strip)
+        # (nor a side in a station's box: the bed runs on into an open station's dark (its shed) where the trains go
+        # out of sight, but the box's own walls stand round it there; a wall of the bed's stood on the box's east face
+        # over its print, the Saikyo line's outer track hugging it)
         nb = lambda p: min(g.distance(p) for g in others)
-        free = np.array([[all(nb(Point(*(p + q * sg * k))) > 1.2 for k in (3.0, 4.5, 6.0)) and not decks.contains(Point(*(p + q * sg * 3.0)))
+        boxed = lambda p: any(b.contains(Point(*p)) for b in L["boxes"].values())
+        free = np.array([[not boxed(p) and all(nb(Point(*(p + q * sg * k))) > 1.2 for k in (3.0, 4.5, 6.0)) and not decks.contains(Point(*(p + q * sg * 3.0)))
                           for sg in (-1, 1)] for p, q in zip(P, nrm)])
         out = np.where(free[:, 1], 1.0, np.where(free[:, 0], -1.0, 0.0))   # (the masts' side)
         rails = [offset(P, sg * 1.067 / 2) for sg in (-1, 1)]
