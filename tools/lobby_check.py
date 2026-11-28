@@ -30,8 +30,16 @@ def main():
     G = json.load(open(os.path.join(d, "game.json"), encoding="utf8"))
     near = lambda s, x, y: abs(s[4][0] / 10 - x) < 300 and abs(s[4][1] / 10 - y) < 300
     fails, rooms = 0, []
+    # (a lift city.json gives a lobby has it in game.json: pipeline/game_extras.py writes the lifts afresh from city.json,
+    # without their lobbies, and pipeline/lobby.py puts them back; run alone after it, SKY's street stop lost its door
+    # and the walk's lift beat failed on it, 28 November 2026)
+    want = (json.load(open(os.path.join(ROOT, "cities", city, "city.json"), encoding="utf8")).get("game") or {}).get("lobbies") or {}
     for l in G.get("lifts", []):
         st = l["stops"][0]
+        if l["id"] in want and (not st.get("lobby") or not st.get("door")):
+            print(f"FAIL {l['id']}: city.json gives it a lobby, and game.json's first stop has none: python pipeline/lobby.py --city {city}")
+            fails += 1
+            continue
         if not st.get("lobby") or not st.get("door"):
             continue
         if st["lobby"].get("outside"):   # (a hall that stands outside its building: no lobby cut; its posts are checked below)
