@@ -49,6 +49,13 @@ def main():
         if not h:
             print(f"{C.id}: no hero level {g['id']} in game.json, left out")
             continue
+        if h.get("floor"):
+            # (a level whose floor is its own, SHIBUYA SKY's hall: walked from its own drawn triangles while it is shown, nav.js
+            # lift and game.js heroCover h.height, and on the city's ground while it is not, which is then what is drawn. A
+            # patch of it stood the guide on the hall's slab, 7.5 cm over the forecourt's drawn ground, whenever the hall was
+            # not shown: issues 201 and 258)
+            print(f"{C.id}: {g['id']}: its floor is its own (hero[].floor), walked from what it draws: no patch")
+            continue
         nx, ny, cell = g["nx"], g["ny"], g["cell"]
         z = np.full(nx * ny, -32768, np.int16)
         n = 0

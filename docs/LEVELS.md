@@ -167,6 +167,16 @@ Miyamasu's and SKY's lobby's floors are not: exported too, the two patches met a
 their own (5 cm and 1.2 cm) and the guide stood 6 cm over the paving there (`tools/guide_way.js`, frames 4 and 6), so
 they are left as main has them, without a patch (issue 201). Views: `tools/views/viaduct-158.json`.
 
+**One ground in the three levels** (27 November 2026, issues 201 and 258). The two causes found with
+`tools/floor_why.js` (each part of the walking floor at a point beside every surface a ray meets in what is drawn):
+SKY's lobby's patch stood walkers on its slab whenever the lobby was not shown, though the city's ground was then
+what was drawn, and the lobby, a level whose floor is its own, is walked from its own triangles while it is shown, so
+it has no patch now (`pipeline/hero_floor.py`); and the city's paving was read as the highest point of each
+half-metre cell, so off the Scramble's passage floor the guide stood on its height, 5.5 cm over the bare ground beside
+it (409.6, -1029.8), and it is read from its triangles now (`navcells.js` `paveTri`). The Scramble's and Miyamasu's
+floors are exported again: the Scramble's patch was older than its raised footways (18 cm kerbs walked at the road's
+height), and Miyamasu had none (its pavers 2 to 3 cm over its lift).
+
 Left: under the bed's east half north of y -945 the ground is still 1.7 m up (17.8 m): the bicycle lot's paving at
 the circle's edge is a landmark's, laid on the survey's slope at 17.6 m, and the ground nearest the unknown nodes
 is read from it.

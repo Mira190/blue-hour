@@ -1,0 +1,128 @@
+[
+ {
+  "name": "pass-edge-day",
+  "at": [
+   409.6,
+   -1029.8
+  ],
+  "look": [
+   402,
+   -1024
+  ],
+  "time": "13:00",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "sky-forecourt-day",
+  "at": [
+   521.15,
+   -1082.49
+  ],
+  "look": [
+   528,
+   -1077
+  ],
+  "time": "13:00",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "miyamasu-edge-day",
+  "at": [
+   471.7,
+   -1023.0
+  ],
+  "look": [
+   480,
+   -1030
+  ],
+  "time": "13:00",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "pass-edge-dusk",
+  "at": [
+   409.6,
+   -1029.8
+  ],
+  "look": [
+   402,
+   -1024
+  ],
+  "time": "sunset+20",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "sky-forecourt-dusk",
+  "at": [
+   521.15,
+   -1082.49
+  ],
+  "look": [
+   528,
+   -1077
+  ],
+  "time": "sunset+20",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "miyamasu-edge-dusk",
+  "at": [
+   471.7,
+   -1023.0
+  ],
+  "look": [
+   480,
+   -1030
+  ],
+  "time": "sunset+20",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "pass-edge-night",
+  "at": [
+   409.6,
+   -1029.8
+  ],
+  "look": [
+   402,
+   -1024
+  ],
+  "time": "20:30",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "sky-forecourt-night",
+  "at": [
+   521.15,
+   -1082.49
+  ],
+  "look": [
+   528,
+   -1077
+  ],
+  "time": "20:30",
+  "dist": 3.2,
+  "pitch": 0.32
+ },
+ {
+  "name": "miyamasu-edge-night",
+  "at": [
+   471.7,
+   -1023.0
+  ],
+  "look": [
+   480,
+   -1030
+  ],
+  "time": "20:30",
+  "dist": 3.2,
+  "pitch": 0.32
+ }
+]
