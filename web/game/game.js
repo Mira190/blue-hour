@@ -1724,10 +1724,18 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // arrive, as a pilot's quest expects (the pad within 300 m of you, it more than 700 m away).
   let padCheck = 0;
   // In a story the helicopter is seen only on its pad through the frame before its flight and in that flight (ctx.board,
-  // ctx.film): those ask for its model themselves. Through every other frame it is put away, and was fetched all the same
-  // by being near (800 m, from the title on a desktop; 150 m on a phone) and held to the last card unseen, 9.5 MB of a
-  // phone's GPU through frame 5's Stop and frames 6 and 7 (main red, run 529). true while the story has it put away
-  const storyHeliAway = () => !!story && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active && overture.story); // (overture.story: a flight's film, ctx.film; the opening's film flies no helicopter)
+  // ctx.film). Once the case's last flight is flown it is never seen again in that case, and it was held all the same to
+  // the last card, out of sight: 9.5 MB of a phone's GPU through frame 5's Stop and frames 6 and 7 (main red, run 529).
+  // Until then it is fetched as ever (by being near, and from the title on a desktop), so that it is warm by the flight:
+  // asked for later, a case taken up at frame 5 on the street flew before it was, and the film's wait for it started the
+  // flight's score outside the tap that began it. After it, it is not asked for and is let go (storyHeliDrop). The walk,
+  // and the title before a case is chosen (storyCase), keep it as before. true while the story has it put away for good
+  let storyFlown = -1;
+  const storyCase = () => !!(story && story.state && story.state.phase !== 'idle'); // (from its first card to its last, the last card's too)
+  // (a flight still ahead in the case, this frame's not yet flown or a later frame's: until then it is fetched as ever, by
+  // being near and from the title, so that it is warm by the flight; after the last, never again in that case)
+  const storyHeliFlies = () => { const s = story && story.state, F = s && s.ep && s.ep.frames; if (!F) return true; for (let i = Math.max(0, s.fi); i < F.length; i++) { const f = F[i] && F[i].flight; if (f && f.craft !== false && !(i === s.fi && storyFlown === s.fi)) return true; } return false; };
+  const storyHeliAway = () => storyCase() && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active && overture.story) && !storyHeliFlies(); // (overture.story: a flight's film, ctx.film; the opening's film flies no helicopter)
   let heliAwayAt = 0; // (since when it has stood put away and hidden: storyHeliDrop)
   function storyHeliDrop() {
     if (!storyHeliAway() || heli.group.visible || !heli.loaded() || !heli.drop) { heliAwayAt = 0; return; }
@@ -3563,9 +3571,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         film.f = f;
         if (f && craft) set = heliSetDown(f, sp);
         // (and whatever the film did, you are let go standing outside it: a skip ends it with the helicopter wherever it was)
-        const done = () => { overture = was; clearOfHeli(); then(); };
+        const done = () => { overture = was; clearOfHeli(); if (craft && story && story.state) storyFlown = story.state.fi; then(); };
         if (f) { overture = f; f.story = performance.now(); if (f.play(done)) return; overture = was; }
         if (sp.end && sp.end.at) spawn(sp.end.at.slice(0, 2), undefined, sp.end.facing);
+        if (story && story.state) storyFlown = story.state.fi; // (the flight skipped: flown all the same)
         then();
       };
       const film = { f: null };
@@ -5294,7 +5303,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // loader's wait, issue 148): fetched, built, its shaders compiled and its textures sent now, not during the
     // opening shot; it lands on its pad once the game opens (heliToPad), not in the title's shot
     // (on a phone, after what afterPlayable fetches: one thing at a time)
-    const heliIn = () => { if (running && !(QC.budget && QC.budget.extras === false) && !(story && !walk) && !heli.loaded() && heli.prefetch && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 800) { loadStep('late helicopter'); heli.prefetch(); } };
+    const heliIn = () => { if (running && !(QC.budget && QC.budget.extras === false) && !heli.loaded() && heli.prefetch && Math.hypot(heli.st.x - player.x, heli.st.y - player.y) < 800) { loadStep('late helicopter'); heli.prefetch(); } };
     // the opening's own things (its guide, the air it drifts in, the glows, the painted sky) built and their shaders
     // compiled behind the title too, so that the tap on Play draws them rather than compiles them (overture.js prewarm)
     if (overture && overture.prewarm && !playing && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id))) setTimeout(() => { if (!playing) overture.prewarm(o => compileFor(o)); }, reduced ? 0 : 800);
