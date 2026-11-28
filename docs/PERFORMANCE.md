@@ -3129,6 +3129,10 @@ An ANGLE report (issue 8566) has multi-draw slow on Metal with `flat` shading; n
 - **The trains' cars of one material are one draw** (`trains.js` `poolsOf`, `batch.js` `pool`): a stock's three bodies,
   each near and far, were an instanced mesh a material each; now a material's shapes of every body share a buffer, a car
   is a place in the pool given its shape and matrix each frame, and a car out of view is left out (before, none was).
+  On a phone's lean tier the pool holds the far copy alone: the near cars, drawn within 15 m (a platform's view), have
+  five times its vertices, and in a pool that is held whole once made they kept 9 MB of a phone's GPU memory through
+  every frame after the station (frame 5's roof at 261.7 MB of its 262). They are glbKind's own instanced meshes, not
+  warmed, sent when a car first comes that near: 8.5 to 9 MB less at every frame's peak on a phone.
 - **The canals' walls, copings, rails and beds** a draw a material across the bodies (`inland.js`).
 - **The counters count a multi-draw as one draw** with the triangles of all its parts: the telemetry's sampled frame
   (`telemetry.js`) and `tools/beat_count.js`.

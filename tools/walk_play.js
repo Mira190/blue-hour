@@ -237,6 +237,25 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     // (HELI_PREWAIT=0: not waited for here, the roof's own four minutes and its hurry, game.js heliToPad, must bring it)
     if (PART === 3 && process.env.HELI_PREWAIT !== '0') { const t0h = Date.now(), came = await until(() => window.__game.heli.loaded(), null, 600000); console.log(`(the helicopter's model ${came ? 'in' : 'not in'} after ${Math.round((Date.now() - t0h) / 1000)} s of setting out)`); }
   } else {
+    // a walk kept in this browser (walk.js goOn): Continue the walk is one press, straight in, never the step page (the
+    // owner found Continue asked twice, 28 November 2026); then the walk from nothing kept, as someone who never played
+    if (process.env.WALK_CONT !== '0') {
+      await title();
+      await p.evaluate(() => { localStorage.setItem('bh-walk-talk', JSON.stringify({ last: { part: 2, met: false, done: true, inc: 'helped', rested: true }, taxi: { part: 1, met: false, done: false } })); localStorage.setItem('bh-player', 'W'); localStorage.setItem('bh-walk-intro', '1'); });
+      await title();
+      if (phone) await p.touchscreen.tap(w / 2, h / 2); else await p.keyboard.press('Space');
+      await until(() => window.__game.screen() === 'menu', null, 20000);
+      const go = await p.evaluate(() => { const e = document.getElementById('gt-walk-go'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; });
+      if (!/^Continue the walk/.test(go)) fail(`a walk kept: the title's walk row reads "${go}"`);
+      else {
+        await shot('0-title-kept');
+        await press('#gt-walk-go');
+        if (await until(stepUp, null, 3000)) fail('Continue the walk opened the step page: Continue asked twice');
+        else if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 900000))) fail('Continue the walk: one press, and the walk did not set out');
+        else ok(`a walk kept: "${go.slice(0, 60)}", one press and the walk goes on, no step page`);
+      }
+      await p.evaluate(() => { for (const k of ['bh-walk-talk', 'bh-walk-roll', 'bh-walk-intro', 'bh-player', 'bh-walk']) localStorage.removeItem(k); });
+    }
     await title();
     s = await state();
     const story0 = { eyebrow: s.eyebrow, clock: s.clock };

@@ -680,8 +680,8 @@ world runs on, and the next line is already on screen. A Stop that runs out cost
 the world runs, and stops again when you come back. A page closed mid-case opens at the same frame.
 
 **The opening** (twenty seconds): Shibuya from the air after sunset with every window and screen
-lit, the city that never sleeps; down to the kerb; the crossing from above as the title falls; the
-lights change.
+lit, the city that never sleeps; down to the kerb; the crossing from above under the place and the hour (渋谷 ·
+Shibuya · 10 October · 17:14); the lights change. The story's name falls later, once (*The title, once*, below).
 
 **The Stop has to be seen to be believed.** A street that merely stands still looks like a
 photograph of a street. What the best held moments on screen have in common (the camera moving
@@ -699,7 +699,7 @@ of motion interrupted, at every depth, that the viewer then moves through. So (`
   a splash of water caught as a crown of beads, dust in the air lit by the screens;
 - in the rain of the last frame, the rain itself: thousands of beads hanging, which stand aside
   as you walk through them;
-- the first time, the view turns once round you through all of it while the title falls;
+- the first time, the view turns once round you through all of it, with nothing written over it;
 - when time is let go, everything that hung falls.
 
 **Between places, the city is shown.** A frame can be reached by air (`flight` on the frame: an overture's
@@ -915,16 +915,34 @@ camera's catch, glass when the thing of 1964 comes into the frame, the shutter, 
 postmark, the rotor over the flight, a chord laid note by note at the end.
 
 **The opening, from the page's first second, shows each thing once and never goes back.** The loader (the roll being
-loaded, the key art); the title over the live street at dusk; the film, which goes from far to near and does not leave
-again (the district from the air, down to the kerb, the crossing from above, the kerb behind you); then the street is
+loaded, the key art); the title screen over the live street at dusk (a menu's logo, not the drop); the film, which goes from far to near and does not leave
+again (the district from the air, down to the kerb, the crossing from above under the place and the hour, the kerb behind you); then the street is
 the player's, and **the order is in their hand**: the job sheet they were sent out with comes up into the frame on the
 file's own paper, in its hand, its words coming up as ink does. Who, which kerb, what for, and why at this hour: a
 survey photograph is taken at blue hour, *the few minutes after sunset when the sky and the street lamps are equally
 bright*. Under it, the old plan's corner with its one pencilled word, 待つ. So the hour the story turns on is explained by
 the job, on a thing the player holds, with the street still running behind it; and the word the office will speak of is
 seen before it is said. E or a tap puts it away, it becomes the first line of the file, and the phone rings (below,
-*The opening rebuilt*). The title falls once more, in the first Stop, and nowhere else in play (`order` on the episode;
-`web/game/story.js` `order`).
+*The opening rebuilt*). The story's name falls once in play, as the first frame resolves (*The title, once*, below);
+the order is only the job (`order` on the episode; `web/game/story.js` `order`).
+
+**The title, once** (the owner, 28 November 2026: the name coming up in the first Stop was abrupt, the story begun by
+then with the call and the job, and the name fallen already once in the film). The big narrative openings play their
+hook through and name the game at the act break, once, over a held or wide picture, with music: *The Last of Us* after
+its prologue, *Uncharted 4* after its first chapters, *Red Dead Redemption 2* as the gang rides out of the snow,
+*Ghost of Tsushima* as you ride on after the beach, *Death Stranding* after its cold open (their design only). The
+first frame is ours: the film, the order, the call, the job, the Stop, Sumiko, the print. So the name falls where it
+resolves. Time runs again, the office comes back on the line (*Kagami? …Kagami. You dropped off the line*), and once
+that line has passed, BLUE HOUR with ブルーアワー under it comes up low and small over the live crossing at the hour,
+in the title card's type with no veil over the street (`story.css` `#g-story-card.drop`), for 2.5 s, with a phrase of
+the score (`music.js` sting `title`: the low tonic and the theme's first two notes, on the story's own bus; a phone,
+whose music is a media element, hears none). The player walks on under it, and the first frame's after-lines and the
+second frame's goal wait until it has gone (`story.js` `resume`). The film keeps the place and the hour as its
+establishing card; the first Stop's turn round you is picture and the held chord only; the title screen and the
+loading plate keep the logo, which is a menu's, not a drop. A case taken up at a later frame does not see it; one taken
+up at the first frame sees it at that frame's end; the walk has none. `tools/story_play.js` fails a play in which the
+name comes up anywhere else, or other than once through the first frame; `tools/opening_play.js` takes its still and
+fails it over the office's line or with the next goal up.
 
 It was, for a day, a black card with typing on it between the title and the film: the street had been shown, was taken
 away for the card, and was then come down to again from the air. Out, for that reason.
@@ -1062,8 +1080,8 @@ the second frame's goal. Read against what the openings of the big narrative gam
 
 So the first frame plays:
 
-1. **The film** (half a minute, unchanged): the district from the air, down to the kerb, the crossing from above as the
-   title falls, the kerb behind you as the lights change.
+1. **The film** (half a minute): the district from the air, down to the kerb, the crossing from above under the place
+   and the hour, the kerb behind you as the lights change.
 2. **The order in the hand** (unchanged): the job sheet, its ink coming up; E or a tap puts it away.
 3. **The call** (about forty seconds): the phone buzzes in a pocket (`audio.js` `phone`: a motor's hum and the case's
    rattle, no ringtone) and the office speaks hands-free while the player walks and looks and the crowd crosses round
@@ -1076,10 +1094,10 @@ So the first frame plays:
    saying where it is; with her corner inside the frame lines for 0.8 s (`hold_s`), within 80 m (`within_m`), the world
    stops. The release with it framed is the moment at once.
 5. **The Stop**, from across the road: the lens held 1.1 s of the story's time while the street brakes in it, then down;
-   the turn round you, the title, the dog's film, and the walk across the held crossing to her (it was a walk of a few
+   the turn round you, the dog's film, and the walk across the held crossing to her (it was a walk of a few
    steps from a Stop begun at her kerb by the card; now the whole crossing, through three thousand people standing still).
 6. Her talk (six lines before the camera is in the hand; the lift, the night train, the tickets and the match after the print, since issue 164), the camera of 1964 taught, the print, and time running: the office back on the line if it was cut off, the
-   after-lines, and the second frame's goal at once.
+   story's name, once (*The title, once*), the after-lines, and the second frame's goal.
 
 A case taken up again at the first frame hears the call again; a Stop that runs out comes again where it stopped,
 without the job. `tools/opening_play.js` plays it on a desktop and a phone and fails where any of this does not hold;
@@ -2364,7 +2382,7 @@ own promise (*somebody turns to look at you*) is paid at about minute four.
 |---|---|---|---|
 | 1 | Before the camera is in the hand she says only what puts it there (six lines: *You came late*; whom she was not waiting for; what he said of the hour; the boy; *take it*; *raise it to my corner*). The lift and the glove, the night train, the tickets and the family's match are said **after** the first print, as the answer to the board with his name on it | The print opens the gap her story fills (Loewenstein; *Obra Dinn*). Every fact stays in frame 1, so section 9's fair play is unchanged | **Built** (`cities/shibuya/city.json` frame 1 `afterimage.lines` and `task.lines`) |
 | 2 | The camera is taught by its goals alone; the card of four steps goes | It is taught twice, and the goals already say each step at the moment it is done | Proposed; the default is to cut the card |
-| 3 | Nothing between the Stop and the walk to her but the dog: the title falls over the walk, not before it | The hook is the Stop; each thing after it and before her spends it | Proposed |
+| 3 | Nothing between the Stop and the walk to her but the dog | The hook is the Stop; each thing after it and before her spends it | Built: the name is out of the Stop altogether and falls once as the first frame resolves (*The title, once*, 28 November 2026) |
 | 4 | Kagami's own stake as an act in frame 1 or 2 (the phone taken out and the sister's call let ring, by the player's hand), not only a call heard | Principle 1 for the one person the player is | Proposed; a choice of taste |
 | 5 | Who you play asked after the first print, or kept to one press | Three screens before the street | Proposed; the owner asked for the screen as it is, so the default is to keep it |
 | 6 | Measure it: the seconds from the press to the first print as a `story` beat of its own, and issue 14's five players | Three of eight is eight plays, all the owner's | Proposed |
@@ -2468,19 +2486,23 @@ cold, and each warm story after the one it names, the nearest giver and its hold
 beside another's giver, the train's call and its end; `tools/walk_play.js` stands nearest Shun with her story told and
 hears him open cold.
 
-*The walk kept, and the walk begun again* (the owner, 27 November 2026: a first load told from a saved one, and a way to
-play the walk from its start), as story-driven open worlds offer a last save over a new game, apart from the case's own
-Continue. With no story of the walk begun, the title's way in is *Walk Shibuya*: the opening flight and the office's
-call. With one begun (`walktalk.js` `saved`), it is *Continue the walk* with where you were in one line (*Mr Oda · Drive
-to 109, at the foot of Dogenzaka · 2 of 6 told*), *Start the walk again* under it, and the step names the story above the
-hour and the sky. Continue sets out without the flight or the call: the crane down to your shoulder, and a card over the
-street (*Where you left it · 2 of 6 told*, the story's name, what it asks), then the corner's story as above. Start the
-walk again, from the title or the walk's menu, asks first (*Your walk so far will be lost: the people you met and where
-their stories stand. Your photographs are kept.*); then the walk's stories, the incident's fall and the office's call are
-forgotten (`clear`), the views found and their photographs kept (`bh-walk-roll`), and it sets out as a first visit. From
-the street or a walk parked under the title the page opens again on the walk's step (`bh-walk-anew`), since its people,
-car and clock have no way back in place. `tools/walk_save.js` plays it all on a desktop and a phone, with a still of each
-screen.
+*The walk kept, and the walk begun again* (the owner, 27 and 28 November 2026: a first load told from a saved one, a way
+to play the walk from its start, and Continue asked once, not twice), as a game's main menu offers its last save: one
+press takes you back in, with what and where beside it, and the options of a new game are asked only for a new game.
+With no story of the walk begun, the title's walk row is *Walk Shibuya*, which opens the step (the hour, the sky, Set
+out), then the opening flight and the office's call. With one begun (`walktalk.js` `saved`), it is *Continue the walk*
+with where you were in one line (*Mr Oda · Drive to 109, at the foot of Dogenzaka · 2 of 6 told*): one press (Enter or a
+pad's A on the row) sets out at once at the hour and the sky it was left at (`walk.js` `goOn`), without the flight or the
+call, the crane down to your shoulder and a card over the street (*Where you left it · 2 of 6 told*, the story's name,
+what it asks). *Start the walk again* under it opens the step as a new walk's; its Set out says once what is lost (*Your
+walk so far will be lost: the people you met and where their stories stand. Your photographs are kept.*). Start again
+forgets the walk's stories, the incident's fall and the office's call (`clear`), keeps the views found and their
+photographs (`bh-walk-roll`), and sets out as a first visit; Keep my walk goes back to the title as it was. The walk's
+menu changes the hour and the sky as you walk, and has Start the walk again too, asked on its first press; from the
+street or a walk parked under the title the page opens again on the walk's step (`bh-walk-anew`). The menu's button back
+to the street is *Resume*, so that Continue means only going back to what is kept. `tools/walk_play.js` presses Continue
+the walk once and fails if the step page opens; `tools/walk_save.js` plays all of it on a desktop and a phone, with a
+still of each screen.
 
 The holes found and closed in this pass: her first words about a fall the visit never saw (the fall kept too early);
 the incident waiting for ever with her out of the picture (a phone's narrow frame on a walk taken up again, with no call to turn the view to her: never in 15 minutes), and on the man's model (his pictures now go first, and he comes as his stand-in after 20 s);

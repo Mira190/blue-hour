@@ -50,16 +50,12 @@ window.OEWalk = (function () {
       kept = ctx.saved ? ctx.saved() : null;
       go.innerHTML = kept ? `<span>Continue the walk</span><small>${esc(was1(kept))} · ${kept.told} of ${kept.of} told</small><kbd>↵</kbd>` : '<span>Walk Shibuya</span><small>No story · any hour, any sky</small><kbd>↵</kbd>';
       anew.hidden = !kept;
-      const w = step.querySelector('#gt-walk-was'), set = step.querySelector('#gt-walk-set span');
-      if (w) { w.hidden = !kept; w.innerHTML = kept ? `<small>Where you were</small><b>${esc(kept.title || 'The walk')}</b><span>${esc(was1(kept))} · ${kept.told} of ${kept.of} stories told</span>` : ''; }
-      if (set) set.textContent = kept ? 'Continue' : 'Set out';
     }
     const step = document.createElement('div');
     step.className = 'gt-walk'; step.id = 'gt-walk'; step.hidden = true;
     step.setAttribute('role', 'group'); step.setAttribute('aria-labelledby', 'gt-walk-l');
     const seg = (k, list) => `<div class="gt-walk-seg" role="radiogroup" aria-label="${k === 't' ? 'The hour' : 'The sky'}" data-k="${k}">${list.map(([v, label]) => `<button type="button" role="radio" aria-checked="false" data-v="${v}"><b>${esc(label)}</b><small></small></button>`).join('')}</div>`;
     step.innerHTML = `<span class="eyebrow" id="gt-walk-l">Walk Shibuya</span>
-<p class="gt-walk-was" id="gt-walk-was" hidden></p>
 <div class="gt-walk-row"><span>The hour</span>${seg('t', HOURS)}</div>
 <div class="gt-walk-row"><span>The sky</span>${seg('w', SKIES)}</div>
 <div class="gt-walk-acts"><button type="button" class="btn primary" id="gt-walk-set"><span>Set out</span><kbd>↵</kbd></button><button type="button" class="btn" id="gt-walk-back"><span>Back</span><kbd>Esc</kbd></button></div>
@@ -70,19 +66,30 @@ window.OEWalk = (function () {
     // (Start the walk again, asked first: the step opened on its question, Keep my walk back to where it was, Start again
     // forgets the walk's stories and sets out as a first visit, its opening and the office's call included. A walk parked
     // under the title, or one out on the street, cannot be taken back in place: the page opens again on this step, game.js)
-    let sure = false, sureFrom = null;
+    let sure = false;
+    // (asked once, on the new walk's Set out, over a walk kept: Keep my walk back to the title as it was, Start again forgets
+    // the walk's stories and sets out as a first visit)
     function ask(on) {
       sure = on; step.classList.toggle('sure', on);
       const f = step.querySelector(on ? '#gt-walk-keep' : '#gt-walk-set'); if (f) f.focus({ preventScroll: true });
-      if (!on && sureFrom === 'title') { sureFrom = null; open(false); anew.focus({ preventScroll: true }); }
+      if (!on) { open(false); anew.focus({ preventScroll: true }); }
     }
     function wipe() {
-      sure = false; sureFrom = null; step.classList.remove('sure');
+      sure = false; step.classList.remove('sure');
       if (!ctx.anew || !ctx.anew()) return; // (the page opens again: game.js)
       keptSync();
       setOut();
     }
-    anew.addEventListener('click', e => { e.stopPropagation(); open(true); if (isOpen) { sureFrom = 'title'; ask(true); } });
+    // Continue the walk: one press, straight back into it at the hour and the sky it was left at, as a game's Continue
+    // takes up the last save (the owner found Continue asked twice, the row and then the step's button, 28 November 2026).
+    // The step, the hour and the sky, is a new walk's: the first, or Start the walk again; the walk's menu changes both as
+    // you go
+    function goOn() {
+      if (walking || !ctx.whoGate()) return; // (who you play first, as for the story)
+      walking = true;
+      ctx.start(spec, { cont: true });
+    }
+    anew.addEventListener('click', e => { e.stopPropagation(); open(true); });
     const blurb = q('#gt-blurb'), eyebrow = q('#gt-city');
     let was = null; // (the title's own lines, put back when the step is left)
     const LINE = 'No case and no clock running out: the crossing as it is, at the hour you choose, for as long as you like. Esc changes the hour and the sky as you go.';
@@ -121,16 +128,16 @@ window.OEWalk = (function () {
       sync(); ctx.preview(spec);
     }
     const turn = (k, d) => { const list = k === 't' ? HOURS : SKIES, i = list.findIndex(x => x[0] === spec[k]); pick(k, list[(i + d + list.length) % list.length][0]); };
-    function setOut() {
+    function setOut(cont = false) {
       if (!isOpen || walking || sure) return;
-      const cont = !!kept;
+      if (kept && !cont) return ask(true); // (a new walk over a kept one: what is lost, said once, here)
       walking = true; isOpen = false; step.hidden = true;
       title.removeAttribute('data-walk');
       if (was) { if (blurb) blurb.textContent = was.blurb; if (eyebrow) eyebrow.textContent = was.eyebrow; }
       try { localStorage.setItem(KEEP, JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
       ctx.start(spec, { cont });
     }
-    go.addEventListener('click', () => open(true));
+    go.addEventListener('click', () => (kept ? goOn() : open(true)));
     step.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (!b) return;
@@ -288,7 +295,7 @@ window.OEWalk = (function () {
 <label class="gw-range"><span>The hour <output class="num" id="gw-clock-v"></output></span><input type="range" id="gw-clock" min="0" max="1439" step="1" aria-label="The hour, by the clock"></label>
 <div class="gw-skies" role="radiogroup" aria-label="The sky">${ANY_SKY.map(([v, l]) => `<button type="button" role="radio" aria-checked="false" data-sky="${v}">${l}</button>`).join('')}</div>
 </div></details>
-<div class="gw-acts"><button type="button" class="btn primary" id="gw-continue"><span>Continue</span>${ctx.touch ? '' : `<kbd>${ctx.key('Esc')}</kbd>`}</button></div>
+<div class="gw-acts"><button type="button" class="btn primary" id="gw-continue"><span>Resume</span>${ctx.touch ? '' : `<kbd>${ctx.key('Esc')}</kbd>`}</button></div>
 <details class="gw-fold" id="gw-opts"><summary><span>Options</span><small>Sound · words · frame rate${ctx.touch ? '' : ' · steering'}</small><i aria-hidden="true"></i></summary><div class="gw-fold-in gt-opts-list"></div></details>
 <details class="gw-fold" id="gw-keys"><summary><span>${ctx.touch ? 'Controls' : 'Keys'}</span><small>${ctx.touch ? 'Thumbs · car · helicopter' : 'On foot · car · helicopter'}</small><i aria-hidden="true"></i></summary><div class="gw-fold-in"><table class="gw-keys"><tbody>${keyRows().map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('')}</tbody></table></div></details>
 <button type="button" class="gw-row" id="gw-credits" data-credits><span>Credits</span><small>Sources · licences</small><i aria-hidden="true"></i></button>
@@ -378,7 +385,7 @@ window.OEWalk = (function () {
       // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
       takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },
       // (set out at once from a fresh page, with the hour and sky given: the story's last card where it could not go on in place, or a harness)
-      auto(s) { if (s) spec = { t: HOURS.some(h => h[0] === s.t) ? s.t : 'night', w: SKIES.some(k => k[0] === s.w) ? s.w : 'clear' }; isOpen = true; setOut(); },
+      auto(s) { if (s) spec = { t: HOURS.some(h => h[0] === s.t) ? s.t : 'night', w: SKIES.some(k => k[0] === s.w) ? s.w : 'clear' }; isOpen = true; setOut(!!kept); }, // (a walk kept goes on, unasked: the story's last card, a harness)
     };
   }
   return { create, HOURS, SKIES };

@@ -142,6 +142,18 @@
 #g-story-card small { display: block; font: 400 10px/1 var(--f-mono); letter-spacing: 0.44em; margin-right: -0.44em; text-transform: uppercase; color: var(--amber); }
 #g-story-card small::after { content: ""; display: block; width: 28px; height: 1px; margin: 18px auto 20px; background: rgba(255, 207, 138, 0.6); }
 #g-story-card span { display: block; font: 200 clamp(28px, 5.4vw, 64px)/1.08 var(--f-display); letter-spacing: 0.14em; margin-right: -0.14em; text-transform: uppercase; text-shadow: 0 2px 40px rgba(0, 0, 0, 0.8); }
+/* (the title drop, story.js resume: the story's name once, low and small over the live street as the first frame
+   resolves; the name over its own script, no veil over the street, the player walking on under it) */
+#g-story-card.drop { place-items: end center; padding-bottom: max(16vh, 96px); background: none; transition: opacity 1.3s ease; }
+#g-story-card.drop div { display: flex; flex-direction: column-reverse; align-items: center; }
+#g-story-card.drop span { font-size: clamp(22px, 3.2vw, 38px); letter-spacing: 0.32em; margin-right: -0.32em; text-shadow: 0 1px 24px rgba(0, 0, 0, 0.75); }
+#g-story-card.drop small { margin-top: 14px; letter-spacing: 0.5em; margin-right: -0.5em; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.8); }
+#g-story-card.drop small::after { display: none; }
+/* (the words over whatever the street is under them, white stripes too: a soft shade behind the words alone, as the
+   walk's cards have it, #g-walk-told; and the script under the name in the paper's colour, larger than a mono eyebrow) */
+#g-story-card.drop div { position: relative; }
+#g-story-card.drop div::before { content: ""; position: absolute; z-index: -1; inset: -30px -80px -34px; background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(4, 8, 18, 0.62), rgba(4, 8, 18, 0.38) 52%, transparent 100%); pointer-events: none; }
+#g-story-card.drop small { font: 400 12px/1 var(--f-body); color: rgba(244, 239, 230, 0.86); letter-spacing: 0.42em; margin-right: -0.42em; }
 
 /* ---- the stopped world: colder, darker at its edges and drained of colour (a multiply never lifts the blacks into a grey veil) */
 #g-story-veil { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 1.6s ease; background: radial-gradient(ellipse at 50% 45%, #e6edff 35%, #9aabe6 100%); mix-blend-mode: multiply; }
@@ -720,13 +732,8 @@
 .game-stage.story .gt-walk-acts .btn:not(.primary) { border: 1px solid rgba(244, 239, 230, 0.32); background: transparent; color: rgba(244, 239, 230, 0.75); font-size: 10px; letter-spacing: 0.26em; }
 .game-stage.story .gt-walk-acts .btn:not(.primary):is(:hover, :focus-visible) { border-color: var(--paper); color: var(--paper); }
 .gt-walk-acts kbd { font: inherit; letter-spacing: 0.06em; opacity: 0.8; }
-/* (a walk kept in this browser: where you were, over the hour and the sky; and Start the walk again asked first, in the
-   step's place, as the story's Start the evening again is: its question, Keep my walk and Start again) */
-.gt-walk-was { display: grid; gap: 8px; margin: 2px 0 4px; padding: 14px 16px; border-left: 1px solid var(--amber); background: rgba(4, 8, 18, 0.42); }
-.gt-walk-was[hidden] { display: none; }
-.gt-walk-was small { font: 400 9px/1 var(--f-mono); letter-spacing: 0.3em; text-transform: uppercase; color: rgba(244, 239, 230, 0.6); }
-.gt-walk-was b { font: 300 18px/1.15 var(--f-display); letter-spacing: 0.06em; color: var(--paper); }
-.gt-walk-was span { font: 300 13px/1.45 var(--f-body); color: rgba(244, 239, 230, 0.78); }
+/* (Start the walk again: a new walk's step, and its Set out over a walk kept asks once, in the step's place, as the story's
+   Start the evening again does: its question, Keep my walk and Start again) */
 .gt-walk-sure { display: none; }
 .gt-walk.sure > :not(.gt-walk-sure, .eyebrow) { display: none !important; }
 .gt-walk.sure .gt-walk-sure { display: grid; gap: 12px; }
