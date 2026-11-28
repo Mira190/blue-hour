@@ -1,0 +1,24 @@
+result: cancelled
+run: https://github.com/Mira190/blue-hour/actions/runs/46098932519
+targets: static
+ok   voice  1603 lines the characters say, none about the data or the build
+ok   goals  32 checks: the rules, and 1 live maps' lines played to the last stamp
+ok   pack     the packs up to date
+ok   pack     the packs decode to their JSON
+ok   bake     the set-up's fixed work baked from the packs as they are (BAKE_V 1)
+ok   vis      the sweep hides nothing an exact ray reaches
+ok   0 kept plays' beats within their budgets
+ok   governor a device at its limit settles, gives way and comes back
+ok   guide    the guide goes round a held crowd and keeps in front of a run
+ok   walktalk everyone on the walk talked to in any order says words, and the line's person speaks once up
+ok   rings    the solids valid on their grid
+ok   shibuya: roads over 15 % across 2274 of 367166 m (surveyed 21850), creases over 15 % 503 (surveyed 3265), off a 20 m mean 4.66 cm
+shibuya: road plan ok: 4905 pieces, 15 closed, 362 quiet, 1204 bus streets; ends {'gate': 230, 'dead end': 328, 'closure': 2}
+road widths: 565 pieces carry the surveyed carriageway (41.4 km), 68 single track
+ok   roads    the planned area's ground and every hero level's as the survey has them, every lane inside its kerbs
+bus lines: 51 lines on 308 pieces, each along its one-ways
+road routes: 4 places, every drive between them inside the planned area
+ok   roads    no building stands on a road the survey has: a deck or a bridge over it stands off the ground
+ok   levels   no building stands in a train's way: the Yamanote Line's envelope outside the stations' boxes
+ok   roads    your car's first drive leads on, and every street open to it in the area is one a car can use
+ok slopes: 7862 paved cells steeper than 15% (the budget is 8000)
