@@ -282,7 +282,7 @@ def clear_width(line, z_of, W, tree, step=4.0, reach=15.0):
 
 def measured_closed(roads, measured):
     """The pieces the game's own measure closes (road_measured.json: cut at a wall, or no car fits), by their ends."""
-    by = {tuple(e) for k in ("cut", "off") for e in (measured or {}).get(k, [])}
+    by = {tuple(e) for k in ("cut", "off", "steep") for e in (measured or {}).get(k, [])}
     return {i for i, o in enumerate(roads) if len(o["p"]) >= 6 and (o["p"][0], o["p"][1], o["p"][-3], o["p"][-2]) in by}
 
 
@@ -370,9 +370,9 @@ def plan(roads, extent=None, closed=(), gates=(), measured=None, bus_lines=None,
     ends_dm = lambda o: (o["p"][0], o["p"][1], o["p"][-3], o["p"][-2])
     if measured:
         by = {}
-        for k in ("cut", "off"):
+        for k in ("cut", "off", "steep"):
             for e in measured.get(k, []):
-                by[tuple(e)] = "the built model stands across it" if k == "cut" else "no car fits along it"
+                by[tuple(e)] = {"cut": "the built model stands across it", "off": "no car fits along it", "steep": "your car cannot be driven along it (a drop or a step a car stops at: tools/car_edges.js)"}[k]
         for i, o in enumerate(roads):
             w = by.get(ends_dm(o))
             if w:

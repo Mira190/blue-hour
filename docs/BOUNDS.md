@@ -42,21 +42,44 @@ GTA's radio and soft ceiling, and the turn back rather than a wall.
 
 ## What was adopted
 
-**Where the edge is: from the data, not by guess** (`pipeline/bounds.py`, written to `cities/shibuya/city.json`
-`game.bounds`, copied by `pipeline/game_text.py`).
+**Where the edge is: the story's area, and the drive area round it** (`pipeline/bounds.py`, written to
+`cities/shibuya/city.json` `game.bounds`, copied by `pipeline/game_text.py`).
 
-- **The ground's edge** is the convex hull of what the story and the walk are played round. Each place gets room
+- **The story's area** is the convex hull of what the story and the walk are played round. Each place gets room
   round it: the hero levels' circles plus 45 m (docs/HERO.md), and 70 m round every place a frame of the story stands
-  in or looks at, the walk's views from the street, the start and the car's kerb. The hull is simplified to twelve
-  corners, each simplification moving an edge outward only. The roads that the drives between its places take are places too, with 40 m of room (`pipeline/road_routes.py`, docs/ROADS.md, issue 196: the only way by road to SKY GATE's kerb is round the station by Route 246, and it left the hull by 57 m). That gives x 190 to 683 and y -1282 to -857: about 500 by
-  425 m round the Scramble, Center Gai's mouth, 109's fork, Hachiko, Miyamasu, the Ginza line's box and Scramble
-  Square. It lies well inside the phone's district (`phone_district`), so a phone builds everything inside it at full
-  detail (docs/PERFORMANCE.md).
-- **The air's edge** is the same places given 360 m, plus 120 m round the landmarks the walk's opening flies past
-  (Cerulean Tower, Hikarie): x -80 to 978, y -1585 to -559. It is wider than the ground's because the helicopter sees
-  further. It turns back over the built city, still inside the phone's district, before the land past it shows.
+  in or looks at, the walk's views from the street, the start and the car's kerb, and the roads the drives between its
+  places take (`pipeline/road_routes.py`, docs/ROADS.md, issue 196), with 40 m of room. It comes to about 500 by 425 m
+  (x 190 to 683, y -1282 to -857): 0.14 km², the car's kerb 90 m from its edge. Until 27 November 2026 this was the
+  edge itself.
+- **The drive area is wider** (the owner, 27 November 2026: "I drove off from the start and soon it wouldn't let me go
+  on"). An open world keeps its story's streets small and finished and gives the car a district: GTA's and
+  Spider-Man's story missions are played a few blocks wide in a city the car crosses in minutes. So the ground's edge
+  (`game.bounds.ground`) is now the drive area: `game.drive_area` gives starting corners, an octagon of about 1.2 by
+  1.25 km round the Scramble, and `bounds.py` `drive_area()` slides each edge along its normal, up to 90 m, to where
+  the city's streets cross it least: every street that crosses it costs by its class (a car meets the edge at speed on
+  a trunk road), four times as much within 40 m of a junction (a car is never turned back in a junction), and a street
+  running along the edge within 25 m costs by its length (half in, half out). The edge so finds the back of a block, a
+  park, a railway. It is held 200 m inside a phone's district (`phone_district`: past that a phone has the scenery
+  band and the skyline, docs/PERFORMANCE.md) and round the story's area with the easing band. It stays convex, as
+  `bounds.js` measures a convex edge. Shibuya: x -105 to 955, y -1785 to -310, 1.45 km², ten times the story's area.
+- **What follows the drive area.** Everything that was made for "where a player can go" reads `game.bounds.ground`, so
+  it reaches the drive area with no code of its own: the surveyed ground the page paints (`road_ground.py`: kerbs,
+  footways, islands, zebras, 25 to 121 kB), the lines inside their kerbs (`road_fit.py`), the streets closed to cars
+  because no car fits or a one-way leads into a dead end (`road_plan.py` `playable()`), the routes kept inside
+  (`closeRoads`), the rides' and the map's places (`keep`), and the checks (`first_drive.py`, `deck_check.py`,
+  `car_edges.js`, `bounds_check.js`).
+- **Streets the car cannot drive.** In the hills north and west of the station a few lanes run along a terrace's edge
+  or meet a slope in a step the survey keeps, and the car, driven along them by its own rules, stops
+  (`tools/car_edges.js`). Inside the drive area those are closed to cars as the pieces the game cuts at a wall are: by
+  their ends, under `steep` in `cities/<id>/road_measured.json`, written by `pipeline/road_steep.py` from the check's
+  findings; still painted and walked. Four in Shibuya.
+- **The air's edge** is the story's places given 360 m, the landmarks the walk's opening flies past given 120 m (Cerulean
+  Tower, Hikarie), and the drive area given 290 m, cut to 100 m past a phone's district: x -395 to 1245, y -2075 to -20.
+  It turns back over the built city before the land past it shows.
 - **The ceiling** is 420 m above the sea: well over SKY's roof (244 m), and under Haneda's approach, which is the
   reason the tower gives.
+- **It is on the map.** The minimap and the full map shade what lies past the drive area and draw its edge dashed
+  (`hud.js` `baseMap`), as an open world greys what is not open yet, so the edge is seen before it is met.
 
 **How it is met** (`web/game/bounds.js`, a part of the game: docs/SEAMS.md).
 
@@ -105,3 +128,15 @@ walks, drives and flies at the edge along a street that crosses it, and it fails
 
 It takes stills of the crossing from the walker, of the car at its stop and of the helicopter mid-turn. `ONLY=foot,car,heli`
 runs part of it.
+
+**The drive area on a phone** (`EVAL=tools/drive_stream_probe.js xvfb-run -a node tools/phone_frame.js out`): the
+player carried at a car's pace from the start to 60 m inside each corner of the drive area and back, 11.2 km, the
+buildings' cells built again round them as they go. 27 November 2026, the iPhone's tier under llvmpipe: the arena's
+script 1.1 s in all, 68 ms in its worst frame, 166 MB sent; WebGL's peak 238 MB (the budget is 270). The long frames of
+that run (4 to 6 s) are the software renderer's at the Scramble, with no arena work in them. Not checked: a real iPhone.
+
+**On foot along a wall.** Where a wall runs out across the edge, a walker with the key along the edge is carried out by
+the wall's slide, and setting them back is blocked by the same wall. A step that takes them outward while they are
+within 3 m of the edge now counts as pressing against it (`creep`), and the trail back skips the places of the way they
+came that are not a metre and a half further in, so a walk that ran along the edge turns in, not back along it.
+

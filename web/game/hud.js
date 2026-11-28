@@ -8,7 +8,9 @@ window.OEHud = (function () {
   const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   // ------------------------------------------------------------ base map, 1 px = 2 m
-  function baseMap(D) {
+  // edge: the drive area's corners (game.bounds.ground, bounds.js), or none: the map past it shaded, as an open world greys
+  // what is not open yet, so its edge is seen on the map before it is met on the street
+  function baseMap(D, edge) {
     const G = D.G, f = D.scene.frame, PX = 2, w = Math.round((f.x[1] - f.x[0]) / PX), h = Math.round((f.y[1] - f.y[0]) / PX);
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
@@ -51,6 +53,14 @@ window.OEHud = (function () {
       g.beginPath();
       for (let k = 0; k < r.length; k += 2) { const x = X(r[k] / 10), y = Y(r[k + 1] / 10); k ? g.lineTo(x, y) : g.moveTo(x, y); }
       g.fill();
+    }
+    if (edge && edge.length > 2) {
+      g.beginPath(); g.rect(0, 0, w, h);
+      edge.forEach((q, i) => (i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1]))));
+      g.closePath();
+      g.fillStyle = 'rgba(4, 6, 11, 0.58)'; g.fill('evenodd');
+      g.beginPath(); edge.forEach((q, i) => (i ? g.lineTo(X(q[0]), Y(q[1])) : g.moveTo(X(q[0]), Y(q[1])))); g.closePath();
+      g.strokeStyle = css('--line') || 'rgba(255,255,255,0.35)'; g.lineWidth = 2; g.setLineDash([6, 5]); g.stroke(); g.setLineDash([]);
     }
     return { canvas: cv, X, Y, PX };
   }
