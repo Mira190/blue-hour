@@ -195,6 +195,9 @@ window.OEMusic = (function () {
     meet: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2], a = T.his || [0, 2, 3, 4, 2], o = [];
       for (let j = 0; j < 5; j++) o.push([j * 1.15, 12 + m[h[j]], 'glow', 4, 0.13], [j * 1.15, m[a[j]], 'felt', 3.4, 0.12]);
       return o.concat([[5.9, -9, 'felt', 4.5, 0.15], [5.95, 8, 'felt', 4.5, 0.11], [6.0, 10, 'felt', 4.5, 0.1], [6.3, 20, 'glow', 5, 0.12]]); }, // (E major, on the note they met on)
+    // `title`: the story's name, once, as the first frame resolves (story.js resume): the low tonic, and the theme's first
+    // two notes in the glow over it, slow, the score's own and no louder than a print's note
+    title: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2]; return [[0, -12, 'felt', 4.5, 0.12], [0.04, m[h[0]], 'felt', 3.5, 0.08], [0.7, 12 + m[h[0]], 'glow', 4.5, 0.12], [1.5, 12 + m[h[1]], 'glow', 5, 0.11]]; },
     found: (th, T) => { const m = T.mel || T.scale, h = T.her || [4, 2, 1, 0, 2]; return [[0, 12 + m[h[4]], 'glow', 4.5, 0.15], [1.3, 19, 'glow', 5, 0.1], [1.3, -12, 'felt', 4, 0.1]]; },
   };
 

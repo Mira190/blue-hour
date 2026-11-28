@@ -119,6 +119,15 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     window.Audio = function (...a) { const e = new Au(...a); M.els.push(e); return e; }; window.Audio.prototype = Au.prototype;
     if (O) window.OfflineAudioContext = window.webkitOfflineAudioContext = function (...a) { M.offline++; return new O(...a); }; });
   await p.addInitScript(() => { window.__bodies = []; window.__guarded = []; window.__trunks = []; });
+  // the story's name, each time its card comes up (docs/STORY.md "The title, once"): where the case was, and whether it is
+  // the drop. It falls once in play, as the first frame resolves, never in the film nor in a Stop
+  await p.addInitScript(() => {
+    const D = window.__drops = [];
+    const look = () => { const c = document.getElementById('g-story-card'); if (!c) return setTimeout(look, 500);
+      let on = false;
+      new MutationObserver(() => { const now = c.classList.contains('on'); if (now && !on) { const g = window.__game, S = g && g.story && g.story.state, o = g && (typeof g.overture === 'function' ? g.overture() : g.overture); D.push({ fi: S ? S.fi : -1, phase: S ? S.phase : '', beat: S ? S.beat : '', drop: c.classList.contains('drop'), film: !!(o && o.active), text: c.textContent.trim().slice(0, 40) }); } on = now; }).observe(c, { attributes: true, attributeFilter: ['class'] }); };
+    document.addEventListener('DOMContentLoaded', look);
+  });
   // (whoever of the crowd drawn whole stands in the lens's picture nearer than `far`: a body 0.5 m wide from its feet to 1.75 m, any
   // part of it inside the camera's frustum, in the camera's own space; each with why it stands there)
   await p.addInitScript(() => { window.__inLens = (far = 5) => { const g = window.__game, c = g.camera, T = window.THREE, out = [], R = g.crowdDraw && g.crowdDraw();
@@ -1653,6 +1662,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     if (process.env.GLCALLS) { const gc = require('./gl_calls'); gc.printBeats(await gc.beats(p)); }
     const { hard } = pacing.print(await pacing.report(p));
     if (hard.length) errors.push(`pacing: ${hard.length} of the crowd walked to and fro (${hard.slice(0, 6).map(q => `walker ${q.id} at (${q.x}, ${q.y}), frame ${q.frame}`).join('; ')})`);
+  }
+  { // the story's name fell once, as the first frame resolved: after its print and the office's line, not in the film or a Stop
+    const D = await p.evaluate(() => window.__drops || []).catch(() => null), from = +process.env.FROM || 0, past1 = !upto || upto > 1 || !!process.env.AFTER;
+    if (D) {
+      const bad = D.filter(d => d.film || d.phase === 'stop' || !d.drop || d.fi !== 0 || d.phase !== 'after');
+      if (bad.length) errors.push(`the story's name came up where it does not fall: ${JSON.stringify(bad)}`);
+      else if (!from && past1 && done && D.length !== 1) errors.push(`the story's name fell ${D.length} times in a play through the first frame, not once (${JSON.stringify(D)})`);
+      else if (from && D.length) errors.push(`a case taken up at frame ${from + 1} saw the story's name fall (${JSON.stringify(D)})`);
+      else console.log(`the story's name: ${D.length ? `fell once, as the first frame resolved ("${D[0].text}")` : 'not shown, as a case taken up later'}`);
+    }
   }
   for (const e of errors) console.log('error:', lost.tag() + String(e).slice(0, 300)); // (each, at the end: some are found before the play, and were counted but not said)
   console.log(`stills: ${ST.n}, ${(ST.whole / 1000).toFixed(0)} s drawing their frames whole, ${(ST.shot / 1000).toFixed(0)} s taking them`);
