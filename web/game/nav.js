@@ -127,7 +127,7 @@ window.OENav = (function () {
     const NC = window.OENavCells, { paveKey } = NC;
     const RC = D.navCells && D.navCells.grid === `${DSM.nx}x${DSM.ny}` ? NC.unpack(D.navCells, D.LM, strips) : NC.raster(D.LM, strips, DSM, NC.unwalkedOf(G));
     D.navCells = null;
-    const { solid0, tops, solidMeshes, paving, pavingHid } = RC;
+    const { solid0, tops, solidMeshes, paving, pavingHid, paveTri } = RC;
     const slabs = new Map();  // the same as solid0 for the strips' slabs alone (the collision world's boxes for them)
     const cellOf = (x, y) => {
       const c = Math.floor((x - x0) / DSM.cell), r = Math.floor((y1 - y) / DSM.cell);
@@ -143,12 +143,16 @@ window.OENav = (function () {
     // paving (a forecourt over a colonnade), "upper" holds the slab's level: the ground is the slab,
     // and the floor under it is walked too (floorAt, groundBelow)
     const int16 = s => { const b = bytesOf(s); return new Int16Array(b.buffer, b.byteOffset, b.length >> 1); };
+    // (a hero level's drawn floor, "hero", only within the level's circle: its cells reach half a cell past it, and there
+    // the guide stood 5.4 cm over the city's ground drawn beyond the Scramble's edge, issue 258)
     const patches = (G.patches || []).map(p => Object.assign({}, p, {
-      z: int16(p.data), up: p.upper ? Object.assign({}, p.upper, { z: int16(p.upper.data) }) : null, x1: p.x0 + p.nx * p.cell, y1: p.y0 + p.ny * p.cell }));
+      z: int16(p.data), up: p.upper ? Object.assign({}, p.upper, { z: int16(p.upper.data) }) : null, x1: p.x0 + p.nx * p.cell, y1: p.y0 + p.ny * p.cell,
+      circle: p.hero ? (G.hero || []).find(h => h.id === p.hero && h.at && h.r) || null : null }));
     // the patch's levels at (x, y): [the floor, the slab over it or null], or null off the patches
     function patchAt(x, y) {
       for (const p of patches) {
         if (x < p.x0 || y < p.y0 || x >= p.x1 || y >= p.y1) continue;
+        if (p.circle && Math.hypot(x - p.circle.at[0], y - p.circle.at[1]) > p.circle.r) continue;
         const c = Math.floor((x - p.x0) / p.cell), r = Math.floor((y - p.y0) / p.cell), v = p.z[r * p.nx + c];
         if (v === -32768) continue;
         // (a smooth patch, "smooth": 1, holds a surface sampled at its cells' middles, not walls and risers: a hero level's
@@ -212,6 +216,11 @@ window.OENav = (function () {
       if (OP && (x < T.x0 || y > T.y1 || x >= T.x0 + T.nx * T.cell || y <= T.y1 - T.ny * T.cell)) { const o = OP.at(G, x, y); if (o) { const g = OP.ground(o, x, y); tri = g.slope; return g.z; } }
       if (patches.length) { const h = patchAt(x, y); if (h !== null) { tri = 0; return h[1] !== null ? h[1] : h[0]; } }
       if (pgrid.size) { const h = passageFloor(x, y); if (h !== null) { tri = 0; return h; } }
+      return bare(x, y);
+    }
+    // the game's own ground at (x, y) as its tiles draw it, without the fine levels laid over it (a hero level's drawn floor,
+    // a city's patches): what a hero level's paving is drawn over (game.js heroCover)
+    function bare(x, y) {
       const c = Math.max(0, Math.min(T.nx - 1.001, (x - T.x0) / T.cell)), r = Math.max(0, Math.min(T.ny - 1.001, (T.y1 - y) / T.cell));
       const c0 = c | 0, r0 = r | 0, fc = c - c0, fr = r - r0, i = r0 * T.nx + c0, D = T.data;
       const a = D[i], b = D[i + 1], d = D[i + T.nx], e = D[i + T.nx + 1];
@@ -1083,7 +1092,7 @@ window.OENav = (function () {
     // the city's Hachiko Square to the ankle, 6 to 19 cm under its setts and its tactile lines, which nobody was stood
     // on because the level would draw them again (the owner's iPhone, November 2026; tools/feet_check.js HERO=off)
     function lift(x, y) {
-      let l = 0, inside = false;
+      let l = 0, inside = false, top = -Infinity, drawn = false;
       for (const h of lifts) {
         const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]);
         if (d > 0 && h.shown) {
@@ -1094,9 +1103,18 @@ window.OENav = (function () {
           // the level has there, and is what is stood on. Out on SKY's forecourt past its planks the level had only the slab of
           // grout under them, 13 to 15 cm under the ground drawn over it, and the guide walked in the ground there, issue 190)
           if (h.floor) { const z = h.height ? h.height(x, y) : null; if (z !== null) { const t = terrain(x, y); return z < t && !(h.cutAt && h.cutAt(x, y)) ? 0 : z - t; } continue; }
+          // (once its model has come, its drawn ground itself where it is drawn over the game's own, game.js heroCover h.height:
+          // the lift alone, full to 2 m from the edge, stood the guide 4 to 5.5 cm off what was drawn where the level's builder
+          // laid its paving a little over or under it and at its edge, which is drawn at full height, issue 258)
+          if (h.height) { drawn = true; const z = h.height(x, y), t0 = tri; if (z !== null && z > bare(x, y) + 0.02) top = Math.max(top, z); tri = t0; continue; } // (bare sets the slope: terrain's is kept)
           if (!h.cover || h.cover(x, y)) l = Math.max(l, h.lift * Math.min(1, d / 2));
         }
       }
+      // (and the game's own ground where it is drawn over the level's, or the level draws none: what is drawn is the higher of
+      // the two. Where the ground was graded again after the level was built it stood 26 cm over the Scramble's paving by the
+      // viaduct, and the guide walked in it on the level's floor; in a gap in the paving its floor less its lift, read
+      // between the samples round it, was a centimetre or two off the ground drawn there, issue 258)
+      if (drawn) { const t0 = tri, b = bare(x, y); tri = t0; const t = terrain(x, y), g = Math.max(top, b) - t; return l > 0 ? Math.max(l, g) : g; }
       if (!inside && pavingHid && pavingHid.size) l = Math.max(l, hidLift(x, y));
       return l;
     }
@@ -1116,7 +1134,26 @@ window.OENav = (function () {
     }
     // the paving drawn over the ground at (x, y) (a decal or a "pave" material: navcells.js), or undefined: what floorAt
     // stands a walker on, and the crowd's lines too (game.js lineGround), so that the two stand on one surface
-    function paveAt(x, y) { return paving.size ? paving.get(paveKey(x, y)) : undefined; }
+    // (read from the paving's own triangles where they came, navcells.js paveTri: the highest of them under the point, and none
+    // off their edge, however near; a cell's highest point stood whoever was off a passage's edge 5.5 cm in the air, issue 258)
+    function paveAt(x, y) {
+      if (!paving.size) return undefined;
+      if (!paveTri) return paving.get(paveKey(x, y));
+      const ids = paveTri.cells.get(paveKey(x, y));
+      if (!ids) return undefined;
+      const P = paveTri.xyz;
+      let best = -Infinity;
+      for (let n = 0; n < ids.length; n++) {
+        const o = ids[n] * 9, ax = P[o], ay = P[o + 1], bx = P[o + 3], by = P[o + 4], cx = P[o + 6], cy = P[o + 7];
+        const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+        if (Math.abs(den) < 1e-12) continue;
+        const l1 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den, l2 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den, l3 = 1 - l1 - l2;
+        if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
+        const z = l1 * P[o + 2] + l2 * P[o + 5] + l3 * P[o + 8];
+        if (z > best) best = z;
+      }
+      return best > -Infinity ? best : undefined;
+    }
     function floorAt(x, y, z, cars = false) {
       let best = null, kind = '';
       const take = (h, k) => { if (h <= z + STEP && (best === null || h > best)) { best = h; kind = k; } };
@@ -1125,7 +1162,7 @@ window.OENav = (function () {
       const pr = inland && inland.promenade ? inland.promenade(x, y) : null;
       if (pr) take(pr.z, 'promenade');
       else if (!offGround(x, y)) {
-        const t = terrain(x, y) + (lifts.length ? lift(x, y) : 0), pv = paving.size ? paving.get(paveKey(x, y)) : undefined;
+        const t = terrain(x, y) + (lifts.length ? lift(x, y) : 0), pv = paveAt(x, y);
         take(t, 'ground');
         if (pv !== undefined && pv > t && pv < t + 1.5 && !cars) take(pv, 'ground'); // (paving on the ground, not on a roof; a walker's)
         const u = under(x, y); if (u !== null) take(u, 'ground');
@@ -1393,7 +1430,7 @@ window.OENav = (function () {
     // (a guard rail in a circle of radius r between zlo and zhi: what a car set down at the kerb asks, game.js parkClear,
     // so that your car called to the kerb is not set down with a rail through it)
     const fenceHit = (x, y, r, zlo, zhi) => !!fence && fence.overlap(x, y, r, zlo, zhi);
-    const api = { addFences, pushFence, fenceHit, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    const api = { addFences, pushFence, fenceHit, get fences() { return fenceList.length; }, inWell, lift, paveAt, bare: (x, y) => { const t0 = tri, z = bare(x, y); tri = t0; return z; }, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   // a ceiling's cells from triangles [[x, y, z] x 3] (local metres) over the square (ax, ay) to + n * cell: each cell keeps the

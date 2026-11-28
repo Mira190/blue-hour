@@ -31,6 +31,7 @@
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
 #           - every shared model meshopt-compressed and its parts up to date (pipeline/meshopt_glb.mjs, meshopt.py split);
 #           - nothing that sounds made off the audio thread, outside the one place each is allowed (tools/audio_thread_check.py);
+#           - every sky-light map made by the world's generator, whose blur target is let go (tools/pmrem_check.py);
 #           - no place the story sends the player to stand inside one of its people or its things (tools/standpoints.py);
 #           - the credits: every shipped work with its licence text, the fonts' OFL, the map's sources beside the README's,
 #             a link's picture and its tags, the version's repository, the three ways to the Credits (tools/credits_check.py);
@@ -885,6 +886,7 @@ rm -rf "$OUT/keep"
     st governor governor "a device at its limit settles, gives way and comes back" '^FAIL' node tools/governor_unit.js
     st guide guide "the guide goes round a held crowd and keeps in front of a run" '^FAIL' node tools/guide_unit.js
     st walktalk walktalk "everyone on the walk talked to in any order says words, and the line's person speaks once up" '^FAIL' node tools/walktalk_unit.js
+    st typed typed "no harness judges a line by what the box has typed of it" '^FAIL' python3 tools/typed_box_check.py
     st zebras zebras "every crossing's bars widened to their cells, their paint where it was laid" '^FAIL' node tools/zebra_unit.js "$MAP"
     st rings rings "the solids valid on their grid" '^FAIL|Error' python3 pipeline/solid_rings.py --check "$MAP"
     st ground ground - '^FAIL|Error' python3 pipeline/street_ground.py --city "$MAP" --check
@@ -911,6 +913,7 @@ rm -rf "$OUT/keep"
     st meshopt meshopt - '^FAIL|Error' node pipeline/meshopt_glb.mjs --check web/assets/*/*.glb
     st parts parts "the parts of the shared models up to date" '^FAIL|Error' parts
     st audio audio_thread - '^FAIL' python3 tools/audio_thread_check.py
+    st pmrem pmrem - '^FAIL' python3 tools/pmrem_check.py
     st audio score_files - '^FAIL' node tools/score_files.js --check
     st credits credits - '^FAIL' python3 tools/credits_check.py "$MAP"
     st reach reach - '^FAIL|Error' python3 tools/reach_unit.py

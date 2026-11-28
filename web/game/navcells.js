@@ -67,10 +67,22 @@
     // ... and apart, the paving a hero level draws again and hides (game.json hero[].hide): drawn wherever the level is
     // not shown (from afar, and on a phone in the seconds before it has come), and stood on there (nav.js floorAt)
     const pavingHid = new Map();
+    // ... and the paving's own triangles, by the PAVE cells they reach (xyz: nine numbers a triangle; cells: key -> the
+    // triangles over it), which floorAt reads exactly (nav.js paveAt). The cell's highest point alone stood whoever was
+    // in a cell an edge of the paving grazed at the paving's height: 5.5 cm in the air off the edge of the Scramble's
+    // passage floor, onto the bare ground beside it, where the guide's float check passed and failed by chance (issue 258)
+    const paveTri = { xyz: [], cells: new Map() };
     function pave(m, into = paving) {
       const p = m.position, idx = m.index;
       for (let t = 0; t < idx.length; t += 3) {
         const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+        if (into === paving) {
+          const id = paveTri.xyz.length / 9;
+          paveTri.xyz.push(p[a], p[a + 1], p[a + 2], p[b], p[b + 1], p[b + 2], p[c], p[c + 1], p[c + 2]);
+          const i0 = Math.floor(Math.min(p[a], p[b], p[c]) / PAVE), i1 = Math.floor(Math.max(p[a], p[b], p[c]) / PAVE);
+          const j0 = Math.floor(Math.min(p[a + 1], p[b + 1], p[c + 1]) / PAVE), j1 = Math.floor(Math.max(p[a + 1], p[b + 1], p[c + 1]) / PAVE);
+          for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = (i + 32768) * 65536 + j + 32768, l = paveTri.cells.get(k); if (l) l.push(id); else paveTri.cells.set(k, [id]); }
+        }
         const e = Math.max(Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1]), Math.hypot(p[c] - p[a], p[c + 1] - p[a + 1]), Math.hypot(p[c] - p[b], p[c + 1] - p[b + 1]));
         const n = Math.max(1, Math.ceil(e / (PAVE * 0.7)));
         for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) {
@@ -118,7 +130,7 @@
       tops[m.name] = new Map([...mine].map(([k, q]) => [k, q[1]]));
       for (const [k, q] of mine) { const l = solid0.get(k); if (l) l.push(q[0] - 0.3, q[1] + 0.3); else solid0.set(k, [q[0] - 0.3, q[1] + 0.3]); }
     }
-    return { solid0, tops, solidMeshes, solidAt, paving, pavingHid };
+    return { solid0, tops, solidMeshes, solidAt, paving, pavingHid, paveTri: { xyz: Float32Array.from(paveTri.xyz), cells: paveTri.cells } };
   }
 
   // raster()'s result as typed arrays a Worker hands over, and back: the meshes cut by a strip travel as their
@@ -131,7 +143,7 @@
       for (const k of ks) { const v = M.get(k); if (Array.isArray(v)) vals.push(...v); else vals.push(v); off[++i] = vals.length; }
       return { keys, off, vals: Float64Array.from(vals) };
     };
-    return { solid0: flat(R.solid0), paving: flat(R.paving), pavingHid: flat(R.pavingHid || new Map()), tops: Object.entries(R.tops).map(([name, M]) => [name, flat(M)]),
+    return { solid0: flat(R.solid0), paving: flat(R.paving), pavingHid: flat(R.pavingHid || new Map()), paveTri: R.paveTri ? { xyz: R.paveTri.xyz, cells: flat(R.paveTri.cells) } : null, tops: Object.entries(R.tops).map(([name, M]) => [name, flat(M)]),
       solid: R.solidMeshes.map((m, i) => ({ at: R.solidAt[i], cut: m.claim ? { position: m.position, index: m.index, claim: m.claim.map(s => strips.indexOf(s)) } : null })) };
   }
   // a packed map read in place (issue 406: as Maps of arrays, Tokyo's took 30 MB of the heap): get(k) by a binary
@@ -159,7 +171,7 @@
     const tops = {};
     for (const [name, F] of P.tops) tops[name] = map(F, false);
     const solidMeshes = P.solid.map(s => s.cut ? Object.assign({}, LM.meshes[s.at], { position: s.cut.position, index: s.cut.index, claim: s.cut.claim.map(j => strips[j]) }) : LM.meshes[s.at]);
-    return { solid0: map(P.solid0, true), paving: map(P.paving, false), pavingHid: P.pavingHid ? map(P.pavingHid, false) : new Map(), tops, solidMeshes, solidAt: P.solid.map(s => s.at) };
+    return { solid0: map(P.solid0, true), paving: map(P.paving, false), pavingHid: P.pavingHid ? map(P.pavingHid, false) : new Map(), paveTri: P.paveTri ? { xyz: P.paveTri.xyz, cells: map(P.paveTri.cells, true) } : null, tops, solidMeshes, solidAt: P.solid.map(s => s.at) };
   }
 
   // game.json's strip surfaces as nav.js walks them: each with its profile's distances (us) and heights (zs)
