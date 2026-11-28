@@ -875,6 +875,22 @@ wrong, and redone.
   falls away at its south-west corner; to the south the black lacquered wall against the tower, an 8 mm reveal between
   its panels and a line of light at its foot, capped in stainless. Solid where it is wall and shaft (`game.hero[].posts`,
   138 to 108).
+- **Its stone and its ground** (issue 239, after the rain was settled): the hall's slabs, the tiles and the planks were
+  ambientCG's Granite005A (CC0), a coarse granite whose centimetre crystals and cloudy patches read from a few metres as
+  blotches on the floor. They are now one stone drawn here (`honed`, 0.8 m a repeat): a honed light grey granite of a
+  fine even grain, the kind of Inada's stone Japanese floors are laid in, its only changes of tone the feldspar's and
+  the quartz's grains and the black mica's specks a millimetre or two across, everything wider than 3 cm taken out, so
+  that every hand's breadth of it is one tone and each slab, tile and plank keeps the one tint it is given. No
+  photograph of the hall's inside was found (above); the photographs of the entrance show pale square tiles and the
+  forecourt's honed planks, and nothing in them is mottled. And the "flat untextured grey" beside the hall in the QA
+  still was not a wall: it was the game's ground and the grout. The model was built before the terrain was graded again
+  on 24 November, and three things let the ground or the grout over the stone: the grout under the planks was one quad
+  over the forecourt, its height taken between its four corners, 2 cm over the planks where the ground rises between them
+  (the joints' lines of light drawn across it); the last two courses of tiles before the doors come down to the hall's
+  floor, under the ground where it rises to the north, and the ground came through them in grey patches with a slanting
+  edge. Now the grout is laid in 0.6 m cells on the paving's own heights 12 mm under it, the lines of light in 0.6 m
+  pieces on the planks, and those two courses are the hall's own floor (`room_floor_tile`), where the game does not draw
+  its ground (game.js heroCover); the model is built from today's terrain, its floor's height unchanged (15.827 m).
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
   behind them the shaft outside the tower's east face, glass in stainless frames with a transom at each shop floor, up
