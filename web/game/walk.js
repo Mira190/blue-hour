@@ -38,17 +38,51 @@ window.OEWalk = (function () {
     // same as the others: its name, a word on it, and the Enter key (story.css "the title's ways in")
     const go = document.createElement('button'), row = q('.gt-go');
     go.type = 'button'; go.className = 'btn'; go.id = 'gt-walk-go';
-    go.innerHTML = '<span>Walk Shibuya</span><small>No story · any hour, any sky</small><kbd>↵</kbd>';
-    if (row) { const s = row.querySelector('#gt-story-go'); if (s) s.after(go); else row.append(go); }
+    // (a walk kept in this browser: its way in is Continue, with where you were in one line, and under it Start the walk
+    // again, as a game's last save is offered over a new one; the case's own Continue is the story's and kept apart)
+    const anew = document.createElement('button');
+    anew.type = 'button'; anew.className = 'btn'; anew.id = 'gt-walk-anew'; anew.hidden = true;
+    anew.innerHTML = '<span>Start the walk again</span><small>From the beginning · your photographs kept</small><kbd>↵</kbd>';
+    if (row) { const s = row.querySelector('#gt-story-go'); if (s) s.after(go); else row.append(go); go.after(anew); }
+    let kept = null; // (the walk kept: walktalk.js saved)
+    const was1 = k => (k.who ? `${k.who} · ${k.goal}` : k.goal);
+    function keptSync() {
+      kept = ctx.saved ? ctx.saved() : null;
+      go.innerHTML = kept ? `<span>Continue the walk</span><small>${esc(was1(kept))} · ${kept.told} of ${kept.of} told</small><kbd>↵</kbd>` : '<span>Walk Shibuya</span><small>No story · any hour, any sky</small><kbd>↵</kbd>';
+      anew.hidden = !kept;
+      const w = step.querySelector('#gt-walk-was'), set = step.querySelector('#gt-walk-set span');
+      if (w) { w.hidden = !kept; w.innerHTML = kept ? `<small>Where you were</small><b>${esc(kept.title || 'The walk')}</b><span>${esc(was1(kept))} · ${kept.told} of ${kept.of} stories told</span>` : ''; }
+      if (set) set.textContent = kept ? 'Continue' : 'Set out';
+    }
     const step = document.createElement('div');
     step.className = 'gt-walk'; step.id = 'gt-walk'; step.hidden = true;
     step.setAttribute('role', 'group'); step.setAttribute('aria-labelledby', 'gt-walk-l');
     const seg = (k, list) => `<div class="gt-walk-seg" role="radiogroup" aria-label="${k === 't' ? 'The hour' : 'The sky'}" data-k="${k}">${list.map(([v, label]) => `<button type="button" role="radio" aria-checked="false" data-v="${v}"><b>${esc(label)}</b><small></small></button>`).join('')}</div>`;
     step.innerHTML = `<span class="eyebrow" id="gt-walk-l">Walk Shibuya</span>
+<p class="gt-walk-was" id="gt-walk-was" hidden></p>
 <div class="gt-walk-row"><span>The hour</span>${seg('t', HOURS)}</div>
 <div class="gt-walk-row"><span>The sky</span>${seg('w', SKIES)}</div>
-<div class="gt-walk-acts"><button type="button" class="btn primary" id="gt-walk-set"><span>Set out</span><kbd>↵</kbd></button><button type="button" class="btn" id="gt-walk-back"><span>Back</span><kbd>Esc</kbd></button></div>`;
+<div class="gt-walk-acts"><button type="button" class="btn primary" id="gt-walk-set"><span>Set out</span><kbd>↵</kbd></button><button type="button" class="btn" id="gt-walk-back"><span>Back</span><kbd>Esc</kbd></button></div>
+<div class="gt-walk-sure" role="alertdialog" aria-labelledby="gt-walk-sure-l"><p id="gt-walk-sure-l">Start the walk again? Your walk so far will be lost: the people you met and where their stories stand. Your photographs are kept.</p>
+<div class="gt-walk-acts"><button type="button" class="btn" id="gt-walk-keep"><span>Keep my walk</span><kbd>Esc</kbd></button><button type="button" class="btn" id="gt-walk-wipe"><span>Start again</span><kbd>↵</kbd></button></div></div>`;
     if (row) row.after(step); else if (title) title.querySelector('.gt-card').appendChild(step);
+    keptSync();
+    // (Start the walk again, asked first: the step opened on its question, Keep my walk back to where it was, Start again
+    // forgets the walk's stories and sets out as a first visit, its opening and the office's call included. A walk parked
+    // under the title, or one out on the street, cannot be taken back in place: the page opens again on this step, game.js)
+    let sure = false, sureFrom = null;
+    function ask(on) {
+      sure = on; step.classList.toggle('sure', on);
+      const f = step.querySelector(on ? '#gt-walk-keep' : '#gt-walk-set'); if (f) f.focus({ preventScroll: true });
+      if (!on && sureFrom === 'title') { sureFrom = null; open(false); anew.focus({ preventScroll: true }); }
+    }
+    function wipe() {
+      sure = false; sureFrom = null; step.classList.remove('sure');
+      if (!ctx.anew || !ctx.anew()) return; // (the page opens again: game.js)
+      keptSync();
+      setOut();
+    }
+    anew.addEventListener('click', e => { e.stopPropagation(); open(true); if (isOpen) { sureFrom = 'title'; ask(true); } });
     const blurb = q('#gt-blurb'), eyebrow = q('#gt-city');
     let was = null; // (the title's own lines, put back when the step is left)
     const LINE = 'No case and no clock running out: the crossing as it is, at the hour you choose, for as long as you like. Esc changes the hour and the sky as you go.';
@@ -68,6 +102,7 @@ window.OEWalk = (function () {
       isOpen = on;
       step.hidden = !on;
       title.toggleAttribute('data-walk', on);
+      if (!on) { sure = false; step.classList.remove('sure'); } else keptSync(); // (and what is kept read again: a walk out on the street since)
       if (on) {
         was = { blurb: blurb ? blurb.textContent : '', eyebrow: eyebrow ? eyebrow.textContent : '' };
         if (blurb) blurb.textContent = LINE;
@@ -87,12 +122,13 @@ window.OEWalk = (function () {
     }
     const turn = (k, d) => { const list = k === 't' ? HOURS : SKIES, i = list.findIndex(x => x[0] === spec[k]); pick(k, list[(i + d + list.length) % list.length][0]); };
     function setOut() {
-      if (!isOpen || walking) return;
+      if (!isOpen || walking || sure) return;
+      const cont = !!kept;
       walking = true; isOpen = false; step.hidden = true;
       title.removeAttribute('data-walk');
       if (was) { if (blurb) blurb.textContent = was.blurb; if (eyebrow) eyebrow.textContent = was.eyebrow; }
       try { localStorage.setItem(KEEP, JSON.stringify(spec)); } catch (e) { /* storage blocked */ }
-      ctx.start(spec);
+      ctx.start(spec, { cont });
     }
     go.addEventListener('click', () => open(true));
     step.addEventListener('click', e => {
@@ -100,6 +136,8 @@ window.OEWalk = (function () {
       if (!b) return;
       if (b.id === 'gt-walk-set') return setOut();
       if (b.id === 'gt-walk-back') return open(false);
+      if (b.id === 'gt-walk-keep') return ask(false);
+      if (b.id === 'gt-walk-wipe') return wipe();
       const s = b.closest('[data-k]');
       if (s && b.dataset.v) pick(s.dataset.k, b.dataset.v);
     });
@@ -108,6 +146,11 @@ window.OEWalk = (function () {
     function titleKey(c) {
       if (!isOpen) return false;
       const f = document.activeElement;
+      if (sure) { // (the question: Enter on what the hand is on, Start again by default; Esc keeps the walk)
+        if (c === 'Enter') { if (f && f.id === 'gt-walk-keep') ask(false); else wipe(); return true; }
+        if (c === 'Escape' || c === 'Backspace') { ask(false); return true; }
+        return true;
+      }
       if (c === 'Enter') { if (f && f.tagName === 'BUTTON' && step.contains(f) && f.id !== 'gt-walk-set') f.click(); else setOut(); return true; }
       if (c === 'Escape' || c === 'Backspace') { open(false); return true; }
       if (c === 'ArrowLeft' || c === 'ArrowRight') { turn('t', c === 'ArrowLeft' ? -1 : 1); return true; }
@@ -257,6 +300,19 @@ window.OEWalk = (function () {
       // which game.js fills; the sound, the frame rate and the words)
       const acts = menu.querySelector('.gw-acts'), side = menu.querySelector('.gw-side'), opts = menu.querySelector('#gw-opts .gw-fold-in');
       for (const id of ['#gm-car', '#gm-story', '#gm-title']) { const e = q(id); if (e) { e.classList.remove('primary'); acts.appendChild(e); } }
+      // (Start the walk again, beside the title screen: asked on its first press, as the case's Start the case again is,
+      // with what goes and what stays; the second forgets the walk's stories and opens the page again on a first visit)
+      const again = document.createElement('button');
+      again.type = 'button'; again.className = 'btn'; again.id = 'gw-anew'; again.textContent = 'Start the walk again';
+      const note = document.createElement('p');
+      note.className = 'note gw-anew-note'; note.id = 'gw-anew-note'; note.hidden = true; note.setAttribute('role', 'alert');
+      note.textContent = 'Your walk so far will be lost: the people you met and where their stories stand. Your photographs are kept. Close the menu to keep it.';
+      acts.append(again, note);
+      again.addEventListener('click', () => {
+        if (!again.classList.contains('sure')) { again.classList.add('sure'); again.textContent = 'Yes, start the walk again'; note.hidden = false; return; }
+        again.disabled = true;
+        if (ctx.anew) ctx.anew();
+      });
       for (const id of ['#gm-tales', '#gm-tonight']) { const e = q(id); if (e) side.appendChild(e); }
       for (const id of ['#gm-sound', '#gm-words', '#gm-fps', '#gm-steer']) { const e = q(id), n = e && (e.closest('.field') || e.closest('label')); if (n) opts.appendChild(n); }
       menu.addEventListener('click', e => {
@@ -274,7 +330,7 @@ window.OEWalk = (function () {
     // street is at it
     function menuSync(opened) {
       if (!menuMake()) return;
-      if (opened) { skyNow = ctx.sky(); menuEl.scrollTop = 0; }
+      if (opened) { skyNow = ctx.sky(); menuEl.scrollTop = 0; const a = menu.querySelector('#gw-anew'), n = menu.querySelector('#gw-anew-note'); if (a) { a.classList.remove('sure'); a.textContent = 'Start the walk again'; } if (n) n.hidden = true; }
       const c = ctx.clock(), w = ctx.where(), r = ctx.ride ? ctx.ride() : { mode: 'foot' };
       menu.querySelector('.gw-t').textContent = ctx.fmt(c.min);
       menu.querySelector('.gw-sub').textContent = `${`${w.name} ${w.native || ''}`.trim()} · ${c.d} ${MONTHS[c.m - 1]} · ${SKY_WORD[skyNow] || 'Clear'}`;
@@ -295,7 +351,13 @@ window.OEWalk = (function () {
     told.id = 'g-walk-told'; told.setAttribute('role', 'status');
     ctx.stage.append(told);
     let toldT = 0; // (the seconds its name has left over the street: the walk's own frames count them, tick)
-    function tell(title, n, of, kind = 'story') {
+    function tell(title, n, of, kind = 'story', line = '') {
+      if (kind === 'cont') { // (the walk taken up: where you left it, its story's name, and what it asks; game.js startWalk)
+        told.innerHTML = `<small>Where you left it · ${n} of ${of} told</small><b>${esc(title)}</b>${line ? `<span>${esc(line)}</span>` : ''}`;
+        told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
+        toldT = 6.5;
+        return;
+      }
       told.innerHTML = `<small>${kind === 'view' ? (n >= of ? 'Every view of Shibuya found' : `A view of Shibuya · ${n} of ${of}`) : n >= of ? 'Every story of the walk told' : `A story of the walk · ${n} of ${of}`}</small><b>${esc(title)}</b>`;
       told.classList.remove('on'); void told.offsetWidth; told.classList.add('on');
       toldT = 5.2;
@@ -305,7 +367,7 @@ window.OEWalk = (function () {
     // what was asked done: the corner's line says so with a turn of its amber
     function flash() { const e = hud.querySelector('.q'); e.classList.remove('new'); void e.offsetWidth; e.classList.add('new'); }
     return {
-      open, titleKey, begin, tick, told: tell, flash, highlight, menuSync,
+      open, titleKey, begin, tick, told: tell, flash, highlight, menuSync, keptSync, ask,
       get isOpen() { return isOpen; }, get walking() { return walking; }, get spec() { return spec; },
       // (taken up where the story ended, in the night it ended in: nothing to set out from, game.js walkOnFromStory)
       takeUp() { if (walking) return; walking = true; isOpen = false; begin(); },
