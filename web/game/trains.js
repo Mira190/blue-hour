@@ -591,7 +591,8 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
     // (FAR_T: a phone's cars past 350 m are not drawn, where a 20 m car is some thirty pixels long on its screen; the trains
     // round Shibuya's station were 104,000 triangles of a phone's frame on foot at Hachiko)
     const FAR_T = window.OEQuality && OEQuality.city().lean ? 350 : 0;
-    const LOD_M = window.OEQuality && OEQuality.city().lean ? 15 : tier === 'low' || tier === 'still' ? 40 : tier === 'medium' ? 60 : 85; // the Blender cars' far copy beyond this (a phone's: past 15 m, so in all but a platform's view)
+    const LEAN = !!(window.OEQuality && OEQuality.city().lean);
+    const LOD_M = LEAN ? 15 : tier === 'low' || tier === 'still' ? 40 : tier === 'medium' ? 60 : 85; // the Blender cars' far copy beyond this (a phone's: past 15 m, so in all but a platform's view)
     // a Blender car: per level of detail, one instanced mesh per material; a tail car is the driving car turned about
     // The cars of one material in one draw (batch.js pool, issue 192): a stock's three bodies, each near and far, were an
     // instanced mesh a material each, 40 draws round Shibuya's station for 30,000 triangles. A material's shapes of every
@@ -607,6 +608,11 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
         const cap = capOf(stockId);
         for (const body of ['Head', 'Mid', 'Pan']) for (const [k, node] of [LIB.nodes[`${S.model}_${body}`], LIB.nodes[`${S.model}_${body}_LOD1`]].entries()) {
           if (!node) continue;
+          // (a phone's lean tier draws the near cars within LOD_M, 15 m, a platform's view alone: their shapes, five times the
+          // far copy's vertices, are left out of the pool, which is held whole once made, and drawn as glbKind's own meshes,
+          // sent to the GPU only when a car comes that near. In the pool they held 10 MB of a phone's memory through every
+          // frame after the station, frame 5's roof among them: main at 261.7 MB of 262)
+          if (k === 0 && LEAN) continue;
           const by = new Map();
           for (const [name, list] of node) { const m = ao(glbMat(name, S)); if (!by.has(m)) by.set(m, []); by.get(m).push(...list); }
           for (const [m, list] of by) {
@@ -638,7 +644,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
           if (p && p.slot.has(`${key}|${k}`)) { parts.push([p, p.slot.get(`${key}|${k}`)]); continue; }
           const geo = list.length === 1 ? list[0] : THREE.BufferGeometryUtils.mergeGeometries(list, false);
           const im = new THREE.InstancedMesh(geo, m, cap);
-          im.castShadow = true; im.receiveShadow = k === 0; im.frustumCulled = false; im.count = 0; im.visible = false; im.name = `train-${key}-${k}`;
+          im.castShadow = true; im.receiveShadow = k === 0; im.frustumCulled = false; im.count = 0; im.visible = false; im.name = `train-${key}-${k}`; im.userData.near = k === 0;
           world.add(im); meshes.push(im);
         }
         lods.push({ meshes, parts, n: 0 });
@@ -678,7 +684,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       // (tools/entry_cost.js)
       if (o.warm) {
         for (const sv of services) for (let k = 0; k < sv.cars; k++) kind(sv.stock, roleOf(sv, k));
-        for (const K of Object.values(kinds)) if (K.glb) for (const L of K.lods) for (const m of L.meshes) o.warm(m);
+        for (const K of Object.values(kinds)) if (K.glb) for (const L of K.lods) for (const m of L.meshes) if (!(LEAN && m.userData.near)) o.warm(m); // (a phone's near cars sent when one first comes within LOD_M, not held from the start: poolsOf)
         if (pools) for (const p of pools.values()) o.warm(p.mesh);
       }
     });
