@@ -61,7 +61,8 @@ again in the evening, or the menu has no timetable; and takes a still of each (`
 The walk's opening (`game.walk.overture`, STORY.md "The walk's opening") is looked at shot by shot: `tools/walk_open.js out
 [WxH] [hour] [sky]` sets out as the story's last card does on a fresh page, holds the film on a virtual clock, takes a still at
 a few points of each shot (`K`, `SHOTS`) with the bars, the title and the names, prints the camera's clearance over the
-roofs and from the trees' crowns (failing under 4 m) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
+roofs and from the trees' crowns (failing under 4 m), reads the land shot whole and fails where its look is more than 20
+degrees down (`tools/land_pitch.js`, issue 239; `tools/walk_play.js` reads it too) and ends on your shoulder; `FILM=1` films it whole with its score, `VIEWS=file` places free
 cameras over the walk for scouting. Nobody drawn in part (issue 241): `tools/whole_watch.js` watches every draw of the
 scene from the page's start, and a frame that draws one mesh of a person, the guide or a car and holds another (the draw
 gate in `web/world.js`, which lets a mesh whose shader is still linking come late) fails `tools/walk_play.js` through the

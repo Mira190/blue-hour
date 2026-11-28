@@ -5,8 +5,9 @@
 //     Shibuya over the episode's button, or it opens before who you play is chosen and confirmed on a screen of its own;
 //   - its step does not ask the hour and the sky, or what is chosen there is not the street behind the card (the clock
 //     at the hour on the story's evening, the rain falling), or Back does not give the title its own evening again;
-//   - set out, the walk's opening does not play (the city from the air, its title in the bars), or a key or a tap in it
-//     does not bring the walk to you;
+//   - set out, the walk's opening does not play (the city from the air, its title in the bars), its land shot looks more
+//     than 20 degrees down anywhere on its way (onto the tops of heads, issue 239: tools/land_pitch.js), or a key or a tap
+//     in it does not bring the walk to you;
 //   - set out, the title is still up, the story has begun (its goal, its light, a phase past dressed), the old free
 //     game's objective light stands, or where and when you are is not in the corner (the hour as the clock has it);
 //   - you cannot walk (the player does not move), or a key of the old free game opens one of its panels (the map,
@@ -59,6 +60,7 @@
 //   python3 -m http.server 8800 --directory web &
 //   xvfb-run -a node tools/walk_play.js out_dir [WxH] [hour] [sky]     (390x844: a phone, by touch; hour blue|night|live, sky clear|rain)
 const { chromium } = require('playwright');
+const { landPitch } = require('./land_pitch');
 const { wholeWatch, wholeReport } = require('./whole_watch.js');
 const { tones, flat } = require('./tone');
 const { skip, whole } = require('./draw_skip');
@@ -309,6 +311,11 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         if (r < 0.6 || r > 1.4) fail(`the walk's opening is not timed by the clock: ${len.dt.toFixed(2)} s of film over ${len.n} frames given ${len.given.toFixed(2)} s (${byFrames.toFixed(2)} s if counted at 60 a second)`);
         else ok(`the walk's opening is timed by the clock: ${len.dt.toFixed(2)} s of film over ${len.n} frames given ${len.given.toFixed(2)} s`);
       } else console.log(`(the walk's opening's clock not read: too few frames drawn here (${len.n} frames in 6 s, the film ${len.active ? 'on' : 'over'}))`);
+      // (and its land shot read whole, at every hundredth of it: never tipped onto the tops of heads, issue 239)
+      const lp = await landPitch(p);
+      if (!lp) fail('the walk\'s opening has no land shot to read');
+      else if (!lp.ok) fail(`the walk's opening: ${lp.id} at k ${lp.at} looks ${lp.worst} degrees under the horizon from ${lp.y} m, past the bound of ${lp.bound} (the chase camera's own ${lp.chase}): onto the tops of heads`);
+      else ok(`the walk's opening comes down looking at most ${lp.worst} degrees under the horizon (at k ${lp.at}, ${lp.y} m up; the bound ${lp.bound})`);
       if (phone) await p.touchscreen.tap(w / 2, h / 2); else await p.keyboard.press('Space');
       const ts = Date.now();
       if (!(await until(() => document.getElementById('game-stage').classList.contains('walk-on'), null, 120000))) fail(`a ${phone ? 'tap' : 'key'} in the walk's opening did not bring the walk to you`);
