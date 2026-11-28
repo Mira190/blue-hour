@@ -1539,6 +1539,31 @@ ${PAT_GLSL}`)
     const B = name => bone[THREE.PropertyBinding.sanitizeNodeName(alias(name))]; // the loader drops the dots: Foot.L is FootL
     const legs = ['L', 'R'].map(side => ({ ul: B('UpperLeg.' + side), ll: B('LowerLeg.' + side), ft: B('Foot.' + side), shin: 0, y0: 0 }));
     for (const l of legs) l.hangs = !!l.ft && l.ft.parent === l.ll;
+    // The walk set to a point of its stride (issue 174): someone taken over from their far copy steps on with the foot the
+    // copy had forward, not from the clip's first frame (a hitch in the walk at the swap). ph: the far copy's stride, its
+    // shader's angle (CROWD_POSE: the left leg turned by sin(ph) about the hip, rx, so its foot furthest forward at sin -1). Where that is in the clip is found once a clip, by posing it, while the walk is all the rig plays; called
+    // between two animate()s, so whatever is laid over the clip is put back by the next one before its mixer.update
+    rig.walkAt = ph => {
+      const a = act.Walk;
+      if (!a || cur !== a || !legs[0].ft || !legs[1].ft) return false;
+      const clip = a.getClip(), d = clip.duration;
+      if (clip.leftAt == null) {
+        if (Object.values(act).some(x => x !== a && x.isRunning())) return false; // (a fade from another clip: posed, it would be the blend)
+        const t0 = a.time, F = new THREE.Vector3(), G = new THREE.Vector3(), toe = legs[0].ft.children.find(c => c.isBone);
+        let best = -Infinity, at = 0, fwd = 1;
+        model.updateMatrixWorld(true);
+        if (toe) { toe.getWorldPosition(F); legs[0].ft.getWorldPosition(G); model.worldToLocal(F); model.worldToLocal(G); fwd = F.z >= G.z ? 1 : -1; } // (the way the body faces: heel to toe)
+        for (let k = 0; k < 32; k++) {
+          a.time = k / 32 * d; mixer.update(0); model.updateMatrixWorld(true);
+          legs[0].ft.getWorldPosition(F); legs[1].ft.getWorldPosition(G); model.worldToLocal(F); model.worldToLocal(G);
+          if ((F.z - G.z) * fwd > best) { best = (F.z - G.z) * fwd; at = k / 32; }
+        }
+        clip.leftAt = at; clip.fwd = fwd; a.time = t0;
+      }
+      const frac = (ph - (clip.fwd > 0 ? 1.5 : 0.5) * Math.PI) / (2 * Math.PI);
+      a.time = (((clip.leftAt + frac) % 1) + 1) % 1 * d;
+      return true;
+    };
     const arms = ['L', 'R'].map(side => ({ ua: B('UpperArm.' + side), la: B('LowerArm.' + side), wr: B('Wrist.' + side), s: side === 'L' ? 1 : -1 }));
     const seated = legs.every(l => l.ul && l.ll && l.ft), reaches = arms.every(a => a.ua && a.la && a.wr);
     // The forearms, the hands and what they hold kept out of the body. One clip file drives every avatar of a sex, so a
@@ -2296,7 +2321,7 @@ transformed = crowdPose(transformed, false);`);
   // real: the textured Rocketbox characters (the NPCs' cast, build_people.py --npcs) the nearest walkers are drawn
   // as, each the sex of their far figure, instead of the far crowd's own character close up: at eye level a
   // passer-by is a person, with the scanned face, hair and clothes the NPCs have (none: the far crowd's own)
-  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity } = {}) {
+  function crowdRenderer(world, lib, U, P, { near = 14, nearR = 32, style = null, camera = null, real = null, realHeight = null, stillNear = 0, coarseM = 60, farM = Infinity, headPx = 30, headStill = 16, bigCap = 0, stillCap = 0 } = {}) {
     { const m = /[?&]crowdnear=(\d+)/.exec(location.search); if (m) near = +m[1]; } // (to look at the far copies close up: tools/game_shot.js QUERY=?crowdnear=0)
     // a real person's height: the Japanese adult's mean (MHLW National Health and Nutrition Survey 2019: women
     // 1.58 m, men 1.71 m; a city may say otherwise in game.crowd.height) with the far figure's own spread
@@ -2570,7 +2595,7 @@ transformed = crowdPose(transformed, false);`);
     const NO_WARM = /[?&]crowdwarm=0\b/.test(location.search); // (as before the warm: drawn as soon as made, to set beside, tools/crowd_colour.js)
     const api = { nearCap: null, dropPool: () => { for (const k in free) free[k].length = 0; } }; // (dropPool: a harness's, the next near people made new, tools/crowd_colour.js)
     let lastBegin = null, stillMade = -1; // (stillMade: how many people made in this still frame, still(); -1 in play)
-    const lastPick = { nNear: 0, culling: false, zoom: 1, want: 0, unloaded: 0, capped: 0 }, pickI = [], pickD = new Float64Array(P.length), pickKeep = new Set(), byPick = (a, b) => pickD[a] - pickD[b];
+    const lastPick = { nNear: 0, culling: false, zoom: 1, want: 0, unloaded: 0, capped: 0, big: 0 }, pickI = [], pickD = new Float64Array(P.length), pickKeep = new Set(), byPick = (a, b) => pickD[a] - pickD[b];
     let umbAny = false, umbUp = 0, easeK = 1;
     function begin(dt, cx, cy, t, nActive, count = 0) {
       lastBegin = [cx, cy, nActive];
@@ -2595,7 +2620,20 @@ transformed = crowdPose(transformed, false);`);
       // Through a long lens (the story's finder at 22 to 40 degrees, a conversation's 35 mm) someone 50 m off is as big in
       // the frame as someone 25 m off is in the chase view: the distance is counted as the lens sees it, and a few more
       // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
-      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = Math.min(count || Math.round(near * Math.min(1.5, zoom)), api.nearCap ?? Infinity); // (nearCap: a harness's, the near drawn as their far copies to set beside, tools/crowd_colour.js)
+      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1;
+      // And whoever the eye can make out is whole, however many that is (issue 174): a person whose head stands taller on
+      // the screen than headPx (30 CSS pixels: a face and fingers read; the far copy's 128 x 192 picture is a blur and its
+      // hand a few facets) and is in the view. At the Scramble's kerb thirty and more stand within 6 m, and a fixed count
+      // (ten on a phone) left the eleventh on, 3 to 5 m off, a copy. Those over it come first, the biggest and the nearest
+      // the frame's middle before those at its edge, up to bigCap (a tier's frame and memory: game.js); the rest of the
+      // near count goes by distance as before. One who is whole stays whole down to HOLD of it, and keeps a slot of the
+      // near count until outranked by KEEP_M, so that someone at the edge of either does not swap back and forth.
+      // A still (count: the world held for a photograph) asks it of everyone in the frame whose head is over headStill,
+      // up to stillCap: the frame rate is not at stake there
+      const HEAD_K = 0.14, HOLD = 0.85, KEEP_M = 0.6; // (the head's share of the height to the crown)
+      const need = count ? headStill : headPx, persp = camera && camera.isPerspectiveCamera, E = persp ? camera.projectionMatrix.elements : null, V = persp ? camera.matrixWorldInverse.elements : null;
+      const P5 = persp ? Math.abs(E[5]) : 0, P0 = persp ? Math.abs(E[0]) : 0, Hk = (window.innerHeight || 800) * HEAD_K / 2;
+      let nBig = 0;
       // (the pick is kept in lists made once: a pair for each of a few hundred people, a sort of them and a set, made
       // again sixty times a second, were the frame's garbage, issue 130)
       const want = pickI, ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
@@ -2607,14 +2645,30 @@ transformed = crowdPose(transformed, false);`);
         // with a clip's life in it only from the shader, CROWD_POSE; one walking by is gone in a moment)
         const d = Math.hypot(p.x - ex, p.y - ey) / zoom * (p.moving || p.state === 'sit' ? 1 : 0.75);
         if (d >= nearR) continue;
-        const seen = !culling || frustum.intersectsSphere(ball.set(at.set(p.x, p.z + 1, -p.y), 1.5));
-        pickD[i] = seen ? d : d + nearR; want.push(i);
+        const seen = !culling || frustum.intersectsSphere(ball.set(at.set(p.x, p.z + 1, -p.y), 1.5)), was = active.has(i);
+        let key = seen ? d : d + nearR;
+        if (seen && persp) {
+          // (the head's height on the screen, by its depth along the view, not its distance: one at the frame's side stands
+          // taller than its distance says; tools/crowd_whole.js measures it the same way)
+          const crown = p.crown || 1.6 * ((p.look && p.look.scale) || 1), X = p.x, Y = p.z + crown * (p.mode === 'sit' ? 0.6 : 0.93), Z = -p.y;
+          const dep = -(V[2] * X + V[6] * Y + V[10] * Z + V[14]);
+          if (dep > 0.3) {
+            const head = Hk * crown * P5 / dep;
+            if (head >= (was ? need * HOLD : need)) {
+              const nx = (V[0] * X + V[4] * Y + V[8] * Z + V[12]) * P0 / dep, ny = (V[1] * X + V[5] * Y + V[9] * Z + V[13]) * P5 / dep;
+              key = -head * (1 - 0.4 * Math.min(1, Math.hypot(nx, ny))); nBig++; // (the frame's middle first: at its edge counted 0.6 as big)
+            }
+          }
+        }
+        if (key >= 0 && was) key = Math.max(0, key - KEEP_M);
+        pickD[i] = key; want.push(i);
       }
+      const nNear = Math.min(count ? Math.max(count, Math.min(nBig, stillCap || count)) : Math.max(Math.round(near * Math.min(1.5, zoom)), Math.min(nBig, bigCap || 0)), api.nearCap ?? Infinity); // (nearCap: a harness's, the near drawn as their far copies to set beside, tools/crowd_colour.js)
       ball.radius = 30;
       want.sort(byPick);
       const keep = pickKeep; keep.clear();
       for (let k = 0; k < nNear && k < want.length; k++) keep.add(want[k]);
-      lastPick.nNear = nNear; lastPick.culling = culling; lastPick.zoom = zoom; lastPick.want = want.length; lastPick.unloaded = lastPick.capped = 0; // (for the checks: nearInfo, which lists the nearest when asked)
+      lastPick.nNear = nNear; lastPick.big = nBig; lastPick.culling = culling; lastPick.zoom = zoom; lastPick.want = want.length; lastPick.unloaded = lastPick.capped = 0; // (for the checks: nearInfo, which lists the nearest when asked)
       for (const [i, r] of active) if (!keep.has(i)) { world.remove(r.root); (free[r.character] = free[r.character] || []).push(r); active.delete(i); }
       for (const i of keep) {
         // (a stand-in gives way to the walker's own character once that has come, not only when they next come near)
@@ -2628,9 +2682,8 @@ transformed = crowdPose(transformed, false);`);
         // A stand-in there was someone else's body, and the walker changed clothes twice as the cast streamed in, from the
         // copy to the stand-in and from the stand-in to their own: the owner's report of 27 November 2026, tools/crowd_colour.js)
         if (rn && !lib.tpl[name] && !p.far) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
-        if (!lib.tpl[name]) { lib.require(name); lastPick.unloaded++; continue; }
-        if (stillMade >= 4 && !(free[name] && free[name].length)) lastPick.capped++;
-        if (stillMade >= 4 && !(free[name] && free[name].length)) continue; // (a still frame makes four at most: the rest come in the frames after)
+        if (!lib.tpl[name]) { lib.require(name); lastPick.unloaded++; p.pickWait = frameNo; continue; } // (pickWait: picked, and drawn as their far copy until their character has come; for the checks, tools/crowd_whole.js)
+        if (stillMade >= 4 && !(free[name] && free[name].length)) { lastPick.capped++; p.pickWait = frameNo; continue; } // (a still frame makes four at most: the rest come in the frames after)
         if (stillMade >= 0 && !(free[name] && free[name].length)) stillMade++;
         const pooled = free[name] && free[name].pop(), r = pooled || person(lib, Object.assign({}, look));
         r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null, clip: null }, look)); // (clip: a person taken from the pool keeps none of the last one's phone)
@@ -2646,10 +2699,11 @@ transformed = crowdPose(transformed, false);`);
         if (!pooled && lib.warm && !NO_WARM) {
           // (not shown while cold, to anyone who asks of the near people, a harness's lens check too: the model under it warmed)
           r.cold = true; r.root.visible = false;
-          const warm = () => { r.cold = false; r.root.visible = true; for (const x of active.values()) if (x === r) { world.add(r.root); break; } };
+          const warm = () => { r.cold = false; r.sync = true; r.root.visible = true; for (const x of active.values()) if (x === r) { world.add(r.root); break; } };
           Promise.all(r.root.children.map(c => lib.warm(c))).then(warm, warm);
         }
         if (!r.cold) world.add(r.root);
+        r.sync = true; // (taken over from their far copy: place() sets the walk to the copy's stride)
         active.set(i, r);
       }
     }
@@ -2691,7 +2745,11 @@ transformed = crowdPose(transformed, false);`);
         // (how often its arms are kept out of its body, by how tall it stands on the screen: every frame from 300 pixels up,
         // every second from 150, every third below, where a centimetre is under a pixel; issue 130)
         if (camera && camera.isPerspectiveCamera) { const V = camera.matrixWorldInverse.elements, depth = -(V[2] * p.rx + V[6] * (p.rz + 1) - V[10] * p.ry + V[14]), tall = 1.7 * p.look.scale * (window.innerHeight || 800) * camera.projectionMatrix.elements[5] / 2 / Math.max(0.5, depth); r.clearEvery = tall >= 300 ? 1 : tall >= 150 ? 2 : 3; } // (its depth along the view, not its distance: one at the screen's side stands taller than its distance says)
-        r.animate(dtNow, moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, p.mode === 'sit' ? 'sit' : 'ground', tNow);
+        const pace = moving ? Math.max(0.2, p.av ?? p.v ?? p.speed) : 0, how = p.mode === 'sit' ? 'sit' : 'ground';
+        // (the first frame drawn whole after the far copy: the walk set to the copy's stride, the same foot forward, so the
+        // swap is not a hitch in the walk; the copy's angle as its shader had it in the last frame, CROWD_POSE)
+        if (r.sync) { r.sync = false; if (moving && p.animF != null && r.walkAt) { r.animate(0, pace, how, tNow); r.walkAt(U.uTime.value * p.animF + p.animO); } }
+        r.animate(dtNow, pace, how, tNow);
         return;
       }
       p.wave = false; p.whole = false;
@@ -2861,7 +2919,7 @@ transformed = crowdPose(transformed, false);`);
       }
       end();
     }
-    Object.assign(api, { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) });
+    Object.assign(api, { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, frame: frameNo, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) });
     return api;
   }
 

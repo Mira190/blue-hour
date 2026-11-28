@@ -39,6 +39,7 @@ window.OEGameModelText = function (g) {
       if (kind === 'sun_line') return sunLine();
       // the next train out of Shibuya (game.json tonight.trains: the Yamanote's last and first): the last until it has gone,
       // then the first; and when (the walk's line: Nagi's)
+      if (kind === 'train_at') return g.fmtMin(g.trainNext().at); // (its time by the clock: the corner's call, walktalk.js trainDue)
       if (kind === 'train' || kind === 'train_when') { const t = g.trainNext(); return kind === 'train' ? (t.first ? 'the first train' : 'the last train') : (t.first ? 'this morning' : 'tonight'); }
       if (kind === 'sunset') return g.fmtMin(g.dayLimits().sunset);
       // the part of the day and the season, in the guide's words ("this evening", "autumn"), for lines about what to see now
