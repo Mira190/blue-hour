@@ -744,10 +744,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
   const mark = async (s, name) => { const k = `${s.fi}-${name}`; if (seen.has(k)) return; seen.add(k); console.log(k, JSON.stringify(s)); await p.waitForTimeout(MARKWAIT); await snap(`${s.fi + 1}-${name}`);
     // (the guide beside you in a Stop: once met in the first Stop he walks in every one, ahead of you to whoever is still
     // moving. Frame 3's Stop was played with no dog anywhere in its stills, issue 157; story.js seek, game.js guideMade)
-    if (s.phase === 'stop' && (s.beat === 'seek' || s.beat === 'talk')) {
-      const G = await p.evaluate(() => { const g = window.__game, st = g.story.state, d = g.guideMade && g.guideMade(); if (!st.dog && st.fi === 0) return null;
-        if (!d) return { made: false, dog: !!st.dog }; let inScene = false; for (let q = d.root; q; q = q.parent) if (q === g.world) inScene = true;
-        return { made: true, dog: !!st.dog, ready: !!d.ready, shown: !!(d.root && d.root.visible), inScene, at: [+(d.x || 0).toFixed(1), +(d.y || 0).toFixed(1)], d: +Math.hypot((d.x || 0) - g.player.x, (d.y || 0) - g.player.y).toFixed(1) }; }).catch(e => ({ err: String(e).slice(0, 120) }));
+    // (and in his own film, the first Stop's meeting (story.js meetGuide): the film once played on a phone over an empty
+    // pavement with its line "A dog is walking through the stopped crowd" under it, issue 237. There he must also be in the
+    // film camera's frame, his middle inside it and in front of the lens)
+    const film = s.phase === 'stop' && s.beat === 'guide' && name === 'guide-film';
+    if (s.phase === 'stop' && (s.beat === 'seek' || s.beat === 'talk' || film)) {
+      const G = await p.evaluate(film => { const g = window.__game, st = g.story.state, d = g.guideMade && g.guideMade(); if (!film && !st.dog && st.fi === 0) return null;
+        if (!d) return { made: false, dog: !!st.dog || film }; let inScene = false; for (let q = d.root; q; q = q.parent) if (q === g.world) inScene = true;
+        const o = { made: true, dog: !!st.dog || film, ready: !!d.ready, shown: !!(d.root && d.root.visible), inScene, at: [+(d.x || 0).toFixed(1), +(d.y || 0).toFixed(1)], d: +Math.hypot((d.x || 0) - g.player.x, (d.y || 0) - g.player.y).toFixed(1) };
+        if (film && d.root) { const T = window.THREE, c = g.camera, v = new T.Vector3(d.x, (d.z || 0) + 0.4, -d.y); c.updateMatrixWorld(); const ahead = v.clone().applyMatrix4(c.matrixWorldInverse).z < 0; v.project(c); o.ndc = [+v.x.toFixed(2), +v.y.toFixed(2)]; o.inFrame = ahead && Math.abs(v.x) < 1 && Math.abs(v.y) < 1; }
+        return o; }, film).catch(e => ({ err: String(e).slice(0, 120) }));
       if (G && G.made) {
         // (and his meshes drawn, not only shown: the draw gate holds a whole model's parts together, web/world.js gate,
         // issue 241. The draws asked for under his root in two frames drawn whole, and how many the renderer made)
@@ -768,9 +774,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
         if (!G.came) G.never = far;
       }
       if (G) {
-        const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15 && !(G.asked > 0 && !G.drew); // (asked for and none drawn: held by the gate. None asked: out of the frame, which the distance covers)
+        const ok = G.made && G.dog && G.ready && G.shown && G.inScene && G.d < 15 && !(G.asked > 0 && !G.drew) && (!film || G.inFrame); // (asked for and none drawn: held by the gate. None asked: out of the frame, which the distance covers; in his film he must be in the frame)
         console.log(`${ok ? 'ok  ' : 'FAIL'} ${s.fi + 1}-${name}: the guide ${JSON.stringify(G)}`);
-        if (!ok) errors.push(`${s.fi + 1}-${name}: the guide is not drawn beside you in the Stop (${JSON.stringify(G)})`);
+        if (!ok) errors.push(`${s.fi + 1}-${name}: the guide is not drawn ${film ? 'in his film' : 'beside you in the Stop'} (${JSON.stringify(G)})`);
       }
     }
     if (s.phase === 'stop' && !seen.has(`heads-${s.fi}`)) { seen.add(`heads-${s.fi}`); // (time held: no head turns by itself; a look laid over a look wound Aoi's head round by the Center Gai arch)

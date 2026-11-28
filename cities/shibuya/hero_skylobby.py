@@ -146,37 +146,6 @@ def hairline(d, n=512):
     Image.fromarray((rough * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
 
 
-def honed(d, n=512):
-    """Honed light grey granite of a fine even grain (the Japanese floor stone of Inada's kind, its mica in specks of a
-    millimetre or two): at 0.6 m a repeat a texel is 1.2 mm, and the only changes of tone are the grains,
-    the feldspar's and the quartz's, and the black mica's specks. Nothing coarser than a few millimetres: a scanned
-    granite's crystals of a centimetre and its cloudy patches read from a few metres as blotches on the floor (issue 239),
-    so whatever is wider than 3 cm is taken out of the picture and every hand's breadth of it is one tone."""
-    from PIL import Image
-    from scipy import ndimage
-    rng = np.random.default_rng(239)
-    g = ndimage.gaussian_filter(rng.normal(size=(n, n)), 0.8, mode="wrap")        # the feldspar's grains
-    g = (g - g.mean()) / (g.std() or 1)
-    q = ndimage.gaussian_filter(rng.normal(size=(n, n)), 1.5, mode="wrap")        # the quartz's, a little greyer
-    q = (q > np.quantile(q, 0.86)).astype(float)
-    m = np.zeros((n, n))                                                            # the mica's specks
-    k = int(n * n * 0.0079)
-    m[rng.integers(0, n, k), rng.integers(0, n, k)] = rng.uniform(0.6, 1.0, k)
-    m = ndimage.gaussian_filter(m, 0.7, mode="wrap")
-    m = np.clip(m / (np.quantile(m[m > 0], 0.9) or 1), 0, 1)
-    lum = (1.0 + 0.03 * g) * (1 - 0.07 * ndimage.gaussian_filter(q, 0.6, mode="wrap")) * (1 - 0.62 * m)
-    lum = lum / ndimage.gaussian_filter(lum, 26, mode="wrap") * lum.mean()          # (nothing wider than 3 cm)
-    col = np.dstack([168.0 * lum] * 3) * np.array([1.0, 0.995, 0.985])
-    os.makedirs(d, exist_ok=True)
-    Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "Color.png"))
-    h = 0.15 * g - 0.6 * m                                                          # (honed: flat but for the mica's pits)
-    dx, dy = (np.roll(h, -1, 1) - np.roll(h, 1, 1)) * 0.5 * 0.12, (np.roll(h, 1, 0) - np.roll(h, -1, 0)) * 0.5 * 0.12
-    nm = np.dstack([-dx, -dy, np.ones_like(dx)])
-    nm /= np.linalg.norm(nm, axis=2, keepdims=True)
-    Image.fromarray(np.clip((nm * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "NormalGL.png"))
-    Image.fromarray((np.clip(0.45 + 0.08 * m, 0, 1) * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
-
-
 # ---------------------------------------------------------------- the atlas
 
 FONT_URL = "https://raw.githubusercontent.com/google/fonts/main/{}"
@@ -345,7 +314,7 @@ class Level:
     def __init__(self, K):
         self.K = K
         K.register("hairline", 0.6, hairline)
-        K.register("honed", 0.6, honed)
+        K.TEXTURES["honed"] = (HP.honed_texture(K), 0.6)   # (shared with the levels that carry its forecourt on: hero_open.py)
         self.geo = K.Geo()
         self.A = K.Atlas(1024, 768)
         self.F = Frame()
