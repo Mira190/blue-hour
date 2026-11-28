@@ -2,34 +2,37 @@
  "note": "A city's road plan as pipeline/road_plan.py decided it (docs/ROADS.md): the report, and every end of the network that is not a junction.",
  "report": {
   "pieces": 4905,
-  "km": 360.36,
-  "closed": 15,
-  "closed_km": 1.09,
+  "km": 360.34,
+  "closed": 26,
+  "closed_km": 1.73,
   "closed_why": {
    "the built model stands across it": 6,
    "no car fits along it": 3,
+   "your car cannot be driven along it (a drop or a step a car stops at: tools/car_edges.js)": 4,
+   "no car fits between its walls: 4.7 m along most of it (a two-way street needs 5.5 m)": 1,
    "no car fits between its walls: 4.6 m along most of it (a two-way street needs 5.5 m)": 1,
    "no car fits between its walls: 4.4 m along most of it (a two-way street needs 5.5 m)": 1,
-   "a one-way street into a dead end: no car may leave it": 3,
-   "leads only into a lane closed to cars": 1
+   "no car fits between its walls: 5.1 m along most of it (a two-way street needs 5.5 m)": 1,
+   "no car fits between its walls: 4.8 m along most of it (a two-way street needs 5.5 m)": 1,
+   "a one-way street into a dead end: no car may leave it": 6,
+   "leads only into a lane closed to cars": 2
   },
-  "quiet": 362,
-  "quiet_km": 23.73,
+  "quiet": 359,
+  "quiet_km": 23.59,
   "bus": 1204,
   "bus_km": 97.85,
   "one_way": 1656,
   "node_degrees": {
-   "1": 560,
-   "2": 145,
-   "3": 2128,
-   "4": 585,
+   "1": 555,
+   "2": 152,
+   "3": 2122,
+   "4": 582,
    "5": 35,
-   "6": 4,
-   "7": 1
+   "6": 5
   },
   "ends": {
    "gate": 230,
-   "dead end": 328,
+   "dead end": 323,
    "closure": 2
   },
   "extent": [
@@ -39,11 +42,18 @@
    900.0
   ],
   "playable_closed": {
+   "1589": "a one-way street into a dead end: no car may leave it",
+   "1658": "no car fits between its walls: 4.7 m along most of it (a two-way street needs 5.5 m)",
    "1663": "a one-way street into a dead end: no car may leave it",
    "1665": "a one-way street into a dead end: no car may leave it",
    "1668": "no car fits between its walls: 4.6 m along most of it (a two-way street needs 5.5 m)",
    "1686": "no car fits between its walls: 4.4 m along most of it (a two-way street needs 5.5 m)",
    "1687": "leads only into a lane closed to cars",
+   "1712": "a one-way street into a dead end: no car may leave it",
+   "1716": "no car fits between its walls: 5.1 m along most of it (a two-way street needs 5.5 m)",
+   "1717": "leads only into a lane closed to cars",
+   "1718": "no car fits between its walls: 4.8 m along most of it (a two-way street needs 5.5 m)",
+   "1971": "a one-way street into a dead end: no car may leave it",
    "4287": "a one-way street into a dead end: no car may leave it"
   },
   "survey": {
@@ -68,7 +78,7 @@
   "one_way_from_osm": 9,
   "gaps_joined": 0,
   "joined_under_cover": 4,
-  "solids_raised_over_a_road": 0
+  "solids_raised_over_a_road": 8
  },
  "ends": [
   {
@@ -2082,21 +2092,12 @@
   },
   {
    "at": [
-    -26.7,
-    -1103.5
+    -25.5,
+    -1104.1
    ],
    "kind": "dead end",
    "piece": 1725,
    "class": "residential"
-  },
-  {
-   "at": [
-    -4.2,
-    -1110.7
-   ],
-   "kind": "dead end",
-   "piece": 1718,
-   "class": "unclassified"
   },
   {
    "at": [
@@ -2136,15 +2137,6 @@
   },
   {
    "at": [
-    34.4,
-    -571.7
-   ],
-   "kind": "dead end",
-   "piece": 1580,
-   "class": "residential"
-  },
-  {
-   "at": [
     40.0,
     -2731.0
    ],
@@ -2163,24 +2155,6 @@
   },
   {
    "at": [
-    40.5,
-    -1386.8
-   ],
-   "kind": "dead end",
-   "piece": 1971,
-   "class": "trunk"
-  },
-  {
-   "at": [
-    149.7,
-    -1131.2
-   ],
-   "kind": "dead end",
-   "piece": 1716,
-   "class": "unclassified"
-  },
-  {
-   "at": [
     196.3,
     -1815.0
    ],
@@ -2196,15 +2170,6 @@
    "kind": "dead end",
    "piece": 1662,
    "class": "residential"
-  },
-  {
-   "at": [
-    211.2,
-    -1156.6
-   ],
-   "kind": "dead end",
-   "piece": 1712,
-   "class": "unclassified"
   },
   {
    "at": [
@@ -2352,8 +2317,8 @@
   },
   {
    "at": [
-    594.9,
-    -1408.7
+    594.8,
+    -1408.9
    ],
    "kind": "dead end",
    "piece": 4114,
@@ -2442,8 +2407,8 @@
   },
   {
    "at": [
-    677.8,
-    -630.1
+    676.5,
+    -630.0
    ],
    "kind": "dead end",
    "piece": 4383,
@@ -2451,8 +2416,8 @@
   },
   {
    "at": [
-    686.2,
-    -1619.9
+    685.9,
+    -1619.6
    ],
    "kind": "dead end",
    "piece": 4106,

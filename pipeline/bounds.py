@@ -4,8 +4,10 @@ The ground's edge is the convex hull of what the story and the walk are played r
 levels (their circles, and a street's width past them), every place a frame of the story stands or looks, the walk's
 views from the street, the start and the car's kerb. The air's edge is the same places given a wider ring, and the
 landmarks the walk's opening flies past, so that the helicopter turns back over the built city, before the land past
-it shows. Both are written to cities/<id>/city.json game.bounds, simplified to a few corners, with the lines said at
-the edge. Run again, it writes the same.
+it shows. Where city.json game.drive_area gives corners, the ground's edge is the drive area instead: those corners,
+each edge slid to where the city's streets cross it least, held inside a phone's district and round the story's places
+(drive_area()), and the air's edge takes it in too. Both are written to cities/<id>/city.json game.bounds, with the
+lines said at the edge. Run again, it writes the same.
 
     python pipeline/bounds.py --city shibuya          # write game.bounds, then pipeline/game_text.py and pack.py
     python pipeline/bounds.py --city shibuya --check  # exit 1 if game.bounds is not what the data gives
@@ -26,6 +28,10 @@ MARK_ROOM = 120.0     # m past a landmark the walk's opening flies by
 CEILING = 420.0       # m above the sea: over SKY's roof (244 m) with room, under Haneda's approach and the far map
 DRIVE_ROOM = 40.0     # m past the roads a drive between two of the places takes: the easing at the edge, a carriageway, and a car
 GROUND_SOFT = 22.0    # m inside the ground's edge where a walker and a car are eased (bounds.js)
+DISTRICT_BAND = 200.0 # m inside a phone's district the drive area keeps: past it a phone has the scenery band and the skyline
+EDGE_SLIDE = 90.0     # m each edge of the drive area may slide along its normal to where the city's streets cross it least
+NODE_CLEAR = 40.0     # m from a junction an edge crossing is not wanted: a car is never turned back in a junction
+ALONG_M = 25.0        # m: a street running along an edge within this is half in, half out
 AIR_SOFT = 220.0      # m inside the air's edge where the helicopter is turned back, in an arc
 
 
@@ -127,7 +133,117 @@ def drive_room(game, roads):
     return [(x, y, DRIVE_ROOM) for x, y in road_routes.ways(roads, spots)]
 
 
-def compute(game, roads=None):
+def convex(poly):
+    n = len(poly)
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    return all(cross(poly[i], poly[(i + 1) % n], poly[(i + 2) % n]) > 0 for i in range(n))
+
+
+def lines_of(roads):
+    """[(points (k, 2), class)] of the open road pieces on the ground, and the junction nodes (where three or more meet)."""
+    import collections
+    import numpy as np
+    out, ends = [], collections.Counter()
+    for o in roads or []:
+        if o.get("x") or len(o["p"]) < 6:
+            continue
+        p = np.asarray(o["p"], float).reshape(-1, 3)
+        if p[:, 2].max() - p[:, 2].min() > 25:   # (an expressway's ramp: not where a player meets the edge)
+            continue
+        out.append((p[:, :2] / 10, o.get("c")))
+        for q in (p[0], p[-1]):
+            ends[(round(q[0] / 10), round(q[1] / 10))] += 1
+    return out, [k for k, n in ends.items() if n >= 3]
+
+
+CROSS_COST = {"motorway": 0, "trunk": 6, "primary": 5, "secondary": 4, "tertiary": 3, "unclassified": 2, "residential": 1.5, "living_street": 1, "service": 0.5}
+
+
+def edge_cost(a, b, lines, nodes):
+    """What it costs to put the edge on the line a -> b: each street that crosses it (the wider the street, the more:
+    a car meets the edge there at speed), more where it crosses near a junction, and a street that runs along it.
+    lines: lines_of()'s, with an STRtree over them (index())."""
+    import numpy as np
+    from shapely.geometry import LineString, Point
+    E = LineString([a, b])
+    tx, ty = (b[0] - a[0]) / E.length, (b[1] - a[1]) / E.length
+    cost = 0.0
+    tree, geoms, items = lines
+    for j in tree.query(E.buffer(ALONG_M), predicate="intersects"):
+        L, (p, c) = geoms[j], items[j]
+        hit = L.intersection(E)
+        pts = [hit] if hit.geom_type == "Point" else list(getattr(hit, "geoms", []))
+        for q in pts:
+            if q.geom_type != "Point":
+                continue
+            w = CROSS_COST.get(c, 1.0)
+            near = float(np.min(np.hypot(nodes[:, 0] - q.x, nodes[:, 1] - q.y))) if len(nodes) else 1e9
+            cost += w * (1 + 3 * max(0.0, 1 - near / NODE_CLEAR))
+        # a street along the edge: the length of it within ALONG_M that runs within 30 degrees of the edge's way
+        seg = np.diff(p, axis=0)
+        ln = np.hypot(seg[:, 0], seg[:, 1])
+        mid = (p[:-1] + p[1:]) / 2
+        par = np.abs(seg[:, 0] * tx + seg[:, 1] * ty) > 0.866 * np.maximum(ln, 1e-6)
+        for k in np.nonzero(par)[0]:
+            if E.distance(Point(mid[k])) < ALONG_M:
+                cost += 0.02 * ln[k] * CROSS_COST.get(c, 1.0)
+    return cost
+
+
+def drive_area(spec, keep, district, roads):
+    """The drive area (docs/BOUNDS.md): the corners city.json game.drive_area gives, each edge slid along its normal,
+    within EDGE_SLIDE, to where the city's streets cross it least (a railway, a park, the back of a block), never in a
+    junction; held DISTRICT_BAND inside a phone's district and round every place of the story (keep, a polygon)."""
+    from shapely.geometry import Polygon, box
+    import numpy as np
+    import shapely
+    from shapely.geometry import LineString
+    P = [tuple(q) for q in spec["poly"]]
+    items, nodes = lines_of(roads)
+    geoms = [LineString(p) for p, _ in items]
+    lines, nodes = (shapely.STRtree(geoms), geoms, items), np.asarray(nodes, float).reshape(-1, 2)
+    lim = box(district["x"][0] + DISTRICT_BAND, district["y"][0] + DISTRICT_BAND, district["x"][1] - DISTRICT_BAND, district["y"][1] - DISTRICT_BAND) if district else None
+    n = len(P)
+    off = [0.0] * n
+    for _ in range(2):
+        for i in range(n):
+            a, b = P[i], P[(i + 1) % n]
+            l = math.dist(a, b)
+            nx, ny = (b[1] - a[1]) / l, -(b[0] - a[0]) / l     # (outward, counter-clockwise)
+            best = None
+            for d in range(-int(EDGE_SLIDE), int(EDGE_SLIDE) + 1, 5):
+                q = [((x + nx * d), (y + ny * d)) for x, y in (a, b)]
+                trial = list(P)
+                trial[i], trial[(i + 1) % n] = q[0], q[1]
+                poly = corners(trial, i, n, P)
+                if poly is None:
+                    continue
+                g = Polygon(poly)
+                if not g.is_valid or not g.contains(keep) or (lim is not None and not lim.contains(g)) or not convex(poly):
+                    continue
+                c = edge_cost(q[0], q[1], lines, nodes) + 0.004 * abs(d)
+                if best is None or c < best[0]:
+                    best = (c, d, poly)
+            if best:
+                off[i] += best[1]
+                P = best[2]
+    return P
+
+
+def corners(trial, i, n, P):
+    """The polygon with edge i moved: its two corners where it meets its neighbours' lines."""
+    prev_a, prev_b = P[(i - 1) % n], P[i]
+    next_a, next_b = P[(i + 1) % n], P[(i + 2) % n]
+    a = meet(prev_a, prev_b, trial[i], trial[(i + 1) % n])
+    b = meet(trial[i], trial[(i + 1) % n], next_a, next_b)
+    if a is None or b is None:
+        return None
+    out = list(P)
+    out[i], out[(i + 1) % n] = a, b
+    return out
+
+
+def compute(game, roads=None, district=None):
     P = places(game) + drive_room(game, roads)
     near = [(x, y) for x, y, _ in P]
     cx, cy = sum(p[0] for p in near) / len(near), sum(p[1] for p in near) / len(near)
@@ -135,18 +251,32 @@ def compute(game, roads=None):
     P = [p for p in P if math.hypot(p[0] - cx, p[1] - cy) < 700]
     g = hull([q for x, y, r in P for q in circle(x, y, r)])
     marks = [m["at"] for m in ((game.get("walk") or {}).get("overture") or {}).get("marks", []) if m.get("at")]
-    a = hull([q for x, y, r in P for q in circle(x, y, r + AIR_ROOM - GROUND_ROOM)] + [q for m in marks for q in circle(m[0], m[1], MARK_ROOM)])
+    story = simplify(g, 12)
+    spec = game.get("drive_area")
+    if spec:
+        from shapely.geometry import Polygon
+        ground = drive_area(spec, Polygon(story).buffer(GROUND_SOFT), district, roads)
+    else:
+        ground = story
+    a = hull([q for x, y, r in P for q in circle(x, y, r + AIR_ROOM - GROUND_ROOM)] + [q for m in marks for q in circle(m[0], m[1], MARK_ROOM)]
+             + ([q for x, y in ground for q in circle(x, y, AIR_ROOM - GROUND_ROOM)] if spec else []))
+    if spec and district:   # (the helicopter turns back over the built city: no further than the phone's scenery band)
+        from shapely.geometry import Polygon, box
+        clip = Polygon(a).intersection(box(district["x"][0] - 100, district["y"][0] - 100, district["x"][1] + 100, district["y"][1] + 100))
+        a = [tuple(q) for q in list(clip.exterior.coords)[:-1]]
+        if Polygon(a).exterior.is_ccw is False:
+            a = a[::-1]
     rnd = lambda poly: [[round(x, 1), round(y, 1)] for x, y in poly]
     return {
-        "note": "The planned area (pipeline/bounds.py, docs/BOUNDS.md): the ground's edge, where a walker and a car are eased to a stop and turned back in (nothing drawn there: the roads and their traffic run on past it), and the air's, where the helicopter is turned back in an arc. Local metres, counter-clockwise. Written by the pipeline; the lines are by hand.",
-        "ground": {"poly": rnd(simplify(g, 12)), "soft": GROUND_SOFT},
+        "note": "The playable area (pipeline/bounds.py, docs/BOUNDS.md): the ground's edge, the drive area where a walker and a car are eased to a stop and turned back in (nothing drawn there: the roads and their traffic run on past it), and the air's, where the helicopter is turned back in an arc. Local metres, counter-clockwise. Written by the pipeline; the lines are by hand.",
+        "ground": {"poly": rnd(ground if spec else simplify(g, 12)), "soft": GROUND_SOFT},
         "air": {"poly": rnd(simplify(a, 12)), "soft": AIR_SOFT, "ceiling": CEILING},
     }
 
 
 LINES = {
     "foot": "<b>Tonight is round the Scramble.</b> The story is back towards the crossing.",
-    "car": "<b>Tonight's drive is round the Scramble.</b> Turn back towards the crossing.",
+    "car": "<b>Tonight's drive is the streets round the station.</b> Turn back towards Shibuya.",
     "air": "<b>Tower:</b> “{reg}, the city past here isn't open yet. Bring her round, back over the Scramble.”",
     "ceiling": "<b>Tower:</b> “{reg}, that's Haneda's approach above you. Down to four hundred, please.”",
     "closed": "Tonight is round the Scramble: somewhere nearer the crossing.",
@@ -163,7 +293,7 @@ def main():
     game = cfg["game"]
     gp = os.path.join(ROOT, "web", "data", a.city, "game.json")
     roads = json.load(open(gp, encoding="utf8"))["paths"]["road"] if os.path.exists(gp) else None
-    b = compute(game, roads)
+    b = compute(game, roads, cfg.get("phone_district"))
     old = game.get("bounds") or {}
     b["lines"] = old.get("lines") or LINES
     if a.check:

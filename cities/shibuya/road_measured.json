@@ -5,4 +5,7 @@
 [5818,-30078,7700,-29524],
 [6625,-31000,5818,-30078]],"off":[[-26378,-27168,-26345,-27539],
 [-6312,-26728,-7096,-26034],
-[5232,-30473,5501,-30375]]}
+[5232,-30473,5501,-30375]],"steep":[[344,-5717,747,-6388],
+[2961,-6191,3504,-6598],
+[3504,-6598,3375,-6221],
+[5051,-13878,4601,-13133]],"steep_source":"Inside the area a car can go, the pieces on which tools/car_edges.js finds your car, driven through, stops on dry, open road (pipeline/road_steep.py)."}

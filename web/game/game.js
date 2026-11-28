@@ -2580,7 +2580,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   ac.signal.addEventListener('abort', () => clearInterval(keepTimer));
 
   // ------------------------------------------------------------ HUD
-  const base = H.baseMap(D);
+  const base = H.baseMap(D, bounds && G.bounds.ground.poly); // (past the drive area, shaded: bounds.js)
   const drawMini = H.minimap($('#g-minimap'), base);
   const mini = { r: 200 }; // the minimap's radius, eased as it opens out and closes in
   const dlg = H.dialogue(A);
