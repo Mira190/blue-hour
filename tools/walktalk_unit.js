@@ -37,7 +37,7 @@ const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed
 const pick = a => a[Math.floor(rnd() * a.length)];
 
 const npcs = {};
-const npc = id => npcs[id] || (npcs[id] = { id, name: id, x: 377, y: -1015, z: 0, rig: {} });
+const npc = id => npcs[id] || (npcs[id] = { id, name: id, x: 377, y: -1015, z: 0, rig: { root: { visible: false } } });
 const ids = [...new Set([...people.flatMap(s => [s.npc, ...(s.parts || []).map(p => p.npc).filter(Boolean), ...(s.parts || []).flatMap(p => (p.lines || []).map(l => l && l.npc).filter(Boolean))]), ...Object.keys(chat)])];
 let heard = null;
 const ctx = {
@@ -76,6 +76,72 @@ for (let r = 0; r < RUNS; r++) {
     else { const s = st(); for (const q of people) { const k = s[q.id]; if (k && !k.done && k.part > 0 && !k.met && rnd() < 0.7) { k.met = true; break; } } store[KEEP] = JSON.stringify(s); }
   }
 }
+// A returning visit (the owner's still, 27 November 2026): this browser kept her fall (helped, left, or still on the
+// ground when the page closed) but not her first part, with Oda's story under way. The incident is played again, the
+// corner leads to her and nobody else is begun meanwhile, her first words fit what was seen this visit, and only once
+// they are said is the fall kept. And a man whose model never comes does not hold the walk's hook for ever.
+let visits = 0;
+if (line) {
+  const I = line.incident, taxi = people.find(s => s.id === 'taxi');
+  for (const [was, how, modelIn, outOfSight] of [['helped', 'helped', true], ['alone', 'alone', true], ['down', 'helped', false], ['helped', 'alone', false], ['helped', 'helped', true, true]]) {
+    for (const k of Object.keys(store)) delete store[k];
+    const kept = { [line.id]: { part: 0, met: false, done: false, inc: was } };
+    if (taxi) kept[taxi.id] = { part: 1, met: false, done: false };
+    store[KEEP] = JSON.stringify(kept);
+    const her = npc(line.npc); Object.assign(her, { x: 374, y: -1018, z: 0, h: 0, rig: { root: { visible: true } }, sit: false, fixed: false });
+    let me = { x: 377, y: -1014, z: 0, mode: 'foot' }, hurried = 0, looked = 0;
+    const man = { x: I.by.from[0], y: I.by.from[1], to: null, v: 0, rig: {}, walkTo(x, y, v) { this.to = [x, y]; this.v = v; }, animate(dt) { if (!this.to) return; const dx = this.to[0] - this.x, dy = this.to[1] - this.y, d = Math.hypot(dx, dy), s = this.v * dt; if (d <= s) { this.x = this.to[0]; this.y = this.to[1]; this.to = null; } else { this.x += dx / d * s; this.y += dy / d * s; } }, remove() {} };
+    const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => me, figure: () => man, loaded: () => modelIn, hurry: () => { hurried++; }, look: () => { looked++; }, unseen: () => !!outOfSight, thing: () => ({ remove() {} }), shift: (n, x, y, h) => { n.x = x; n.y = y; if (h != null) n.h = h; } }));
+    W.begin();
+    const tag = `returning visit (kept ${was}, ${modelIn ? 'his model in' : 'his model never comes'}${outOfSight ? ', she kept out of sight' : ''})`;
+    if (W.line().ph !== 'wait') { fail(`${tag}: the incident is not played again (${JSON.stringify(W.line())})`); continue; }
+    if (!hurried) fail(`${tag}: his pictures are not hurried`);
+    if (W.want(line.npc)) fail(`${tag}: before the fall she already has ${W.want(line.npc).kind} to say`);
+    const e0 = W.errand();
+    if (!e0 || e0.text !== I.lead) fail(`${tag}: while it waits the corner says "${e0 && e0.text}", not its lead to her`);
+    if (taxi && W.list().find(q => q.title === taxi.title).text !== taxi.parts[0].then.goal) fail(`${tag}: the menu's line for Oda's story is not what he asked`);
+    for (const s of people) if (s !== line && of(W, s).part === 0 && W.want(s.npc) && W.want(s.npc).kind === 'story') fail(`${tag}: ${s.npc} offers a story to begin while the walk's line waits`);
+    let t = 0;
+    for (; t < 400 && W.line().ph !== 'down'; t += 0.1) W.tick(0.1, false);
+    if (W.line().ph !== 'down') { fail(`${tag}: after ${t.toFixed(0)} s nobody has walked into her (${JSON.stringify(W.line())})`); continue; }
+    if (outOfSight && looked !== 1) fail(`${tag}: the view was eased round to her ${looked} times, not once`);
+    if (W.line().startedAt < (I.calm_s ?? 25)) fail(`${tag}: it began ${W.line().startedAt} s into control`);
+    if (!/walked into her/.test(W.errand().text)) fail(`${tag}: she is down and the corner says "${W.errand().text}"`);
+    if (how === 'helped') { heard = null; if (!W.help(her)) fail(`${tag}: Help her up did nothing`); }
+    else { me = { x: 400, y: -990, z: 0, mode: 'foot' }; for (let u = 0; u < 120 && W.line().ph === 'down'; u += 0.1) W.tick(0.1, false); me = { x: 375, y: -1016, z: 0, mode: 'foot' }; heard = null; if (W.line().ph !== 'up') fail(`${tag}: left, she does not get up`); else { const e = W.errand(); if (!e || !/^nagi has something to say/i.test(e.text)) fail(`${tag}: on her feet with her words unsaid, the corner says "${e && e.text}"`); W.talk(her); } }
+    const first = heard && heard[0] && heard[0][1][0], want0 = (how === 'alone' ? line.parts[0].alone : null) || line.parts[0].lines;
+    if (first !== want0[0]) fail(`${tag}: ${how}, her first words are "${first}", not "${want0[0]}"`);
+    const k = JSON.parse(store[KEEP])[line.id];
+    if (k.part !== 1 || k.inc !== how) fail(`${tag}: her first part said, the fall is not kept (${JSON.stringify(k)})`);
+    const e1 = W.errand();
+    if (!e1 || e1.text !== line.parts[0].then.goal) fail(`${tag}: her part said, the corner says "${e1 && e1.text}"`);
+    // and the visit after that: no incident, her story where it was
+    const W2 = OEWalkTalk.create(Object.assign({}, ctx, { here: () => me, figure: () => man, loaded: () => true }));
+    W2.begin();
+    if (W2.line().ph) fail(`${tag}: her first part said, a later visit plays the incident again`);
+    visits++;
+  }
+}
+// The corner's rule (the owner, 27 November 2026: "if I come in right next to Nagi, shouldn't the corner be Nagi's?"):
+// a story begun stays the corner's, whoever is near; with none begun it leads to the one story there is to begin (each
+// later story's first words name the one before: "Mr Oda sent you?", so the next is never a choice); the walk's line's
+// incident takes it while it is to come and while she is down. Nearness shows on the marks, never on the corner.
+if (line) {
+  const mei = people.find(s => s.id === 'hachiko'), taxi = people.find(s => s.id === 'taxi');
+  const corner = (kept, at) => { for (const k of Object.keys(store)) delete store[k]; store[KEEP] = JSON.stringify(kept); const n = npc(line.npc); Object.assign(n, { x: 374, y: -1018, rig: { root: { visible: true } }, sit: false }); const man = { x: 371, y: -1020, rig: {}, walkTo() {}, animate() {}, remove() {} }; const W = OEWalkTalk.create(Object.assign({}, ctx, { here: () => at, figure: () => man, loaded: () => true, look() {}, hurry() {}, unseen: () => false })); W.begin(); return W; };
+  const told = s => ({ part: s.parts.length, met: false, done: true, inc: 'helped', rested: true });
+  let W = corner({}, { x: 377, y: -1014, z: 0, mode: 'foot' });
+  if ((W.errand() || {}).text !== line.incident.lead) fail(`nothing begun, beside her: the corner says "${(W.errand() || {}).text}", not the incident's lead`);
+  if (mei) { W = corner({ [line.id]: told(line) }, { x: 377, y: -1014, z: 0, mode: 'foot' }); if (!/^mei has something/i.test((W.errand() || {}).text)) fail(`her story told, nothing else begun: the corner says "${(W.errand() || {}).text}", not Mei's`); }
+  if (mei && taxi) {
+    W = corner({ [line.id]: told(line), [mei.id]: told(mei), [taxi.id]: { part: 1, met: false, done: false } }, { x: 374, y: -1016, z: 0, mode: 'foot' });
+    if ((W.errand() || {}).text !== taxi.parts[0].then.goal) fail(`Oda's story begun, beside Nagi: the corner says "${(W.errand() || {}).text}", not Oda's goal`);
+    const w = W.want(line.npc); if (!w || w.kind !== 'chat') fail(`Oda's story begun, Nagi told: she has ${w ? w.kind : 'nothing'} to say, not a word in passing (her pale mark)`);
+  }
+}
+function of(W, s) { return W.state()[s.id] || { part: 0 }; }
+if (line && visits < 5) fail(`returning visits: ${visits} of 5 played through`);
+else if (line) console.log('returning visits: the incident played again each time, her first words matched it, the fall kept once they were said');
 console.log(`${RUNS} walks of ${STEPS} steps: ${talks} talks heard, the line's person asked ${nagiFirst} times on her feet with her first part unsaid`);
 if (!nagiFirst && line) fail('the line\'s person was never on her feet with her first part unsaid: the check checked nothing');
 if (fails) { console.log(`FAIL ${fails} failures`); process.exit(1); }
