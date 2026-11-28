@@ -236,6 +236,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!rows.length || rows[0].id !== 'gt-story-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1 || !rows[1] || rows[1].id !== 'gt-walk-go') fail(`the title's list does not lead with the story, the walk under it: ${JSON.stringify(rows)}`);
       else if (rows.some(r => Math.abs(r.w - rows[0].w) > 1 || Math.abs(r.h - rows[0].h) > 1)) fail(`the title's ways in are not all one size: ${JSON.stringify(rows)}`);
       else ok(`the title's ways in, one list led by the story, the walk under it, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
+    if (await visible('#gt-walk-anew')) fail('someone who has never played is offered Start the walk again'); // (walk.js keptSync: tools/walk_save.js plays the walk kept and begun again)
     await shot('1-title');
     await press('#gt-walk-go'); await until(() => window.__game.screen() === 'who');
     s = await state();

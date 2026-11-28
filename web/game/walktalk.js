@@ -609,6 +609,22 @@ window.OEWalkTalk = (function () {
       reset() { st = {}; roll = {}; lineOff(); keep(); try { localStorage.removeItem(ROLL); } catch (e) { /* storage blocked */ } },
       // the views of Shibuya for the menu's album: each found (with its picture and when) or still to find (with its hint)
       views: () => views.map(v => { const f = (st._views || {})[v.id]; return { id: v.id, name: v.name, hint: v.hint || '', found: !!f, when: f ? f.when : '', pic: roll[v.id] || null }; }),
+      // the walk kept in this browser, for the title's Continue (walk.js): the story under way, who has it and what it asks,
+      // and how many are told; null with nothing begun. The views found are not a walk to go on with: they stay with the
+      // photographs, and Start the walk again keeps them (clear)
+      saved() {
+        if (!people.some(s => { const k = st[s.id]; return k && (k.part > 0 || k.done); })) return null;
+        const cur = current(), told = people.filter(s => of(s).done).length;
+        if (!cur) return { title: '', who: '', goal: 'Every story told', told, of: people.length };
+        const k = of(cur), n = ctx.npc(speaker(cur, k.part)), who = n ? first(n.name) : '';
+        const then = k.part > 0 ? cur.parts[k.part - 1].then || {} : null;
+        const goal = cur === lineS && k.part === 0 ? (lineS.incident && lineS.incident.lead) || cur.hint || ''
+          : !then ? `${who} has something to say` : k.met ? then.next || `Back to ${who}` : then.goal || `Back to ${who}`;
+        return { title: cur.title, who, goal, told, of: people.length };
+      },
+      // Start the walk again (walk.js, the title's and the menu's): where each story has got to forgotten, the incident to
+      // come again; the views found and their photographs kept, as the confirmation says
+      clear() { const views = st._views; st = views ? { _views: views } : {}; lineOff(); keep(); },
       // (for the checks: every story before this one told, so that it is the one under way)
       startAt(id) { st = {}; lineOff(); for (const s of people) { if (s.id === id) break; Object.assign(of(s), { part: s.parts.length, met: false, done: true }); } keep(); },
       count: () => ({ done: people.filter(s => of(s).done).length, of: people.length }),
