@@ -1727,7 +1727,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // ctx.film): those ask for its model themselves. Through every other frame it is put away, and was fetched all the same
   // by being near (800 m, from the title on a desktop; 150 m on a phone) and held to the last card unseen, 9.5 MB of a
   // phone's GPU through frame 5's Stop and frames 6 and 7 (main red, run 529). true while the story has it put away
-  const storyHeliAway = () => !!story && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active);
+  const storyHeliAway = () => !!story && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active && overture.story); // (overture.story: a flight's film, ctx.film; the opening's film flies no helicopter)
   let heliAwayAt = 0; // (since when it has stood put away and hidden: storyHeliDrop)
   function storyHeliDrop() {
     if (!storyHeliAway() || heli.group.visible || !heli.loaded() || !heli.drop) { heliAwayAt = 0; return; }
