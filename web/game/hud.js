@@ -359,7 +359,8 @@ window.OEHud = (function () {
     // (line: the line being said, how far it is typed, and who says it: face.js moves their face while it is typed)
     // (quiet: just closed. The press that passed the last line, or the one after it from a hand still passing lines, is not
     // also the next thing: E passes a line and gets you into a helicopter beside you, F passes one and is the shutter)
-    return { show, next, back, choose, tick, cut, quit: () => { if (cur) close(); }, get open() { return !!cur; }, get free() { return !!(cur && cur.free); }, get holds() { return !!cur && !cur.free; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
+    // drop(): the box closed and what was waiting on it forgotten, not called (the mode it belonged to put away: game.js putAway)
+    return { show, next, back, choose, tick, cut, quit: () => { if (cur) close(); }, drop: () => { if (cur) { cur.done = null; close(); } }, get open() { return !!cur; }, get free() { return !!(cur && cur.free); }, get holds() { return !!cur && !cur.free; }, get quiet() { return !cur && performance.now() - shutAt < 450; }, get stepped() { return view; }, get line() { return cur && !view && cur.full ? { text: cur.full, at: cur.typed, npc: cur.npc } : null; }, get hasChoices() { return !!(cur && !view && cur.choices.length && cur.i >= cur.lines.length - 1 && cur.typed >= cur.full.length); } };
   }
 
   // ------------------------------------------------------------ toasts

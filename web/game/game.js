@@ -45,7 +45,7 @@ window.OpenEarthGame = async function game(cityId) {
   // it as it knows before a frame is taken, from the loading screen through the title and the prologue until the first
   // frame's score takes it over. A browser gives a page no sound before it is touched: where it does, the cue starts
   // with the page; where it does not, the loading screen says so and the first key or touch starts it.
-  let cue = null;
+  let cue = null, cueAgain = () => {}; // (cueAgain: the title come back to in place, its cue as at a fresh title; game.js putAway)
   const ghostF = new THREE.Vector3(); // (story ctx ghostVoice's)
   if (window.OEMusic && OEMusic.loop && A && !new URLSearchParams(location.search).has('walk')) {
     // (the loading screen asks for a touch while the context waits for one: suspended, or on iOS not made until then)
@@ -54,11 +54,13 @@ window.OpenEarthGame = async function game(cityId) {
       A.start();
       // (a phone's: the system's own player, the context not made until the opening is over, audio.js "music outside the
       // context". Its file is the loop six times over at the level the bus would give it: tools/load_cue.js)
-      if (A.tunes) { if (cue === null) { cue = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) on(window, ev, () => setTimeout(heard, 0), { capture: true }); } heard(); return; }
+      if (A.tunes) { if (cue === null) { cue = A.tune('assets/story/late/cue-phone.mp3', { loop: true }); if (!heardOn) { heardOn = true; for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) on(window, ev, () => setTimeout(heard, 0), { capture: true }); } } heard(); return; }
       if (cue !== null || !A.ctx) { heard(); return; } // (false: played and let go)
       cue = OEMusic.loop(A.ctx, A.musicBus(), 'assets/story/late/cue.mp3', 320 / 9); // (eight bars at 54: tools/load_cue.js)
-      on(A.ctx, 'statechange', heard); heard();
+      if (!heardOn) { heardOn = true; on(A.ctx, 'statechange', heard); } heard();
     };
+    let heardOn = false; // (its listeners once a page, however often the cue begins again)
+    cueAgain = () => { if (cue) return; cue = null; begin(); }; // (a phone's is the system's player again, outside the context; a desktop's on the context there is)
     if (A.quiet) A.quiet(true);
     begin();
     if (A.made) A.made(() => { if (cue === null) begin(); }); // (iOS: the context is made in the first touch, audio.js)
@@ -1630,6 +1632,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     rig.root.position.copy(W(o.x, o.y, o.z));
     rig.root.rotation.y = Math.PI - o.h;
     npcs.push(o);
+    o.home = [o.x, o.y, o.z, o.h]; // (where they stand on a fresh page: put back there when the walk is put away, game.js walkAway)
     // (someone of the walk's own, game.json npcs[].walk: out on the walk only, walkPeople. In the story they are not
     // there at all, neither drawn nor in the crowd's way nor loaded)
     if (n.walk) { rig.root.visible = false; o.away = true; continue; }
@@ -2314,8 +2317,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     Object.assign(myCar.D.st, { x: pose.x, y: pose.y, z: pose.z, h: pose.h, vx: 0, vy: 0, v: 0, speed: 0, r: 0, vz: 0, steer: 0, air: false, pitch: 0, roll: 0 });
     myCar.C.place(pose.x, pose.y, pose.z, pose.h); // there already behind the title
   }
-  { const [cx, cy] = G.start.car || G.start.at; // (game.start.car: where it waits, when not by the start: Shibuya's start is at the scramble)
-    const z = nav.floorAt(cx, cy, Math.max(0, nav.terrain(cx, cy)) + 1), k = kerbNear(cx, cy, z ? z.z : null); if (k) parkMyCar(k.pose); }
+  carHome(); // (game.start.car: where it waits, when not by the start: Shibuya's start is at the scramble)
   const stOf = o => (o.D ? o.D.st : o.drv.st);
   // the ground beside a seat's door (o: your car or a ride)
   function doorAt(o, seat) {
@@ -3420,7 +3422,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     world.add(storyHere);
   }
   const warmHere = () => { if (!storyBeacon) { beaconMake(); storyBeacon.visible = false; const E = storyBeacon.userData.edge; E.geometry.dispose(); E.geometry = storyDrape(player.x, player.y, Math.max(0, nav.terrain(player.x, player.y)), 2, 0.96); E.userData.key = ''; compileFor(storyBeacon).catch(() => null); } if (storyHere) return null; hereMake(); storyHere.visible = false; const U = storyHere.userData; U.disc.geometry.dispose(); U.disc.geometry = storyDrape(player.x, player.y, Math.max(0, nav.terrain(player.x, player.y)), 1); U.key = ''; return compileFor(storyHere).catch(() => null); }; // (laid as the real one is: a drape's normals are a variant of their own)
-  const story = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? OEStory.create({
+  // (the story's ctx kept: the menus' Title screen lets the case go and makes it again on the same page, putAway)
+  const storyCtx = window.OEStory && G.story && !new URLSearchParams(location.search).has('walk') ? {
     story: G.story, stage, player, touch, reduced, log: storyLog, toast: t => { if (storyLog) storyLog.aside(t); H.toast(t); },
     menu: () => toggleMenu(), // (the story's own menu button: a phone has no Esc, issue 48)
     // the goal's light: a pale column standing where the next thing to do is, and a ring at its foot
@@ -3716,7 +3719,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     floor: (x, y) => Math.max(0, nav.terrain(x, y)),
     whoGate: () => whoGate(), // (every way on from the title waits for who you play: game.js whoGate)
     key: k => (gamepad ? gamepad.label(k) : k), padOn: () => !!(gamepad && gamepad.on), // (the prompts name the pad's buttons while it is in the hand: pad.js)
-  }) : null;
+  } : null;
+  let story = storyCtx ? OEStory.create(storyCtx) : null;
   // the walk (walk.js): the story's map with no story in it, the title's first way in. walk: the hour and the sky set
   // out in ({ t, w }), null on the title and in the story; walkUi: its title step and its corner of the screen
   let walk = null, walkUi = null, tonight = null, regulars = null; // (regulars: the street's own people, regulars.js)
@@ -4891,7 +4895,6 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     return true;
   };
   const startGame = cont => {
-    if (parked && parkedWay('story')) return; // (the title over a parked case or walk: parkTitle below)
     A.start();
     playing = true;
     const was = [player.x, player.y, player.z];
@@ -4925,7 +4928,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // the map's overture (overture.js) the first time here, unless you continue or arrive at a district; else the opening shot
     // (a story opens on the overture every time, in the evening its first episode is set in; ?overture=0 goes straight to the street)
     const open = () => {
-      const filmIt = overture && !cont && !arrive && !R && !reduced && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
+      const filmIt = overture && !cont && !arrive && !R && !reduced && !titleAgain && (story ? !/[?&]overture=0\b/.test(location.search) : OEOverture.due(CITY.id));
       // (on iOS the first touch may be Play itself: the loading cue is begun in that touch, after the opening's score was
       // rendered with its own bed because there was no cue yet (film-score.js plan.under); and a phone's score always has
       // its own, its music being one element at a time (audio.js tune). One piece of music: the opening's own, and the cue
@@ -4941,83 +4944,108 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     };
     open();
   };
-  // The menus' Title screen in place (issue 215; ?inplace=0 opens the page again, as before): the case or the walk is parked under the
-  // title, not torn down. The game holds both still while the title is up (paused, story.tick and the walk's talk), so
-  // leaving is the title shown over the live street with the mode's own interface put away (story.css "parked"), and
-  // the same mode's way in takes it up where it was, in the middle of a frame or a drive; the street's hour and sky put
-  // back as they were, for the walk's step on the title dresses the street as it is chosen. The other mode's way in
-  // opens the page again straight into that mode (bh-story-auto, bh-walk-auto): one load, never a title in between.
-  // Nothing is made or let go, so going back and forth costs nothing (tools/title_inplace.js counts it).
+  // The menus' Title screen in place (issue 215; ?inplace=0 opens the page again, as before): the case or the walk put
+  // away and the street left as it is, the title over it on its menu, as a fresh page's title stands once its press is
+  // made. Put away, not parked: the case is let go from the page (its cast, the afterimages, the guide, the thing of the
+  // other year, its lights, its held world and its air, its score, its timers and any talk) and made again from what it
+  // keeps in this browser (story.js dispose, kept), so the title's Continue takes it up at the frame it was at, with its
+  // prints, as a fresh page's does; the walk's people, its talk and its corner go (walktalk.js end, walk.js away), your
+  // car back at its kerb and the helicopter on its pad; you on foot at the start, the title's own evening and its sound
+  // (the cue, on the one audio context the page has). Every way in on the title then runs as it does on a fresh page, either mode, with
+  // no page load. Nothing of a mode stays under the title, so its frames cost what a fresh title's do (tools/title_inplace.js).
+  // A way in from a title come back to comes down from the title's view without an opening film (titleAgain): the films
+  // are the page's first way in, and their sound begins before any context exists (audio.js quiet, docs/SOUND.md).
   const INPLACE = !/[?&]inplace=0\b/.test(location.search); // (?inplace=0: the page load, as before; the fallback below either way)
-  let parked = null; // { mode: 'story' | 'walk', cam, clock, sky, walkLine }
-  // (the page load is the fallback: whenever the street cannot be kept as it is, a lost context, or anything that throws
-  // on the way out, parkTitle says no and the menu opens the page again, menus.js)
+  let titleAgain = false, titleSky = null, walkLeft = null; // (titleSky: the title's own sky, as a fresh page's title has it)
+  // (the page load is the fallback: a lost context, a film or a crane in flight, or anything that throws on the way out,
+  // and parkTitle says no and the menu opens the page again, menus.js)
   function parkTitle() {
-    if (!INPLACE || !playing || parked || (overture && overture.active) || cine.active) return false;
+    if (!INPLACE || !playing || (overture && overture.active) || cine.active) return false;
     try { if (renderer.getContext().isContextLost()) return false; } catch (e) { return false; }
-    try { return parkIn(); } catch (e) {
-      try { console.warn('the title in place failed, opening the page again', e); stage.classList.remove('parked', 'parked-story', 'parked-walk'); $('#g-title').hidden = true; parked = null; } catch (e2) { /* the page load clears it */ }
+    const mode = walk ? 'walk' : story ? 'story' : null;
+    if (!mode) return false;
+    try { putAway(mode); return true; } catch (e) {
+      try { console.warn('the title in place failed, opening the page again', e); } catch (e2) { /* the page load clears it */ }
       return false;
     }
   }
-  function parkIn() {
-    const mode = walk ? 'walk' : story && story.on ? 'story' : null;
-    if (!mode) return false;
-    parked = { mode, cam: { mode: cam.mode, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, tilt: cam.tilt }, clock: { y: clock.y, m: clock.m, d: clock.d, min: clock.min, scale: clock.scale }, sky: weather ? weather.state.kind : null };
+  function putAway(mode) {
+    const t0 = performance.now();
     $('#g-menu').hidden = true;
-    stage.classList.add('parked', `parked-${mode}`); stage.classList.remove('story-auto'); // (a page that set out by itself, from the last card or a link, kept the title out of sight: story.css)
-    titleYaw = null; titleT = 0;
-    const cont = $('#gt-cont-go'), wg = $('#gt-walk-go'), at = story && story.at;
-    if (mode === 'story' && cont && at) { // (Continue first, at the frame the case is at: kept or not, it is here)
-      parked.cont = { hidden: cont.hidden, primary: cont.classList.contains('primary'), small: cont.querySelector('small').textContent };
-      cont.hidden = false; cont.classList.add('primary');
-      cont.querySelector('small').textContent = `frame ${at.fi + 1} of ${at.of}${at.stamp ? ` · ${at.stamp}` : ''} · where you left it`;
-      const sg = $('#gt-story-go'); if (sg) { parked.sgPrimary = sg.classList.contains('primary'); sg.classList.remove('primary'); }
-    }
-    if (mode === 'walk' && wg) { // (the walk leads the list, Enter's and a pad's A, over a case kept from before)
-      parked.walkLine = wg.querySelector('small').textContent; wg.querySelector('small').textContent = `${fmtMin(clock.min)} · go on where you were`;
-      parked.wgPrimary = wg.classList.contains('primary'); wg.classList.add('primary');
-      if (cont) { parked.contPrimary = cont.classList.contains('primary'); cont.classList.remove('primary'); }
-      const sg = $('#gt-story-go'); if (sg) { parked.sgPrimary = sg.classList.contains('primary'); sg.classList.remove('primary'); }
-    }
+    if (photo && photo.on) photoMode(false);
+    dlg.drop(); // (a talk open is closed, and what it would have said next is not said: its mode is going)
+    if (waitRun) waitEnd(false);
+    for (const n of npcs) { n.talking = false; n.listening = null; }
+    footAgain();
+    if (mode === 'walk') walkAway();
+    caseAway(); // (the case, or on the walk the story's set dressing: the story made again from what it keeps)
+    carHome();
+    if (HELI_HOME) { heliAway = null; heliWait = null; heliHomeNow(); heli.st.rotor = 0; heli.st.door = 0; heli.st.doorTo = 0; if (A.rotor) A.rotor(0, 0); }
+    spawn(); player.auto = null; player.speed = 0;
+    Object.assign(cam, { mode: 'chase', dist: FOOT.dist, distTo: FOOT.dist, pitch: FOOT.pitch, pitchTo: FOOT.pitch, yaw: player.h, yawTo: null, lookYaw: 0, lookPitch: 0 });
+    camSmooth.set(0, 0, 0); viewBlend.t = 1; camera.up.set(0, 1, 0); carFov = 0;
+    titleYaw = null; titleT = 0; titleMustered = false; // (the crowd gathered at the kerbs again under the screens, as on a fresh title)
+    playing = false; titleAgain = true; resumeAt = null; arriving = null;
+    stage.classList.remove('story-auto', 'arrive-fade', 'at-perch', 'flash');
+    if (story) story.dress(); // (the title stands over the evening its first episode is set in, as on a fresh page)
+    if (weather && titleSky && weather.state.mode !== titleSky) weather.set(titleSky, { now: true });
+    cueAgain();
     $('#g-title').hidden = false;
-    titleScreen('menu');
-    try { performance.mark('oe:title', { detail: { from: mode, inplace: true } }); } catch (e) { /* no User Timing */ }
-    return true;
+    titleEl.dataset.screen = ''; titleScreen('menu'); // (as on a fresh title's menu: the hand on its first way in, titleScreen)
+    try { performance.mark('oe:title', { detail: { from: mode, inplace: true, ms: +(performance.now() - t0).toFixed(1) } }); } catch (e) { /* no User Timing */ }
   }
-  // the mode's own way back in: the title away, the street's hour and sky as they were, the camera as it was, a cut
-  function unpark() {
-    const P = parked;
-    if (!P) return;
-    parked = null;
-    try { unparkIn(P); } catch (e) { try { console.warn('the mode could not be taken up in place, opening the page again', e); } catch (e2) { /* none */ } location.reload(); } // (the page load is the fallback here too)
+  // on foot again, out of whatever you were in or on: your car, a ride, the helicopter, a lift, a seat, a train
+  function footAgain() {
+    const m = player.mode, at = [player.x, player.y, player.z];
+    if (m === 'seat') standUp();
+    else if (m === 'car' && myCar) stepOut(myCar, 'driver', at);
+    else if (m === 'ride' && ride) stepOut(ride, rideSeat(ride), at);
+    if (ride) rideAway(); // (a car sent for you goes on its way: rides.js)
+    liftRide = null;
+    if (player.vehicle && 'rider' in player.vehicle) player.vehicle.rider = false;
+    if (player.rig.root.parent !== world) world.attach(player.rig.root);
+    player.rig.root.scale.setScalar(1); player.rig.legRake = player.rig.reach = player.rig.seatH = player.rig.thighDown = null;
+    Object.assign(player, { mode: 'foot', vehicle: null, speed: 0, ground: true, vz: 0, auto: null });
+    player.rig.root.rotation.set(0, Math.PI - player.h, 0); player.rig.root.visible = true;
+    seatTouch(false); stage.classList.remove('at-perch');
+    A.car(0, 0, 0); A.skid(0);
   }
-  function unparkIn(P) {
-    setClock(P.clock.y, P.clock.m, P.clock.d, P.clock.min); clock.scale = P.clock.scale;
-    if (weather && P.sky && weather.state.kind !== P.sky) weather.set(P.sky, { now: true });
-    Object.assign(cam, P.cam); camSmooth.set(0, 0, 0);
-    const cont = $('#gt-cont-go'), wg = $('#gt-walk-go'), sg = $('#gt-story-go');
-    if (P.cont && cont) { cont.hidden = P.cont.hidden; cont.classList.toggle('primary', P.cont.primary); cont.querySelector('small').textContent = P.cont.small; }
-    if (P.sgPrimary && sg) sg.classList.add('primary');
-    if (P.walkLine != null && wg) { wg.querySelector('small').textContent = P.walkLine; wg.classList.toggle('primary', !!P.wgPrimary); if (cont && P.contPrimary) cont.classList.add('primary'); }
-    $('#g-title').hidden = true;
-    stage.classList.remove('parked', 'parked-story', 'parked-walk');
-    stage.classList.remove('arrive-fade'); void stage.offsetWidth; stage.classList.add('arrive-fade'); // (from the title's view to your shoulder in a cut under a short fade, as reduced motion arrives)
+  // the case let go and made again from what it keeps (story.js dispose; its create writes the title's Continue)
+  function caseAway() {
+    if (!story) return;
+    story.dispose();
+    if (A.held) A.held(false); if (A.ghost) A.ghost(null); if (A.hush) A.hush(false);
+    if (stopFx) stopFx.dispose(); // (the held world and the scene's air: a fresh title has neither)
+    if (atmos && atmos.composer && 'keepPings' in atmos.composer) atmos.composer.keepPings = false; // (the camera effect's target a Stop keeps, let go eight seconds on: atmosphere.js; under the title nothing sets it again)
+    if (storyMusic) { const m = storyMusic; storyMusic = null; m.stop(); }
+    if (lensWas != null) cam.dist = lensWas;
+    lensWas = null; lensWide = false; storySnapBase = null; storyFlown = -1; talkShot = null; talkPrint = false;
+    for (const o of [storyBeacon, storyHere]) if (o) { world.remove(o); o.traverse(q => { if (q.geometry) q.geometry.dispose(); if (q.material) q.material.dispose(); }); }
+    storyBeacon = storyHere = null;
+    guideMade = null;
+    story = OEStory.create(storyCtx);
+    whoSync();
   }
-  // a way in pressed while a mode is parked: its own mode taken up, the other opened on a page of its own
-  function parkedWay(want, sp) {
-    if (!parked) return false;
-    if (parked.mode === want) { unpark(); return true; }
-    try {
-      if (want === 'walk') sessionStorage.setItem('bh-walk-auto', JSON.stringify({ t: (sp && sp.t) || 'night', w: (sp && sp.w) || 'clear' }));
-      else sessionStorage.setItem('bh-story-auto', cityId);
-    } catch (e) { /* storage blocked: the title, as on a fresh page */ }
-    const u = new URL(location.href); u.searchParams.delete('walk'); u.hash = '';
-    if (u.toString() === location.href.replace(/#$/, '')) location.reload(); else location.href = u.toString();
-    return true;
+  // the walk off the street: its people, its talk, its corner and its menu; what it keeps stays kept (walktalk.js)
+  function walkAway() {
+    if (walkTalk) walkTalk.end();
+    for (const n of npcs) {
+      if (n.home && !n.sit && !n.stand && Math.hypot(n.x - n.home[0], n.y - n.home[1]) > 0.05) { [n.x, n.y, n.z, n.h] = n.home; n.rig.root.position.copy(W(n.x, n.y, n.z)); n.rig.root.rotation.y = Math.PI - n.h; if (n.post) posts.move(n.post, n.x, n.y, n.z); }
+      n.fixed = false; n.walkSpeed = 0;
+      if (n.walk && !n.away) { n.away = true; n.rig.root.visible = false; if (n.post) { posts.remove(n.post); n.post = null; } } // (the walk's own, away as on a fresh page: walkPeople puts them out again)
+    }
+    // (and their pictures and shapes let go from the GPU, as the story's cast's pictures are once out of the picture,
+    // people.js lib.letGo: a fresh title never loads the walk's own people; shown again, both go up again from what the
+    // page keeps of them, three.js uploading a disposed geometry afresh at its next draw)
+    if (lib && lib.letGo) for (const n of npcs) { const c = n.walk && n.look && n.look.character; if (c && lib.tpl[c] && !npcs.some(q => !q.away && q.look && q.look.character === c)) { if (lib.hurried) delete lib.hurried[c]; if (lib.letGo(c) && lib.parked && lib.parked[c]) lib.parked[c].scene.traverse(o => { if (o.geometry) o.geometry.dispose(); }); } }
+    // (where you stood, at what minute and under what sky: the title's Continue goes on from there, startWalk)
+    walkLeft = { pos: [player.x, player.y, player.z], h: player.h, y: clock.y, m: clock.m, d: clock.d, min: clock.min, sky: weather ? weather.state.mode : null, of: walkTalk && walkTalk.people ? walkTalk.people.length : 0 };
+    walk = null; walkWas = null; carCall = null; carCome = null; walkAuto = false; walkNoFilm = false; sndCueOut = false;
+    stage.classList.remove('walk', 'walk-on');
+    if (walkUi) walkUi.away();
   }
-  // (the walk's way in on the title takes a parked walk up at once, without its step of the hour and the sky)
-  if (INPLACE) on($('#g-title'), 'click', e => { const b = e.target.closest('#gt-walk-go'); if (b && parked && parked.mode === 'walk') { e.stopImmediatePropagation(); e.preventDefault(); unpark(); } }, { capture: true });
+  // your car back at its kerb by the start, where a fresh page parks it (game.start.car)
+  function carHome() { const [cx, cy] = G.start.car || G.start.at, z = nav.floorAt(cx, cy, Math.max(0, nav.terrain(cx, cy)) + 1), k = kerbNear(cx, cy, z ? z.z : null); if (k) parkMyCar(k.pose); }
   // Onboarding, once in this browser across every map (onboard.js, #89): the first time, a short tour of the
   // HUD and then the guide's directions; on a later map, with "Skip the intro" (on for a returning player),
   // straight to the guide's own short welcome. "Show the intro again" in the menu runs the tour now.
@@ -5089,20 +5117,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     if (weather) weather.set(sp.w, { now: true }); // (as it has been for a while: a rainy street already wet)
   };
   const startWalk = (sp, o = {}) => {
-    if (parked && parkedWay('walk', sp)) return; // (parkTitle below)
     if (playing) return;
     // (a walk kept in this browser, taken up from the title's Continue: no opening flight and no call, the crane down to
     // your shoulder, and a card over the street with the story you were in and what it asks: walk.js keptSync, tell)
-    const kept = o.cont && walkTalk ? walkTalk.saved() : null, filmy = walkFilmDue() && !walkNoFilm && !kept;
+    const kept = o.cont && walkTalk ? walkTalk.saved() : null, filmy = walkFilmDue() && !walkNoFilm && !kept && !titleAgain;
     const keptCard = () => { if (kept) setTimeout(() => walkUi.told(kept.title || 'The walk', kept.told, kept.of, 'cont', kept.who ? `${kept.who} · ${kept.goal}` : kept.goal), 700); };
     A.start();
     playing = true; walk = Object.assign({}, sp);
-    const R = resumeAt && resumeAt.kind === 'walk' ? resumeAt : null; // (taken up after a lost context: noteResume)
+    const L = o.cont && walkLeft ? walkLeft : null; walkLeft = null; // (a walk put away in place, taken up from the title: where you stood, putAway)
+    const R = resumeAt && resumeAt.kind === 'walk' ? resumeAt : L; // (taken up after a lost context: noteResume)
     resumeAt = null;
     if (R) { const was = W(player.x, player.y, player.z); if (resumeSpot(R)) { const dv = W(player.x, player.y, player.z).sub(was); camera.position.add(dv); titleLook.add(dv); } }
     stage.classList.add('walk');
     if (SND_GUARD && cue && !filmy) sndCueOut = true; else cueOut(); // (the walk's sound is the city's own: the crossing's calls, the crowd, the trains, the rain. On a phone with no film to play, the cue plays on until the street does: sndHold. The walk's film has a score of its own)
     walkDress(sp);
+    if (L) { setClock(L.y, L.m, L.d, L.min); if (weather && L.sky) weather.set(L.sky, { now: true }); walk.t = 'any'; walk.w = weather ? weather.state.kind : walk.w; } // (the minute and the sky it was left at)
     $('#g-title').hidden = true;
     try { performance.mark('oe:walk', { detail: { view: 'game', city: cityId, hour: sp.t, sky: sp.w } }); } catch (e) { /* no User Timing */ }
     if (story.dressSet) story.dressSet(); // (an episode's own set dressing, as the story has it, on the walk too)
@@ -5192,15 +5221,17 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       preview: sp => { if (!walkWas) walkWas = { w: weather ? weather.state.mode : null }; walkDress(sp); walkFilmReady(); },
       restore: () => { story.dress(); if (weather && walkWas && walkWas.w) weather.set(walkWas.w, { now: true }); walkWas = null; },
       start: startWalk,
-      saved: () => (walkTalk ? walkTalk.saved() : null), // (the walk kept in this browser, for the title's Continue)
+      saved: () => (walkTalk ? walkTalk.saved() : null) || (walkLeft ? { title: 'The walk', who: '', goal: `Where you were, ${fmtMin(walkLeft.min)}`, told: 0, of: walkLeft.of } : null), // (the walk kept in this browser, or put away on this page, for the title's Continue)
       // Start the walk again (walk.js): the walk's stories forgotten and the office's call to come again, the views and their
-      // photographs kept. On the title before anything has set out, the walk sets out from here as a first visit; from a
-      // walk out on the street or parked under the title, whose people, car and clock have no way back, the page opens
-      // again on the title's walk step (bh-walk-anew), as the menu's Title screen opens it (menus.js)
+      // photographs kept. On the title (a fresh page's, or one come back to in place), the walk sets out from here as a
+      // first visit; from a walk out on the street, the walk is put away in place as the menu's Title screen puts it
+      // (parkTitle) and its step opened; only where that cannot be, the page opens again on the title's walk step (bh-walk-anew)
       anew: () => {
         if (walkTalk) walkTalk.clear();
+        walkLeft = null;
         try { localStorage.removeItem(WALK_INTRO); } catch (e) { /* storage blocked */ }
-        if (!playing && !parked) return true;
+        if (!playing) return true;
+        if (walk && parkTitle()) { setTimeout(() => walkUi.open(true), 0); return false; } // (out on the street: put away in place and the walk's step opened, as a first visit's; the page load where it cannot be)
         try { sessionStorage.setItem('bh-title-auto', '1'); sessionStorage.setItem('bh-walk-anew', '1'); } catch (e) { /* storage blocked: the title on its press */ }
         const u = new URL(location.href); u.searchParams.delete('walk'); u.searchParams.delete('overture'); u.hash = '';
         document.documentElement.classList.add('bh-leave');
@@ -5305,6 +5336,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     setTimeout(afterPlayable, reduced ? 0 : 700); // (once the loader has faded)
     preTitle = false;
     if (story) story.dress(); // (the title stands over the evening its first episode is set in)
+    titleSky = weather ? weather.state.mode : null; // (and under its own sky: put back as the title is come back to, putAway)
     titleScreen('press'); // (the title opens on its press: the street and the name; titleScreen)
     // (come back from a menu's Title screen, menus.js: the press was made already, so the title opens on its menu)
     { let back = false; try { back = sessionStorage.getItem('bh-title-auto') === '1'; sessionStorage.removeItem('bh-title-auto'); } catch (e) { /* storage blocked */ }
@@ -7947,7 +7979,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     afoot: () => player.mode !== 'car' || stepOut(myCar, 'driver', [player.x, player.y, player.z]), // (for a harness: out of the car where it stands, when no door has room)
     hold: (on, zero = false) => { simHold = on !== false; if (zero) { clockT = 0; U.uTime.value = 0; titleT = 0; titleYaw = null; if (preTitle || !$('#g-title').hidden) updateCamera(0, true); } }, // (zero: the world's clock from 0, and the title's orbit from its start, for a harness that holds it from the title on: the title's frames ran both on by however long the load took, and the arrival sets out from the orbit's pose)
      lensNear: () => Object.assign({ on: lensNearOn }, lensNear), lensNearSet: on => { lensNearOn = on !== false; },
-     story, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, soundPlace: () => sndPlace, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; if (!crowdAuto) crowd.want = null; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, heliBlock, heliHome: () => heliHome, heliFree: () => heliFree, heliHomeWhy: () => heliHomeWhy, heliHomeLast: () => heliHomeLast, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
+     get story() { return story; }, storyLog, gamepad, makeGuide, guideMade: () => guideMade, GUIDE_BODY, npcLoad: n => npcLoad(n), held: () => simHold, turnRide: () => { if (!ride) return 'no ride'; if (ride.turn) return 'turning'; ride.turnNo = ''; turnRound(ride, 0, true); return ride.turn ? 'turning' : ride.turnNo || 'not turned'; }, governor: gov, glFound, pxScale: () => gov.scale, walkTalk: () => walkTalk, carComing: () => !!carCome, walkCalls, npcsReady, lateReady, late, neon, mirror, busy, cityNoise: () => CITY_NOISE, soundPlace: () => sndPlace, sound: () => (SND ? { junction: sndJ ? sndJ.id : null, walk: !!(sndJ && sndJ.arms.some(a => junctions.walk(a))), near: sndCount } : null), crowdAuto: v => { crowdAuto = v !== false; if (!crowdAuto) crowd.want = null; applyDensity(); }, t: () => clockT, overture: () => overture, frame: dt => { simulate(dt); updateCamera(dt, false); }, deckPlan, roadsNow, arriving: () => !!arriving, settleArrival, musterScramble, opening: () => OPENING, openingHere, startTour, welcome, onboard: OEOnboard, route: { get mode() { return routeMode; }, set: setRouteMode, peek: peekRoute, PEEK: ROUTE_PEEK }, vlib, peopleLib: lib, posts, junctions, rideEta: () => (ride ? eta(ride) : 0), flyover, Wd, colonies, flocks, dayLimits, footNet, crowdNet, travelTo, travelGroups, standFor, seenNow, bodyOf, B, landmarks, GAIT, toggleMap, scene, mapPins: () => bigPins, mapChips: () => bigChips.map(c => ({ x0: c[0], y0: c[1], x1: c[2], y1: c[3], id: c[4].id })), region, mapView: () => ({ z: mapZ.z, cx: mapZ.cx, cy: mapZ.cy, names: bigNames.slice(), picked: !mapPop.hidden }), benches, sunWant, benchTalk, advance, nextView, viewBlend, COCKPIT, cockpitGlass, atmos, nightFill, dlg, cine, photo, photoMode, snapPhoto, hopTo, craneIn, live, VP, viewshed, survey, renderPassport, guess, guessStart, guessCheck, completeQuest, LINES, ls, tracked, cycleTrack, openLines, lastDock: () => lastDock, waypoint: w => { waypoint = w; }, player, myCar: () => myCar, ride: () => ride, rideSeat, kerbAction, hail, orderRide, cancelRide, boardRide, leaveRide, skipRide, enterCar, exitCar, bringCar, resetCar, destinations, roads, carBoxes, phoneShow, KEEP, heli, heliBlock, heliHome: () => heliHome, heliFree: () => heliFree, heliHomeWhy: () => heliHomeWhy, heliHomeLast: () => heliHomeLast, helipads: G.helipads, fer, rail, trains, npcs, crowd, cars, nav, clock, setClock, qs: () => qs, quest, step, completeStep, talkTo, board, alight, boardRail, alightRail, railStation, interact, enterHeli, exitHeli, heliCoach: () => coachHeli, spawn, objective, lens, camera, cam, DSM, G, ways, gold, guide: () => guide, roadNet, currentAction, keys, lifts, rideLift, liftRide: () => liftRide, doors, room: () => room, liftCar, deckOf, deckStand, places, lookAt, framePhoto, trackNear, care, weather, crowdDraw: () => crowdDraw, life };
   // (for the walk's line and its checks, tools/walk_line.js and tools/walk_play.js: on a line of their own)
   Object.assign(window.__game, { npcById: id => npcById(id), npcMove: (...q) => npcMove(...q), walkLine: () => (walkTalk && walkTalk.line ? walkTalk.line() : null) });
   return {

@@ -95,6 +95,9 @@ function logger() { return undefined; }
 // a reload the play asks for (the last card's back into a frame, its Walk Shibuya, Play it again, the title's return):
 // marked at the step that clicks it, so the next load is said as asked for, and one nobody asked for stays a `page:` line
 function expectReload(p, why) { p.__reloadWhy = why; }
+// how many times the page has loaded since watch() began: a step that must stay on the same page (the menus' Title screen
+// in place, game.js putAway) reads it before and after, and fails on any load, asked for or not
+const loadsOf = p => p.__loads || 0;
 function watch(p, { timeout = 180000 } = {}) {
   let loads = 0;
   const t0 = Date.now(), at = () => `${((Date.now() - t0) / 1000).toFixed(0)} s`;
@@ -102,7 +105,8 @@ function watch(p, { timeout = 180000 } = {}) {
   p.on('console', m => { const t = m.text(); if (/CONTEXT_LOST|context lost|context restored|WebGL context/i.test(t)) console.log(`gl:  ${t.slice(0, 200)} (at ${at()})`); });
   p.on('framenavigated', f => {
     if (f !== p.mainFrame()) return;
-    if (++loads < 2) return;
+    p.__loads = ++loads;
+    if (loads < 2) return;
     if (p.__reloadWhy) { console.log(`(the page loaded again at ${at()}, as the play asked: ${p.__reloadWhy})`); p.__reloadWhy = null; } // (expectReload)
     else { console.log(`page: loaded again at ${at()}: ${f.url().replace(/^https?:\/\/[^/]+/, '')}`); p.__unasked = true; } // (unasked: a play that reads the game waits for it to be back, walk_play.js)
   });
@@ -118,4 +122,4 @@ function watch(p, { timeout = 180000 } = {}) {
   }).catch(() => {});
 }
 
-module.exports = { logger, watch, expectReload };
+module.exports = { logger, watch, expectReload, loadsOf };

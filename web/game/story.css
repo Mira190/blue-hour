@@ -1785,11 +1785,6 @@ html.bh-leave #g-menu { pointer-events: none; }
    menu's own layer, and later in the page, so on a phone the frame's goal was read through the paused menu. Under the
    credits, which open from it) */
 #g-menu { z-index: 13; }
-/* A mode parked under the title (game.js parkTitle, ?inplace=1): the case's and the walk's own interface put away while
-   the title stands over the street, as a fresh page's title has none of it; back as the mode is taken up */
-.game-stage.parked :is(#g-story-goal, #g-story-frames, #g-story-keys, #g-story-teach, #g-story-menu, #g-story-chip, #g-story-cam,
-  #g-story-hint, #g-story-mark, #g-story-card, #g-story-print, #g-story-finder, #g-walk-acts, #g-walk-where, #g-walk-keys,
-  #g-walk-told, #g-walk-tonight, #g-walk-hud, #g-car-mark, #gd, #g-pod, #g-touch, #g-btns, #g-toasts, .g-vhud, .g-lens, .g-chatter) { visibility: hidden !important; opacity: 0 !important; }
 /* Read, then folded (story.js goal; the owner on an iPhone, 24 Nov: "a pile of words at the top and another in the
    middle"). One thing to read at a time, as a game's objective is: the frame's words for their reading time, then only
    the line of what to do under the eyebrow; a tap on what is left opens the words again. Where there is no such line

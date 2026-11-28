@@ -49,7 +49,7 @@
 // Ceiling (issue 208): every frame on foot in the station's free passage on frame 4's way to SKY's lift, the lens must be
 // under its ceiling (tools/ceiling_watch.js); a frame with it through fails the play.
 const { chromium } = require('playwright');
-const { logger: browserLog, watch: watchPage, expectReload } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
+const { logger: browserLog, watch: watchPage, expectReload, loadsOf } = require('./browser_watch'); // (what the browser says of its GPU, in the log: issue 49)
 const fs = require('fs');
 const { audit: escalators } = require('./escalator_route');
 const clipProbe = require('./clip_probe');
@@ -683,9 +683,9 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
     await p.waitForTimeout(800);
     const m = await p.evaluate(() => { const e = document.getElementById('gm-title'), r = e && e.getBoundingClientRect(), note = document.getElementById('gm-title-note'); return { on: !!e && !document.getElementById('g-menu').hidden && r.height > 0, first: !!r && r.top >= 0 && r.bottom <= innerHeight + 1, note: note && !note.hidden ? note.textContent : '' }; });
     if (!m.on) bad('the case\'s pause has no Title screen'); else if (!m.first) bad('Title screen is below the menu\'s first screen');
-    const loads = /[?&]inplace=0\b/.test(process.env.Q || ''); // (by default the case waits under the title as it is, game.js parkTitle; Q=?inplace=0 takes the page load)
-    if (loads && !new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`);
-    if (!loads && m.note) bad(`in place, the note says the frame is taken up from its beginning ("${m.note}")`);
+    const loads = /[?&]inplace=0\b/.test(process.env.Q || ''); // (by default the case is put away in place, game.js putAway; Q=?inplace=0 takes the page load)
+    if (!new RegExp(`frame ${n}\\b`).test(m.note)) bad(`the note does not say Continue takes up frame ${n} ("${m.note}")`); // (either way the case is made again from what it keeps)
+    const loads0 = loadsOf(p); // (in place, the same page from here to the case taken up again: any load fails)
     console.log(`  the pause: Title screen ${m.on ? 'shown' : 'missing'}, "${m.note}"`);
     await still('menu');
     if (loads) expectReload(p, 'the pause\'s Title screen'); await clickEl('#gm-title');
@@ -696,12 +696,16 @@ const [,, out = '/tmp/story-play', size = '1440x900'] = process.argv;
       const t = await p.evaluate(() => { const v = s => { const e = document.querySelector(s); return !!e && !e.closest('[hidden]') && e.getBoundingClientRect().height > 0 && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05; }, c = document.querySelector('#gt-cont-go small'); return { cont: v('#gt-cont-go') ? (c ? c.textContent : '') : null, left: [v('#g-story-goal.on') && 'the goal line', v('#g-menu') && 'the menu', v('#g-story-frames.on') && 'the roll', v('#gd') && 'a talk'].filter(Boolean), phase: window.__game.story.state.phase }; });
       if (t.cont == null || !new RegExp(`frame ${n}\\b`).test(t.cont)) bad(`the title's Continue is not at frame ${n} ("${t.cont}")`);
       if (t.left.length) bad(`back at the title, left over: ${t.left.join(', ')}`);
-      if (loads && t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      if (t.phase !== 'idle' && t.phase !== 'dressed') bad(`back at the title, the case is under way (${t.phase})`);
+      if (!loads) { const L = await p.evaluate(() => { const g = window.__game; return { figs: g.storyFigs().size, guide: !!(g.guideMade() && g.guideMade().root && g.guideMade().root.parent), lights: g.lights(), mode: g.player.mode }; }); // (nothing of the case left in the street: game.js putAway)
+        if (L.figs || L.guide || L.lights.story || L.lights.here || L.mode !== 'foot') bad(`back at the title, the case left in the street: ${JSON.stringify(L)}`); }
       console.log(`  the title again: Continue "${t.cont}", ${t.left.length ? `left over ${t.left.join(', ')}` : 'nothing left over'}`);
       await still('title');
       await clickEl('#gt-cont-go');
       for (let k = 0; k < 6 && await p.evaluate(() => document.getElementById('g-title').dataset.screen === 'who' && !document.getElementById('g-title').hidden); k++) { await clickEl('#gt-who [data-c="W"]'); await p.waitForTimeout(400); await clickEl('#gt-who-go'); await p.waitForTimeout(800); }
       if (!(await inCase())) bad(`Continue did not take the case up at frame ${n} (${await where()})`); else console.log(`ok   Title screen: out of frame ${n}, the title on its menu, and Continue back in frame ${n}`);
+      if (!loads && loadsOf(p) !== loads0) bad(`the page loaded again ${loadsOf(p) - loads0} time(s) between the Title screen and the case taken up: it is to stay in place`);
+      else if (!loads) console.log('ok   Title screen in place: no page load from the press to the case taken up');
       await p.waitForTimeout(3000); await still('continued');
     }
     await b.close();
