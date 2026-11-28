@@ -330,8 +330,9 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
         drop = () => {
           // (one still warming, asked for before it was put away: let go once it is warm, unless asked for again first)
           if (real && !warmed && V !== real) { dropLater = true; return false; }
-          if (!real || !warmed || V !== real || g.visible || g.children.length !== 1 || st.on || st.rotor > 0.02 || st.door > 0) return false;
-          wear(kit);
+          // (one warm and on its pad only while nobody can see it or is in it; one fetched ahead and never put there, at once)
+          if (!real || !warmed || (V === real && (g.visible || g.children.length !== 1 || st.on || st.rotor > 0.02 || st.door > 0))) return false;
+          if (V === real) wear(kit);
           for (const o of real.extras || []) { if (o.parent) o.parent.remove(o); disposeTree(o); }
           disposeTree(real.group);
           if (lib.dropHeli) lib.dropHeli();
