@@ -34,7 +34,7 @@ const NEAR = 0.45; // m between two people's middles: nearer is one inside the o
 
 function pageSide(NEAR, HOLD) {
   const MAIN = /(Pelvis|Spine2|Spine1|Spine|Neck|Head|Clavicle|UpperArm|Forearm|Hand|Thigh|Calf|Foot)$/;
-  const DISTAL = /(Forearm|Hand|Calf|Foot|Head)$/, TORSO = /(Pelvis|Spine2|Spine1|Spine|Thigh|Head|Calf)$/;
+  const SKIN = /(Forearm|Hand|Head)$/, TRUNK = /(Pelvis|Spine2|Spine1|Spine)$/, DISTAL = /(Forearm|Hand|Calf|Foot|Head)$/, TORSO = /(Pelvis|Spine2|Spine1|Spine|Thigh|Head|Calf)$/;
   const P = window.__probe = { cases: new Map(), seen: new Map(), frames: 0, t: 0, rigs: new WeakMap(), err: null, seatT: 0, NEAR };
   let T = null, v = null, v2 = null, m = null;
   const note = (kind, a, b, depth, ctx, x, y, z, extra) => {
@@ -157,6 +157,9 @@ function pageSide(NEAR, HOLD) {
     T = ctx.THREE; if (!v) { v = new T.Vector3(); v2 = new T.Vector3(); m = new T.Matrix4(); }
     P.frames++;
     const { player, nav } = ctx, at = ctx.at || '';
+    // (seats only: tools/walk_play.js reads the seats in the helicopter and the car, and nothing else, every frame of the walk
+    // costing what the whole measure costs otherwise)
+    if (window.__probeOnly === 'seats') { seatsOf(ctx); return; }
     // who is there
     const who = [];
     const onFoot = player.mode === 'foot' && player.rig && player.rig.root && player.rig.root.visible;
@@ -231,6 +234,11 @@ function pageSide(NEAR, HOLD) {
         if (!DISTAL.test(pa.bone.name)) continue;
         for (const pb of rig.parts) {
           if (pa === pb || !TORSO.test(pb.bone.name) || rig.hops.get(`${pa.name}|${pb.name}`) < 2) continue;
+          // (a hand, a forearm or the head in the pelvis or the spine is read at the skin, a few times a second, by hold
+          // below: against the parts' fitted ellipsoids the player's hand read 9 cm in their chest and Taro's head 3.8 cm in
+          // his, where the skin had a sleeve on a jacket and 1.4 cm, issue 157. Against a thigh or the head, and the feet and
+          // calves, they are still read here)
+          if (SKIN.test(pa.bone.name) && TRUNK.test(pb.bone.name)) continue;
           if (/Head$/.test(pa.bone.name) && !/(Spine2|Spine1)$/.test(pb.bone.name)) continue;
           const rest = pa.rest.get(pb);
           for (let i = 0; i < pa.pts.length; i++) {
@@ -289,17 +297,27 @@ function pageSide(NEAR, HOLD) {
       if (ctx.crowdDraw && ctx.crowdDraw.active) for (const [i, r] of ctx.crowdDraw.active) add(r.root, `walker ${i} (${(r.character || '').replace(/^R_/, '')}${r.look && r.look.clip ? ', ' + r.look.clip : ''})`);
       for (const q of ctx.npcs) if (q.rig && !q.away) add(q.rig.root, `npc ${q.name || q.id}`);
       for (const f of ctx.storyFigs) if (f.rig) add(f.rig.root, f.name || f.character);
+      // (and the one you play: their own hand read 9 cm in their chest against the fitted parts as the play ran them at
+      // someone, issue 157, and nothing read it at the skin)
+      if (ctx.player.mode === 'foot' && ctx.player.rig) add(ctx.player.rig.root, 'you');
       list.sort((a, b) => a[0] - b[0]);
       for (const [, root, name] of list.slice(0, HOLD.n)) {
         const m = window.__holdDepth.measure(root); if (!m) continue;
         let deep = 0, part = ''; for (const k in m) if (m[k] > deep) { deep = m[k]; part = k; }
         if (deep > HOLD.note) note('hold', name.replace(/^walker \d+ /, 'walker '), part.replace('_', ' '), deep, ctx, root.position.x, -root.position.z, root.position.y);
+        // (the head and its hair in the chest or the back, at the skin, less the model's own pose: tools/hold_depth.js head)
+        const h = window.__holdDepth.head && window.__holdDepth.head(root);
+        if (h && h.head > HOLD.note) note('head', name.replace(/^walker \d+ /, 'walker '), 'head in own chest', h.head, ctx, root.position.x, -root.position.z, root.position.y);
       }
     }
-    // seats: in the helicopter or a car, once a second
+    seatsOf(ctx);
+  };
+  // seats: in the helicopter or a car, once a second
+  function seatsOf(ctx) {
+    const { player } = ctx;
     const now = performance.now();
     if ((player.mode === 'heli' || player.mode === 'car') && player.rig && player.rig.root && player.rig.root.visible && now - P.seatT > 1000) {
-      P.seatT = now;
+      P.seatT = now; P.seatN = (P.seatN || 0) + 1;
       const veh = player.mode === 'heli' ? ctx.heli && (ctx.heli.root || ctx.heli.group || ctx.heli.model) : ctx.car && (ctx.car.root || ctx.car.group || (ctx.car.C && ctx.car.C.group) || (ctx.car.D && ctx.car.D.root));
       const rig = rigOf(player.rig.root, 'you');
       if (veh && rig) {
@@ -345,12 +363,12 @@ function pageSide(NEAR, HOLD) {
         }
       }
     }
-  };
+  }
   // (for tools/clip_look.js: the lowest point of each foot of a model as it is posed now, in the world)
   P.solesOf = root => { T = window.THREE; if (!v) { v = new T.Vector3(); v2 = new T.Vector3(); m = new T.Matrix4(); } const rig = rigOf(root, 'look'); if (!rig) return []; pose(root, rig);
     return soles(rig).map(s => { let low = null; for (const [, pt, l] of s.pts) { const w = l.clone().applyMatrix4(pt.bone.matrixWorld); if (!low || w.y < low.y) low = w; } return { side: s.name, x: low.x, y: low.y, z: low.z }; }); };
   P.frame = ctx => { try { frame(ctx); } catch (e) { if (!P.err) P.err = `${e && e.message} ${(e && e.stack || '').split('\n')[1] || ''}`; } };
-  P.out = () => ({ frames: P.frames, err: P.err, cases: [...P.cases.values()], seen: [...P.seen.entries()].map(([at, s]) => Object.assign({ at }, s)) });
+  P.out = () => ({ frames: P.frames, err: P.err, seatN: P.seatN || 0, cases: [...P.cases.values()], seen: [...P.seen.entries()].map(([at, s]) => Object.assign({ at }, s)) });
 }
 
 // the cases that fail a play: one body in another (the player, the story's people, the guide; a map's NPC against the
@@ -384,14 +402,24 @@ const STAND = 0.07, STAND_N = 60, WALL_N = 30;
 // parts' ellipsoids; open in issue 157. Kept further off them, the player was held up passing one in frame 1's walk to
 // Sumiko; with wider posts, the crowd's and the guide's ways round them changed.)
 const PAW = 0.05, PAW_N = 30;
+// (issue 157, the rest of it. The guide in a wall: he stood 11 cm in the roof's east glass for ten frames as you stood at it to
+// aim, his push out undone each frame because it would put him in you, until wallsOff's half second moved him (now at
+// once, companion.js tick). Past WALL2 for more than WALL2_N frames fails: the frame he is put there and the next.
+// A head in its own chest, at the skin (tools/hold_depth.js head, less the model's own pose): past HEAD for three
+// readings fails (Taro bent over his camera, 1.4 cm). Seated: the head through a vehicle's roof past ROOF, or the pelvis,
+// a foot or a limb past SEAT beyond the reading's own allowance, for SEAT_N readings a second apart, fails.)
+const WALL2 = 0.05, WALL2_N = 4, HEAD = 0.04, ROOF = 0.03, SEAT = 0.04, SEAT_N = 2;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
   || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1)
-  || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW);
+  || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW)
+  || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL2_N && c.depth > WALL2)
+  || (c.kind === 'head' && c.n >= 3 && c.depth > HEAD)
+  || (c.kind === 'seat' && c.n >= SEAT_N && c.depth > (/roof/.test(c.b) ? ROOF : SEAT));
 
 async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }
-const WORD = { bodies: 'one body in another', touch: 'a part of one in another', limb: 'a limb in its own body', carried: 'what is carried in its bearer', hold: 'a forearm or a hand in its own torso', 'limb-wall': 'a limb in a wall', 'limb-post': 'a limb in a post', wall: 'a body in a wall', post: 'a body in a post', car: 'a body in a car', floor: 'a floor through a body', sunk: 'a foot under the floor', floating: 'feet over the floor', seat: 'a seat' };
+const WORD = { bodies: 'one body in another', touch: 'a part of one in another', limb: 'a limb in its own body', carried: 'what is carried in its bearer', hold: 'a forearm or a hand in its own torso', head: 'a head in its own chest', 'limb-wall': 'a limb in a wall', 'limb-post': 'a limb in a post', wall: 'a body in a wall', post: 'a body in a post', car: 'a body in a car', floor: 'a floor through a body', sunk: 'a foot under the floor', floating: 'feet over the floor', seat: 'a seat' };
 function print(R, log = console.log) {
   if (!R) { log('clip: nothing measured (the page had no probe)'); return { hard: [], all: [] }; }
   if (R.err) log(`clip: the probe threw: ${R.err}`);

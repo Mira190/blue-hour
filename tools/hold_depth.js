@@ -24,6 +24,7 @@ const limitOf = name => { for (const k in ALLOW) if (String(name).includes(k.rep
 function pageSide() {
   if (window.__holdDepth) return;
   const ELBOW = 0.07;
+  const CHEST = /(Spine2|Spine1|Spine)$/;
   const TORSO = /(Pelvis|Spine2|Spine1|Spine|Neck|Clavicle)$/, PART = /_([RL])_(Forearm|Hand|Finger\d*)$/;
   const cache = new WeakMap();
   // a model's skinned meshes, its torso vertices and its limb vertices (a fifth of them: enough points, a fifth the time)
@@ -34,19 +35,24 @@ function pageSide() {
     const out = { meshes: [] };
     for (const o of meshes) {
       const g = o.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
-      const torso = [], limb = { R_forearm: [], R_hand: [], L_forearm: [], L_hand: [] };
-      const named = bones.map(b => { const m = PART.exec(b.name); if (m) return `${m[1]}_${m[2] === 'Forearm' ? 'forearm' : 'hand'}`; return TORSO.test(b.name) ? 'torso' : ''; });
+      const torso = [], limb = { R_forearm: [], R_hand: [], L_forearm: [], L_hand: [] }, head = [];
+      // (the head: the skin the head carries and whatever hangs under it, the hair's own bones among them)
+      const underHead = b => { for (let q = b; q && q.isBone; q = q.parent) { if (/Head$/.test(q.name)) return true; if (/(Neck|Spine)$/.test(q.name)) return false; } return false; };
+      const named = bones.map(b => { const m = PART.exec(b.name); if (m) return `${m[1]}_${m[2] === 'Forearm' ? 'forearm' : 'hand'}`; if (underHead(b)) return 'head'; return TORSO.test(b.name) ? 'torso' : ''; });
+      const chestBone = bones.map(b => CHEST.test(b.name));
+      const chest = [];
       for (let i = 0; i < g.attributes.position.count; i++) {
         let bi = 0, bw = -1;
         for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; bi = si.getComponent(i, k); } }
         const n = named[bi];
-        if (n === 'torso') torso.push(i); else if (n && i % 5 === 0) limb[n].push(i);
+        if (n === 'torso') { torso.push(i); chest.push(chestBone[bi]); } else if (n === 'head') { if (i % 3 === 0) head.push(i); } else if (n && i % 5 === 0) limb[n].push(i);
       }
       // the torso's triangles (all three corners torso), its corners numbered in the order of torso
       const slot = new Int32Array(g.attributes.position.count).fill(-1); torso.forEach((i, k) => { slot[i] = k; });
       const tri = [], ix = g.index ? g.index.array : null, nt = (ix ? ix.length : g.attributes.position.count) / 3;
-      for (let t = 0; t < nt; t++) { const a = slot[ix ? ix[t * 3] : t * 3], b = slot[ix ? ix[t * 3 + 1] : t * 3 + 1], c = slot[ix ? ix[t * 3 + 2] : t * 3 + 2]; if (a >= 0 && b >= 0 && c >= 0) tri.push(a, b, c); }
-      out.meshes.push({ o, torso, limb, tri: Int32Array.from(tri), pos: new Float32Array(torso.length * 3), M: bones.map(() => new T.Matrix4()) });
+      const chestTri = [];
+      for (let t = 0; t < nt; t++) { const a = slot[ix ? ix[t * 3] : t * 3], b = slot[ix ? ix[t * 3 + 1] : t * 3 + 1], c = slot[ix ? ix[t * 3 + 2] : t * 3 + 2]; if (a >= 0 && b >= 0 && c >= 0) { tri.push(a, b, c); if (chest[a] && chest[b] && chest[c]) chestTri.push(a, b, c); } }
+      out.meshes.push({ o, torso, limb, head, tri: Int32Array.from(tri), chestTri: Int32Array.from(chestTri), pos: new Float32Array(torso.length * 3), M: bones.map(() => new T.Matrix4()) });
     }
     return out;
   }
@@ -63,38 +69,35 @@ function pageSide() {
       nrm.x = u / L; nrm.y = v / L; nrm.z = w / L;
     }
   }
-  function measure(root) {
+  // the torso as posed (or, rest, in the model's own pose: arms out, head up), its triangles (key: 'tri', all the torso's;
+  // 'chestTri', the spine's alone) in bands 2 cm high; and the depth of a point inside them
+  function shape(r, key, rest) {
     const T = window.THREE;
-    let r = cache.get(root);
-    if (r === undefined) { r = build(root); cache.set(root, r); }
-    if (!r) return null;
-    root.updateWorldMatrix(true, true);
-    const res = { R_forearm: 0, R_hand: 0, L_forearm: 0, L_hand: 0, held: 0 };
-    const where = {};
     const bi = new T.Matrix4(), tmp = new T.Matrix4();
-    // the torso as posed, its triangles in bands 2 cm high
+    // (the triangles in bands 2 cm high)
     const BAND = 0.02, bands = new Map();
     for (const m of r.meshes) {
       const o = m.o, bones = o.skeleton.bones, inv = o.skeleton.boneInverses;
       bi.copy(o.bindMatrixInverse);
-      for (let b = 0; b < bones.length; b++) m.M[b].multiplyMatrices(o.matrixWorld, bi).multiply(tmp.multiplyMatrices(bones[b].matrixWorld, inv[b])).multiply(o.bindMatrix);
+      for (let b = 0; b < bones.length; b++) if (rest) m.M[b].copy(o.matrixWorld); else m.M[b].multiplyMatrices(o.matrixWorld, bi).multiply(tmp.multiplyMatrices(bones[b].matrixWorld, inv[b])).multiply(o.bindMatrix);
       const q = { x: 0, y: 0, z: 0 };
       m.torso.forEach((i, k) => { skin(m, i, q); m.pos[k * 3] = q.x; m.pos[k * 3 + 1] = q.y; m.pos[k * 3 + 2] = q.z; });
-      for (let t = 0; t < m.tri.length; t += 3) {
-        const P = m.pos, ya = P[m.tri[t] * 3 + 1], yb = P[m.tri[t + 1] * 3 + 1], yc = P[m.tri[t + 2] * 3 + 1];
+      const tri = m[key];
+      for (let t = 0; t < tri.length; t += 3) {
+        const P = m.pos, ya = P[tri[t] * 3 + 1], yb = P[tri[t + 1] * 3 + 1], yc = P[tri[t + 2] * 3 + 1];
         for (let j = Math.floor(Math.min(ya, yb, yc) / BAND); j <= Math.floor(Math.max(ya, yb, yc) / BAND); j++) { let L = bands.get(j); if (!L) bands.set(j, L = []); L.push(m, t); }
       }
     }
     // a point is inside the torso when a level ray from it meets the torso in every one of eight ways (beside a skirt's
     // flare or a jacket's open front, a ray out to the side meets nothing); its depth is the nearest of those meetings
     const RAYS = 8, dirs = []; for (let k = 0; k < RAYS; k++) dirs.push([Math.cos(k * Math.PI * 2 / RAYS), Math.sin(k * Math.PI * 2 / RAYS)]);
-    const depth = (x, y, z) => {
+    return (x, y, z) => {
       const L = bands.get(Math.floor(y / BAND)); if (!L) return 0;
       let near = Infinity;
       for (const [dx, dz] of dirs) {
         let best = Infinity;
         for (let k = 0; k < L.length; k += 2) {
-          const m = L[k], t = L[k + 1], P = m.pos, a = m.tri[t] * 3, b = m.tri[t + 1] * 3, c = m.tri[t + 2] * 3;
+          const m = L[k], t = L[k + 1], P = m.pos, a = m[key][t] * 3, b = m[key][t + 1] * 3, c = m[key][t + 2] * 3;
           // (Moller-Trumbore, the ray level: its direction (dx, 0, dz))
           const e1x = P[b] - P[a], e1y = P[b + 1] - P[a + 1], e1z = P[b + 2] - P[a + 2], e2x = P[c] - P[a], e2y = P[c + 1] - P[a + 1], e2z = P[c + 2] - P[a + 2];
           const px = -dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y, det = e1x * px + e1y * py + e1z * pz;
@@ -111,6 +114,16 @@ function pageSide() {
       }
       return near;
     };
+  }
+  function measure(root) {
+    const T = window.THREE;
+    let r = cache.get(root);
+    if (r === undefined) { r = build(root); cache.set(root, r); }
+    if (!r) return null;
+    root.updateWorldMatrix(true, true);
+    const res = { R_forearm: 0, R_hand: 0, L_forearm: 0, L_hand: 0, held: 0 };
+    const where = {};
+    const depth = shape(r, 'tri', false);
     const p = { x: 0, y: 0, z: 0 };
     // (not the forearm's first ELBOW from the elbow: an elbow against one's side, or under a vest's armhole, is the body's own
     // contact, not a limb through it)
@@ -139,7 +152,26 @@ function pageSide() {
     if (window.__holdDepth.where) res.where = where;
     return res;
   }
-  window.__holdDepth = { measure };
+  // the head in its own chest (issue 157): how deep the skin the head carries (the face, the jaw, the hair, a ponytail)
+  // goes inside the skin of the spine (the chest, the back; not the neck or the collarbones, which a chin or the hair meets
+  // as it should), less what it read in the model's own pose (hair that lies on the shoulders there). tools/clip_probe.js
+  // read this against ellipsoids fitted to the parts, and a man bent over his camera read 3.8 cm where his skin had 1.4
+  function head(root) {
+    let r = cache.get(root);
+    if (r === undefined) { r = build(root); cache.set(root, r); }
+    if (!r || !r.meshes.some(m => m.head.length && m.chestTri.length)) return null;
+    root.updateWorldMatrix(true, true);
+    const p = { x: 0, y: 0, z: 0 };
+    if (!r.headRest) {
+      const at = shape(r, 'chestTri', true);
+      r.headRest = r.meshes.map(m => Float32Array.from(m.head, i => { skin(m, i, p); return at(p.x, p.y, p.z); }));
+    }
+    const at = shape(r, 'chestTri', false);
+    let deep = 0, where = null;
+    r.meshes.forEach((m, k) => m.head.forEach((i, j) => { skin(m, i, p); const d = at(p.x, p.y, p.z) - r.headRest[k][j]; if (d > deep) { deep = d; where = [p.x, p.y, p.z]; } }));
+    return { head: +deep.toFixed(3), where };
+  }
+  window.__holdDepth = { measure, head };
 }
 
 module.exports = { pageSide, script: `(${pageSide.toString()})()`, LIMIT, ALLOW, limitOf };
