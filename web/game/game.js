@@ -1724,21 +1724,21 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // arrive, as a pilot's quest expects (the pad within 300 m of you, it more than 700 m away).
   let padCheck = 0;
   // In a story the helicopter is seen only on its pad through the frame before its flight and in that flight (ctx.board,
-  // ctx.film). Once the case's last flight is flown it is never seen again in that case, and it was held all the same to
-  // the last card, out of sight: 9.5 MB of a phone's GPU through frame 5's Stop and frames 6 and 7 (main red, run 529).
-  // Until then it is fetched as ever (by being near, and from the title on a desktop), so that it is warm by the flight:
-  // asked for later, a case taken up at frame 5 on the street flew before it was, and the film's wait for it started the
-  // flight's score outside the tap that began it. After it, it is not asked for and is let go (storyHeliDrop). The walk,
-  // and the title before a case is chosen (storyCase), keep it as before. true while the story has it put away for good
+  // ctx.film), and was held all the same in every other frame, out of sight: 9.5 MB of a phone's GPU through frame 5's
+  // Stop and frames 6 and 7 (main red, run 529), and from the title through frames 1 to 3. Through those two frames it is
+  // fetched as ever (by being near, and from the title on a desktop), so that it is warm by the flight: asked for later, a
+  // case taken up at frame 5 on the street flew before it was, and the film's wait for it started the flight's score
+  // outside the tap that began it. In every other frame it is not asked for and is let go (storyHeliDrop). The walk, and
+  // the title before a case is chosen (storyCase), keep it as before. true while the story has it put away
   let storyFlown = -1;
   const storyCase = () => !!(story && story.state && story.state.phase !== 'idle'); // (from its first card to its last, the last card's too)
-  // (a flight still ahead in the case, this frame's not yet flown or a later frame's: until then it is fetched as ever, by
-  // being near and from the title, so that it is warm by the flight; after the last, never again in that case)
-  const storyHeliFlies = () => { const s = story && story.state, F = s && s.ep && s.ep.frames; if (!F) return true; for (let i = Math.max(0, s.fi); i < F.length; i++) { const f = F[i] && F[i].flight; if (f && f.craft !== false && !(i === s.fi && storyFlown === s.fi)) return true; } return false; };
+  // (a flight in this frame not yet flown, or in the next: fetched as ever then, by being near and from the title, so that it
+  // is warm by the flight; in every other frame of a case it is put away)
+  const storyHeliFlies = () => { const s = story && story.state, F = s && s.ep && s.ep.frames; if (!F) return true; const fl = f => !!(f && f.flight && f.flight.craft !== false); return (fl(F[s.fi]) && storyFlown !== s.fi) || fl(F[s.fi + 1]); };
   const storyHeliAway = () => storyCase() && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active && overture.story) && !storyHeliFlies(); // (overture.story: a flight's film, ctx.film; the opening's film flies no helicopter)
   let heliAwayAt = 0; // (since when it has stood put away and hidden: storyHeliDrop)
   function storyHeliDrop() {
-    if (!storyHeliAway() || heli.group.visible || !heli.loaded() || !heli.drop) { heliAwayAt = 0; return; }
+    if (!storyHeliAway() || heli.group.visible || !heli.drop || !(heli.late && heli.late().real)) { heliAwayAt = 0; return; } // (real: made, warm or still warming)
     const now = performance.now();
     if (!heliAwayAt) heliAwayAt = now;
     else if (now - heliAwayAt > 2000) { heliAwayAt = 0; if (heli.drop()) console.info('helicopter: let go, the story has put it away'); }

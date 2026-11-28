@@ -282,7 +282,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // first or it can't be loaded; it takes the kit's place as soon as nobody is aboard
     const g = new THREE.Group();
     g.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
-    let V = null, real = null, warmed = false, ready = null, swap = null, drop = () => false;
+    let V = null, real = null, warmed = false, ready = null, swap = null, drop = () => false, dropLater = false;
     const wear = v => { if (V) g.remove(V.group); V = v; g.add(v.group); };
     // the searchlight is in the world from the start, whether or not the model has come (heliModel carries
     // it to its lamp): three.js builds the number of lights into every lit material's shader, so a light
@@ -318,7 +318,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
         g.visible = false;
         // (real is shown only once warm: update() tries the swap every frame, and the model is made before its
         // shaders have compiled, which a swap in between linked in the frame that drew it; issue 266)
-        ready = () => lib.loadHeli().then(() => { if (!real) real = heliModel(world, lib, cfg, mopts); return warm(real); }).then(m => { warmed = true; return m; })
+        ready = () => lib.loadHeli().then(() => { if (!real) real = heliModel(world, lib, cfg, mopts); return warm(real); }).then(m => { warmed = true; if (dropLater) { dropLater = false; drop(); } return m; })
           .catch(e => { console.warn('Helicopter model unavailable, using a simple one:', e); g.visible = true; return null; });
         // (nobody aboard: only the model in g, the engine off, the door shut)
         const swapper = () => () => { if (real && warmed && V !== real && g.children.length === 1 && !st.on && st.rotor < 0.02 && st.door === 0) { wear(real); g.visible = true; swap = null; } };
@@ -328,6 +328,8 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
         // it again, and its model (9.5 MB of a phone's GPU, its 2048 px map and the file's scene) stood hidden through the
         // frames after (main red on frame 5's Stop, run 529). want() fetches it again. -> whether it was let go
         drop = () => {
+          // (one still warming, asked for before it was put away: let go once it is warm, unless asked for again first)
+          if (real && !warmed && V !== real) { dropLater = true; return false; }
           if (!real || !warmed || V !== real || g.visible || g.children.length !== 1 || st.on || st.rotor > 0.02 || st.door > 0) return false;
           wear(kit);
           for (const o of real.extras || []) { if (o.parent) o.parent.remove(o); disposeTree(o); }
@@ -497,7 +499,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // want(): fetch the model now (a pad in range, or about to fly), resolving when it is on the pad;
     // show(): someone is getting in before it has come, so the kit-built one stands in until then
     let asked = null;
-    const want = () => asked || (asked = ready ? ready().then(m => { if (swap) swap(); return m; }) : Promise.resolve(V));
+    const want = () => (dropLater = false) || asked || (asked = ready ? ready().then(m => { if (swap) swap(); return m; }) : Promise.resolve(V));
     // prefetch(): the model fetched, built and its shaders and textures readied, but not yet put on the pad
     // (the title screen: it would appear out of nowhere in the shot); want() then puts it there at once
     const prefetch = () => (ready && !asked ? ready() : Promise.resolve(null));
