@@ -1757,12 +1757,12 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // is warm by the flight; in every other frame of a case it is put away)
   const storyHeliFlies = () => { const s = story && story.state, F = s && s.ep && s.ep.frames; if (!F) return true; const fl = f => !!(f && f.flight && f.flight.craft !== false); return (fl(F[s.fi]) && storyFlown !== s.fi) || fl(F[s.fi + 1]); };
   const storyHeliAway = () => storyCase() && !walk && !heliWait && !heliAway && !heli.st.on && player.mode !== 'heli' && !(overture && overture.active && overture.story) && !storyHeliFlies(); // (overture.story: a flight's film, ctx.film; the opening's film flies no helicopter)
-  let heliAwayAt = 0; // (since when it has stood put away and hidden: storyHeliDrop)
+  // (let go at once: the story's guards above say it is not flying, not waiting and out of sight. Two seconds of the game's
+  // own frames first was a wait main's full tier, its stills drawn and its frames held, did not give a case taken up at
+  // frame 7 before its first stills, and the model stood held through them: run 585)
   function storyHeliDrop() {
-    if (!storyHeliAway() || heli.group.visible || !heli.drop || !(heli.late && heli.late().real)) { heliAwayAt = 0; return; } // (real: made, warm or still warming)
-    const now = performance.now();
-    if (!heliAwayAt) heliAwayAt = now;
-    else if (now - heliAwayAt > 2000) { heliAwayAt = 0; if (heli.drop()) console.info('helicopter: let go, the story has put it away'); }
+    if (!storyHeliAway() || heli.group.visible || !heli.drop || !(heli.late && heli.late().real)) return; // (real: made, warm or still warming)
+    if (heli.drop()) console.info('helicopter: let go, the story has put it away');
   }
   function heliToPad() {
     if ((padCheck -= 1) > 0) return;
