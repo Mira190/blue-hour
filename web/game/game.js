@@ -789,7 +789,11 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // is read where the walker stands and not at the cell's middle. A cell an edge crossed, a plank's step or a mat's,
     // took the height at its middle for all of it, and the guide stood 7 to 9 cm in the air on its low side by SKY's
     // hall, by where the crowd put his way; 1.35% of the hall's floor read more than 6 cm out: tools/floor_grid.js)
-    const tri = h.floor ? new Map() : null;
+    // (and every level's too, since issue 258: what is stood on in a shown level is its drawn ground at the point, read from its
+    // triangles, and the cell's middle alone stood the guide 4 to 5.5 cm off it where its paving left a gap or dipped. Up-facing
+    // triangles, nine numbers each in the grid's units, kept in ICELL m cells as lists of their places: the Scramble's ground is
+    // 26 thousand triangles, a megabyte)
+    const T9 = [];
     let tris = 0;
     const cut = h.floor ? new Uint8Array(n * n) : null; // (the level's own floor, where the ground is not drawn: HERO_CUT)
     root.traverse(o => {
@@ -804,8 +808,8 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
         tris++;
         const i0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), i1 = Math.min(n - 1, Math.ceil(Math.max(ax, bx, cx))), j0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), j1 = Math.min(n - 1, Math.ceil(Math.max(ay, by, cy)));
         // (only what faces up is stood on: a plank's underside or a step's riser under the same point is not the floor)
-        const up = tri ? (() => { const ux = (bx - ax) * HC, uy = bz - az, uz = -(by - ay) * HC, wx = (cx - ax) * HC, wy = cz - az, wz = -(cy - ay) * HC, nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx; return Math.abs(ny) > 0.5 * Math.hypot(nx, ny, nz); })() : false;
-        if (tri && up) { const q = [ax, ay, az, bx, by, bz, cx, cy, cz]; for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * n + i; let l = tri.get(c); if (!l) tri.set(c, l = []); l.push(q); } }
+        const up = (() => { const ux = (bx - ax) * HC, uy = bz - az, uz = -(by - ay) * HC, wx = (cx - ax) * HC, wy = cz - az, wz = -(cy - ay) * HC, nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx; return Math.abs(ny) > 0.5 * Math.hypot(nx, ny, nz); })();
+        if (up) T9.push(ax, ay, az, bx, by, bz, cx, cy, cz);
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
           const px = i + 0.5, py = j + 0.5, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
           if (l1 >= -0.02 && l2 >= -0.02 && l1 + l2 <= 1.02) { const z = l1 * az + l2 * bz + (1 - l1 - l2) * cz, c = j * n + i; if (z > g[c]) { g[c] = z; road[c] = asphalt; } if (own && l1 >= 0 && l2 >= 0 && l1 + l2 <= 1) cut[c] = own; }
@@ -829,29 +833,46 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)
     h.road = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : road[j * n + i] === 1; };
     nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
-    h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
-    // (the drawn floor's own height, or null where it draws none: a level whose floor is its own, hero[].floor, nav.js lift)
-    h.height = (x, y) => {
-      const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC);
-      if (i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8) return null;
-      const l = tri && tri.get(j * n + i);
-      if (l) { // (the highest of the floor's triangles under the point itself, in the grid's units)
-        const px = (x - x0) / HC, py = (y - y0) / HC;
-        // (and where none is under the point, none within a joint's width either, as at the floor's edge where another level's
-        // paving meets it, the level has no floor there: the cell's highest, a plank beside the point, stood the guide 7 cm over
-        // the next level's planks on SKY's forecourt, issue 190)
-        for (const e of [1e-4, 0.02]) {
-          let best = -1e9;
-          for (const [ax, ay, az, bx, by, bz, cx, cy, cz] of l) {
-            const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy), l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
-            if (l1 >= -e && l2 >= -e && l1 + l2 <= 1 + e) best = Math.max(best, l1 * az + l2 * bz + (1 - l1 - l2) * cz);
-          }
-          if (best > -1e8) return best;
-        }
-        return null;
-      }
-      return g[j * n + i];
+    // (over the game's own ground as its tiles draw it, nav.bare: nav.terrain inside the level is its drawn floor less its
+    // lift, pipeline/hero_floor.py, and where its pavers lay a centimetre under the samples round them the level read as not
+    // drawn there and the guide sank 5.5 cm into Miyamasu's planks, issue 258)
+    // (its up-facing triangles by ICELL cells, each cell's list of their places in tv: tc[cell] to tc[cell + 1])
+    const IC = 2, ni = Math.ceil(n / IC), tc = new Int32Array(ni * ni + 1), tv9 = Float32Array.from(T9), nt = tv9.length / 9;
+    T9.length = 0;
+    const cellsOf = (k, fn) => {
+      const o = k * 9, i0 = Math.max(0, Math.floor(Math.min(tv9[o], tv9[o + 3], tv9[o + 6]) / IC)), i1 = Math.min(ni - 1, Math.floor(Math.max(tv9[o], tv9[o + 3], tv9[o + 6]) / IC));
+      const j0 = Math.max(0, Math.floor(Math.min(tv9[o + 1], tv9[o + 4], tv9[o + 7]) / IC)), j1 = Math.min(ni - 1, Math.floor(Math.max(tv9[o + 1], tv9[o + 4], tv9[o + 7]) / IC));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) fn(j * ni + i);
     };
+    for (let k = 0; k < nt; k++) cellsOf(k, c => { tc[c + 1]++; });
+    for (let c = 0; c < ni * ni; c++) tc[c + 1] += tc[c];
+    const tv = new Int32Array(tc[ni * ni]), fill = tc.slice(0, ni * ni);
+    for (let k = 0; k < nt; k++) cellsOf(k, c => { tv[fill[c]++] = k; });
+    // (the drawn ground's own height, or null where it draws none)
+    h.height = (x, y) => {
+      const px = (x - x0) / HC, py = (y - y0) / HC, ci = Math.floor(px / IC), cj = Math.floor(py / IC);
+      if (ci < 0 || cj < 0 || ci >= ni || cj >= ni) return null;
+      const c = cj * ni + ci, a0 = tc[c], a1 = tc[c + 1];
+      // (the highest of the floor's triangles under the point itself; and where none is under the point, none within a joint's
+      // width either, as at the floor's edge where another level's paving meets it, the level has no floor there: the cell's
+      // highest, a plank beside the point, stood the guide 7 cm over the next level's planks on SKY's forecourt, issue 190)
+      for (const e of [1e-4, 0.02]) {
+        let best = -1e9;
+        for (let q = a0; q < a1; q++) {
+          const o = tv[q] * 9, ax = tv9[o], ay = tv9[o + 1], bx = tv9[o + 3], by = tv9[o + 4], cx = tv9[o + 6], cy = tv9[o + 7];
+          const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+          if (Math.abs(den) < 1e-12) continue;
+          const l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den;
+          if (l1 >= -e && l2 >= -e && l1 + l2 <= 1 + e) best = Math.max(best, l1 * tv9[o + 2] + l2 * tv9[o + 5] + (1 - l1 - l2) * tv9[o + 8]);
+        }
+        if (best > -1e8) return best;
+      }
+      return null;
+    };
+    // (where its paving is drawn over the game's own ground as its tiles draw it, nav.bare: nav.terrain inside the level is its
+    // drawn floor less its lift, pipeline/hero_floor.py, and where its pavers lay a centimetre under the samples round them
+    // the level read as not drawn there and the guide sank 5.5 cm into Miyamasu's planks, issue 258)
+    h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); if (i < 0 || j < 0 || i >= n || j >= n) return true; const z = h.height(x, y); return z !== null && z > (nav.bare ? nav.bare(x, y) : nav.terrain(x, y)) + 0.02; };
   }
   // the ceilings a hero level draws over where you walk (issue 208), as nav.js ceilOver reads the landmarks', and its rails: the chase
   // camera stays under them (rig ceilCut). Read from what is drawn as the level comes: every flat face of its model that
@@ -3047,7 +3068,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     },
     // the walk's line (walktalk.js, its incident): someone who walks (the story's own figure, alive), a small thing lying
     // on the ground, and one of the walk's people moved a step or stood somewhere else
-    figure: (a, at) => storyFigure(Object.assign({ alive: true }, a), [at[0], at[1], at[2] != null ? at[2] : Math.max(0, nav.terrain(at[0], at[1]))]), // (where the line puts them exactly: a place found for them was four metres off, in the road)
+    figure: (a, at) => storyFigure(Object.assign({ alive: true }, a), [at[0], at[1], at[2] != null ? at[2] : null], true), // (where the line puts them exactly: a place found for them was four metres off, in the road; on the floor there, storyFigure)
     thing: (x, y, o = {}) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(o.w || 0.075, o.h || 0.009, o.d || 0.152), new THREE.MeshStandardMaterial({ color: o.color || 0x14171c, emissive: o.glow || 0x8fa6d8, emissiveIntensity: o.glow === 0 ? 0 : 0.85, roughness: 0.25 }));
       m.position.copy(W(x, y, Math.max(0, nav.terrain(x, y)) + (o.h || 0.009) / 2 + 0.004)); m.rotation.y = o.yaw || 0;
@@ -3172,7 +3193,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     }).catch(() => null); }
     return p;
   };
-  const storyFigure = (a, at) => {
+  const storyFigure = (a, at, exact = false) => {
     // (someone old, a.age: a head shorter than the model was made, and bent a little at the back and the neck)
     const old = a.alive && a.age >= 70, bend = [], look = [];
     let rig = makeRig({ character: a.character, scale: old ? 0.93 : 1 }), gone = false;
@@ -3190,7 +3211,13 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
       }
     };
     dress(rig);
-    const p = at[2] != null ? { x: at[0], y: at[1], z: at[2] } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+    const p = at[2] != null || exact ? { x: at[0], y: at[1], z: at[2] != null ? at[2] : Math.max(0, nav.terrain(at[0], at[1])) } : npcSpot({ id: `story-${a.name || a.character}`, r: 0.3 }, at);
+    // (on the floor that is walked and drawn there, not the bare ground: inside a hero level nav.terrain is its drawn floor
+    // less its lift, and frame 7's old woman stood 6 cm into the Scramble's paving at the kerb, issue 258. Read again as she
+    // stands, since the level that draws that floor may come after she is put there; a place the line gives exactly, at[2],
+    // is kept)
+    const ground = (x, y, z) => { const t = Math.max(0, nav.terrain(x, y)), fl = nav.floorAt(x, y, Math.max(t, z) + 0.5); return fl && Math.abs(fl.z - t) < 0.5 ? fl.z : t; };
+    if (at[2] == null) p.z = ground(p.x, p.y, p.z);
     const f = { x: p.x, y: p.y, z: p.z, to: null, name: a.name || '', character: a.character, id: `story:${a.name || a.character}:${storyFigs.size}`, eye: 1.58 * (old ? 0.93 : 1), ghost: !a.alive };
     storyFigs.add(f);
     // (and nobody of the crowd where they are put: in a Stop the held crowd cannot step out of them, and one stood inside
@@ -3249,9 +3276,9 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
           f.held = on < 0.3 * v * dt ? (f.held || 0) + dt : 0; // (not getting nearer: someone holds the way, or the place)
           if (f.held > 0.8 && (d < 1.3 || f.held > 4)) { f.to = null; f.held = 0; }
           if (dt > 0) v = Math.min(v, went / dt);
-          f.z = Math.max(0, nav.terrain(f.x, f.y)); put();
+          f.z = ground(f.x, f.y, f.z); put();
         }
-      }
+      } else if (at[2] == null) { const z = ground(f.x, f.y, f.z); if (Math.abs(z - f.z) > 0.002) { f.z = z; put(); } }
       // (the bend is laid over the clip's pose, and taken off again before the clip is asked for the next: with time
       // held the clip does not move the bones, and a bend added every frame turned her round and round)
       for (const b of bend) if (b.userData.bent && b.quaternion.equals(b.userData.bent)) b.quaternion.copy(b.userData.raw);
