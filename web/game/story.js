@@ -408,8 +408,9 @@ ${st.file.length ? `<section class="file" aria-label="The file"><h3>The file</h3
     const later = (ms, fn) => timers.push(setTimeout(fn, ms));
     // the roll as a collection: each frame taken lit, with its own picture in it; those still to take dark and empty
     const show = () => { const got = N - st.left; frames.querySelector('b').textContent = String(got).padStart(2, '0'); frames.querySelectorAll('.strip i').forEach((c, i) => { const p = st.prints[i], on = i < got; if (on && !c.classList.contains('got')) { c.classList.add('got', 'new'); setTimeout(() => c.classList.remove('new'), 1400); } else if (!on) c.classList.remove('got', 'new'); c.style.backgroundImage = on && p && p.src ? `url("${p.src}")` : ''; }); };
-    function title(small, big, secs) {
+    function title(small, big, secs, drop) {
       card.querySelector('small').textContent = small; card.querySelector('span').textContent = big;
+      card.classList.toggle('drop', !!drop); // (drop: the story's name, once, low and small over the live street: resume)
       card.classList.add('on');
       later(secs * 1000, () => card.classList.remove('on'));
     }
@@ -949,10 +950,10 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // the crossing behind a hundred people standing as still as she did)
       if (st.ghost && (a.lines || []).length && ctx.clear) ctx.clear([ctx.player.x, ctx.player.y], [st.ghost.x, st.ghost.y], 1.3);
       if (fr.afterimage2 && !st.ghost2) { st.ghost2 = ctx.figure(fr.afterimage2, fr.afterimage2.at); st.ghost2.face(ctx.player.x, ctx.player.y); }
-      // the world holds a breath (the first time, the title falls on it), and then the one thing to do
+      // the world holds a breath, and then the one thing to do (nothing written over the turn round you: the story's name
+      // falls once, as the first frame resolves, resume)
       // (a Stop in which something moves that should not, fr.stirs: { cast, line, after_s }: one of the living turns to look)
       if (fr.stirs && st.cast[fr.stirs.cast]) later((fr.stirs.after_s || 7) * 1000, () => { if (st.phase !== 'stop' || st.fr !== fr) return; const c = st.cast[fr.stirs.cast]; if (c.face) c.face(ctx.player.x, ctx.player.y); if (fr.stirs.line) ctx.toast(esc(fr.stirs.line)); sfx('ghost'); });
-      if (first) later(900 + HOLD, () => title(`${S.title || ''}${ep.no ? ` · Episode ${ep.no}` : ''}`, ep.title || '', 3.0));
       // (the guide's model asked for now, while the view turns: he is seen first close to, and must be there at the cut)
       const gd0 = ep.guide, film = first && gd0 && gd0.meet !== false && ctx.guide && !st.dog && !ctx.reduced;
       if (film) st.dogNext = ctx.guide(gd0);
@@ -1372,10 +1373,28 @@ ${O.plan ? `<figure><svg viewBox="0 0 220 120" aria-hidden="true"><g fill="none"
       // (the first frame: the office's line comes back as time runs, if the Stop cut it off, and the next goal follows at once:
       // the call was said before the Stop now, so nothing is waited for)
       const P0 = st.ep.prologue || {}, back = !late && st.fi === 0 && st.cutCall ? L(P0.back) : [];
-      if (back.length) { st.cutCall = false; later(900, () => ctx.say(officeOf(P0), back, () => {}, { free: true })); }
-      said.forEach((line, i) => later(1400 + (back.length ? 3200 : 0) + i * 4200, () => ctx.toast(esc(line))));
-      st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2;
-      if (said.length) st.wait = Math.max(st.wait, 1.4 + (back.length ? 3.2 : 0) + (said.length - 1) * 4.2 + 0.6); // (the next goal once what is said after the picture is said, the last of it due and gone, afterSaid: never two frames' words at once)
+      // the title drop (docs/STORY.md "The title, once"): the first frame is the cold open, and as it resolves (the print,
+      // time running, the office back on the line) the story's name comes up once over the live crossing, low and small,
+      // for 2.5 s with a phrase of the score, the player walking on. It waits for the office's line to have passed (at
+      // reading pace, so not by a clock of its own), and the after-lines and the next goal wait for it. Not in the film,
+      // not over the Stop's turn round you; a case taken up at a later frame does not see it, nor the walk
+      const dropDue = !late && st.fi === 0 && !st.dropped, NAME_MS = 2500 + 1300;
+      const sayAfter = from => { said.forEach((line, i) => later(from + i * 4200, () => ctx.toast(esc(line)))); return from / 1000 + Math.max(0, said.length - 1) * 4.2 + (said.length ? 0.6 : 0); };
+      const dropNow = () => {
+        st.dropFn = null;
+        if (st.dropped || st.phase !== 'after' || st.fi !== 0) return;
+        st.dropped = true;
+        title((S.card && S.card.native) || '', S.title || '', 2.5, true); sting('title');
+        st.wait = st.t + Math.max(NAME_MS / 1000 + 0.4, sayAfter(NAME_MS + 300)); // (what is said after, and the next goal, once the name has gone)
+      };
+      if (back.length) { st.cutCall = false; later(900, () => ctx.say(officeOf(P0), back, () => { if (dropDue) later(500, dropNow); }, { free: true })); }
+      // (by the story's own clock, not the wall's: on a slow machine the line read at its pace outlasted fifteen seconds of
+      // the wall, and the name fell over it; back on the line, it falls when the line has passed, or by twenty seconds)
+      if (dropDue) { st.dropFn = dropNow; st.dropBy = st.t + (back.length ? 20 : 1.4); st.wait = 60; }
+      else {
+        st.wait = late ? 7 : st.fi === 0 && rings() ? 1.6 + said.length * 4.2 : 2.2;
+        if (said.length) st.wait = Math.max(st.wait, sayAfter(1400 + (back.length ? 3200 : 0))); // (the next goal once what is said after the picture is said, the last of it due and gone, afterSaid: never two frames' words at once)
+      }
       if (!late && fr.finale && st.meet && ctx.walkIn) ctx.walkIn(0); // (the lights went to walk in the Stop: now the street crosses on them)
       if (!late && fr.finale && st.cast[fr.crosses]) { const c = st.cast[fr.crosses]; c.walkTo(fr.cross_to[0], fr.cross_to[1], 0.8); } // (and the living cross)
       // the next frame goes by helicopter: it starts up on its pad as this is said, and the way to it is given once all of it
@@ -1607,6 +1626,7 @@ ${L(E.line).map(l => `<p>${esc(l)}</p>`).join('')}${worked()}${E.last ? `<p clas
         }
         markTick(dt);
         if (leftS <= 0 && !st.meet && (st.beat === 'seek' || st.beat === 'shoot' || st.beat === 'still')) resume(true); // (not while they walk to each other, nor once they have met)
+      } else if (st.phase === 'after' && st.dropFn && st.t > st.dropBy) { st.dropFn(); // (the story's name, once: resume)
       } else if (st.phase === 'after' && st.t > st.wait && (st.t > st.wait + 20 || afterSaid())) { // (the next frame's words once the last frame's are said: never two frames' words at once)
         if (st.late) { st.phase = 'go'; approach(); }
         else if (st.fi === 0 && rings()) { // the office rings, now that time runs again: who you are, why this kerb, and the one odd thing about the job
