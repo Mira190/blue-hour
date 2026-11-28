@@ -957,7 +957,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
             const why = await p.evaluate(() => {
               const g = window.__game, s = g.myCar().D.st, bd = g.bounds && g.bounds(), b = bd && bd.drive ? bd.drive({ ...s }, 1, 0, g.myCar().C.half) : null;
               const ahead = (g.cars || []).filter(c => c.D && c.D.st && c !== g.myCar()).map(c => ({ d: Math.hypot(c.D.st.x - s.x, c.D.st.y - s.y), a: Math.atan2(c.D.st.x - s.x, c.D.st.y - s.y) - s.h })).filter(q => q.d < 9 && Math.cos(q.a) > 0.5).length;
-              return { at: [+s.x.toFixed(1), +s.y.toFixed(1), +s.h.toFixed(2)], v: +(s.v || 0).toFixed(2), mode: g.player.mode, dlg: !!g.dlg.open, holds: !!g.dlg.holds, pilot: !!g.pilot(), boundsBrake: b, carsAhead: ahead };
+              const fx = Math.sin(s.h), fy = Math.cos(s.h), posts = []; // (the posts within 8 m, how far ahead and across: walk4-car's, 68a6c69c)
+              try { g.nav.posts.near(s.x, s.y, 8, q => { posts.push(`${q.kind || '?'} ${((q.x - s.x) * fx + (q.y - s.y) * fy).toFixed(1)} ahead ${((q.x - s.x) * fy - (q.y - s.y) * fx).toFixed(1)} across`); }, s.z); } catch (e) { posts.push(String(e).slice(0, 60)); }
+              return { at: [+s.x.toFixed(1), +s.y.toFixed(1), +s.h.toFixed(2)], posts: posts.slice(0, 12), line: g.walkLine ? g.walkLine() : null, v: +(s.v || 0).toFixed(2), mode: g.player.mode, dlg: !!g.dlg.open, holds: !!g.dlg.holds, pilot: !!g.pilot(), boundsBrake: b, carsAhead: ahead };
             }).catch(e => ({ err: String(e) }));
             why.met = met;
             fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m (${JSON.stringify(why)})`);
