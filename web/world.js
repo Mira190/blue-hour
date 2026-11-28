@@ -3205,9 +3205,9 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
 
   // Send an object's textures to the GPU before it is drawn (issue 201): a model streamed in once the game
   // is open (an NPC's character, the helicopter) otherwise uploads them all, and builds their mipmaps, in
-  // the first frame that draws it. One texture a frame, in the frame's idle time (requestIdleCallback,
+  // the first frame that draws it. A few textures a frame (UP_TEXELS, below), in a slot of the frame's idle time (requestIdleCallback,
   // at the latest after 250 ms), from one queue that every caller shares, so two models arriving together
-  // still cost a frame one texture. Resolves when the last of obj's is up; a texture already sent (or
+  // still cost a frame no more than that. Resolves when the last of obj's is up; a texture already sent (or
   // queued by another object) is not sent twice. first: obj's go to the head of the queue, ahead of what is waiting
   // (the hero level the player starts in, issue 69: behind the title its pictures queued after the NPCs', the cars' and
   // the trees', a frame each, and on a software renderer's frames of a second or two the level waited 100 s).
@@ -3218,9 +3218,22 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // background's hundreds of pictures, queued once the late models were in, stood ahead of a body asked for a moment after,
   // a frame each. ?wq=fifo keeps the old order, to measure against.
   const sent = new WeakSet(), queue = [], WQ_FIFO = /[?&]wq=fifo\b/.test(location.search);
-  let pumping = false, seq = 0, from = null;
-  const wqStats = { 0: [], 1: [], 2: [] };
+  let pumping = false, seq = 0, from = null, upN = 0, upSlots = 0;
+  const wqStats = { 0: [], 0.5: [], 1: [], 2: [] }; // (0.5: a character the crowd's pick waits on, people.js lib.urge)
   const later = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 250 }) : setTimeout(f, 16));
+  // How much one frame's slot sends (issue 261): pictures until their texels pass a budget, or UP_MS of the page's own
+  // time has gone in the calls. Not the idle time the browser gives: in a busy game there is none, every slot is the one
+  // forced at 250 ms, and a budget held to it sent one picture a slot as before. One picture a frame, whatever its
+  // size, sent a character of the crowd's cast (two pictures at 1024, one at 512, two at 256) in five frames, and the
+  // desktop's twenty in a hundred: on a software renderer the near walkers stood as far copies for six minutes and more
+  // at the kerb, and on a GPU behind the hero level's and the trains' pictures the first seconds of the walk were copies
+  // that changed into people one by one. A texel's upload and its mipmaps are the cost the GPU pays, whatever the call
+  // returns in: so the budget counts texels (two pictures at 1024 a frame on a desktop, two at 512 on a phone, whose
+  // pictures are half the side), and the clock only stops it early.
+  const UP_MS = 6;
+  let UP_TEXELS = 0; // (read at the first slot: the tier is the city's, quality.js)
+  const upTexels = () => UP_TEXELS || (UP_TEXELS = (() => { let q = null; try { q = window.OEQuality ? OEQuality.city() : null; } catch (e) { q = null; } return q && q.lean ? 2 * 512 * 512 : 2 * 1024 * 1024; })());
+  const texels = t => { const im = t.image, m = t.mipmaps && t.mipmaps[0]; const w = (im && (im.width || im.videoWidth)) || (m && m.width) || 256, h = (im && (im.height || im.videoHeight)) || (m && m.height) || 256; return w * h * (t.isCubeTexture || (im && im.length === 6) ? 6 : 1); };
   const _wp = { x: 0, y: 0, z: 0 };
   const dist2 = (j, me) => { if (!j.at || !me) return 0; const a = j.at; return (a.x - me.x) * (a.x - me.x) + (a.z - me.z) * (a.z - me.z); };
   function take() {
@@ -3241,10 +3254,16 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
       const up = j => { try { const p = j.renderer.properties.get(j.tex); return p.__webglTexture && p.__version === j.tex.version; } catch (e) { return false; } };
       const finish = j => { const w = wqStats[j.cls]; if (w && w.length < 4000) w.push(performance.now() - j.t0); j.done(); };
       for (let i = queue.length - 1; i >= 0 && queue.length > 1; i--) if (up(queue[i])) finish(queue.splice(i, 1)[0]);
-      const job = queue.splice(take(), 1)[0];
-      try { job.renderer.initTexture(job.tex); } catch (e) { /* uploaded on its first draw instead */ }
-      finish(job);
-      requestAnimationFrame(pump); // (the next one in another frame)
+      const t0 = performance.now();
+      let px = 0;
+      do { // (a slot sends one at least, and more while the texels and UP_MS last)
+        const job = queue.splice(take(), 1)[0];
+        try { job.renderer.initTexture(job.tex); } catch (e) { /* uploaded on its first draw instead */ }
+        px += texels(job.tex); upN++;
+        finish(job);
+      } while (queue.length && px + texels(queue[take()].tex) <= upTexels() && performance.now() - t0 < UP_MS);
+      upSlots++;
+      requestAnimationFrame(pump); // (the next ones in another frame)
     });
   }
   const jobOf = (renderer, tex, cls, at) => { const job = { renderer, tex, cls, at, seq: seq++, t0: performance.now() }; job.p = new Promise(r => { job.done = r; }); return job; };
@@ -3253,8 +3272,8 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   // each class's jobs sent so far: how many, and how long they waited (ms: p50, p90, max)
   function uploadStats() {
     const q = (v, f) => { if (!v.length) return 0; const s = [...v].sort((a, b) => a - b); return Math.round(s[Math.min(s.length - 1, Math.floor(f * s.length))]); };
-    const out = { waiting: queue.length, fifo: WQ_FIFO };
-    for (const c of [0, 1, 2]) { const v = wqStats[c]; out[c] = { n: v.length, p50: q(v, 0.5), p90: q(v, 0.9), max: q(v, 1) }; }
+    const out = { waiting: queue.length, fifo: WQ_FIFO, sent: upN, slots: upSlots };
+    for (const c of [0, 0.5, 1, 2]) { const v = wqStats[c]; out[c] = { n: v.length, p50: q(v, 0.5), p90: q(v, 0.9), max: q(v, 1) }; }
     return out;
   }
   function textures(obj) {
@@ -3286,7 +3305,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   function sendTex(renderer, tex, opts) {
     if (!renderer || !renderer.initTexture || !tex) return Promise.resolve();
     const cls = opts && opts.cls != null ? opts.cls : 1;
-    if (sent.has(tex)) { const q = queue.find(j => j.tex === tex); if (q && cls < q.cls) q.cls = cls; return q ? q.p : Promise.resolve(); }
+    if (sent.has(tex)) { const q = queue.find(j => j.tex === tex); if (q && cls < q.cls) { q.cls = cls; q.seq = seq++; } return q ? q.p : Promise.resolve(); }
     sent.add(tex);
     const job = jobOf(renderer, tex, cls, opts && opts.at);
     queue.push(job);
@@ -3302,7 +3321,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     for (const tex of textures(obj)) {
       if (sent.has(tex)) { // (up, or on its way: raised to this class if it is a higher one, and to the head, if first)
         const k = queue.findIndex(q => q.tex === tex);
-        if (k >= 0) { waits.push(queue[k].p); if (cls < queue[k].cls) queue[k].cls = cls; if (first && WQ_FIFO) head.push(queue.splice(k, 1)[0]); }
+        if (k >= 0) { waits.push(queue[k].p); if (cls < queue[k].cls) { queue[k].cls = cls; queue[k].seq = seq++; } if (first && WQ_FIFO) head.push(queue.splice(k, 1)[0]); } // (raised: in its new class in the order raised, so the crowd's pick, which raises the characters it waits on biggest first, is sent in that order, people.js lib.urge)
         continue;
       }
       sent.add(tex);

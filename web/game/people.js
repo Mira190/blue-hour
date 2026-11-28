@@ -600,6 +600,7 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     };
     const ready = (name, tpl, npc = false) => {
       let hair = null, head = null;
+      stamp(name, 'parsed');
       if (window.OEFace) OEFace.prepare(tpl.scene); // (a speaking character's face drawn still until it is chosen to move: face.js)
       tpl.scene.traverse(o => {
         if (!o.isSkinnedMesh) return;
@@ -621,12 +622,13 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
       // "not drawn ten minutes after setting out". A frame's hitch as the rest go up on its first draw, not someone missing)
       const warmCap = p => (lib.hurried[name] ? Promise.race([p, new Promise(r => setTimeout(r, WARM_CAP * 1000))]) : p); // (someone named you are near, lib.hurry; the rest wait their turn)
       lib.warming[name] = tpl; // (lib.hurry: its pictures to the head of the queue, if someone named is waiting on it)
-      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => Promise.all([w(tpl.scene, lib.hurried[name] ? { first: true } : undefined), npc && tpl.textured ? warmDress(lib, tpl, w) : null])).catch(() => {})) : Promise.resolve(); };
+      const warmIt = () => { const w0 = lib.warm ? Promise.resolve(lib.warm) : npc && lib.warmLater ? lib.warmed : null; return w0 ? warmCap(w0.then(w => { tpl.warmGo = true; return Promise.all([w(tpl.scene, lib.hurried[name] ? { first: true } : lib.urged[name] ? URGE : undefined), npc && tpl.textured ? warmDress(lib, tpl, w) : null]); }).catch(() => {})) : Promise.resolve(); };
       // (a character you play keeps its clothes' picture on a phone, seen large from behind all through the game, but not
       // its head's and its hair's at 1024: a phone's canvas is 760 pixels wide and shows that face 300 across at its nearest, in a talk's
       // two-shot, and a texel finer than a pixel is not seen. At 512 a side whatever the phone's level (the cast's go to 256 on the lighter ones): 8 MB of the GPU less: issue 130. ?herotex=full: as they come, to set beside, tools/hero_face_shot.js)
-      return (lean && (npc || !/[?&]herotex=full\b/.test(location.search)) ? smaller(tpl, npc ? null : /_head$|_opacity$/, npc ? LEAN_PX : 512) : Promise.resolve()).then(() => packed(tpl.scene)).then(warmIt).then(() => {
-        lib.tpl[name] = tpl; delete lib.warming[name];
+      stamp(name, 'hair');
+      return (lean && (npc || !/[?&]herotex=full\b/.test(location.search)) ? smaller(tpl, npc ? null : /_head$|_opacity$/, npc ? LEAN_PX : 512) : Promise.resolve()).then(() => packed(tpl.scene)).then(() => stamp(name, 'warm0')).then(warmIt).then(() => {
+        lib.tpl[name] = tpl; delete lib.warming[name]; stamp(name, 'done');
         if (onMsg) onMsg(name);
         return tpl;
       });
@@ -642,17 +644,29 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     // (and fetched as a request of its own: three.js's loader joins a request for a file to one still on its way, and the
     // second ask waited on the held first)
     lib.again = Object.create(null); // (one shape however many names, as tpl and loading)
+    // (each character's way in, ms of the page's clock at each step: asked, its file come, parsed, its hair laid, its
+    // warm-up begun, shown. For the checks: tools/crowd_whole.js, issue 261)
+    lib.stream = Object.create(null);
+    const stamp = (name, k) => { const T = lib.stream[name] || (lib.stream[name] = {}); if (T[k] == null) T[k] = Math.round(performance.now()); };
     lib.forget = name => { if (!lib.tpl[name]) { delete lib.loading[name]; lib.again[name] = (lib.again[name] || 0) + 1; } };
     const fresh = (name, file) => (lib.again[name] ? `${file}?again=${lib.again[name]}` : file);
     // (someone named waiting on this character, a person of the story or the walk you meet: its pictures sent at the head of
     // the upload queue (world.js upload, first), ahead of the crowd's and the levels', from now or as soon as it is warming.
     // Behind them, Nagi waited minutes to be drawn on a slow machine; she is never drawn as anyone else meanwhile)
+    // (a character the crowd's pick waits on for someone in the view now, people.js begin: its pictures sent ahead of the
+    // rest of the cast's and of what else waits for a model to be shown, behind the hero level's and anyone named (issue
+    // 261). The whole cast is asked for at once as the crowd is made, and the queue sent it in the order it came, so the
+    // walkers at your elbow waited behind characters nobody near was wearing)
+    const URGE = { cls: 0.5 };
+    lib.urged = Object.create(null);
+    lib.urge = name => { if (lib.urged[name] || lib.tpl[name]) return; lib.urged[name] = true;
+      const t = lib.warming[name]; if (t && t.warmGo && lib.warm && !lib.hurried[name]) lib.warm(t.scene, URGE).catch(() => {}); };
     lib.hurry = name => { if (lib.hurried[name]) return; lib.hurried[name] = true; // (once: asked every half second, it warmed the model again each time and the helicopter's load waited behind it)
       const t = lib.warming[name]; if (t && lib.warm) lib.warm(t.scene, { first: true }).catch(() => {}); };
     lib.require = name => {
       const h = lib.heroes[name], c = lib.npcs[name];
       if (c) {
-        return lib.loading[name] || (lib.loading[name] = Promise.all([get(fresh(name, c.file)), clipsOf(c.sex)]).then(([g, clips]) =>
+        return lib.loading[name] || (stamp(name, 'ask'), lib.loading[name] = Promise.all([get(fresh(name, c.file)).then(g => (stamp(name, 'glb'), g)), clipsOf(c.sex)]).then(([g, clips]) =>
           ready(name, { scene: g.scene, textured: true, clips, speeds: speedsOf(c.sex), bones: NP.bones || {}, mask: !!c.mask }, true)));
       }
       if (!h) return plain(name);
@@ -2250,15 +2264,19 @@ transformed = crowdPose(transformed, false);`);
   // does not) with the first cast member that comes: the template's warm-up (lib.warm) reached its own materials, and
   // the first walker of the crowd drawn in other clothes linked this one in a draw, in the opening on the desktop tier
   // (issue 31)
+  // (each character with its own body until the variant is made: one promise for the library, from whichever character
+  // came first, held every other character of the cast until that one's pictures were up, and the first was as often as
+  // not someone nobody near was wearing, its pictures at the back of the queue: at the kerb on a desktop twenty characters
+  // warmed by the first minute waited three more for it, issue 261. Once made, a character's is a lookup and none waits)
   function warmDress(lib, T, w) {
     const key = T.mask ? 'masked' : 'plain', W = lib.dressWarm || (lib.dressWarm = {});
-    if (W[key]) return W[key];
+    if (W[key] === true) return null;
     let src = null;
     T.scene.traverse(o => { if (!src && dressable(o)) src = o; });
     if (!src) return null;
     const c = src.clone();
     c.material = dressedCopy(src.material, T);
-    return (W[key] = w(c).catch(() => {}));
+    return w(c).then(() => { W[key] = true; }, () => {});
   }
   function dressMaterial(m, masked) {
     const own = m.onBeforeCompile, key = m.customProgramCacheKey;
@@ -2681,8 +2699,8 @@ transformed = crowdPose(transformed, false);`);
         // (not one who has a far copy of their own: that copy is drawn until they come, the same person in the same clothes.
         // A stand-in there was someone else's body, and the walker changed clothes twice as the cast streamed in, from the
         // copy to the stand-in and from the stand-in to their own: the owner's report of 27 November 2026, tools/crowd_colour.js)
-        if (rn && !lib.tpl[name] && !p.far) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
-        if (!lib.tpl[name]) { lib.require(name); lastPick.unloaded++; p.pickWait = frameNo; continue; } // (pickWait: picked, and drawn as their far copy until their character has come; for the checks, tools/crowd_whole.js)
+        if (rn && !lib.tpl[name] && !p.far) { lib.require(name); if (pickD[i] < nearR && lib.urge) lib.urge(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
+        if (!lib.tpl[name]) { lib.require(name); if (pickD[i] < nearR && lib.urge) lib.urge(name); lastPick.unloaded++; p.pickWait = frameNo; continue; } // (pickWait: picked, and drawn as their far copy until their character has come; for the checks, tools/crowd_whole.js)
         if (stillMade >= 4 && !(free[name] && free[name].length)) { lastPick.capped++; p.pickWait = frameNo; continue; } // (a still frame makes four at most: the rest come in the frames after)
         if (stillMade >= 0 && !(free[name] && free[name].length)) stillMade++;
         const pooled = free[name] && free[name].pop(), r = pooled || person(lib, Object.assign({}, look));
