@@ -1,6 +1,6 @@
 // Does whoever stands in a hero level stand on what it draws? Plays a city's game (web/ served on PORT or 8800, under
-// xvfb-run), stands in each hero level (docs/HERO.md) until it is shown, and samples every STEP metres inside it (2 m in
-// from its edge): the level's drawn ground (a ray down onto its "ground" materials, the highest hit within 1.5 m of the
+// xvfb-run), stands in each hero level (docs/HERO.md) until it is shown, and samples every STEP metres inside it (out to
+// its edge): the level's drawn ground (a ray down onto its "ground" materials, the highest hit within 1.5 m of the
 // walked floor) against the floor a walker stands on there (nav.floorAt), where that floor is the ground's. Prints, per level, how many points have drawn
 // ground, the rms and the share off by more than 3, 6 and 15 cm, the worst places, and how even the drawn ground is
 // itself (changes of grade of more than 6 % over STEP either side, along x and y). With "export", writes the drawn
@@ -32,11 +32,14 @@ const [,, city = 'shibuya', STEP = '1', MODE = '', OUT = ''] = process.argv;
       if (!meshes.length) return { id, none: true };
       const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), from = new THREE.Vector3();
       ray.layers.enableAll(); // (a level's ground is drawn on a layer of its own since the wet street's mirror: a ray on the default layer met none of it, and the Scramble's floor read as empty, issue 201)
-      const n = Math.floor((H.r - 2) / step), nx = 2 * n + 1, z = new Array(nx * nx).fill(null), w = new Array(nx * nx).fill(null);
+      // (out to the circle itself: over its last 2 m the level's lift comes down to nothing, nav.js lift, but its ground is
+      // drawn at its height to the edge, and sampled 2 m in, the guide sank 4 cm into it there; hero_floor.py takes the
+      // same lift off as nav.js puts back, so the floor is the drawn ground to the edge, issue 258)
+      const n = Math.floor(H.r / step), nx = 2 * n + 1, z = new Array(nx * nx).fill(null), w = new Array(nx * nx).fill(null);
       const d = [];
       for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) {
         const x = H.at[0] + (i - n) * step, y = H.at[1] + (j - n) * step;
-        if (Math.hypot(x - H.at[0], y - H.at[1]) > H.r - 2 || nav.isWater(x, y)) continue;
+        if (Math.hypot(x - H.at[0], y - H.at[1]) > H.r || nav.isWater(x, y)) continue;
         const t = nav.terrain(x, y), f = nav.floorAt(x, y, t + 0.1);
         if (!f) continue;
         from.set(x, f.z + 1.5, -y); ray.set(from, down); ray.far = 3;

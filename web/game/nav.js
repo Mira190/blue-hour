@@ -212,6 +212,11 @@ window.OENav = (function () {
       if (OP && (x < T.x0 || y > T.y1 || x >= T.x0 + T.nx * T.cell || y <= T.y1 - T.ny * T.cell)) { const o = OP.at(G, x, y); if (o) { const g = OP.ground(o, x, y); tri = g.slope; return g.z; } }
       if (patches.length) { const h = patchAt(x, y); if (h !== null) { tri = 0; return h[1] !== null ? h[1] : h[0]; } }
       if (pgrid.size) { const h = passageFloor(x, y); if (h !== null) { tri = 0; return h; } }
+      return bare(x, y);
+    }
+    // the game's own ground at (x, y) as its tiles draw it, without the fine levels laid over it (a hero level's drawn floor,
+    // a city's patches): what a hero level's paving is drawn over (game.js heroCover)
+    function bare(x, y) {
       const c = Math.max(0, Math.min(T.nx - 1.001, (x - T.x0) / T.cell)), r = Math.max(0, Math.min(T.ny - 1.001, (T.y1 - y) / T.cell));
       const c0 = c | 0, r0 = r | 0, fc = c - c0, fr = r - r0, i = r0 * T.nx + c0, D = T.data;
       const a = D[i], b = D[i + 1], d = D[i + T.nx], e = D[i + T.nx + 1];
@@ -1412,7 +1417,7 @@ window.OENav = (function () {
     // (a guard rail in a circle of radius r between zlo and zhi: what a car set down at the kerb asks, game.js parkClear,
     // so that your car called to the kerb is not set down with a rail through it)
     const fenceHit = (x, y, r, zlo, zhi) => !!fence && fence.overlap(x, y, r, zlo, zhi);
-    const api = { addFences, pushFence, fenceHit, get fences() { return fenceList.length; }, inWell, lift, paveAt, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
+    const api = { addFences, pushFence, fenceHit, get fences() { return fenceList.length; }, inWell, lift, paveAt, bare: (x, y) => { const t0 = tri, z = bare(x, y); tri = t0; return z; }, under, terrainBelow, ceilingAt, ceilOver, approaches, stripBeside, isWater, onShore, offGround, surfaceAt, addDecks, decksAt, floorAt, walk, bodyIn, stand, slide, paneOut, solid, push, groundBelow, free, room, isDeck, clearFraction, buildingTop, buildingId, landmarkHit, strips, stripUV, stripHeight, terrain, passageFloor, inland, passages: (D.LM && D.LM.passages) || [], tops, col, get fineBoxes() { return fineBoxes; }, get fineMs() { return fineMs; }, get startMs() { return startMs; }, get sweepMs() { return sweepMs; }, get tiles() { let n = 0; for (const [k] of tileTris) if (tileDone[k] === 2) n++; return [n, tileTris.size]; }, prefetch, layAll, withoutFine, STEP, DROP, R, BUILDING, LANDMARK, LFINE, movers: null, posts: null };
     return api;
   }
   // a ceiling's cells from triangles [[x, y, z] x 3] (local metres) over the square (ax, ay) to + n * cell: each cell keeps the

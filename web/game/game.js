@@ -829,7 +829,10 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     // (and where its carriageway is, for the routes: route.js inRoad; null outside the level's paving)
     h.road = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] < -1e8 ? null : road[j * n + i] === 1; };
     nav.carriageway = (x, y) => { for (const q of G.hero || []) if (q.road) { const r = q.road(x, y); if (r !== null) return r; } return null; };
-    h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > nav.terrain(x, y) + 0.02; };
+    // (over the game's own ground as its tiles draw it, nav.bare: nav.terrain inside the level is its drawn floor less its
+    // lift, pipeline/hero_floor.py, and where its pavers lay a centimetre under the samples round them the level read as not
+    // drawn there and the guide sank 5.5 cm into Miyamasu's planks, issue 258)
+    h.cover = (x, y) => { const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC); return i < 0 || j < 0 || i >= n || j >= n || g[j * n + i] > (nav.bare ? nav.bare(x, y) : nav.terrain(x, y)) + 0.02; };
     // (the drawn floor's own height, or null where it draws none: a level whose floor is its own, hero[].floor, nav.js lift)
     h.height = (x, y) => {
       const i = Math.floor((x - x0) / HC), j = Math.floor((y - y0) / HC);
