@@ -42,6 +42,7 @@
 'use strict';
 window.OEOverture = (function () {
   const RAD = Math.PI / 180;
+  const LAND_DOWN = 20 * RAD; // (the land shot's look at most this far under the horizon on its way down, or the chase camera's own if steeper: issue 239)
   const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
   const lerp = (a, b, t) => a + (b - a) * t;
   const EASE = {
@@ -509,6 +510,22 @@ window.OEOverture = (function () {
       fov = ch(s.fov ?? 45, k, e);
       return g;
     }
+    // the land shot hands over to the chase camera in its last fifth (pose, as shotPose left it for the land shot at k)
+    // (never tipped onto the tops of heads, issue 239: blending look points at different distances pitched the view
+    // straight down from 10 m in the shot's last part. The look kept no steeper than LAND_DOWN under the horizon, or than
+    // the chase camera's own look if that is steeper, heading along the crossing, so the descent ends as a person arriving
+    // sees the street and meets the chase camera exactly. tools/walk_open.js and tools/walk_play.js read the whole shot)
+    function landed(k) {
+      const w = ctx.handOver(k, 0.7);
+      pose.pos.lerp(ctx.live.pos, w); pose.look.lerp(ctx.live.look, w);
+      const d = pose.look.clone().sub(pose.pos), L = d.length(), hz = Math.hypot(d.x, d.z);
+      const ld = ctx.live.look.clone().sub(ctx.live.pos), lh = Math.hypot(ld.x, ld.z) || 1;
+      const floor = Math.min(-LAND_DOWN, Math.atan2(ld.y, lh));
+      if (L > 1e-3 && Math.atan2(d.y, hz) < floor) {
+        const hx = d.x + ld.x / lh * L * 0.3, hzz = d.z + ld.z / lh * L * 0.3, hn = Math.hypot(hx, hzz) || 1;
+        pose.look.set(pose.pos.x + hx / hn * Math.cos(floor) * L, pose.pos.y + Math.sin(floor) * L, pose.pos.z + hzz / hn * Math.cos(floor) * L);
+      }
+    }
     function shotAt(t) { let s = shots[0]; for (const q of shots) if (t >= q.t0 - 1e-6) s = q; return s; }
     // a lens chosen for a landscape frame keeps most of its width on a phone held upright: the vertical angle opened until
     // the frame is 0.8 as wide as a 3:2 one, at most 90 degrees. At the vertical angle alone a phone saw a slice a third as
@@ -851,22 +868,7 @@ window.OEOverture = (function () {
         }
         if (g) gprev.copy(g);
       }
-      // the land shot hands over to the chase camera in its last fifth
-      if (s.type === 'land') {
-        const w = ctx.handOver(k, 0.7);
-        pose.pos.lerp(ctx.live.pos, w); pose.look.lerp(ctx.live.look, w);
-        // (never tipped onto the tops of heads, issue 239: blending look points at different distances pitched the view
-        // straight down from 10 m in the shot's last part. The look kept no steeper than 20 degrees under the horizon, or
-        // than the chase camera's own look if that is steeper, heading along the crossing, so the descent ends as a person
-        // arriving sees the street and meets the chase camera exactly)
-        const d = pose.look.clone().sub(pose.pos), L = d.length(), hz = Math.hypot(d.x, d.z);
-        const ld = ctx.live.look.clone().sub(ctx.live.pos), lh = Math.hypot(ld.x, ld.z) || 1;
-        const floor = Math.min(-0.35, Math.atan2(ld.y, lh));
-        if (L > 1e-3 && Math.atan2(d.y, hz) < floor) {
-          const hx = d.x + ld.x / lh * L * 0.3, hzz = d.z + ld.z / lh * L * 0.3, hn = Math.hypot(hx, hzz) || 1;
-          pose.look.set(pose.pos.x + hx / hn * Math.cos(floor) * L, pose.pos.y + Math.sin(floor) * L, pose.pos.z + hzz / hn * Math.cos(floor) * L);
-        }
-      }
+      if (s.type === 'land') landed(k);
       type(s, k, t);
       return pose;
     }
@@ -1059,6 +1061,11 @@ window.OEOverture = (function () {
       get active() { return active; }, get walk() { return !!ctx.walk; }, get fov() { return lensFor(fov); }, get fx() { return active ? fx : null; }, get t() { return t; }, get kind() { return kind; }, get end() { return endAt.slice(); },
       // the guide's and the camera's path through each shot (for tools/overture_film.js's checks)
       sample(s, k) { const g = shotPose(s, k); return { pos: pose.pos.clone(), look: pose.look.clone(), guide: g ? g.clone() : null }; },
+      // the camera as the film puts it at k of shot s, the land shot's hand-over and its bound on the look included, coming
+      // down from f ({pos, look}: where the shot before it ends) without touching the film's own (the checks: the whole land
+      // shot read, issue 239). The next frame poses the camera again
+      frame(s, k, f) { const keep = from; from = f || from; shotPose(s, k); if (s.type === 'land') landed(k); from = keep; return { pos: pose.pos.clone(), look: pose.look.clone() }; },
+      LAND_DOWN,
       // the guide's path through a shot at k (0..1), as the camera's frame has it, without touching the camera: where a thing
       // of the game's flown along it is, either side of now (game.js story ctx film: the helicopter's attitude)
       path: (s, k) => guideAt(s, clamp(k), new V3()),

@@ -12,6 +12,7 @@
 // and out_dir/walk-open.mp4 with its score), VIEWS=file.json (no film: free cameras over the walk, for scouting, as
 // tools/scramble_shot.js's views with absolute heights: {"views": [{"name", "eye": [x, y, z], "look": [x, y, z], "fov"}]}).
 const { chromium } = require('playwright');
+const { landPitch } = require('./land_pitch');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -145,6 +146,11 @@ const FPS = +(process.env.FPS || 24);
     if (bad) errors.push(`${c.id}: the camera passes ${c.clear} m over a roof`);
     if (tb) errors.push(`${c.id}: the camera passes ${c.tree.d.toFixed(1)} m from a tree's crown (at ${c.tree.at.join(', ')})`);
   }
+  // the land shot read whole, at every hundredth of it: never tipped onto the tops of heads (issue 239; tools/land_pitch.js)
+  const lp = await landPitch(p);
+  if (!lp) errors.push('the walk\'s opening has no land shot to read');
+  else if (!lp.ok) errors.push(`${lp.id} at k ${lp.at}: the look ${lp.worst} degrees under the horizon from ${lp.y} m, past the bound of ${lp.bound} (the chase camera's own ${lp.chase}): onto the tops of heads`);
+  else console.log(`ok   ${lp.id}: the look at most ${lp.worst} degrees under the horizon (at k ${lp.at}, ${lp.y} m up) over ${lp.n} points of the shot, the bound ${lp.bound}`);
   if (process.env.FILM) {
     const dir = path.join(out, 'frames'); fs.mkdirSync(dir, { recursive: true });
     await p.evaluate(() => window.__game.cine.seek(0));

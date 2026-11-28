@@ -56,6 +56,7 @@ HALL_V = 4.2             # its east wall, the lifts'
 SHAFT_V = 2.4            # the lifts' glass shaft outside it, up the tower's east face
 SHAFT_TOP = 74.0         # to 14F (about 71 m over 1F) and the machine over it
 APRON_V = -2.4           # the tiles reach this far out in front
+RAMP_V = -1.2            # and from here they come down to the hall's floor
 CANOPY_V = -1.6          # the roof carried out over the doors
 DOORS = (-0.9, 0.9)      # the two doors' middles across the west front
 DOOR_W = 1.2             # a door's clear width
@@ -75,28 +76,30 @@ GLOW_SLOT = (0.62, 0.66, 1.0)           # the slots in the forecourt's ceiling, 
 
 
 def materials(K):
-    granite = lambda srgb: K.tint_to("granite", srgb)
+    granite = lambda srgb: K.tint_to("honed", srgb)
     return {
         # the tiles in front: pale beige, a fine-grained stone's speckle, honed (wet in the rain: ground*)
-        "ground_tile": {"tex": "granite", "maps": "cn", "rough": 0.45, "tint": granite((196, 188, 172))},
+        "ground_tile": {"tex": "honed", "maps": "c", "rough": 0.45, "tint": granite((196, 188, 172))},
         "ground_tile_joint": {"color": (0.36, 0.34, 0.31), "rough": 0.9},
+        # (and the same tiles in the courses that come down to the hall's floor: its own floor, apron())
+        "room_floor_tile": {"tex": "honed", "maps": "c", "rough": 0.45, "tint": granite((196, 188, 172))},
+        "room_floor_tile_joint": {"color": (0.36, 0.34, 0.31), "rough": 0.9},
         # the forecourt beyond: long planks of honed stone in three close greys laid in stripes (the Urban Core's floor),
         # a line of light in a joint here and there
-        "ground_plank": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((150, 150, 150))},
-        "ground_plank_dark": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((128, 129, 131))},
-        "ground_plank_pale": {"tex": "granite", "maps": "cn", "rough": 0.5, "tint": granite((168, 167, 165))},
+        "ground_plank": {"tex": "honed", "maps": "c", "rough": 0.5, "tint": granite((150, 150, 150))},
+        "ground_plank_dark": {"tex": "honed", "maps": "c", "rough": 0.5, "tint": granite((128, 129, 131))},
+        "ground_plank_pale": {"tex": "honed", "maps": "c", "rough": 0.5, "tint": granite((168, 167, 165))},
         "glow_strip": {"color": (0.8, 0.82, 0.95), "emissive": (0.62, 0.66, 1.0), "glow": 1.4},
         # the forecourt's ceiling: facets of mirror-polished stainless steel, two finishes a shade apart (the photograph's
         # slivers, some brighter than others as they catch the street)
         "metal_facet": {"color": (0.5, 0.51, 0.53), "rough": 0.1, "metal": 1.0, "sky": 0.4},
         "metal_facet_b": {"color": (0.36, 0.37, 0.39), "rough": 0.14, "metal": 1.0, "sky": 0.3},
-        # the hall's floor: polished granite, charcoal; under it the joints' slab
         # the hall's floor: open to the sky now, a honed granite a step darker than the tiles before it, in their family
         # (it was a polished charcoal for a room under a roof, and under the open sky it read as a black hole in the street)
-        "room_floor_stone": {"tex": "granite", "maps": "cn", "rough": 0.32, "tint": granite((152, 147, 138)), "sky": 0.5},
+        "room_floor_stone": {"tex": "honed", "maps": "c", "rough": 0.32, "tint": granite((152, 147, 138)), "sky": 0.5},
         "room_floor_joint": {"color": (0.3, 0.29, 0.27), "rough": 0.9},
         # the cut's sides in front of the glass: honed dark granite
-        "wall_jamb": {"tex": "granite", "maps": "cn", "rough": 0.3, "tint": granite((52, 52, 54)), "sky": 0.5},
+        "wall_jamb": {"tex": "honed", "maps": "c", "rough": 0.3, "tint": granite((52, 52, 54)), "sky": 0.5},
         # the soffit: dark grey metal panels
         "metal_soffit": {"color": (0.075, 0.077, 0.08), "rough": 0.45, "metal": 0.7, "sky": 0.4},
         # the pillar: light warm grey panels, its name printed on them
@@ -141,6 +144,37 @@ def hairline(d, n=512):
     nm /= np.linalg.norm(nm, axis=2, keepdims=True)
     Image.fromarray(np.clip((nm * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "NormalGL.png"))
     Image.fromarray((rough * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
+
+
+def honed(d, n=512):
+    """Honed light grey granite of a fine even grain (the Japanese floor stone of Inada's kind, its mica in specks of a
+    millimetre or two): at 0.6 m a repeat a texel is 1.2 mm, and the only changes of tone are the grains,
+    the feldspar's and the quartz's, and the black mica's specks. Nothing coarser than a few millimetres: a scanned
+    granite's crystals of a centimetre and its cloudy patches read from a few metres as blotches on the floor (issue 239),
+    so whatever is wider than 3 cm is taken out of the picture and every hand's breadth of it is one tone."""
+    from PIL import Image
+    from scipy import ndimage
+    rng = np.random.default_rng(239)
+    g = ndimage.gaussian_filter(rng.normal(size=(n, n)), 0.8, mode="wrap")        # the feldspar's grains
+    g = (g - g.mean()) / (g.std() or 1)
+    q = ndimage.gaussian_filter(rng.normal(size=(n, n)), 1.5, mode="wrap")        # the quartz's, a little greyer
+    q = (q > np.quantile(q, 0.86)).astype(float)
+    m = np.zeros((n, n))                                                            # the mica's specks
+    k = int(n * n * 0.0079)
+    m[rng.integers(0, n, k), rng.integers(0, n, k)] = rng.uniform(0.6, 1.0, k)
+    m = ndimage.gaussian_filter(m, 0.7, mode="wrap")
+    m = np.clip(m / (np.quantile(m[m > 0], 0.9) or 1), 0, 1)
+    lum = (1.0 + 0.03 * g) * (1 - 0.07 * ndimage.gaussian_filter(q, 0.6, mode="wrap")) * (1 - 0.62 * m)
+    lum = lum / ndimage.gaussian_filter(lum, 26, mode="wrap") * lum.mean()          # (nothing wider than 3 cm)
+    col = np.dstack([168.0 * lum] * 3) * np.array([1.0, 0.995, 0.985])
+    os.makedirs(d, exist_ok=True)
+    Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "Color.png"))
+    h = 0.15 * g - 0.6 * m                                                          # (honed: flat but for the mica's pits)
+    dx, dy = (np.roll(h, -1, 1) - np.roll(h, 1, 1)) * 0.5 * 0.12, (np.roll(h, 1, 0) - np.roll(h, -1, 0)) * 0.5 * 0.12
+    nm = np.dstack([-dx, -dy, np.ones_like(dx)])
+    nm /= np.linalg.norm(nm, axis=2, keepdims=True)
+    Image.fromarray(np.clip((nm * 0.5 + 0.5) * 255, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "NormalGL.png"))
+    Image.fromarray((np.clip(0.45 + 0.08 * m, 0, 1) * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
 
 
 # ---------------------------------------------------------------- the atlas
@@ -311,6 +345,7 @@ class Level:
     def __init__(self, K):
         self.K = K
         K.register("hairline", 0.6, hairline)
+        K.register("honed", 0.6, honed)
         self.geo = K.Geo()
         self.A = K.Atlas(1024, 768)
         self.F = Frame()
@@ -486,30 +521,47 @@ class Level:
         to the hall's floor over the last 1.2 m before its doors"""
         F = self.F
         out = F.ground(u, v) + 0.075
-        if v < -1.2 or not (HALL_U[0] <= u <= HALL_U[1]):
+        if v < RAMP_V or not (HALL_U[0] <= u <= HALL_U[1]):
             return out
-        k = min(1.0, (v + 1.2) / 1.2)
+        k = min(1.0, (v - RAMP_V) / -RAMP_V)
         return out * (1 - k) + F.floor * k
 
     def apron(self):
         """The tiles before the doors: 600 mm square, pale, laid square, their joints a slab of grout under them."""
-        F, rep = self.F, self.K.TEXTURES["granite"][1]
+        F, rep = self.F, self.K.TEXTURES["honed"][1]
         rng = np.random.default_rng(7)
         j, u1 = 0.0025, 2.5
+        # (the last courses before the doors come down to the hall's floor, under the game's ground where it rises to the
+        # north: they are the hall's own floor, room_floor_*, where the game's ground is not drawn (game.js heroCover).
+        # As ground_* the ground came through them in grey patches with a slanting edge, issue 239)
         for v0, v1 in self.courses(APRON_V, 0.0, TILE):
+            mat = "room_floor_tile" if v0 >= RAMP_V - 1e-6 else "ground_tile"
             for ua, ub in self.courses(HALL_U[0], u1, TILE):
                 pts = [(ua + j, v0 + j), (ub - j, v0 + j), (ub - j, v1 - j), (ua + j, v1 - j)]
                 ou, ov = rng.random(2) * 3
-                self.q("ground_tile", *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
-        pts = [(HALL_U[0], APRON_V), (u1, APRON_V), (u1, 0.0), (HALL_U[0], 0.0)]
-        self.q("ground_tile_joint", *[(a, b, self.ztile(a, b) - 0.004) for a, b in pts], sub=(8, 4))
+                self.q(mat, *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
+        # (in the tiles' own cells: where they come down to the floor their height is not a plane over a wider cell, and
+        # the grout in 1.2 m cells stood 2 cm over them there)
+        self.slab("ground_tile_joint", HALL_U[0], u1, APRON_V, RAMP_V, cell=TILE)
+        self.slab("room_floor_tile_joint", HALL_U[0], u1, RAMP_V, 0.0, cell=TILE)
+
+    def slab(self, mat, u0, u1, v0, v1, cell=1.2, dz=0.012):
+        """the grout under the tiles or the planks, seen in their joints: a grid of cells each laid on the paving's own
+        height at its corners, dz under it. One quad over the forecourt, its height taken between its four corners, stood
+        2 cm over the planks where the ground rises between them and covered them in one flat grey with the joints' lines
+        of light across it (issue 239)"""
+        us = np.linspace(u0, u1, max(1, int(np.ceil((u1 - u0) / cell))) + 1)
+        vs = np.linspace(v0, v1, max(1, int(np.ceil((v1 - v0) / cell))) + 1)
+        for ua, ub in zip(us[:-1], us[1:]):
+            for va, vb in zip(vs[:-1], vs[1:]):
+                self.q(mat, *[(a, b, self.ztile(a, b) - dz) for a, b in ((ua, va), (ub, va), (ub, vb), (ua, vb))])
 
     def forecourt(self):
         """The forecourt's planks out along the tower's north face and round the hall's north side: 0.3 m wide, 1.2 to 3 m
         long, in courses running east to west, each one of three close greys of the honed stone (the photograph's five
         tones from white to charcoal kept close, so that it reads as a laid floor), each its own part of the stone; in one
         joint in seven a line of light."""
-        F, rep = self.F, self.K.TEXTURES["granite"][1]
+        F, rep = self.F, self.K.TEXTURES["honed"][1]
         rng = np.random.default_rng(1101)
         mats = ("ground_plank", "ground_plank_dark", "ground_plank_pale")
         j = 0.003
@@ -525,15 +577,16 @@ class Level:
                         self.q(m, *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
                     v = vb
                 if k % 7 == 3:
-                    self.q("glow_strip", (ua - 0.006, v0 + 0.6, self.ztile(ua, v0) + 0.002), (ua + 0.006, v0 + 0.6, self.ztile(ua, v0) + 0.002),
-                           (ua + 0.006, v1 - 0.6, self.ztile(ua, v1) + 0.002), (ua - 0.006, v1 - 0.6, self.ztile(ua, v1) + 0.002), sub=(1, 10))
-            pts = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
-            self.q("ground_tile_joint", *[(a, b, self.ztile(a, b) - 0.004) for a, b in pts], sub=(6, 12))
+                    vs = np.linspace(v0 + 0.6, v1 - 0.6, max(2, int(np.ceil((v1 - v0 - 1.2) / 1.2)) + 1))   # (laid on the planks' own heights)
+                    for va, vb in zip(vs[:-1], vs[1:]):
+                        self.q("glow_strip", (ua - 0.006, va, self.ztile(ua, va) + 0.002), (ua + 0.006, va, self.ztile(ua, va) + 0.002),
+                               (ua + 0.006, vb, self.ztile(ua, vb) + 0.002), (ua - 0.006, vb, self.ztile(ua, vb) + 0.002))
+            self.slab("ground_tile_joint", u0, u1, v0, v1)
 
     def floor(self):
         """The hall's floor: honed granite slabs 1.2 m by 0.6 m in courses across the way in, every other course half a
         slab over, joints 4 mm, each slab its own part of the stone; a stainless strip along its west edge."""
-        F, rep, z = self.F, self.K.TEXTURES["granite"][1], self.F.floor
+        F, rep, z = self.F, self.K.TEXTURES["honed"][1], self.F.floor
         rng = np.random.default_rng(53)
         sw, sd = SLAB
         u0, u1, v0 = HALL_U[0] + 0.02, HALL_U[1] - 0.02, 0.08

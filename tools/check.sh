@@ -25,6 +25,7 @@
 #             (tools/sign_clear.py), no sign reading mirrored or turned to a wall (tools/sign_check.py), no vehicle's
 #             name mirrored (tools/decal_check.js);
 #           - nothing standing in a lift's street lobby, and its hall's posts and belts inside it (tools/lobby_check.py);
+#           - no hero level's paving under the game's ground, nor its grout over its stone (tools/hero_ground.mjs, issue 239);
 #           - the story's flight clear of the buildings, and its helicopter in every frame of its shots from one side of its
 #             way (tools/flight_clear.py, tools/flight_frames.py);
 #           - the far crowd's copy of the cast (pipeline/crowd_cast.py --check);
@@ -902,6 +903,7 @@ rm -rf "$OUT/keep"
     st float float "every landmark stands on something" '^FLOATS|Error' python3 tools/float_check.py "$MAP"
     st signs signclear "no sign or screen behind another landmark" '^COVERED|Error' python3 tools/sign_clear.py "$MAP"
     st lobby lobby "nothing stands in a lift's lobby, its hall's posts and belts inside it" '^FAIL|Error' python3 tools/lobby_check.py "$MAP"
+    st heroground heroground "no hero level's paving under the game's ground or under its own grout" '^FAIL|Error' node tools/hero_ground.mjs
     st signs signs "every sign reads the right way round and faces the street" '^[^o]' python3 tools/sign_check.py "$MAP"
     st signs decals "the vehicles' names read the right way round" '^[^o]' node tools/decal_check.js
     st flight flight "the story's flight clears the buildings" 'too close|Error' python3 tools/flight_clear.py "$MAP"
