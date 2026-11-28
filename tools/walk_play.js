@@ -236,6 +236,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if (!rows.length || rows[0].id !== 'gt-story-go' || !rows[0].lead || rows.filter(r => r.lead).length !== 1 || !rows[1] || rows[1].id !== 'gt-walk-go') fail(`the title's list does not lead with the story, the walk under it: ${JSON.stringify(rows)}`);
       else if (rows.some(r => Math.abs(r.w - rows[0].w) > 1 || Math.abs(r.h - rows[0].h) > 1)) fail(`the title's ways in are not all one size: ${JSON.stringify(rows)}`);
       else ok(`the title's ways in, one list led by the story, the walk under it, each ${rows[0].w}x${rows[0].h}: ${rows.map(r => r.id).join(', ')}`); }
+    if (await visible('#gt-walk-anew')) fail('someone who has never played is offered Start the walk again'); // (walk.js keptSync: tools/walk_save.js plays the walk kept and begun again)
     await shot('1-title');
     await press('#gt-walk-go'); await until(() => window.__game.screen() === 'who');
     s = await state();
@@ -691,10 +692,17 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         const line = () => p.evaluate(() => (window.__game && window.__game.walkLine ? window.__game.walkLine() : null)).catch(() => null); // (null while the page loads again: a lost context it could not take back, glcare.js)
         const beside = near => p.evaluate(near => { const g = window.__game, n = g.npcById('nagi'); g.spawn([n.x + near * 0.55, n.y - near * 0.83]); const a = Math.atan2(n.x - g.player.x, n.y - g.player.y); g.player.h = a; g.cam.yaw = a; for (let i = 0; i < 6; i++) g.frame(0.05); }, near);
         const drawnN = await p.waitForFunction(() => { const n = window.__game.npcById('nagi'); return n && !n.rig.pending; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
-        await p.evaluate(() => window.__game.walkTalk().lineAgain()); // (the checks before this one began the stories again, and with them took the incident away)
+        // (played as a returning visit, the owner's still of 27 November 2026: this browser kept her fall from a visit before
+        // but not her first part, and Oda's story is under way. The incident plays again, the corner leads to her and not
+        // to Oda's goal, and her first words are about the fall this visit saw: walktalk.js again(), the arming a page
+        // load does)
+        const visit = await p.evaluate(() => window.__game.walkTalk().again({ last: { part: 0, met: false, done: false, inc: 'helped' }, taxi: { part: 1, met: false, done: false } }));
+        if (!visit || visit.ph !== 'wait') fail(`a returning visit with her fall kept and her first part unsaid: the incident is not played again (${JSON.stringify(visit)})`);
         if (!drawnN) fail(`Nagi is not drawn ten minutes after setting out: ${JSON.stringify(await p.evaluate(() => { const g = window.__game, n = g.npcById('nagi'); return n ? { at: [Math.round(n.x), Math.round(n.y)], away: !!n.away, pending: !!n.rig.pending, loading: !!n.loading, you: [Math.round(g.player.x), Math.round(g.player.y)], mode: g.player.mode } : 'none'; }))}`);
         else {
           await beside(4);
+          if (!(await errandIs(/photographing the screens/))) fail(`a returning visit, the incident to come: the corner says "${await errandNow()}", not its lead to her`);
+          else ok('a returning visit with Oda\'s story under way: the incident plays again, and the corner leads to her');
           // (the man's character comes too, then the page's own frames set him off and carry him to her)
           await p.waitForFunction(() => window.__game.walkLine().ph !== 'wait', null, { timeout: 600000, polling: 250 }).catch(() => {});
           await p.waitForFunction(() => /down|up/.test(window.__game.walkLine().ph), null, { timeout: 600000, polling: 250 }).catch(() => {}); // (the line goes by the page's own frames: seconds each on a software renderer)
@@ -714,7 +722,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
               await act();
               await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
               const box = await p.evaluate(() => { const b = document.getElementById('gd'); return b && !b.hidden ? document.getElementById('gd-name').textContent : ''; });
+              const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; }); // (typed in: the first word or two)
               const up = await line();
+              if (!/^Thank/.test(words)) fail(`helped up, her first words are not her thanks for it ("${words.slice(0, 120)}")`);
               if (!/Nagi/.test(box) || up.at[2] !== 'up') fail(`helped up, she is not on her feet and speaking ("${box}", ${JSON.stringify(up)})`);
               else ok('Help her up: she is on her feet, and speaks');
               await shot('4a-helped');
@@ -734,6 +744,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
                     const st = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 10; i++) g.frame(0.05); return (g.walkTalk().state().last || {}); });
                     if (!st.done || st.inc !== 'helped') fail(`her story is not put away (${JSON.stringify(st)})`);
                     else ok('her photograph taken and shown: The last train is put away, the 0:33 named');
+                    if (!(await errandIs(/Drive to 109/))) fail(`her story told, the corner does not go back to Oda's ("${await errandNow()}")`);
                     // the line's end (walktalk.js wait, gate; game.js waitWith): by the wall, Wait with her sits the two of you and
                     // the night passes until a few minutes before her train; she stands, walks to the station's front, asks for one
                     // more photograph, takes yours, goes in along the walkway and turns round, and is gone

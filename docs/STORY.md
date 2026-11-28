@@ -2417,7 +2417,70 @@ the walk's photographs are kept as its roll (issue 47), hers among them; the nor
 pass it.
 
 *A walker who wants no story* is not held: the incident asks nothing, she gets up by herself, and from then on she is
-one more person with an amber mark. It happens once in a browser and never again.
+one more person with an amber mark. It happens in every visit until her first words have been said, and after that
+never again in this browser.
+
+*The walk's line, beat by beat: what sets each off, and what a returning visit does* (27 November 2026). The owner,
+on the live site: *I waited a long time and saw no one knocked down. I just talked to her and she said "all right".*
+Their still had Oda's goal in the corner and her amber mark at the kerb. The cause: the fall was kept in this browser
+the moment it happened, and the incident is armed only while nothing is kept; a page closed before she was talked to
+gave every later visit her *Thank you. I'm all right.* about a fall that visit never saw, with no lead to her and
+another story's goal in the corner. Now the fall is kept only once her first part has been said: until then each visit
+plays it again. Read as a player meets it, the numbers from `walktalk.js` and `game.json` `walk`:
+
+| Beat | Set off by | What the player sees and is asked | Kept in this browser | A returning visit |
+|---|---|---|---|---|
+| The opening and the office's call | The walk chosen from the title; the call only the first time (`bh-walk-intro`) | The flight down to the kerb; the office rings (four lines, the car's button lit on the third); the view eased round to the first story's person, her | The call, once | No call; control at the kerb |
+| The incident to come | Armed at the walk's start (`begin`, `lineArm`) when her first part is unsaid; the man stands at [371, -1020.7], his pictures first in the upload queue (`ctx.hurry`, people.js `lib.hurry`) | The corner: *A woman is photographing the screens*, with the metres and the arrow to her. No mark over her, nothing to say yet; no other story begun meanwhile (no amber mark, no call-out), and no street moment | Nothing | The same, whatever was kept of the fall: played again |
+| He runs | On foot, 25 s of control counted (`calm_s`, not while a talk, a menu or a film is up), within 16 m of her (`near`), she drawn and in view (out of sight, the view eased round to her once, and after 30 s more, `look_s`, he comes all the same), his model come (or, everything else ready, after 20 s as whoever stands in for him: `model_s`), then 3 s (`after_s`) | A man in a suit runs (4.5 m/s) into her shoulder and on, via [385, -1012.3] to [401.5, -1029]; she is thrown and sits on the ground, her phone lit a step on; a thud | Nothing that outlives the visit | Played again |
+| She is down | The hit | The corner: *He walked into her and did not stop*. Beside her: *Help her up* (E) | Nothing that outlives the visit | Played again |
+| Helped up, or alone | E beside her; or 24 s down with you more than 6 m off, or 48 s whatever (`down_s`) | Helped: her first part at once (*Thank you. I'm all right...*). Left: on her feet, an amber mark and the corner's *Nagi has something to say*, her `alone` part (*I'm all right. Everyone went round...*). Either way, hers is the story under way whatever had been begun (a story begun before waits behind it) | Nothing until her part is said | Played again |
+| Her photograph | Her first part said | *Photograph Nagi, with the crossing behind her* (O): a photograph with her in it, from 1 to 14 m | `inc` (helped or alone) and part 1: from here the fall is kept | Her story where it was: the corner asks for the photograph |
+| Shown it | The photograph; *Back to Nagi* | Her last part: her mother's Saturday photograph, *{train} {train_when}*, *I'll be by Hachiko's wall*. *The last train* is put away, its name over the street. The story before hers (Oda's, in the owner's case) is the one under way again | Done | Told; she goes to the wall unseen (`rest`, when you are 28 m from her and 22 m from the wall, and she is out of sight) |
+| By the wall | Beside her there, told | Pale mark, her `after` words; *Wait with her for {train}* | `rested` | She is at the wall |
+| The wait | *Wait with her* | Sat on the stone; the night passes by itself to 3 min before the train (`before`), a line at 19:00, 21:00, 0:00; standing ends it where it is | Nothing | By the wall again |
+| The gate | The wait's end | *That's mine*; she walks to the hoarding's walkway; *Walk Nagi to the station*, then *one more photograph*; shown it, she takes yours, says one thing, goes in, turns round once | `w: gone` once she has gone | Gone: not on the walk again. Left half done: by the wall again |
+| Mei, *Which Hachiko* | First in the line after hers; she calls out within 14 m (once in 90 s) | Find Riko across the crossing (talk); back to Mei, Riko there already (sent on unseen) | Part, met, the one sent on | Where it was; Riko beside Mei |
+| Oda, *Once round by car* | Mei's told | *Drive to 109, at the foot of Dogenzaka* (C, your car; within 35 m of [268, -998.6] in it); back to him | Part, met | Where it was. While the incident is to come or she is down, the corner is hers; Oda's goal stays in the menu's list |
+| Shun, *The shot everyone takes* | Oda's told | A photograph of the crossing from in it (24 m) or from 40 m above it | Part, met | Where it was |
+| Yuna, *Forty-five floors* | Shun's told | Up past 238 m (the lift behind her); then Taro on the roof (the corner says the lift on another level) | Part, met | Where it was |
+| Taro, *Above the crossing* | Yuna's told | Fly the helicopter over the crossing, 60 m over it and within 80 m, and photograph it; back to him on the roof | Part, met | Where it was |
+| Street moments | 75 to 120 s on foot after the walk's start, then 120 to 200 s after each; not while the walk's line has the street (the incident to come, her down, her story under way, the wait, the gate) | Someone 30 to 110 m off and out of sight asks a photograph or the way; unanswered for 150 s, or left 160 m (asked, 70 m) behind, they go unseen | Nothing | Begun afresh |
+
+*The corner's rule*, as an open world keeps a tracked quest against the encounters round it (the owner asked whether
+coming in beside Nagi should make the corner hers): a story begun stays the corner's line, and nearness never takes it
+away; the people near you show on their marks instead (amber for a story's next part, pale for a word in passing). The
+walk's line's incident takes the corner while it is to come (its lead) and while she is down (what he did), then hands
+it back to her first words and the story begun before. With nothing begun the corner leads to the one story there is
+to begin, not to the nearest giver: each later story opens on the one before it (*Mr Oda sent you?*, *Shun sent you?*,
+*Yuna rang up*), so the line has one next person, as it has one thing to do. A nearest-giver rule would have Shun
+thank you for an errand you never ran. The office's call at the first visit turns the view to that same person, who is
+the woman at the kerb a few steps behind you. `tools/walktalk_unit.js` holds the three cases: nothing begun beside her
+(the incident's lead), her story told and nothing begun (Mei's), Oda's begun beside her (Oda's goal, her pale mark).
+
+*The walk kept, and the walk begun again* (the owner, 27 November 2026: a first load told from a saved one, and a way to
+play the walk from its start), as story-driven open worlds offer a last save over a new game, apart from the case's own
+Continue. With no story of the walk begun, the title's way in is *Walk Shibuya*: the opening flight and the office's
+call. With one begun (`walktalk.js` `saved`), it is *Continue the walk* with where you were in one line (*Mr Oda · Drive
+to 109, at the foot of Dogenzaka · 2 of 6 told*), *Start the walk again* under it, and the step names the story above the
+hour and the sky. Continue sets out without the flight or the call: the crane down to your shoulder, and a card over the
+street (*Where you left it · 2 of 6 told*, the story's name, what it asks), then the corner's story as above. Start the
+walk again, from the title or the walk's menu, asks first (*Your walk so far will be lost: the people you met and where
+their stories stand. Your photographs are kept.*); then the walk's stories, the incident's fall and the office's call are
+forgotten (`clear`), the views found and their photographs kept (`bh-walk-roll`), and it sets out as a first visit. From
+the street or a walk parked under the title the page opens again on the walk's step (`bh-walk-anew`), since its people,
+car and clock have no way back in place. `tools/walk_save.js` plays it all on a desktop and a phone, with a still of each
+screen.
+
+The holes found and closed in this pass: her first words about a fall the visit never saw (the fall kept too early);
+the incident waiting for ever with her out of the picture (a phone's narrow frame on a walk taken up again, with no call to turn the view to her: never in 15 minutes), and on the man's model (his pictures now go first, and he comes as his stand-in after 20 s);
+two things at once while the incident waited (Mei's amber mark and her call-out beside the corner's lead to Nagi);
+the menu's line for a story under way that read the corner's lead to her instead of what it asked; and the corner
+over her once she was up and waiting to speak, which gave the story begun before (*Drive to 109*) instead of *Nagi has
+something to say*. Seen once more in the runners' play and not again: at the line's end the wait once never reached the
+station's front (walk3, 27 November 2026; it passed on the next run and here).
+`tools/walktalk_unit.js` plays the returning visits (the fall kept helped, left or still down; his model come or never
+coming; Oda's story under way) and `tools/walk_play.js` plays the incident as one.
 
 **The first minute and the first ten of the walk** (issue 146's beat sheet; the corner's line and the marks are that
 issue's): by minute one the incident has been seen and *Help her up* offered; by minute three the camera has been
