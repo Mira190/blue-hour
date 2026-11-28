@@ -2443,23 +2443,30 @@ plays it again. Read as a player meets it, the numbers from `walktalk.js` and `g
 | By the wall | Beside her there, told | Pale mark, her `after` words; *Wait with her for {train}* | `rested` | She is at the wall |
 | The wait | *Wait with her* | Sat on the stone; the night passes by itself to 3 min before the train (`before`), a line at 19:00, 21:00, 0:00; standing ends it where it is | Nothing | By the wall again |
 | The gate | The wait's end | *That's mine*; she walks to the hoarding's walkway; *Walk Nagi to the station*, then *one more photograph*; shown it, she takes yours, says one thing, goes in, turns round once | `w: gone` once she has gone | Gone: not on the walk again. Left half done: by the wall again |
-| Mei, *Which Hachiko* | First in the line after hers; she calls out within 14 m (once in 90 s) | Find Riko across the crossing (talk); back to Mei, Riko there already (sent on unseen) | Part, met, the one sent on | Where it was; Riko beside Mei |
-| Oda, *Once round by car* | Mei's told | *Drive to 109, at the foot of Dogenzaka* (C, your car; within 35 m of [268, -998.6] in it); back to him | Part, met | Where it was. While the incident is to come or she is down, the corner is hers; Oda's goal stays in the menu's list |
-| Shun, *The shot everyone takes* | Oda's told | A photograph of the crossing from in it (24 m) or from 40 m above it | Part, met | Where it was |
-| Yuna, *Forty-five floors* | Shun's told | Up past 238 m (the lift behind her); then Taro on the roof (the corner says the lift on another level) | Part, met | Where it was |
-| Taro, *Above the crossing* | Yuna's told | Fly the helicopter over the crossing, 60 m over it and within 80 m, and photograph it; back to him on the roof | Part, met | Where it was |
+| Her train, the night's clock | Her story told, she by the wall, 15 walk-minutes before her train (`call_min`, `trainIn`) | The corner, whatever is under way: *Nagi's train is at 0:33. She's by Hachiko's wall*; the wall and the gate as above | Nothing | The same, by the clock |
+| Her train missed | The train's time passes with her still by the wall | Over the street, plainly: *The last train* · *She went home on the last train, on her own*; she is gone once nobody sees her. No failure screen: the walk goes on | `w: missed` | Gone |
+| Mei, *Which Hachiko* | Open once Nagi's first words are said, in any order (as are the four below); an amber mark over her within 18 m, a call within 14 m (once in 90 s) | Find Riko across the crossing (talk); back to Mei, Riko there already (sent on unseen). Her last line tips you towards Mr Oda, if you have a minute | Part, met, the one sent on | Where it was; Riko beside Mei |
+| Oda, *Once round by car* | Open (above). Cold: *Evening. You've the look of someone with nowhere to be.* Warm once Mei's is told: *I watched you go back and forth across that crossing.* | *Drive to 109, at the foot of Dogenzaka* (C, your car; within 35 m of [268, -998.6] in it); back to him; his tip: Shun, *if you want something to point that camera at* | Part, met | Where it was. While the incident is to come or she is down, the corner is hers; Oda's goal stays in the menu's list |
+| Shun, *The shot everyone takes* | Open. Cold: *That's a working camera on your chest.* Warm once Oda's is told: *Mr Oda sent you?* | A photograph of the crossing from in it (24 m) or from 40 m above it; his tip: Yuna's lift, *if you want higher than the café* | Part, met | Where it was |
+| Yuna, *Forty-five floors* | Open. Cold: *Going up? The roof's open late tonight.* Warm once Shun's is told: *Shun sent you?* | Up past 238 m (the lift behind her); then Taro on the roof (the corner says the lift on another level) | Part, met | Where it was |
+| Taro, *Above the crossing* | Open; his first words stand alone. From the street the corner sends you up the lift to him | Fly the helicopter over the crossing, 60 m over it and within 80 m, and photograph it; back to him on the roof | Part, met | Where it was |
 | Street moments | 75 to 120 s on foot after the walk's start, then 120 to 200 s after each; not while the walk's line has the street (the incident to come, her down, her story under way, the wait, the gate) | Someone 30 to 110 m off and out of sight asks a photograph or the way; unanswered for 150 s, or left 160 m (asked, 70 m) behind, they go unseen | Nothing | Begun afresh |
 
-*The corner's rule*, as an open world keeps a tracked quest against the encounters round it (the owner asked whether
-coming in beside Nagi should make the corner hers): a story begun stays the corner's line, and nearness never takes it
-away; the people near you show on their marks instead (amber for a story's next part, pale for a word in passing). The
-walk's line's incident takes the corner while it is to come (its lead) and while she is down (what he did), then hands
-it back to her first words and the story begun before. With nothing begun the corner leads to the one story there is
-to begin, not to the nearest giver: each later story opens on the one before it (*Mr Oda sent you?*, *Shun sent you?*,
-*Yuna rang up*), so the line has one next person, as it has one thing to do. A nearest-giver rule would have Shun
-thank you for an errand you never ran. The office's call at the first visit turns the view to that same person, who is
-the woman at the kerb a few steps behind you. `tools/walktalk_unit.js` holds the three cases: nothing begun beside her
-(the incident's lead), her story told and nothing begun (Mei's), Oda's begun beside her (Oda's goal, her pale mark).
+*The walk's structure and the corner's rule* (the owner's decision, 28 November 2026), as open worlds keep a main thread
+among side tales (Red Dead Redemption 2's strangers, Yakuza's substories, Ghost of Tsushima's tales; their design only).
+The walk's line is the spine: it happens to you as you set out, and its clock is her train. The other five are free
+stories, open in any order once her first words are said: until then the incident and she hold the street, one thing at
+a time, and the givers have only their word in waiting. Each free story opens with words that stand alone; a story that
+named the one before it (*Mr Oda sent you?*) says that only once the story it names is told, and a story's last words
+tip you towards another (*if you want higher than the café*), never send you. The corner keeps the story you are in (the
+last you moved on) whoever is near; the people near you show on their marks, an amber one over every giver of an open
+story. With no story under way the corner leads to the nearest giver by the walking way (on another level, by the lift's
+stop and its height), held until another is a fifth and five metres nearer, so that two about as far do not take it in
+turns. The incident takes the corner while it is to come and while she is down, and her train takes it in its last
+quarter of an hour; missed, her line ends in one plain card. `tools/walktalk_unit.js` plays each free story first,
+cold, and each warm story after the one it names, the nearest giver and its hold, a begun story keeping the corner
+beside another's giver, the train's call and its end; `tools/walk_play.js` stands nearest Shun with her story told and
+hears him open cold.
 
 *The walk kept, and the walk begun again* (the owner, 27 November 2026: a first load told from a saved one, and a way to
 play the walk from its start), as story-driven open worlds offer a last save over a new game, apart from the case's own

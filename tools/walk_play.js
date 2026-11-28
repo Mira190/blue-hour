@@ -815,6 +815,25 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
           }
         }
       }
+      // the free stories (walktalk.js, the owner's structure of 28 November 2026): her story told, the five are open in any
+      // order; standing nearest Shun the corner leads to him, and he opens cold, with nobody named who sent you
+      await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.startAt('hachiko'); });
+      if (await p.waitForFunction(() => { const n = window.__game.npcById('shun'); return n && !n.rig.pending; }, null, { timeout: 600000, polling: 1000 }).then(() => true, () => false)) {
+        await talk('shun', 12);
+        if (!(await errandIs(/Shun has something to say/))) fail(`her story told, nearest Shun: the corner says "${await errandNow()}", not his`);
+        else {
+          await talk('shun', 1.6);
+          if (!(await waitPrompt(/Talk to Shun/))) fail(`beside Shun with his story open, nothing offers to talk ("${await prompt()}")`);
+          else {
+            await act(); await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 40; i++) g.frame(0.05); });
+            const words = await p.evaluate(() => { const b = document.getElementById('gd-text'); return b && !document.getElementById('gd').hidden ? b.textContent : ''; });
+            if (!/^That/.test(words) || /sent you/.test(words)) fail(`Shun first, his opening is not his cold one ("${words.slice(0, 80)}")`);
+            else ok(`a free story first: nearest Shun, the corner his, and he opens cold ("${words.slice(0, 40)}...")`);
+            await shot('4a-shun-cold');
+            await through();
+          }
+        }
+      } else fail('Shun is not drawn ten minutes after setting out');
       await p.evaluate(() => { const t = window.__game.walkTalk(); if (t) t.startAt('hachiko'); }); // (Mei's turn: the walk's line before hers told)
       // (Mei and Riko drawn first: a character's pictures go to the GPU a frame at a time, minutes on a software renderer)
       const drawn = await p.waitForFunction(() => window.__game.npcs.filter(n => n.id === 'mei' || n.id === 'riko').every(n => !n.rig.pending), null, { timeout: 600000, polling: 1000 }).then(() => true, () => false);
@@ -964,7 +983,9 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
             const why = await p.evaluate(() => {
               const g = window.__game, s = g.myCar().D.st, bd = g.bounds && g.bounds(), b = bd && bd.drive ? bd.drive({ ...s }, 1, 0, g.myCar().C.half) : null;
               const ahead = (g.cars || []).filter(c => c.D && c.D.st && c !== g.myCar()).map(c => ({ d: Math.hypot(c.D.st.x - s.x, c.D.st.y - s.y), a: Math.atan2(c.D.st.x - s.x, c.D.st.y - s.y) - s.h })).filter(q => q.d < 9 && Math.cos(q.a) > 0.5).length;
-              return { at: [+s.x.toFixed(1), +s.y.toFixed(1), +s.h.toFixed(2)], v: +(s.v || 0).toFixed(2), mode: g.player.mode, dlg: !!g.dlg.open, holds: !!g.dlg.holds, pilot: !!g.pilot(), boundsBrake: b, carsAhead: ahead };
+              const fx = Math.sin(s.h), fy = Math.cos(s.h), posts = []; // (the posts within 8 m, how far ahead and across: walk4-car's, 68a6c69c)
+              try { g.nav.posts.near(s.x, s.y, 8, q => { posts.push(`${q.kind || '?'} ${((q.x - s.x) * fx + (q.y - s.y) * fy).toFixed(1)} ahead ${((q.x - s.x) * fy - (q.y - s.y) * fx).toFixed(1)} across`); }, s.z); } catch (e) { posts.push(String(e).slice(0, 60)); }
+              return { at: [+s.x.toFixed(1), +s.y.toFixed(1), +s.h.toFixed(2)], posts: posts.slice(0, 12), line: g.walkLine ? g.walkLine() : null, v: +(s.v || 0).toFixed(2), mode: g.player.mode, dlg: !!g.dlg.open, holds: !!g.dlg.holds, pilot: !!g.pilot(), boundsBrake: b, carsAhead: ahead };
             }).catch(e => ({ err: String(e) }));
             why.met = met;
             fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m (${JSON.stringify(why)})`);

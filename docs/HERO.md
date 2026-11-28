@@ -180,7 +180,12 @@ junction, and its first part is what fills most of the frame from eye level: the
   (`streets.js` `zebraCells`, `oeZebra`; the owner's still, November 2026: from across the junction they bent into
   steps and broke into moiré, a 0.9 m pattern finer than a pixel there that no multisampling resolves): as the level
   loads, each bar is widened to the 0.9 m cell it repeats in and its paint's alpha is the share of the pixel the bar
-  covers, the box-filtered square wave across the bars. Up close that is the bar, far off their mean.
+  covers, the box-filtered square wave across the bars. Up close that is the bar, far off their mean. A bar is found
+  as a whole oblong (the two triangles the model's compression splits a quad into joined again where they meet), its
+  ends cut askew by a kerb taken in its direction, and stretched about its middle along the slope it was laid on, so
+  that its painted 45 cm stays exactly where it was laid (`tools/zebra_unit.js`; 28 November: stretched along their own
+  axes, the triangles left wedges in the bars, and one sunk under the asphalt a line through them). The paint writes
+  no depth and is drawn first of the see-through, straight after the ground.
 - **The pavements**: grey blocks (`PavingStones136`), and Hachiko Square in the red-brown block the 2024
   photographs show, drawn here (`cities/shibuya/scramble_tex.py` `plaza`, below); the yellow tactile blocks
   with their bars and domes in relief (JIS T 9251's pattern, `tactile_texture`), laid as Japan lays them

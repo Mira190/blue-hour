@@ -15,7 +15,9 @@ c=${1:-shibuya}
 OUT=${OUT:-/tmp/oe-roadplan}
 mkdir -p "$OUT"
 pack() { python3 pipeline/pack.py > "$OUT/pack.log" 2>&1 || { tail -5 "$OUT/pack.log"; exit 1; }; }
-echo '{"source":"","cut":[],"off":[]}' > "cities/$c/road_measured.json"
+# (what the walls and widths measure starts again from nothing; the pieces no car can climb, which tools/car_edges.js
+# measures and pipeline/road_steep.py writes, are kept: nothing here measures them again)
+python3 -c 'import json,sys; p=sys.argv[1]; m=json.load(open(p)); json.dump({"source":"","cut":[],"off":[],**{k:m[k] for k in ("steep","steep_source") if k in m}},open(p,"w"))' "cities/$c/road_measured.json"
 python3 pipeline/road_plan.py --city "$c" > "$OUT/plan0.log"; sed -n 1,2p "$OUT/plan0.log"
 python3 pipeline/landmarks.py --city "$c" > "$OUT/landmarks.log"; tail -1 "$OUT/landmarks.log"
 pack
@@ -36,6 +38,7 @@ for pass in 1 2; do
   pack
 done
 # the carriageways as surveyed, the bus lines and the drives (issue 196): each written on the pieces the plan leaves
+python3 pipeline/bounds.py --city "$c" && python3 pipeline/game_text.py --city "$c" | tail -1   # (the area first: the fit and the ground below follow the drive area as it is)
 python3 pipeline/road_width.py --city "$c" | sed -n 1p
 python3 pipeline/road_fit.py --city "$c" | tail -1    # (a line taken inside the surveyed kerbs where a lane would lie over one, the widths measured again as it goes)
 python3 pipeline/road_width.py --city "$c" | sed -n 1p   # (and their report on the lines as moved)
