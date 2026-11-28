@@ -45,8 +45,6 @@ python3 pipeline/road_width.py --city "$c" | sed -n 1p   # (and their report on 
 python3 pipeline/bus_lines.py --city "$c" | sed -n 1p
 python3 pipeline/bounds.py --city "$c" && python3 pipeline/game_text.py --city "$c" | tail -1
 python3 pipeline/road_ground.py --city "$c" | tail -1   # (the planned area's ground from the survey's polygons, on the pieces and the area as they now are)
-python3 pipeline/road_fit.py --city "$c" | tail -1   # (and fitted once more to the kerbs that ground now gives: the second pass moves what is left by a decimetre or so)
-python3 pipeline/road_ground.py --city "$c" | tail -1
 pack
 python3 pipeline/road_plan.py --city "$c" --check
 python3 pipeline/road_width.py --city "$c" --check
