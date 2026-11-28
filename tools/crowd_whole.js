@@ -88,33 +88,6 @@ if (require.main === module) (async () => {
       await p.waitForTimeout(500);
     }
     console.log(`${name} ${size}: the near cast in after ${((Date.now() - t0) / 1000).toFixed(0)} s`);
-    // the kerb's crowd gathered (who waits there goes with the lights: a run that came at the green had nobody near the
-    // lens and one at the red thirty): up to three minutes of the game until twelve wait within 15 m, then the walker put
-    // 4.5 m from the middle of them, facing them, the chase camera behind; and the cast let in again
-    const gathered = await p.evaluate(async () => {
-      const g = window.__game, pl = g.player, nav = g.nav, P = g.crowd.P;
-      const waiting = () => { const w = []; for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (q.pz && q.ph === 'wait' && Math.hypot(q.x - pl.x, q.y - pl.y) < 15) w.push(q); } return w; };
-      let w = waiting(), k = 0;
-      for (; k < 180 * 30 && w.length < 12; k++) { pl.speed = 0; g.frame(1 / 30); if (k % 30 === 29) { w = waiting(); await new Promise(r => setTimeout(r, 10)); } }
-      if (w.length < 4) return { n: w.length, t: k / 30 };
-      const cx = w.reduce((a, q) => a + q.x, 0) / w.length, cy = w.reduce((a, q) => a + q.y, 0) / w.length, h = Math.atan2(cx - pl.x, cy - pl.y);
-      pl.x = cx - 4.5 * Math.sin(h); pl.y = cy - 4.5 * Math.cos(h); const f = nav.floorAt(pl.x, pl.y, nav.terrain(pl.x, pl.y) + 1); pl.z = f ? f.z : nav.terrain(pl.x, pl.y);
-      pl.h = h; Object.assign(g.cam, { yaw: h, yawTo: null, pitchTo: null, snap: true, lastInput: -10 });
-      for (let i = 0; i < 15; i++) { pl.speed = 0; g.frame(1 / 30); }
-      return { n: w.length, t: k / 30 };
-    });
-    console.log(`${name} ${size}: ${gathered.n} waiting within 15 m after ${gathered.t.toFixed(0)} s of the game`);
-    for (let k = 0; k < 120; k++) {
-      const st = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 3; i++) { g.player.speed = 0; g.frame(1 / 30); } const R = g.crowdDraw(), I = R.nearInfo(); let cold = 0; for (const r of R.active.values()) if (r.cold) cold++; return I.unloaded + cold; });
-      if (!st) break;
-      await p.waitForTimeout(500);
-    }
-    // the walker's camera, a still each second of the game, and between them the frames let go (a new person is warmed
-    // off the frame, people.js begin: the warm's promises settle between the page's tasks)
-    for (let t = 0; t <= SECS; t++) {
-      if (t) for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 10; i++) { g.player.speed = 0; g.frame(1 / 30); } }); await p.waitForTimeout(50); }
-      await shot(`${name}-walk-t${t}`, `${name} ${size}, the walker's camera at ${t} s`, false);
-    }
     // the swap in step (STRIDE=0 leaves it out): the walking whole people sent back to their far copies for a few frames
     // and taken over again, and at that frame the foot forward on the whole person (its feet in its own space) set beside
     // the foot the far copy had forward (its shader's sin(ph)): the same foot, or the walk hitches at the swap
@@ -138,6 +111,33 @@ if (require.main === module) (async () => {
       });
       console.log(`${name} ${size}: the swap in step: ${st.same} of ${st.clear} walkers taken over mid-stride had the far copy's foot forward (${st.n} taken over) ${JSON.stringify(st.out)}`);
       if (st.clear >= 3 && st.same < 0.75 * st.clear) { fail++; console.log(`  FAIL the walk out of step at the swap: ${st.clear - st.same} of ${st.clear} with the other foot forward (people.js walkAt)`); }
+    }
+    // the kerb's crowd gathered (who waits there goes with the lights: a run that came at the green had nobody near the
+    // lens and one at the red thirty): up to three minutes of the game until twelve wait within 15 m, then the walker put
+    // among them, IN m (1.2) short of their middle, facing it, the chase camera behind; and the cast let in again
+    const gathered = await p.evaluate(async IN => {
+      const g = window.__game, pl = g.player, nav = g.nav, P = g.crowd.P;
+      const waiting = () => { const w = []; for (let i = 0; i < g.crowd.active; i++) { const q = P[i]; if (q.pz && q.ph === 'wait' && Math.hypot(q.x - pl.x, q.y - pl.y) < 15) w.push(q); } return w; };
+      let w = waiting(), k = 0;
+      for (; k < 180 * 30 && w.length < 12; k++) { pl.speed = 0; g.frame(1 / 30); if (k % 30 === 29) { w = waiting(); await new Promise(r => setTimeout(r, 10)); } }
+      if (w.length < 4) return { n: w.length, t: k / 30 };
+      const cx = w.reduce((a, q) => a + q.x, 0) / w.length, cy = w.reduce((a, q) => a + q.y, 0) / w.length, h = Math.atan2(cx - pl.x, cy - pl.y);
+      pl.x = cx - IN * Math.sin(h); pl.y = cy - IN * Math.cos(h); const f = nav.floorAt(pl.x, pl.y, nav.terrain(pl.x, pl.y) + 1); pl.z = f ? f.z : nav.terrain(pl.x, pl.y);
+      pl.h = h; Object.assign(g.cam, { yaw: h, yawTo: null, pitchTo: null, snap: true, lastInput: -10 });
+      for (let i = 0; i < 15; i++) { pl.speed = 0; g.frame(1 / 30); }
+      return { n: w.length, t: k / 30 };
+    }, +(process.env.IN || 1.2));
+    console.log(`${name} ${size}: ${gathered.n} waiting within 15 m after ${gathered.t.toFixed(0)} s of the game`);
+    for (let k = 0; k < 120; k++) {
+      const st = await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 3; i++) { g.player.speed = 0; g.frame(1 / 30); } const R = g.crowdDraw(), I = R.nearInfo(); let cold = 0; for (const r of R.active.values()) if (r.cold) cold++; return I.unloaded + cold; });
+      if (!st) break;
+      await p.waitForTimeout(500);
+    }
+    // the walker's camera, a still each second of the game, and between them the frames let go (a new person is warmed
+    // off the frame, people.js begin: the warm's promises settle between the page's tasks)
+    for (let t = 0; t <= SECS; t++) {
+      if (t) for (let k = 0; k < 3; k++) { await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 10; i++) { g.player.speed = 0; g.frame(1 / 30); } }); await p.waitForTimeout(50); }
+      await shot(`${name}-walk-t${t}`, `${name} ${size}, the walker's camera at ${t} s`, false);
     }
     // the photograph mode, the world held: from a pace off the kerb's crowd at eye height, then a close lens on whoever
     // stands nearest under an umbrella (or nearest)
