@@ -234,11 +234,23 @@ def screen_parts(step=None):
     return out
 
 
-def bands():
-    """(z0, z1) over 1F: the overhang's, then a storey band each from 4F to 15F"""
-    out = [(OVER["z0"], OVER["z1"])]
+SPLIT = 3   # bands a storey, from 4F up
+
+
+def storeys():
+    """(z0, z1) over 1F: a storey each from 4F to 15F"""
     lv = [z for z in LEVELS if z >= F4 - 1e-6]
-    out += list(zip(lv[:-1], lv[1:]))
+    return list(zip(lv[:-1], lv[1:]))
+
+
+def bands():
+    """(z0, z1) over 1F: the overhang's, then SPLIT bands a storey from 4F to 15F. Each band is the outline at its top,
+    and the skirt and the tent narrow going up: a band a storey high left the glass at its foot up to 0.9 m outside its
+    solid, where a camera kept off the solids could stand behind the glass (issue 249); a third of a storey, under 0.5 m"""
+    out = [(OVER["z0"], OVER["z1"])]
+    for a, b in storeys():
+        zs = [round(a + (b - a) * k / SPLIT, 1) for k in range(SPLIT + 1)]
+        out += list(zip(zs[:-1], zs[1:]))
     return out
 
 
@@ -271,8 +283,9 @@ def dm(P):
 
 def hall_keep(G):
     """where SKY's street hall, its canopy, its glass shaft and the way up to its doors stand (game.json lifts "sky-gate"
-    in the hall's frame, hero_skylobby.py's measures), with a margin: no flare stands over it. A walker or a story's
-    beat put at the hall's door is stood on the highest floor there, and the overhang's roof at 4F was one."""
+    in the hall's frame, hero_skylobby.py's measures), with a margin: the overhang under 4F stands clear of it. A walker
+    or a story's beat put at the hall's door is stood on the highest floor there, and the overhang's roof at 4F was one.
+    The tent from 4F up is not cut by it: its solid is where its glass is drawn (issue 249)."""
     stop = next(l for l in G.get("lifts", []) if l["id"] == "sky-gate")["stops"][0]
     door, at = np.asarray(stop["door"], float), np.asarray(stop["at"][:2], float)
     nv = (at - door) / np.linalg.norm(at - door)
@@ -290,6 +303,9 @@ def run(B, G=None):
     ours = {}
     passages0 = set(B.get("passages", []))
     keys = {(round(a * 10), round(b * 10)) for a, b in bands()}
+    # (a storey's band as the pass first wrote them, before the storeys were split: their solids taken for the new bands,
+    # the spare ones kept as slivers, their indices with them)
+    keys |= {(round(a * 10), round(b * 10)) for a, b in storeys()}
     for k, s in enumerate(B["s"]):
         if s[0] == bi and k in passages0 and (s[2], s[3]) in keys:   # (no solid of the tower's own has a band's heights)
             ours.setdefault((s[2], s[3]), []).append(k)
@@ -307,12 +323,19 @@ def run(B, G=None):
     passages = set(B.get("passages", []))
     rewritten = appended = 0
     used = set()
+    bkeys = {(round(a * 10), round(b * 10)) for a, b in bands()}
+    pool = sorted(k for key, ks in ours.items() if key not in bkeys for k in ks)   # (the storeys' solids of before)
+    c = F.ring.representative_point()
+    sliver = lambda key: [bi, g0, key[0], key[1], dm(Polygon([(c.x, c.y), (c.x + 0.3, c.y), (c.x + 0.3, c.y + 0.3), (c.x, c.y + 0.3)]))]
     for z0, z1 in bands():
         key = (round(z0 * 10), round(z1 * 10))
         za, zb = F.base + z0, F.base + z1
         plans = []
         for P in flares(F, z0, z1):
-            if keep is not None:
+            # (the hall kept clear under the overhang's roof at 4F alone, the floor a walker put at the door was stood on;
+            # the tent from 4F up stands over the hall's apron as its glass does, solid where that glass is drawn: cut by
+            # the hall too, its glass stood 3.5 m outside its solid over the apron, issue 249)
+            if keep is not None and z1 <= OVER["z1"] + 1e-6:
                 P = P.difference(keep)
             for Q, qa, qb in near:
                 if qa < zb and qb > za:
@@ -323,8 +346,8 @@ def run(B, G=None):
         slots = list(ours.get(key, []))
         for P in plans:
             row = [bi, g0, key[0], key[1], dm(P)] + [[v for x, y in list(h.coords)[:-1] for v in (round(x * 10), round(y * 10))] for h in P.interiors]
-            if slots:
-                k = slots.pop(0)
+            if slots or pool:
+                k = slots.pop(0) if slots else pool.pop(0)
                 B["s"][k] = row
                 rewritten += 1
             else:
@@ -334,8 +357,9 @@ def run(B, G=None):
             passages.add(k)
             used.add(k)
         for k in slots:   # (a band that has fewer pieces than before: the spare solid kept, its index too, as a sliver inside the tower)
-            c = F.ring.representative_point()
-            B["s"][k] = [bi, g0, key[0], key[1], dm(Polygon([(c.x, c.y), (c.x + 0.3, c.y), (c.x + 0.3, c.y + 0.3), (c.x, c.y + 0.3)]))]
+            B["s"][k] = sliver(key)
+    for k in pool:   # (and a storey's solid of before no band took)
+        B["s"][k] = sliver((B["s"][k][2], B["s"][k][3]))
     B["passages"] = sorted(passages)
     return rewritten, appended
 

@@ -1351,10 +1351,15 @@ between the skirt's edge at its top and the tent.
 **What was built**:
 
 - **The solids** (`cities/shibuya/scrsq_base.py`, run after `pipeline/lobby.py`, then `pipeline/pack.py`): the flares
-  as new solids of the tower's building, one a storey band from 4F to 15F and one for the overhang, each the outline at
-  its band's top (so the glass drawn through the outlines stands outside it), all passages (an underside, no posts),
+  as new solids of the tower's building, three bands a storey from 4F to 15F and one for the overhang, each the outline
+  at its band's top (so the glass drawn through the outlines stands outside it), all passages (an underside, no posts),
   half a metre clear of every other building's solid (the Ginza line's station, the station's concourse); every solid
-  keeps its index, and running the pass again rewrites them in place. The tower's own solids are untouched: its roof
+  keeps its index, and running the pass again rewrites them in place. Only the overhang stands clear of SKY's street
+  hall; the tent from 4F up stands over the hall's apron, its solid where its glass is. Issue 249: the tent's solids were
+  cut by the hall as well, so its glass stood 3.5 m outside what the game holds 20 m over the apron, and with a band a
+  storey high the narrowing skirt and tent left the glass at a band's foot up to 0.9 m outside it; a camera kept off the
+  solids could stand behind the glass. With the tent whole and a band a third of a storey, `tools/nav_gaps.js` finds no
+  gap along frame 4's lift ride, the Scramble's beats, SKY's roof, the hall and frame 5's flight. The tower's own solids are untouched: its roof
   is SHIBUYA SKY's deck, its curtain wall and rooms are built on them.
 - **The glass** (`hero_scramblesq.py` `base_glass`): the north-west skirt and the north-east tent as smooth surfaces
   through their outlines, three rows a storey, in the tower's own glass (its offices traced behind it after dark, its
