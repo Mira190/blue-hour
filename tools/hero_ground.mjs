@@ -13,16 +13,16 @@
 //     stone, not seen in a gap between the stones).
 // Prints each level's paved area, each fault's area and its largest patch; exits 1 where either passes the level's
 // allowance (ALLOW, m2 by level, for what is known and not yet rebuilt: docs/HERO.md), 0.5 m2 elsewhere.
-//   node tools/hero_ground.mjs            (LEVELS=skylobby GRID=0.25)
+//   node tools/hero_ground.mjs            (LEVELS=skylobby GRID=0.25 DUMP=cells.json)
 import fs from 'fs';
 import path from 'path';
 import { MeshoptDecoder } from '../pipeline/vendor/meshoptimizer/meshopt_decoder.mjs';
 
 const ROOT = path.dirname(path.dirname(new URL(import.meta.url).pathname)), CITY = 'shibuya';
 const GRID = +(process.env.GRID || 0.25), MAX = 0.5;
-// (levels whose models predate a regrade of the ground, issue 239's reach: their faults as measured on 28 November 2026,
-// held here so the check fails on anything new; a level built again from today's ground drops out of this list)
-const ALLOW = { scramble: { under: 1141 }, miyamasu: { under: 38, grout: 89 } }; // (issue 262: not yet read against the drawn page)
+// (a level whose model predates a regrade of the ground and is not yet built again may be held here at what it reads,
+// so that the check fails on anything new; issue 262 built the last ones again)
+const ALLOW = {}; // (none since issue 262: the Scramble's and Miyamasu's levels built again from today's ground, their cover on the terrain's own cells)
 const ONLY = process.env.LEVELS ? process.env.LEVELS.split(',') : null;
 const COMPS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
 const CT = { 5120: Int8Array, 5121: Uint8Array, 5122: Int16Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
@@ -73,18 +73,20 @@ function terrain(x, y) { // (blender/hero_open.py Ground, nav.js terrain: a cell
 }
 
 await MeshoptDecoder.ready;
+const dump = process.env.DUMP ? [] : null; // (DUMP=file.json: every faulty cell, [fault, level, x, y, metres, the mesh on top, the stone under it])
 let bad = 0;
 for (const h of G.hero || []) {
   if (ONLY && !ONLY.includes(h.id)) continue;
-  const glb = readGlb(path.join(D, h.glb)), tris = []; // [ax, ay, az, bx, by, bz, cx, cy, cz, kind]
+  const glb = readGlb(path.join(D, h.glb)), tris = [], names = []; // [ax, ay, az, bx, by, bz, cx, cy, cz, kind]
   const walk = (i, M) => {
     const n = glb.json.nodes[i], W = mul(M, local(n)), name = `${n.name || ''} ${n.mesh != null ? glb.json.meshes[n.mesh].name || '' : ''}`;
     if (n.mesh != null && /(^|_)(ground|room_floor)_/.test(name)) {
       const kind = (/joint|grout/.test(name) ? 1 : 0) | (/(^|_)room_floor_/.test(name) ? 2 : 0); // (bits: 1 a joint's or grout's, 2 the level's own floor)
+      const ni = names.indexOf(name.trim()) >= 0 ? names.indexOf(name.trim()) : names.push(name.trim()) - 1;
       for (const p of glb.json.meshes[n.mesh].primitives) {
         const pos = glb.read(p.attributes.POSITION), idx = p.indices != null ? glb.read(p.indices, true) : null, m = idx ? idx.length : pos.length / 3;
         const P = k => { const q = (idx ? idx[k] : k) * 3, X = pos[q], Y = pos[q + 1], Z = pos[q + 2]; return [W[0] * X + W[4] * Y + W[8] * Z + W[12], -(W[2] * X + W[6] * Y + W[10] * Z + W[14]), W[1] * X + W[5] * Y + W[9] * Z + W[13]]; };
-        for (let k = 0; k + 2 < m; k += 3) tris.push([...P(k), ...P(k + 1), ...P(k + 2), kind]);
+        for (let k = 0; k + 2 < m; k += 3) tris.push([...P(k), ...P(k + 1), ...P(k + 2), kind, ni]);
       }
     }
     for (const c of n.children || []) walk(c, W);
@@ -93,7 +95,7 @@ for (const h of G.hero || []) {
   // the top of the paving in each cell, and each layer under it (z, kind)
   const n = Math.ceil(2 * h.r / GRID), gx = h.at[0] - h.r, gy = h.at[1] - h.r, cells = new Map();
   const HC = 0.5, nc = Math.ceil(2 * h.r / HC), cut = new Uint8Array(nc * nc); // (the game's cut: game.js heroCover)
-  for (const [ax, ay, az, bx, by, bz, cx, cy, cz, kind] of tris) {
+  for (const [ax, ay, az, bx, by, bz, cx, cy, cz, kind, ni] of tris) {
     const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
     if (Math.abs(den) < 1e-12) continue;
     const bary = (px, py) => { const l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den; return [l1, l2, 1 - l1 - l2]; };
@@ -103,7 +105,7 @@ for (const h of G.hero || []) {
       const [l1, l2, l3] = bary(gx + (i + 0.5) * GRID, gy + (j + 0.5) * GRID);
       if (l1 < 0 || l2 < 0 || l3 < 0) continue;
       const k = j * n + i; let l = cells.get(k); if (!l) cells.set(k, l = []);
-      l.push([l1 * az + l2 * bz + l3 * cz, kind]);
+      l.push([l1 * az + l2 * bz + l3 * cz, kind, ni]);
     }
     if ((kind & 2) && h.floor) {
       const I0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - gx) / HC)), I1 = Math.min(nc - 1, Math.ceil((Math.max(ax, bx, cx) - gx) / HC));
@@ -121,8 +123,8 @@ for (const h of G.hero || []) {
     paved++;
     l.sort((a, b) => b[0] - a[0]);
     const [z, kind] = l[0], ci = Math.floor((x - gx) / HC), cj = Math.floor((y - gy) / HC), isCut = cut[cj * nc + ci];
-    if (!(kind & 2) && !isCut && z < terrain(x, y) - 0.005) under.push([i, j, terrain(x, y) - z]);
-    if (kind & 1) { const s = l.find(q => !(q[1] & 1) && z - q[0] < 0.05 && z > q[0] + 0.002); if (s) grout.push([i, j, z - s[0]]); }
+    if (!(kind & 2) && !isCut && z < terrain(x, y) - 0.005) { under.push([i, j, terrain(x, y) - z]); if (dump) dump.push(['under', h.id, +x.toFixed(2), +y.toFixed(2), +(terrain(x, y) - z).toFixed(3), names[l[0][2]]]); }
+    if (kind & 1) { const s = l.find(q => !(q[1] & 1) && z - q[0] < 0.05 && z > q[0] + 0.002); if (s) { grout.push([i, j, z - s[0]]); if (dump) dump.push(['grout', h.id, +x.toFixed(2), +y.toFixed(2), +(z - s[0]).toFixed(3), names[l[0][2]], names[s[2]]]); } }
   }
   const patch = list => { // (the largest patch: cells joined by their sides)
     const have = new Map(list.map(c => [c[1] * n + c[0], c])), seen = new Set(); let best = [];
@@ -141,4 +143,5 @@ for (const h of G.hero || []) {
   if (fail) bad++;
   console.log(`${fail ? 'FAIL' : 'ok  '} ${h.id.padEnd(10)} paved ${a(paved)} m2; under the ground ${a(under.length)} m2${patch(under)}; grout over the stone ${a(grout.length)} m2${patch(grout)}${al.under || al.grout ? ` (allowed ${JSON.stringify(al)}: built before the ground was graded again)` : ''}`);
 }
+if (dump) fs.writeFileSync(process.env.DUMP, JSON.stringify(dump));
 process.exit(bad ? 1 : 0);
