@@ -159,7 +159,7 @@ eta() {
   local v n
   v=$(grep "^$1 " "$HIST" 2>/dev/null | tail -5 | cut -d' ' -f2 | sort -n); n=$(echo "$v" | grep -c .)
   [ "$n" -gt 0 ] && { echo "$v" | sed -n "$(( (n + 1) / 2 ))p"; return; }
-  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 60 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 900 ;; ctx) echo 900 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
+  case $1 in static) echo 35 ;; look) echo 15 ;; hold) echo 180 ;; astc) echo 60 ;; launch) echo 480 ;; audio) echo 500 ;; mem) echo 900 ;; ctx) echo 900 ;; ride) echo 290 ;; roads) echo 900 ;; clip) echo 800 ;;
     story|guide) echo 1180 ;; storyp) echo 800 ;; storyl) echo 1500 ;; budget) echo 1900 ;; walk) echo 1110 ;; story1|story2|story3|walk1|walk2|walk3|walk4|guide1|guide2|guide3|guide4|guide5) echo 560 ;; budget1|budget2|budget3) echo 300 ;; budgetm) echo 3200 ;; budgetm1|budgetm2|budgetm3) echo 1100 ;; game) echo 2700 ;; *) echo 600 ;; esac
 }
 # How much memory each target takes on this machine (docs/CHECKS.md, "Memory, by measure"): the peak of its processes'
@@ -757,6 +757,11 @@ run_launch() {
 run_hold() {   # every cast avatar through every held clip: no limb in its own torso, no jerk (a minute)
   if timeout 900 $X node tools/hold_check.js "$OUT/hold.json" >"$OUT/hold.log" 2>&1; then echo "ok   hold   $(tail -1 "$OUT/hold.log" | sed 's/^hold: //')"
   else echo "FAIL hold   $(grep '^FAIL' "$OUT/hold.log" | head -2 | cut -c6-150 | paste -sd ';' -)   (see $OUT/hold.log)"; fi
+  # (and a phone's crowd from far copy to whole, at the title's street and the walk's start: the same colours, and nobody
+  # drawn as nothing in the frames a near person is made in. The owner's report of 27 November 2026; a minute or two. The
+  # desktop's, MODE=swap node tools/crowd_colour.js 1440x900, waits some eight minutes on a software renderer for its cast)
+  if MODE=swap timeout 900 $X node tools/crowd_colour.js 390x844 >"$OUT/crowd_colour.log" 2>&1; then echo "ok   hold   $(tail -1 "$OUT/crowd_colour.log" | sed 's/^ok: //') (a phone)"
+  else echo "FAIL hold   $(grep 'CHANGE\|^FAIL' "$OUT/crowd_colour.log" | head -2 | cut -c1-150 | paste -sd ';' -)   (see $OUT/crowd_colour.log)"; fi
 }
 run_astc() {   # SwiftShader decodes ASTC; Mesa's llvmpipe offers none, so without a display
   # (and a desktop's BC7 and BC5, web/bc7.js, against Pillow's decoder: every layout it writes, a sky without a band, this project's pictures)

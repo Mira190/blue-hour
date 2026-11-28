@@ -2567,6 +2567,8 @@ transformed = crowdPose(transformed, false);`);
     }
     const free = {}, active = new Map();
     let dtNow = 0, tNow = 0, frameNo = 0, ended = false, m0 = null;
+    const NO_WARM = /[?&]crowdwarm=0\b/.test(location.search); // (as before the warm: drawn as soon as made, to set beside, tools/crowd_colour.js)
+    const api = { nearCap: null, dropPool: () => { for (const k in free) free[k].length = 0; } }; // (dropPool: a harness's, the next near people made new, tools/crowd_colour.js)
     let lastBegin = null, stillMade = -1; // (stillMade: how many people made in this still frame, still(); -1 in play)
     const lastPick = { nNear: 0, culling: false, zoom: 1, want: 0, unloaded: 0, capped: 0 }, pickI = [], pickD = new Float64Array(P.length), pickKeep = new Set(), byPick = (a, b) => pickD[a] - pickD[b];
     let umbAny = false, umbUp = 0, easeK = 1;
@@ -2593,7 +2595,7 @@ transformed = crowdPose(transformed, false);`);
       // Through a long lens (the story's finder at 22 to 40 degrees, a conversation's 35 mm) someone 50 m off is as big in
       // the frame as someone 25 m off is in the chase view: the distance is counted as the lens sees it, and a few more
       // are people (issue 19: in the prints the nearest walkers filled a third of the frame as far figures)
-      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = count || Math.round(near * Math.min(1.5, zoom));
+      const zoom = camera && camera.isPerspectiveCamera ? Math.max(1, Math.min(3, 55 / camera.fov)) : 1, nNear = Math.min(count || Math.round(near * Math.min(1.5, zoom)), api.nearCap ?? Infinity); // (nearCap: a harness's, the near drawn as their far copies to set beside, tools/crowd_colour.js)
       // (the pick is kept in lists made once: a pair for each of a few hundred people, a sort of them and a set, made
       // again sixty times a second, were the frame's garbage, issue 130)
       const want = pickI, ex = camera ? camera.position.x : cx, ey = camera ? -camera.position.z : cy;
@@ -2622,17 +2624,31 @@ transformed = crowdPose(transformed, false);`);
         // a real near person whose character is still streaming stands in as a loaded cast member of the same sex,
         // not the far crowd's doll: at the hero spawn a dense crowd reads as real at once, and swaps to its own
         // character when it comes (begin() runs again as the player moves)
-        if (rn && !lib.tpl[name]) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
+        // (not one who has a far copy of their own: that copy is drawn until they come, the same person in the same clothes.
+        // A stand-in there was someone else's body, and the walker changed clothes twice as the cast streamed in, from the
+        // copy to the stand-in and from the stand-in to their own: the owner's report of 27 November 2026, tools/crowd_colour.js)
+        if (rn && !lib.tpl[name] && !p.far) { lib.require(name); const si = realStandIn(rn, i); if (si) { look = Object.assign({}, p.look, { character: si, pattern: null, scale: realScale(si, p.look) }); name = si; } }
         if (!lib.tpl[name]) { lib.require(name); lastPick.unloaded++; continue; }
         if (stillMade >= 4 && !(free[name] && free[name].length)) lastPick.capped++;
         if (stillMade >= 4 && !(free[name] && free[name].length)) continue; // (a still frame makes four at most: the rest come in the frames after)
         if (stillMade >= 0 && !(free[name] && free[name].length)) stillMade++;
-        const r = (free[name] && free[name].pop()) || person(lib, Object.assign({}, look));
+        const pooled = free[name] && free[name].pop(), r = pooled || person(lib, Object.assign({}, look));
         r.setLook(Object.assign({ pattern: null, pattern2: null, acc: null, clip: null }, look)); // (clip: a person taken from the pool keeps none of the last one's phone)
         if (rn) r.dress(p.dress);
         r.standFor = rn && name !== rn ? rn : null;
         r.umbOn = false;
-        world.add(r.root);
+        // A person made new has materials of their own (the clothes' copy, rig.dress) with no program yet, and the draw gate
+        // (world.js gate) holds a model whole until every part of it has one: the walker was taken out of the far copies in
+        // this frame and drawn as nobody for the frames that took, the street behind showing through where they stood, then
+        // drawn whole. So they are warmed off the frame first (lib.warm: the programs are the template's, a lookup each, and
+        // its pictures are on the GPU already) and stay their far copy, the same person in the same clothes, until it is done
+        // (cold: place() draws the copy). A person from the pool has been drawn already
+        if (!pooled && lib.warm && !NO_WARM) {
+          r.cold = true;
+          const warm = () => { r.cold = false; for (const x of active.values()) if (x === r) { world.add(r.root); break; } };
+          lib.warm(r.root).then(warm, warm);
+        }
+        if (!r.cold) world.add(r.root);
         active.set(i, r);
       }
     }
@@ -2646,7 +2662,7 @@ transformed = crowdPose(transformed, false);`);
       p.rx += (p.x - p.rx) * k; p.ry += (p.y - p.ry) * k; p.rz += (p.z - p.rz) * k;
     }
     function place(i, p, moving) {
-      const r = active.get(i);
+      const r0 = active.get(i), r = r0 && !r0.cold ? r0 : null; // (one still being warmed is drawn as their far copy: begin)
       drawn(p);
       const ut = umbStep(p);
       // (the lean is the umbrellas': with none up anywhere nobody is put in its grid and no hold is turned, which was a
@@ -2801,7 +2817,7 @@ transformed = crowdPose(transformed, false);`);
       return out;
     }
     // whether crowd member i is drawn this frame (a near one as a whole person, or in its character's instances)
-    const shows = i => (active.has(i) ? active.get(i).root.visible : !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count));
+    const shows = i => (active.has(i) && !active.get(i).cold ? active.get(i).root.visible : !!(P[i] && P[i].mesh && P[i].slot < P[i].mesh.count));
     // where the lens stands and the way it looks, in the crowd's ground plan (x, y, z up; fx, fy): actors.js steers the
     // walkers out of its way, issue 82 (and who still comes near it is not drawn: game.js lensClear). false with no camera
     let lensDir = null;
@@ -2844,7 +2860,8 @@ transformed = crowdPose(transformed, false);`);
       }
       end();
     }
-    return { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) };
+    Object.assign(api, { begin, place, hide, shows, end, setRain, meshes, active, umbrellas: umbMeshes, lens, umbrellaReport, still, redress, nearInfo: () => Object.assign({ active: active.size, top: pickI.slice(0, lastPick.nNear + 4).map(i => [i, +pickD[i].toFixed(2)]) }, lastPick) });
+    return api;
   }
 
   return { load, person, randomLook, pickCharacter, crowdRenderer, colours, setStyle, setLight, uncovered, exposure, oldCamera, opts: OPT }; // (oldCamera: the camera of 1964, its materials shared by every copy hung on a rig, warmed ahead: game.js)
