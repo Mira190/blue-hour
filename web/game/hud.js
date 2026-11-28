@@ -349,6 +349,7 @@ window.OEHud = (function () {
       const d = cur && !choice ? cur.done : null;
       cur = null; view = 0; if (hand) shutAt = performance.now(); // (quiet after a talk a hand ended: its next press is still the talk's)
       box.hidden = true; box.classList.remove('back', 'free', 'cut');
+      { const st = $('#game-stage'); if (st) st.classList.remove('talk-on'); } // (the HUD back as the talk closes, whatever the camera's loop does next: game.js sets it while a talk's shot is up)
       choicesEl.innerHTML = '';
       if (d) d(null);
     }

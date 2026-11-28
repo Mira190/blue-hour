@@ -116,9 +116,15 @@ window.OETalkCam = (function () {
     // the lens shift, and where the face lands in the frame (x, y: -1..1, y up, as three.js projects it)
     function compose(kind, c, sub, other) {
       const aspect = talk && talk.aspect || 16 / 9, panel = talk && talk.panel || 0;
-      const lens = (aspect >= 1 ? LENS : PORTRAIT)[kind] || 50, vfov = aspect >= 1 ? 2 * Math.atan(Math.tan(lens * Math.PI / 360) / aspect) * 180 / Math.PI : lens;
-      const tv = Math.tan(vfov * Math.PI / 360), hfov = 2 * Math.atan(tv * aspect);
+      const lens = (aspect >= 1 ? LENS : PORTRAIT)[kind] || 50;
       const vx = sub[0] - c[0], vy = sub[1] - c[1], dz = sub[2] - c[2], h = Math.hypot(vx, vy);
+      // (the lens no longer than lets the face fit between the frame's top and the words: the eyes no nearer the top than
+      // EYE_TOP, the chin 0.14 m under them over the words by a margin. A 75 mm close shot over two lines and three answers
+      // had the words at Sumiko's chin, tools/talk_face.js; the shot keeps its place and opens a little)
+      let tv = Math.tan((aspect >= 1 ? 2 * Math.atan(Math.tan(lens * Math.PI / 360) / aspect) * 180 / Math.PI : lens) * Math.PI / 360);
+      const room = 1 - panel - 0.05 - (aspect >= 1 ? EYE_TOP : EYE_TOP * 0.8), dist = Math.hypot(h, dz) || 1;
+      if (room > 0.05) tv = Math.max(tv, 0.14 / room / (2 * dist));
+      const vfov = 2 * Math.atan(tv) * 180 / Math.PI, hfov = 2 * Math.atan(tv * aspect);
       // (which way the other one is from the subject, across the frame: the subject goes to the opposite third)
       const yaw = Math.atan2(vx, vy), ox = other[0] - c[0], oy = other[1] - c[1], across = Math.sin(Math.atan2(ox, oy) - yaw) >= 0 ? 1 : -1;
       const third = aspect >= 1 ? 1 / 3 : 0.16, off = -across * Math.atan(third * Math.tan(hfov / 2));
