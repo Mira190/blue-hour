@@ -3063,6 +3063,20 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     clockMin: () => clock.min,
     snapped: () => { A.shutter(); stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash'); }, // (someone takes your picture: the shutter and the flash, no picture of your own)
     loaded: c => !lib || !!lib.tpl[c], // (a character come: until then whoever is made of it is somebody standing in)
+    trainIn: () => trainNext().in, // (minutes to her train: walktalk.js trainDue, the night's clock)
+    ended: (title, line) => { if (walkUi && walkUi.told) walkUi.told(title, 0, 0, 'end', line); }, // (the walk's line over: her train missed)
+    // the way to someone on foot, in metres, for the corner's nearest giver (walktalk.js nearest): in plan on your level;
+    // on another, to the lift's stop on yours and up or down its height; with no lift between, the plan and twice the height
+    walkWay: (me, n) => {
+      const dz = Math.abs((n.z || 0) - (me.z || 0)), plan = Math.hypot(n.x - me.x, n.y - me.y);
+      if (dz <= 12) return plan;
+      let best = null, bd = Infinity;
+      for (const l of lifts) {
+        if (!l.stops.some(q => Math.abs(q.at[2] - (n.z || 0)) < 15 && Math.hypot(q.at[0] - n.x, q.at[1] - n.y) < 80)) continue;
+        for (const q of l.stops) { const d = Math.hypot(q.at[0] - me.x, q.at[1] - me.y); if (Math.abs(q.at[2] - (me.z || 0)) < 15 && d < bd) { bd = d; best = q; } }
+      }
+      return best ? bd + dz + Math.hypot(n.x - best.at[0], n.y - best.at[1]) : plan + dz * 2;
+    },
     look: n => { if (player.mode === 'foot') cam.yawTo = Math.atan2(n.x - player.x, n.y - player.y); }, // (the view eased round to someone, as introEnd does: any turn takes it back)
     hurry: c => { if (lib && lib.hurry) lib.hurry(c); }, // (the walk's line's man: his pictures first, as a named NPC's near you, people.js)
     met: () => { if (walkUi && walkUi.flash) walkUi.flash(); },
