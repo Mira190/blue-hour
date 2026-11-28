@@ -34,6 +34,21 @@ window.OEVehicles = (function () {
   const srgb = t => { if ('colorSpace' in t) t.colorSpace = THREE.SRGBColorSpace; else t.encoding = THREE.sRGBEncoding; return t; };
   const PHYS = () => +THREE.REVISION >= 155;
   const once = make => { let v = null; return () => v || (v = make()); };
+  // everything a tree of objects holds on the GPU let go: each geometry, material and picture once (a picture made by
+  // once() above is sent again from its canvas if it is worn again)
+  function disposeTree(root) {
+    const seen = new Set(), tex = v => { if (v && v.isTexture && !seen.has(v)) { seen.add(v); v.dispose(); } };
+    root.traverse(o => {
+      if (o.geometry && !seen.has(o.geometry)) { seen.add(o.geometry); o.geometry.dispose(); }
+      for (const m of [].concat(o.material || [])) {
+        if (!m || seen.has(m)) continue;
+        seen.add(m);
+        for (const k in m) tex(m[k]);
+        if (m.uniforms) for (const k in m.uniforms) tex(m.uniforms[k] && m.uniforms[k].value);
+        m.dispose();
+      }
+    });
+  }
   const W = (x, y, z) => new THREE.Vector3(x, z, -y);
   const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -62,10 +77,12 @@ window.OEVehicles = (function () {
     const car = cars && info.cars ? get(farFirst ? info.cars.far_file : info.cars.file).catch(e => { console.warn('Car models unavailable:', e); return null; }) : null;
     let heliP = null, carsP = null;
     const loadHeli = () => heliP || (heliP = get(info.helicopter.file).then(g => (lib.heli = g)));
+    // (and let go of: the file's own scene, its geometry and pictures on the GPU, so that the next loadHeli fetches it again)
+    const dropHeli = () => { const h = lib.heli; heliP = null; lib.heli = null; if (h && h.scene) disposeTree(h.scene); };
     const loadCars = () => carsP || (carsP = !lib.cars || lib.carsFull ? Promise.resolve(lib.cars)
       : get(info.cars.file).then(g => { lib.cars = g; lib.carsFull = true; return g; }, e => { console.warn('Car models unavailable:', e); return null; }));
     const [h, fer, carLib] = await Promise.all([heli === 'later' ? null : loadHeli(), ferryInfo ? get(ferryInfo.file) : null, car]);
-    const lib = { info, heli: h, ferry: fer, ferryInfo, cars: carLib, carsFull: !!carLib && !farFirst, loadHeli, loadCars };
+    const lib = { info, heli: h, ferry: fer, ferryInfo, cars: carLib, carsFull: !!carLib && !farFirst, loadHeli, dropHeli, loadCars };
     return lib;
   }
   // a livery by name, or the city's own colours over the default
@@ -265,7 +282,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // first or it can't be loaded; it takes the kit's place as soon as nobody is aboard
     const g = new THREE.Group();
     g.userData.whole = true; // (drawn whole or not at all: world.js gate, issue 241)
-    let V = null, real = null, warmed = false, ready = null, swap = null;
+    let V = null, real = null, warmed = false, ready = null, swap = null, drop = () => false, dropLater = false;
     const wear = v => { if (V) g.remove(V.group); V = v; g.add(v.group); };
     // the searchlight is in the world from the start, whether or not the model has come (heliModel carries
     // it to its lamp): three.js builds the number of lights into every lit material's shader, so a light
@@ -295,15 +312,33 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     };
     if (lib && lib.heli) wear(heliModel(world, lib, cfg, mopts));
     else {
-      wear(kitHeli());
+      const kit = kitHeli();
+      wear(kit);
       if (lib && lib.loadHeli) {
         g.visible = false;
         // (real is shown only once warm: update() tries the swap every frame, and the model is made before its
         // shaders have compiled, which a swap in between linked in the frame that drew it; issue 266)
-        ready = () => lib.loadHeli().then(() => { if (!real) real = heliModel(world, lib, cfg, mopts); return warm(real); }).then(m => { warmed = true; return m; })
+        ready = () => lib.loadHeli().then(() => { if (!real) real = heliModel(world, lib, cfg, mopts); return warm(real); }).then(m => { warmed = true; if (dropLater) { dropLater = false; drop(); } return m; })
           .catch(e => { console.warn('Helicopter model unavailable, using a simple one:', e); g.visible = true; return null; });
         // (nobody aboard: only the model in g, the engine off, the door shut)
-        swap = () => { if (real && warmed && V !== real && g.children.length === 1 && !st.on && st.rotor < 0.02 && st.door === 0) { wear(real); g.visible = true; swap = null; } };
+        const swapper = () => () => { if (real && warmed && V !== real && g.children.length === 1 && !st.on && st.rotor < 0.02 && st.door === 0) { wear(real); g.visible = true; swap = null; } };
+        swap = swapper();
+        // drop(): the model let go, back to what it was before it was asked for (the kit's stand-in, not shown), when nobody
+        // can see it or is in it: the engine off, the door shut, nobody aboard. A story whose flight is behind it never shows
+        // it again, and its model (9.5 MB of a phone's GPU, its 2048 px map and the file's scene) stood hidden through the
+        // frames after (main red on frame 5's Stop, run 529). want() fetches it again. -> whether it was let go
+        drop = () => {
+          // (one still warming, asked for before it was put away: let go once it is warm, unless asked for again first)
+          if (real && !warmed && V !== real) { dropLater = true; return false; }
+          // (one warm and on its pad only while nobody can see it or is in it; one fetched ahead and never put there, at once)
+          if (!real || !warmed || (V === real && (g.visible || g.children.length !== 1 || st.on || st.rotor > 0.02 || st.door > 0))) return false;
+          if (V === real) wear(kit);
+          for (const o of real.extras || []) { if (o.parent) o.parent.remove(o); disposeTree(o); }
+          disposeTree(real.group);
+          if (lib.dropHeli) lib.dropHeli();
+          real = null; warmed = false; asked = null; hurried = false; swap = swapper();
+          return true;
+        };
       }
     }
     world.add(g);
@@ -465,7 +500,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
     // want(): fetch the model now (a pad in range, or about to fly), resolving when it is on the pad;
     // show(): someone is getting in before it has come, so the kit-built one stands in until then
     let asked = null;
-    const want = () => asked || (asked = ready ? ready().then(m => { if (swap) swap(); return m; }) : Promise.resolve(V));
+    const want = () => (dropLater = false) || asked || (asked = ready ? ready().then(m => { if (swap) swap(); return m; }) : Promise.resolve(V));
     // prefetch(): the model fetched, built and its shaders and textures readied, but not yet put on the pad
     // (the title screen: it would appear out of nowhere in the shot); want() then puts it there at once
     const prefetch = () => (ready && !asked ? ready() : Promise.resolve(null));
@@ -475,6 +510,7 @@ void main() { vec2 c = gl_PointCoord - 0.5; float d = dot(c, c) * 4.0; if (d > 1
       // hurry(): the player is near it (game.js, as you come to its pad): its pictures sent at the head of the page's queue,
       // now if they wait there, or from the start of its warm-up. Asked for from 800 m away, it waited behind 147 others in
       // a queue sending one a frame, and on the roof it never came in, 19 minutes into the page (walk part 3, #157)
+      drop: () => drop(),
       hurry: () => { if (hurried || !opts.upload) return; hurried = true; if (real && !warmed) for (const o of [real.group, ...(real.extras || [])]) opts.upload(o, { first: true }); },
       // (for the harnesses: what the model's swap waits on, tools/walk_play.js on the roof)
       late: () => ({ asked: !!asked, real: !!real, warmed, worn: V === real, kids: g.children.length, on: !!st.on, rotor: +(st.rotor || 0).toFixed(2), door: st.door, swap: !!swap }) };

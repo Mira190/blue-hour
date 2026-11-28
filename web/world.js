@@ -2662,7 +2662,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     const api = {
       // the screens' faces and their programmes' clock, hour and night (neon.js lights the street from them)
       screens: { meshes: screenMeshes, clock: SCREEN, night: LM_NIGHT },
-      world, sky, su, sunLight, shCam, hemi, nightU: NU, faceCap: prev => faceCap(prev, U.uFaceCap), pmrem, far, outposts, groundMeshes, skyLit, skyVis: SKYVIS, farSun: FARSUN ? farSun : null, groundPictures: pics, quayMeshes, quays: Q, inland, inlandWater: IN, inlandGlints: () => glints, gradePhoto, streetLit, tileGeometry, groundMesh, chunkGeo, water, waterMat, sea, waterCover, trees, buildings, bGeo, gpuOnly, groundKeep, mapAt, mapStream: BLD.stream, roofKit: BLD.props, U, SRC, extrude, bColour, floodMats, lmMats, night,
+      world, sky, su, sunLight, shCam, hemi, nightU: NU, faceCap: prev => faceCap(prev, U.uFaceCap), pmrem, envSpare, far, outposts, groundMeshes, skyLit, skyVis: SKYVIS, farSun: FARSUN ? farSun : null, groundPictures: pics, quayMeshes, quays: Q, inland, inlandWater: IN, inlandGlints: () => glints, gradePhoto, streetLit, tileGeometry, groundMesh, chunkGeo, water, waterMat, sea, waterCover, trees, buildings, bGeo, gpuOnly, groundKeep, mapAt, mapStream: BLD.stream, roofKit: BLD.props, U, SRC, extrude, bColour, floodMats, lmMats, night,
       skyReady, // (its program compiled and checked: the game's shaders start compiling after it, game.js earlyWarm)
       hazeProbe: { cpu: az => { const c = hazeOf(az); return c && c.clone(); }, gpu: readHaze }, // (tools/haze_check.js)
       sunDir: new THREE.Vector3(0, 1, 0), day: 1, shadowStill, still, edgeFade, // the width of the haze at the model's edge, metres (edgeHaze)
