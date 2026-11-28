@@ -684,7 +684,7 @@ float steelHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) 
       // (tools/entry_cost.js)
       if (o.warm) {
         for (const sv of services) for (let k = 0; k < sv.cars; k++) kind(sv.stock, roleOf(sv, k));
-        for (const K of Object.values(kinds)) if (K.glb) for (const L of K.lods) for (const m of L.meshes) if (!(LEAN && m.userData.near)) o.warm(m); // (a phone's near cars sent when one first comes within LOD_M, not held from the start: poolsOf)
+        for (const K of Object.values(kinds)) if (K.glb) for (const L of K.lods) for (const m of L.meshes) if (!(LEAN && m.userData.near)) o.warm(m); // (a phone's near cars sent when one first comes within LOD_M, not held from the start: poolsOf. Their program is already made, with the far cars': tools/train_near.js, no program made as they come)
         if (pools) for (const p of pools.values()) o.warm(p.mesh);
       }
     });
