@@ -143,12 +143,16 @@ window.OENav = (function () {
     // paving (a forecourt over a colonnade), "upper" holds the slab's level: the ground is the slab,
     // and the floor under it is walked too (floorAt, groundBelow)
     const int16 = s => { const b = bytesOf(s); return new Int16Array(b.buffer, b.byteOffset, b.length >> 1); };
+    // (a hero level's drawn floor, "hero", only within the level's circle: its cells reach half a cell past it, and there
+    // the guide stood 5.4 cm over the city's ground drawn beyond the Scramble's edge, issue 258)
     const patches = (G.patches || []).map(p => Object.assign({}, p, {
-      z: int16(p.data), up: p.upper ? Object.assign({}, p.upper, { z: int16(p.upper.data) }) : null, x1: p.x0 + p.nx * p.cell, y1: p.y0 + p.ny * p.cell }));
+      z: int16(p.data), up: p.upper ? Object.assign({}, p.upper, { z: int16(p.upper.data) }) : null, x1: p.x0 + p.nx * p.cell, y1: p.y0 + p.ny * p.cell,
+      circle: p.hero ? (G.hero || []).find(h => h.id === p.hero && h.at && h.r) || null : null }));
     // the patch's levels at (x, y): [the floor, the slab over it or null], or null off the patches
     function patchAt(x, y) {
       for (const p of patches) {
         if (x < p.x0 || y < p.y0 || x >= p.x1 || y >= p.y1) continue;
+        if (p.circle && Math.hypot(x - p.circle.at[0], y - p.circle.at[1]) > p.circle.r) continue;
         const c = Math.floor((x - p.x0) / p.cell), r = Math.floor((y - p.y0) / p.cell), v = p.z[r * p.nx + c];
         if (v === -32768) continue;
         // (a smooth patch, "smooth": 1, holds a surface sampled at its cells' middles, not walls and risers: a hero level's
@@ -1088,7 +1092,7 @@ window.OENav = (function () {
     // the city's Hachiko Square to the ankle, 6 to 19 cm under its setts and its tactile lines, which nobody was stood
     // on because the level would draw them again (the owner's iPhone, November 2026; tools/feet_check.js HERO=off)
     function lift(x, y) {
-      let l = 0, inside = false;
+      let l = 0, inside = false, top = -Infinity;
       for (const h of lifts) {
         const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]);
         if (d > 0 && h.shown) {
@@ -1099,9 +1103,14 @@ window.OENav = (function () {
           // the level has there, and is what is stood on. Out on SKY's forecourt past its planks the level had only the slab of
           // grout under them, 13 to 15 cm under the ground drawn over it, and the guide walked in the ground there, issue 190)
           if (h.floor) { const z = h.height ? h.height(x, y) : null; if (z !== null) { const t = terrain(x, y); return z < t && !(h.cutAt && h.cutAt(x, y)) ? 0 : z - t; } continue; }
+          // (once its model has come, its drawn ground itself where it is drawn over the game's own, game.js heroCover h.height:
+          // the lift alone, full to 2 m from the edge, stood the guide 4 to 5.5 cm off what was drawn where the level's builder
+          // laid its paving a little over or under it and at its edge, which is drawn at full height, issue 258)
+          if (h.height) { const z = h.height(x, y), t0 = tri; if (z !== null && z > bare(x, y) + 0.02) top = Math.max(top, z); tri = t0; continue; } // (bare sets the slope: terrain's is kept)
           if (!h.cover || h.cover(x, y)) l = Math.max(l, h.lift * Math.min(1, d / 2));
         }
       }
+      if (top > -Infinity) { const t = terrain(x, y); return l > 0 ? Math.max(l, top - t) : top - t; }
       if (!inside && pavingHid && pavingHid.size) l = Math.max(l, hidLift(x, y));
       return l;
     }
