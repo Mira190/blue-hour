@@ -4951,7 +4951,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
   // keeps in this browser (story.js dispose, kept), so the title's Continue takes it up at the frame it was at, with its
   // prints, as a fresh page's does; the walk's people, its talk and its corner go (walktalk.js end, walk.js away), your
   // car back at its kerb and the helicopter on its pad; you on foot at the start, the title's own evening and its sound
-  // (the cue, no new AudioContext). Every way in on the title then runs as it does on a fresh page, either mode, with
+  // (the cue, on the one audio context the page has). Every way in on the title then runs as it does on a fresh page, either mode, with
   // no page load. Nothing of a mode stays under the title, so its frames cost what a fresh title's do (tools/title_inplace.js).
   // A way in from a title come back to comes down from the title's view without an opening film (titleAgain): the films
   // are the page's first way in, and their sound begins before any context exists (audio.js quiet, docs/SOUND.md).
