@@ -177,6 +177,15 @@ it (409.6, -1029.8), and it is read from its triangles now (`navcells.js` `paveT
 floors are exported again: the Scramble's patch was older than its raised footways (18 cm kerbs walked at the road's
 height), and Miyamasu had none (its pavers 2 to 3 cm over its lift).
 
+The probe itself read a walked floor 4.7 cm over the Scramble's ground for a while after (issue 262's rebuild, 28 November):
+it measured levels the walking floor did not count as shown. `hero.js` `state()` said shown from the model's visibility,
+and the walking floor reads `h.shown`, which the frame's update sets; the probe moved the clock alone (`advance`), so
+every point lacked the lift, and a wait that timed out measured all the same. `state()` says shown only when both are,
+the probe runs frames and leaves a level it never saw shown unmeasured, measures against the first surface of anything
+drawn (Hachiko Square's setts lie over the level's ground: read through them, the walker was 12 cm "over" it), and
+fails over 1.5 cm rms. Now 0.5 cm rms in the Scramble, 0.3 in Miyamasu; what is left over 6 cm is a plinth or a
+planter's edge a walker does not step onto.
+
 Left: under the bed's east half north of y -945 the ground is still 1.7 m up (17.8 m): the bicycle lot's paving at
 the circle's edge is a landmark's, laid on the survey's slope at 17.6 m, and the ground nearest the unknown nodes
 is read from it.
