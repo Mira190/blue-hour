@@ -18,6 +18,16 @@ const [,, out = '/tmp/opening-play', size = '1440x900'] = process.argv;
   const errors = [], fail = m => { errors.push(m); console.log('FAIL', m); };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   fs.mkdirSync(out, { recursive: true });
+  // the story's name each time its card comes up, seen by the page itself (a slow page's 2.5 s fall in between two reads):
+  // what the case was doing, whether a line was up and whether the goal was shown
+  await p.addInitScript(() => {
+    const D = window.__drops = [];
+    const look = () => { const c = document.getElementById('g-story-card'); if (!c) return setTimeout(look, 500);
+      let on = false;
+      new MutationObserver(() => { const now = c.classList.contains('on'); if (now && !on) { const g = window.__game, S = g && g.story && g.story.state, d = document.getElementById('gd'), gl = document.getElementById('g-story-goal');
+        D.push({ fi: S ? S.fi : -1, phase: S ? S.phase : '', drop: c.classList.contains('drop'), line: !!(d && !d.hidden), goal: !!(gl && gl.classList.contains('on')), free: !!(g && !g.dlg.holds && g.player.mode === 'foot'), text: c.textContent.trim() }); } on = now; }).observe(c, { attributes: true, attributeFilter: ['class'] }); };
+    document.addEventListener('DOMContentLoaded', look);
+  });
   await p.addInitScript(t => { try { localStorage.setItem('bh-quality', t); } catch (e) { /* storage blocked */ } }, process.env.TIER || 'low');
   await p.goto(`http://localhost:${process.env.PORT || 8800}/?overture=0&preface=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await p.waitForFunction(() => { const t = document.getElementById('g-title'); return window.__game && t && !t.hidden; }, null, { timeout: 900000, polling: 500 });
@@ -26,7 +36,7 @@ const [,, out = '/tmp/opening-play', size = '1440x900'] = process.argv;
   const snap = name => p.screenshot({ path: `${out}/${name}.png` }).catch(() => console.log(`(no still ${name})`));
   const S = () => p.evaluate(() => { const g = window.__game, s = g.story.state, d = document.getElementById('gd'), pl = g.player;
     return { phase: s.phase, beat: s.beat, fi: s.fi, t: +s.t.toFixed(1), dlg: !!(d && !d.hidden), free: !!(d && d.classList.contains('free')), cut: !!(d && d.classList.contains('cut')), text: (document.getElementById('gd-text') || {}).textContent || '',
-      cam: !!s.cam, finder: !!g.story.finder, ready: !!s.jobReady, goal: (document.querySelector('#g-story-goal span') || {}).textContent || '', btn: document.getElementById('g-story-cam').classList.contains('on'),
+      cam: !!s.cam, finder: !!g.story.finder, ready: !!s.jobReady, goal: document.getElementById('g-story-goal').classList.contains('on') ? (document.querySelector('#g-story-goal span') || {}).textContent || '' : '', btn: document.getElementById('g-story-cam').classList.contains('on'),
       at: [+pl.x.toFixed(2), +pl.y.toFixed(2)], dog: !!s.dog }; });
   const until = async (f, s, what) => { const t0 = Date.now(); for (;;) { const q = await S(); if (f(q)) return q; if (Date.now() - t0 > s * 1000) { fail(`waited ${s} s for ${what}: ${JSON.stringify(q).slice(0, 300)}`); return q; } await p.waitForTimeout(250); } };
   const press = async k => { if (phone && k === 'R') await p.tap('#g-story-cam', { timeout: 1500 }).catch(() => {}); else await p.keyboard.press(`Key${k}`); }; // (a phone: the button, where it is offered)
@@ -91,7 +101,22 @@ const [,, out = '/tmp/opening-play', size = '1440x900'] = process.argv;
   // the print, her two lines, and time runs: the second frame's goal at once
   for (let i = 0; i < 80; i++) { q = await S(); if (q.phase === 'after' || q.fi === 1) break; if (q.dlg && !q.free) await p.keyboard.press('KeyE'); await p.waitForTimeout(500); }
   const tRun = Date.now(), s0 = await p.evaluate(() => performance.now());
+  // the title drop (docs/STORY.md "The title, once"): the office back on the line, then the story's name once, low over the
+  // live street, the player walking on, and the second frame's goal only once it has gone
+  const card = () => p.evaluate(() => { const c = document.getElementById('g-story-card'); return c ? { on: c.classList.contains('on'), drop: c.classList.contains('drop') } : null; });
+  { let said = false;
+    for (let i = 0; i < 240; i++) { q = await S(); if (q.dlg && /dropped off the line/.test(q.text)) said = true; const c = await card(); if (c && c.on) { await p.waitForTimeout(1000); await snap('6b-title-drop'); break; } if ((await p.evaluate(() => window.__drops.length))) break; await p.waitForTimeout(250); }
+    const D = await p.evaluate(() => window.__drops);
+    if (D.length !== 1 || !D[0].drop || D[0].fi !== 0 || D[0].phase !== 'after') fail(`after the first print the story's name did not fall once as the frame resolved (${JSON.stringify(D)})`);
+    else {
+      if (D[0].line) fail('the story\'s name fell over a line still said');
+      if (D[0].goal) fail('the story\'s name fell with the second frame\'s goal already up');
+      if (!D[0].free) fail('the story\'s name fell with the player held');
+      console.log(`${wall()} the story's name fell: "${D[0].text}" (the office back on the line first: ${said}; no line or goal up; the player free under it)`);
+    }
+  }
   q = await until(q => q.fi === 1 && !!q.goal, 120, 'the second frame\'s goal');
+  { const c = await card(); if (c && c.on) fail('the second frame\'s goal came up with the story\'s name still over the street'); }
   const game = await p.evaluate(() => window.__game.story.state.t);
   const waited = (Date.now() - tRun) / 1000;
   console.log(`${wall()} time ran, and the second frame's goal came ${waited.toFixed(1)} s of the wall later: "${q.goal}" (call: ${q.dlg ? `"${q.text.slice(0, 60)}"` : 'none'})`);

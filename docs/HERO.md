@@ -1091,8 +1091,11 @@ that roof (within 40 m of its top's ring, from 25 m under the deck to 60 m over 
 **Only near, in height too.** The roof stands within 80 m in plan of frame 5's place at the tower's foot, and a level
 was fetched by its distance in plan. `hero.js` now takes a level's `zr` (its half-height about its `z`): the camera's
 height off it is counted as well (`d = hypot(max(0, plan), dz)`), and the opening's anchor, which is a point on the
-ground, does not fetch it. SKY STAGE is fetched once the camera is within 110 m of it (a third of the way up in SKY
-GATE's lift), shown within 120 m, and let go past 160 m: on the flight down in frame 5, never from the street.
+ground, does not fetch it. SKY STAGE is fetched once the camera is within 90 m of it (in SKY GATE's lift, on the way
+up the tower's face), shown within 100 m, and let go past 110 m: on the flight out in frame 5, once the helicopter is
+over the Scramble, never from the street. (It was let go past 160 m: at 5-flight-scramble the helicopter is 116 m off
+with the roof behind it, and a phone held its 9.4 MB there, 262.1 MB of frame 5's budget of 262 in a play from the
+title; now 252.8.)
 
 Sources (looked at, none reproduced, no texture taken from one): SHIBUYA SKY's pages (shibuya-scramble-square.com/sky/:
 the zones SKY STAGE, SKY EDGE, CLOUD HAMMOCK, GEO COMPASS, CROSSING LIGHT; about 2,500 m²); Travel Watch (Impress),
