@@ -669,7 +669,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     const keyLine = () => p.evaluate(() => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on') ? e.textContent : ''; });
     // (the line changes on the page's next frame drawn, which on a software renderer can be seconds after the step: waited for, up to a minute)
     const keysFor = re => p.waitForFunction(r => { const e = document.getElementById('g-walk-keys'); return e && e.classList.contains('on') && new RegExp(r, 'i').test(e.textContent); }, re.source, { timeout: 60000, polling: 250 }).then(() => true, () => false);
-    const shown = sel => p.evaluate(s => [...document.querySelectorAll(s)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && getComputedStyle(e).display !== 'none'; }).map(e => e.textContent.trim()), sel);
+    const listed = sel => p.evaluate(s => [...document.querySelectorAll(s)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && getComputedStyle(e).display !== 'none'; }).map(e => e.textContent.trim()), sel);
     const mode = () => p.evaluate(() => window.__game.player.mode);
     // (a key or a phone's button held for some seconds of the game's own time, a twentieth of a second a frame with the
     // camera following each, as a player's frames do: a software renderer's own frames are too slow to hold it for, and
@@ -963,13 +963,24 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         if ((await mode()) !== 'car') fail(`E (or a tap) by your car: not at the wheel (${await mode()}; the prompt "${await prompt()}", the game's "${await p.evaluate(() => { const a = window.__game.currentAction(); return a ? a.text : ''; })}")`);
         else {
           await keysFor(phone ? /drives/i : /steer/i);
-          const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [];
+          const kl = await keyLine(), btn = phone ? await listed('.gt-btns button') : [];
           if (!(phone ? /drives/i.test(kl) : /steer/i.test(kl))) fail(`at the wheel, the foot of the frame does not show the car's keys ("${kl}")`);
           if (phone && !(btn.includes('Hand brake') && btn.includes('Horn') && btn.includes('View'))) fail(`at the wheel on a phone, the buttons are ${JSON.stringify(btn)} (want the hand brake, the horn and the view)`);
           const st0 = await p.evaluate(() => { const s = window.__game.myCar().D.st; return [s.x, s.y]; });
+          // (what the car met while W was held, each step's bumps and the people and cars round it, read only on a miss)
+          await p.evaluate(() => { const D = window.__game.myCar().D, f = D.step; window.__carMet = { bumps: {}, people: 0, boxes: 0, n: 0 }; D.step = function (dt, inp, env, ev) { const m = window.__carMet, k = ev ? ev.length : 0, r = f.call(this, dt, inp, env, ev); m.n++; m.people = Math.max(m.people, (env && env.people || []).length); m.boxes = Math.max(m.boxes, (env && env.boxes || []).length); for (const e of (ev || []).slice(k)) m.bumps[e.what || e.type] = (m.bumps[e.what || e.type] || 0) + 1; return r; }; D.step.__was = f; });
           await hold('KeyW', 2.5); await p.waitForTimeout(1200);
+          const met = await p.evaluate(() => { const D = window.__game.myCar().D; if (D.step.__was) D.step = D.step.__was; return window.__carMet; });
           const c = await p.evaluate(() => { const s = window.__game.myCar().D.st; return { xy: [s.x, s.y], v: s.speed }; }), drove = Math.hypot(c.xy[0] - st0[0], c.xy[1] - st0[1]), kmh = await corner();
-          if (drove < 3) fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m`);
+          if (drove < 3) { // (and what held it: a talk or a film holding the keys, the autopilot, the drive area's brake, something in front)
+            const why = await p.evaluate(() => {
+              const g = window.__game, s = g.myCar().D.st, bd = g.bounds && g.bounds(), b = bd && bd.drive ? bd.drive({ ...s }, 1, 0, g.myCar().C.half) : null;
+              const ahead = (g.cars || []).filter(c => c.D && c.D.st && c !== g.myCar()).map(c => ({ d: Math.hypot(c.D.st.x - s.x, c.D.st.y - s.y), a: Math.atan2(c.D.st.x - s.x, c.D.st.y - s.y) - s.h })).filter(q => q.d < 9 && Math.cos(q.a) > 0.5).length;
+              return { at: [+s.x.toFixed(1), +s.y.toFixed(1), +s.h.toFixed(2)], v: +(s.v || 0).toFixed(2), mode: g.player.mode, dlg: !!g.dlg.open, holds: !!g.dlg.holds, pilot: !!g.pilot(), boundsBrake: b, carsAhead: ahead };
+            }).catch(e => ({ err: String(e) }));
+            why.met = met;
+            fail(`at the wheel with W held for two and a half seconds, the car moved ${drove.toFixed(1)} m (${JSON.stringify(why)})`);
+          }
           else if (!/km\/h/.test(kmh)) fail(`driving, the corner does not say the speed ("${kmh}")`);
           else ok(`drove ${drove.toFixed(1)} m; the corner says "${kmh}"; the keys: "${kl.slice(0, 60)}"`);
           await shot('7a-car');
@@ -984,8 +995,17 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       // (waited for, not read 0.8 s on: put down there out of the car, the corner's buttons are the page's next frames' to
       // lay out, seconds on a software renderer; read at once it was not there yet, and pressed a beat later it was, main's
       // walk3 on beb0fdb)
-      if (!(await shown('#g-walk-acts [data-do="car"]'))) fail('on foot, the walk\'s corner has no Your car button');
-      else {
+      // (waited for, up to a minute: this block's own shown listed what it found and so was never false (now listed), and
+      // the press gave it 10 s. Put down 67 m from the car, the next frames build the plaza round you, and on a loaded
+      // page four frames took 14 s before the corner showed the button: never pressed, the car was never called and was
+      // read where it was left, 67 m away, #255. On a miss, what the corner
+      // was given: the mode, the button's own hidden, and how many of the page's frames ran while it was waited for)
+      const carWait = await p.evaluate(() => { window.__carWaitF = 0; const f = () => { window.__carWaitF++; if (window.__carWaitF < 1e6) requestAnimationFrame(f); }; requestAnimationFrame(f); return Date.now(); });
+      if (!(await shown('#g-walk-acts [data-do="car"]', 60000))) {
+        const why = await p.evaluate(() => { const g = window.__game, b = document.querySelector('#g-walk-acts [data-do="car"]'), a = document.getElementById('g-walk-acts'); return { mode: g.player.mode, hidden: b ? b.hidden : 'none', acts: a ? a.className : 'none', stage: (document.querySelector('.game-stage') || {}).className, frames: window.__carWaitF }; });
+        fail(`on foot, the walk's corner has no Your car button after ${Math.round((Date.now() - carWait) / 1000)} s (${JSON.stringify(why)})`);
+      } else {
+        console.log(`(Your car's button up ${((Date.now() - carWait) / 1000).toFixed(1)} s after you were put down, ${await p.evaluate(() => window.__carWaitF)} frames)`);
         await press('#g-walk-acts [data-do="car"]');
         const c0 = await p.evaluate(() => { const g = window.__game, s = g.myCar().D.st; return [s.x, s.y]; });
         await p.evaluate(() => { const g = window.__game; for (let i = 0; i < 120; i++) g.frame(0.05); });
@@ -1027,6 +1047,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
         else ok(`Bring your car: at the kerb ${far.toFixed(0)} m away`);
       }
     }
+    if (process.env.WALK_ONLY === 'car') { await b.close(); console.log(errors.length ? `${errors.length} failure(s)` : 'walk car: all passed'); process.exit(errors.length ? 1 : 0); }
     // SKY GATE: in its hall (a hero level open to the sky: its floor, its two lifts and their shaft), E or a tap takes the
     // lift, watched from outside the tower as it climbs (game.js rideLift; the owner found the ride in the dark odd and the
     // tower climbed from outside the better, November 2026), out at the top stop
@@ -1132,7 +1153,7 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
       if ((await mode()) !== 'heli') fail(`E (or a tap) by the helicopter: not at the stick (${await mode()})`);
       else {
         await keysFor(/climb/i);
-        const kl = await keyLine(), btn = phone ? await shown('.gt-btns button') : [], z0 = await p.evaluate(() => window.__game.heli.st.z);
+        const kl = await keyLine(), btn = phone ? await listed('.gt-btns button') : [], z0 = await p.evaluate(() => window.__game.heli.st.z);
         if (!(phone ? /climb/i.test(kl) : /climb/i.test(kl) && /descend/i.test(kl))) fail(`at the stick, the foot of the frame does not show the helicopter's keys ("${kl}")`);
         if (phone && !(btn.includes('Up') && btn.includes('Down'))) fail(`at the stick on a phone, the buttons are ${JSON.stringify(btn)} (want Up and Down)`);
         await hold('Space', 10); await p.waitForTimeout(1200);
