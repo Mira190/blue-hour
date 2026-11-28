@@ -1092,7 +1092,7 @@ window.OENav = (function () {
     // the city's Hachiko Square to the ankle, 6 to 19 cm under its setts and its tactile lines, which nobody was stood
     // on because the level would draw them again (the owner's iPhone, November 2026; tools/feet_check.js HERO=off)
     function lift(x, y) {
-      let l = 0, inside = false, top = -Infinity;
+      let l = 0, inside = false, top = -Infinity, drawn = false;
       for (const h of lifts) {
         const d = h.r - Math.hypot(x - h.at[0], y - h.at[1]);
         if (d > 0 && h.shown) {
@@ -1106,11 +1106,15 @@ window.OENav = (function () {
           // (once its model has come, its drawn ground itself where it is drawn over the game's own, game.js heroCover h.height:
           // the lift alone, full to 2 m from the edge, stood the guide 4 to 5.5 cm off what was drawn where the level's builder
           // laid its paving a little over or under it and at its edge, which is drawn at full height, issue 258)
-          if (h.height) { const z = h.height(x, y), t0 = tri; if (z !== null && z > bare(x, y) + 0.02) top = Math.max(top, z); tri = t0; continue; } // (bare sets the slope: terrain's is kept)
+          if (h.height) { drawn = true; const z = h.height(x, y), t0 = tri; if (z !== null && z > bare(x, y) + 0.02) top = Math.max(top, z); tri = t0; continue; } // (bare sets the slope: terrain's is kept)
           if (!h.cover || h.cover(x, y)) l = Math.max(l, h.lift * Math.min(1, d / 2));
         }
       }
-      if (top > -Infinity) { const t = terrain(x, y); return l > 0 ? Math.max(l, top - t) : top - t; }
+      // (and the game's own ground where it is drawn over the level's, or the level draws none: what is drawn is the higher of
+      // the two. Where the ground was graded again after the level was built it stood 26 cm over the Scramble's paving by the
+      // viaduct, and the guide walked in it on the level's floor; in a gap in the paving its floor less its lift, read
+      // between the samples round it, was a centimetre or two off the ground drawn there, issue 258)
+      if (drawn) { const t0 = tri, b = bare(x, y); tri = t0; const t = terrain(x, y), g = Math.max(top, b) - t; return l > 0 ? Math.max(l, g) : g; }
       if (!inside && pavingHid && pavingHid.size) l = Math.max(l, hidLift(x, y));
       return l;
     }
