@@ -33,7 +33,11 @@ def _sibling(name):
     """A module next to this one (this folder is not on sys.path): streets.py, the streets off the scramble."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(f"shibuya_{name}", os.path.join(HERE, f"{name}.py"))
+    import sys
+    if spec.name in sys.modules:   # (one module however many of its neighbours load it: rail.py's layout made once)
+        return sys.modules[spec.name]
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 
@@ -2141,6 +2145,7 @@ def station(K, A, D, koban_box):
     if not sol:
         return [], []
     wall = K["x_station"]
+    portals = _sibling("rail").portals()
     low, clips = None, []                              # the scaffold's foot: over the way in's sign where there is one
     for q in sol:
         O = Polygon(q["ring"]).buffer(0)
@@ -2159,10 +2164,28 @@ def station(K, A, D, koban_box):
                 spans.append((s0, c0))
                 s0 = c1
             spans.append((s0, L))
+            # where the line runs out of the station in the open (its platforms south over Route 246): a portal over the
+            # tracks and the platforms, the wall only under their bed and over the wire (rail.py portals())
+            holes = []
+            for o in portals:
+                if o["si"] != q["si"]:
+                    continue
+                cut = LineString([a, b]).intersection(LineString(o["line"]).buffer(0.05))
+                for c in getattr(cut, "geoms", [cut]):
+                    if c.geom_type == "LineString" and c.length > 0.2:
+                        t0, t1 = sorted(float((np.asarray(c.coords[k]) - a) @ f) for k in (0, -1))
+                        holes.append((t0, t1, o["z0"], o["z1"]))
             for s0, s1 in spans:
-                if s1 - s0 > 1e-3:
-                    p, r_ = a + f * s0, a + f * s1
-                    wall.quad(np.array([*p, g]), np.array([*r_, g]), np.array([*r_, zt]), np.array([*p, zt]), [[s0, g], [s1, g], [s1, zt], [s0, zt]])
+                cuts = sorted((max(s0, h0), min(s1, h1), z0, z1) for h0, h1, z0, z1 in holes if h1 > s0 and h0 < s1)
+                bands, c0 = [], s0
+                for h0, h1, z0, z1 in cuts:
+                    bands += [(c0, h0, g, zt), (h0, h1, g, z0), (h0, h1, z1, zt)]
+                    c0 = h1
+                bands.append((c0, s1, g, zt))
+                for b0, b1, zb, ze in bands:
+                    if b1 - b0 > 1e-3 and ze - zb > 1e-3:
+                        p, r_ = a + f * b0, a + f * b1
+                        wall.quad(np.array([*p, zb]), np.array([*r_, zb]), np.array([*r_, ze]), np.array([*p, ze]), [[b0, zb], [b1, zb], [b1, ze], [b0, ze]])
             if n[0] < -0.5 and L > 3.0 and q["top"] < 16:      # the side on Hachiko Square: a hoarding along its foot, stopping at the way in's end panels
                 for s0, s1 in spans:
                     s0, s1 = s0 + (HACHIKO_EXIT["end"] if s0 > 0 else 0.0), s1 - (HACHIKO_EXIT["end"] if s1 < L else 0.0)

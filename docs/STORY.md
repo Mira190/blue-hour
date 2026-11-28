@@ -2461,6 +2461,20 @@ thank you for an errand you never ran. The office's call at the first visit turn
 the woman at the kerb a few steps behind you. `tools/walktalk_unit.js` holds the three cases: nothing begun beside her
 (the incident's lead), her story told and nothing begun (Mei's), Oda's begun beside her (Oda's goal, her pale mark).
 
+*The walk kept, and the walk begun again* (the owner, 27 November 2026: a first load told from a saved one, and a way to
+play the walk from its start), as story-driven open worlds offer a last save over a new game, apart from the case's own
+Continue. With no story of the walk begun, the title's way in is *Walk Shibuya*: the opening flight and the office's
+call. With one begun (`walktalk.js` `saved`), it is *Continue the walk* with where you were in one line (*Mr Oda · Drive
+to 109, at the foot of Dogenzaka · 2 of 6 told*), *Start the walk again* under it, and the step names the story above the
+hour and the sky. Continue sets out without the flight or the call: the crane down to your shoulder, and a card over the
+street (*Where you left it · 2 of 6 told*, the story's name, what it asks), then the corner's story as above. Start the
+walk again, from the title or the walk's menu, asks first (*Your walk so far will be lost: the people you met and where
+their stories stand. Your photographs are kept.*); then the walk's stories, the incident's fall and the office's call are
+forgotten (`clear`), the views found and their photographs kept (`bh-walk-roll`), and it sets out as a first visit. From
+the street or a walk parked under the title the page opens again on the walk's step (`bh-walk-anew`), since its people,
+car and clock have no way back in place. `tools/walk_save.js` plays it all on a desktop and a phone, with a still of each
+screen.
+
 The holes found and closed in this pass: her first words about a fall the visit never saw (the fall kept too early);
 the incident waiting for ever with her out of the picture (a phone's narrow frame on a walk taken up again, with no call to turn the view to her: never in 15 minutes), and on the man's model (his pictures now go first, and he comes as his stand-in after 20 s);
 two things at once while the incident waited (Mei's amber mark and her call-out beside the corner's lead to Nagi);
