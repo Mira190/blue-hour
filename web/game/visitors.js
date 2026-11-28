@@ -83,6 +83,7 @@ window.OEVisitors = (function () {
             made = true;
             v.rig.animate(0, 0, v.p.sit != null ? 'sit' : 'ground', t + v.pitch); // (posed once before it is first drawn: a seat's fit, people.js rig.seatH, is worked out from the frame before)
           }
+          if (need && !need(v.rig.character)) { show(v, false); continue; } // (its character let go from the GPU while nobody looked, people.js lib.letGo: shown again once it is back, not drawn sending its pictures in that frame)
           show(v, true);
           v.rig.waits = true;
           v.rig.animate(dt, 0, v.p.sit != null ? 'sit' : 'ground', t + v.pitch);

@@ -190,25 +190,45 @@ window.OEHero = (function () {
     // 0.2 MB. What it cannot show: whoever stands at the glass, which moves (it is taken from over the pad, where nobody
     // stands), and the roof seen from where you are (one place's picture: the far city, which is most of what the glass
     // mirrors at dusk, is where it should be)
+    // The glass's map of the cube (its sky-light map, as three.js samples an environment) is made here with the world's
+    // own generator (world.js pmrem), whose blur target is let go once a map is made (Wd.envSpare, #162). Left to three.js,
+    // the cube went through a generator of the renderer's own, out of reach, whose blur target (768 x 1024 in half floats,
+    // 6 MB) stood idle from the roof's first cube in frame 4's lift ride to the last card; and the cube itself (4 MB at 256
+    // a side) stood between one taking and the next though nothing reads it there. Now the cube is drawn into only while
+    // one is taken and let go once its map is made (three.js makes it again at the next face drawn into it): 10 MB of a
+    // desktop's GPU at frame 5's flight (main red, run 529). p.uv: the map the glass wears. No texture of the page's is
+    // handed to three.js's own generator (needsPMREMUpdate, a cube as an envMap): tools/pmrem_check.py
     function probeOf(h) {
-      if (h._probe) return h._probe.rt;
+      if (h._probe) return h._probe.uv;
       const P = h.probe, res = tier === 'low' ? (P.res_low || 64) : (P.res || 256);
       const rt = new THREE.WebGLCubeRenderTarget(res, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
       const cc = new THREE.CubeCamera(0.5, 8000, rt);
       cc.position.set(P.at[0], P.at[2], -P.at[1]);
-      h._probe = { rt, cc, night: -1, t: -99, n: 0, k: null, sky: false };
-      return rt;
+      // (a map the size the glass's shader is compiled for, black until the first cube is in: probeSky fills it at once)
+      const uv = Wd.pmrem.fromCubemap(rt.texture);
+      Wd.envSpare(uv);
+      rt.dispose();
+      h._probe = { rt, cc, uv, night: -1, t: -99, n: 0, k: null, sky: false };
+      return uv;
+    }
+    // the cube's map made again, worn by the level's glass, and the cube let go until the next is taken (probeOf)
+    function probeMap(p, glass) {
+      const uv = Wd.pmrem.fromCubemap(p.rt.texture); // (a target of its own each time: the generator's blur target is sized by it, the sky's maps share it)
+      Wd.envSpare(uv);
+      for (const m of glass) m.envMap = uv.texture;
+      p.uv.dispose(); p.uv = uv;
+      p.rt.dispose();
     }
     // One face a frame (issue 192): the six faces drawn in one frame were six draws of the scene at once, 1713 draws and
     // 4.6 M triangles in the frame the roof's level came into the lift ride on a phone's tier. A face a frame, from the
-    // moment a cube is due, the sixth with the mipmaps; three.js makes the glass's map of it again only once the sixth
-    // is in (needsPMREMUpdate), so the glass changes from one whole cube to the next, as before. Before a level's first
+    // moment a cube is due, the sixth with the mipmaps; the glass's map of it is made again only once the sixth is in
+    // (probeMap), so the glass changes from one whole cube to the next, as before. Before a level's first
     // cube is whole its glass mirrors the sky: the cube is first filled with the scene's environment alone (six draws of
     // the sky's box, probeSky), so that no frame shows the glass mirroring an empty or half-taken cube
     function probe(L, night) {
       const p = L.h._probe;
       if (!p) return;
-      if (!p.sky) { p.sky = true; probeSky(p); }
+      if (!p.sky) { p.sky = true; probeSky(p, L); }
       if (p.k == null) {
         if (t - p.t < 3 || Math.abs(night - p.night) < (tier === 'low' ? 0.25 : 1 / 12)) return;
         p.t = t; p.night = night; p.k = 0;
@@ -217,7 +237,7 @@ window.OEHero = (function () {
       if (++p.k === 6) { p.k = null; p.n++; }
     }
     let skyScene = null;
-    function probeSky(p) {
+    function probeSky(p, L) {
       const env = Wd.world.environment;
       if (!env) return;
       if (!skyScene) skyScene = new THREE.Scene();
@@ -230,7 +250,8 @@ window.OEHero = (function () {
         cc.updateMatrixWorld();
         renderer.xr.enabled = false;
         for (let i = 0; i < 6; i++) { rt.texture.generateMipmaps = i === 5 ? mips : false; renderer.setRenderTarget(rt, i, 0); renderer.render(skyScene, cc.children[i]); }
-        rt.texture.needsPMREMUpdate = true;
+        renderer.setRenderTarget(prevT, prevF, prevM);
+        probeMap(p, L.mats.filter(m => m.userData.probeGlass));
       } finally {
         rt.texture.generateMipmaps = mips;
         renderer.setRenderTarget(prevT, prevF, prevM);
@@ -266,7 +287,7 @@ window.OEHero = (function () {
         renderer.setRenderTarget(rt, i, 0);
         if (renderer.state.buffers.depth.getReversed && renderer.state.buffers.depth.getReversed() && !renderer.autoClear) renderer.clearDepth();
         renderer.render(Wd.world, cc.children[i]);
-        if (i === 5) rt.texture.needsPMREMUpdate = true;
+        if (i === 5) { renderer.setRenderTarget(prevT, prevF, prevM); probeMap(p, glass); }
       } finally {
         rt.texture.generateMipmaps = mips;
         renderer.setRenderTarget(prevT, prevF, prevM);
@@ -285,16 +306,16 @@ window.OEHero = (function () {
       for (const L of levels) {
         const p = L.h._probe;
         if (!p || !p.n) continue;
-        const res = p.rt.width, buf = new Uint16Array(res * res * 4), prevT = renderer.getRenderTarget();
+        // (the cube's six faces as its map holds them, the cube being let go between takings (probeOf): the map's first
+        // level is the six faces as they were drawn, three across and two up, before any blur)
+        const res = p.rt.width, buf = new Uint16Array(res * res * 4 * 6), prevT = renderer.getRenderTarget();
         let lit = 0, over = 0, bad = 0;
         try {
-          for (let f = 0; f < 6; f++) {
-            renderer.readRenderTargetPixels(p.rt, 0, 0, res, res, buf, f);
-            for (let i = 0; i < buf.length; i += 4) {
-              let hi = 0;
-              for (let c = 0; c < 3; c++) { const e = buf[i + c] & 0x7c00; if (e === 0x7c00) { hi = 99; break; } if (e >= 0x5800) hi = Math.max(hi, 2); else if (buf[i + c] & 0x7fff) hi = Math.max(hi, 1); }
-              if (hi === 99) bad++; else if (hi === 2) over++; if (hi) lit++;
-            }
+          renderer.readRenderTargetPixels(p.uv, 0, 0, 3 * res, 2 * res, buf);
+          for (let i = 0; i < buf.length; i += 4) {
+            let hi = 0;
+            for (let c = 0; c < 3; c++) { const e = buf[i + c] & 0x7c00; if (e === 0x7c00) { hi = 99; break; } if (e >= 0x5800) hi = Math.max(hi, 2); else if (buf[i + c] & 0x7fff) hi = Math.max(hi, 1); }
+            if (hi === 99) bad++; else if (hi === 2) over++; if (hi) lit++;
           }
         } finally { renderer.setRenderTarget(prevT); }
         const n = res * res * 6;
@@ -463,7 +484,7 @@ window.OEHero = (function () {
       // (the probe's cube, and the sky-light map three.js made of it for the glass: that map is let go when the cube's
       // texture says it is disposed, which a render target's own dispose does not say. 6 MB on a desktop stayed from
       // frame 4 to the last card)
-      if (L.h._probe) { L.h._probe.rt.texture.dispose(); L.h._probe.rt.dispose(); L.h._probe = null; }
+      if (L.h._probe) { L.h._probe.rt.texture.dispose(); L.h._probe.rt.dispose(); if (L.h._probe.uv) L.h._probe.uv.dispose(); L.h._probe = null; }
       showHidden(L, true);
       L.h.shown = false; // (let go: nobody stands on its paving)
       Object.assign(L, { state: 'idle', root: null, mats: [], tubes: [], chases: [], wins: [], fine: 'idle', fineRoot: null, fineMeshes: [] });

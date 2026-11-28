@@ -1062,6 +1062,7 @@ class Floor(Ground):
                 z = np.frombuffer(base64.b64decode(p["data"]), "<i2").reshape(p["ny"], p["nx"]).astype(np.float64)
                 self.patches.append((p, np.where(z == -32768, np.nan, z / 100)))
         self.lifts = [(h["at"], h["r"], h.get("lift", 0.0)) for h in game.get("hero", []) if h.get("at") and h.get("r")]
+        self.heroes = {h["id"]: h for h in game.get("hero", []) if h.get("at") and h.get("r")}
 
     def at(self, x, y):
         x, y = np.asarray(x, np.float64), np.asarray(y, np.float64)
@@ -1069,6 +1070,9 @@ class Floor(Ground):
         for p, Z in self.patches:
             fx, fy = (x - p["x0"]) / p["cell"] - 0.5, (y - p["y0"]) / p["cell"] - 0.5
             ok = (fx >= 0) & (fy >= 0) & (fx < p["nx"] - 1) & (fy < p["ny"] - 1)
+            h = self.heroes.get(p.get("hero"))
+            if h:  # (a level's floor only within its circle, as nav.js patchAt reads it)
+                ok &= np.hypot(x - h["at"][0], y - h["at"][1]) <= h["r"]
             c0, r0 = np.clip(np.floor(fx).astype(int), 0, p["nx"] - 2), np.clip(np.floor(fy).astype(int), 0, p["ny"] - 2)
             tx, ty = fx - c0, fy - r0
             v = (Z[r0, c0] * (1 - tx) + Z[r0, c0 + 1] * tx) * (1 - ty) + (Z[r0 + 1, c0] * (1 - tx) + Z[r0 + 1, c0 + 1] * tx) * ty

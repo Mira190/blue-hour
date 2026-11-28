@@ -680,7 +680,10 @@ window.OECompanion = (function () {
       keepOff(dt);
       // (held by a wall and further into the player than he began: his own step or turn did it, and it is not taken)
       if (s.jam && (s.x !== x0 || s.y !== y0 || s.h !== h0)) { const g1 = offPlayer(); if (g1 < -TOUCH && g1 < gap0) { s.x = x0; s.y = y0; s.h = h0; s.speed = 0; } }
-      { const wx = s.x, wy = s.y, wh = s.h, g0 = offPlayer(); wallsOff(dt); if (offPlayer() < Math.min(-TOUCH, g0)) { s.x = wx; s.y = wy; s.h = wh; } } // (off a wall, never into the player)
+      // (off a wall, never into the player. Where the push out would put him in the player, he steps at once to the nearest
+      // place clear of both: waiting out wallsOff's half second, he stood 11 cm in the roof's east glass for ten frames
+      // while you stood at it to aim at frame 4's Stop, issue 157)
+      { const wx = s.x, wy = s.y, wh = s.h, g0 = offPlayer(); wallsOff(dt); if (offPlayer() < Math.min(-TOUCH, g0)) { s.x = wx; s.y = wy; s.h = wh; if (s.wallT) { s.wallT = 1; wallsOff(0); } } }
       s.z = ground(s.x, s.y, s.z);
       root.position.copy(W(s.x, s.y, s.z));
       root.rotation.y = s.h; // (the model looks along +x; the map's y is the scene's -z)

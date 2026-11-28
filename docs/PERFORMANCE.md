@@ -2215,6 +2215,32 @@ its target is still held, so a change that adds to the one target or to what a t
 Not done, by what it would save: the Scramble's squares hidden from the stand parked off the GPU there (4.2 MB, at the
 stand only); the sky's PMREM ping-pong let go between bakes (6 MB settled, nothing at a bake, which needs both).
 
+## Frame 5's flight and its Stop: what the story had put away (main red, run 529)
+
+Main's run 529 read frame 5 over its GPU memory on both tiers, by a few tenths, after many runs at its edge: the story's
+`5-flight` at 1592.6 MB against 1588 on a desktop, the phone's `5-said-stop-shown-hayase-tatsuo` at 262.4 against 262
+(and frame 7 at 256.3 against 253). Measured with `BUDGET_TOP=60` (`tools/story_play.js`: each still's textures and
+buffers by whose they are), two holders that no frame there showed:
+
+- **The roof glass's sky-light map.** The level's reflection cube (`hero.js` probe) was the glass's `envMap`, so three.js
+  made its map with a generator of the renderer's own, out of the page's reach, whose blur target (768 x 1024 in half
+  floats, 6 MB) stayed from frame 4's lift ride to the last card; and the cube itself (4 MB at 256 a side) stood between
+  takings. The map is now made with the world's generator and its blur target let go (`Wd.pmrem`, `Wd.envSpare`, as the
+  sky's since #162), and the cube is let go until the next taking (`hero.js` `probeMap`). `tools/pmrem_check.py` holds
+  it: no texture marked `needsPMREMUpdate`, one `PMREMGenerator`, the world's.
+- **The story's helicopter after its flight.** It was fetched by being near (800 m, from the title, on a desktop; 150 m on
+  a phone) and never let go, though the story shows it only on its pad through the frame before its flight and in that
+  flight. In a story it is now asked for by those (`ctx.board`, `ctx.film`) alone and let go two seconds after the story
+  has put it away out of sight (`game.js` `storyHeliAway`, `vehicles.js` `drop`); the walk keeps it as before.
+  `tools/story_play.js` fails a still of a frame that neither flies nor comes before a flight while its model is held.
+
+| Beat (`BUDGET_TOP`, this machine) | Before | After |
+|---|---|---|
+| Desktop, `5-flight` (the whole play from the title) | 1592.6 MB | 1582.5 MB |
+| Desktop, frame 4's heaviest (`4-print-developing`) | 1593.4 MB | 1580.8 MB |
+| Phone, `5-said-stop-shown-hayase-tatsuo` (a case at frame 5) | 260.0 MB | 253.7 MB |
+| Phone, frame 6 (`6-said-stop-talk-mizuno-akira`) | 254.2 MB | 247.8 MB |
+
 ## A desktop's map round the player (issue 20)
 
 The phone had been built round the player since issue 443; the desktop still built the whole map and sent it to the
