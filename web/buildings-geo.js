@@ -580,7 +580,7 @@
     }
 
     const deckZ = new Map(); // solid -> deck height, for rooftop plant
-    const decks = new Set(B.decks || []);
+    const decks = new Set(B.decks || []), onPlatform = new Set(B.on_platforms || []);
     const hidden = new Set(hiddenSolids || []); // drawn by a parametric landmark instead
     const passages = new Set(B.passages || []);
     // a mixed-use building's vertical sign hangs on one corner: of its tallest solid from the ground
@@ -622,10 +622,12 @@
         // from the pavement up through the bed, a forest of posts under the railway by the new south exit (the owner's
         // report, 25 November 2026). The platform is not drawn (the stations stand in their boxes): its posts end a
         // canopy's height under the roof, on the bed's deck, and stand 12 m apart down its sides
+        // (a roof over a platform the railway draws, Shibuya's island out of its box: cities/shibuya/rail.py stands it
+        // on its columns down the platform's middle; buildings.json on_platforms, pipeline/stations.py)
         const high = zb - g0 > CANOPY_HIGH;
-        for (const [x, y] of canopyPosts(s, meta[bi], B.no_posts && B.no_posts[bi], B.inner_posts && B.inner_posts[bi], high))
+        if (!onPlatform.has(si)) for (const [x, y] of canopyPosts(s, meta[bi], B.no_posts && B.no_posts[bi], B.inner_posts && B.inner_posts[bi], high))
           post(x, y, high ? zb - PLATFORM_ROOF : foot ? Math.min(g0, foot(x, y)) - 0.2 : g0, zb, bi);
-        if (high) { // the platform under it (the station's own is not drawn): its deck, its edge down to the rail, its underside
+        if (high && !onPlatform.has(si)) { // the platform under it (the station's own is not drawn): its deck, its edge down to the rail, its underside
           const zp = zb - PLATFORM_ROOF, zr = zp - PLATFORM_DECK;
           cap(rings, zp, bi, deckFloorC, K_TRIM, 0);
           cap(rings, zr, bi, deckUnderC, K_SOFFIT, 0, true);

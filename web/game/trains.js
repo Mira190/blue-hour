@@ -58,6 +58,7 @@ window.OETrains = (function () {
     // the materials Door, Band, Band2, Top and Face (null leaves the steel bare); lamp: the head and tail lamps'
     // place (ahead of the car's middle, out to each side, up from the rail)
     e235: { len: 20, band: null, door: '#8fc31f', face: '#8fc31f', top: '#8fc31f', pan: [1, 4, 7, 9], model: 'Commuter' },            // Yamanote: yellow-green doors and face
+    e233s: { len: 20, band: ['#00ac9a'], door: null, face: '#00ac9a', top: '#00ac9a', pan: [1, 4, 7], model: 'Commuter' },            // Saikyo: a green band
     e233k: { len: 20, band: ['#00a7e3'], door: null, face: '#00a7e3', top: '#00a7e3', pan: [1, 4, 7], model: 'Commuter' },            // Keihin-Tohoku: a sky blue band
     jrw225: { len: 20, band: ['#1b4f9c', '#7b4a2a'], door: null, face: '#1b4f9c', top: '#1b4f9c', pan: [1, 4, 7, 10], model: 'Commuter' }, // JR West's Kyoto Line: a blue band over brown on the steel
     e233t: { len: 20, band: ['#f68b1e', '#0d6b38'], door: null, face: '#f68b1e', top: '#f68b1e', pan: [2, 5, 8, 11, 13], model: 'Commuter' }, // Tokaido: orange over green
