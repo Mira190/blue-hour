@@ -6452,6 +6452,7 @@ diffuseColor.rgb *= mix(1.0, 0.82 + 0.34 * grain, near * 0.75 * (1.0 - paved * p
     } else camera.lookAt(live.look);
     // a conversation of the story (talkcam.js): its shot over the chase view, cut to at each line, and the chase view
     // eased back over half a second when the talk is over
+    if (stage && stage.classList.contains('talk-on') !== !!talkShot) stage.classList.toggle('talk-on', !!talkShot); // (the HUD gives way while a talk's shot frames a face: story.css; the last frame's shot)
     talkShot = null;
     if (talkCam && talkCam.talk) {
       if (!dlg.holds || player.mode !== 'foot' || shot) { talkCam.close(); blendFrom(0.5, true); player.rig.root.visible = true; }

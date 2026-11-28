@@ -1830,6 +1830,6 @@ html.bh-leave #g-menu { pointer-events: none; }
    and come back when it closes; the walk's menu stays as one small mark at the corner. A call said hands-free keeps
    them, since you walk while it is said. A print still developing (story.js showPrint, 6.4 s; the words of a frame begin
    4.6 s in) is put down as they begin. tools/talk_face.js fails a talk whose speaker's face anything covers. */
-.game-stage.story:has(.g-dialog:not([hidden]):not(.free)) :is(#g-walk-where, #g-walk-keys, #g-story-goal, #g-story-frames, #g-story-keys, #g-story-cam, #g-story-chip, #g-story-print, .g-walk-mark, #g-walk-acts button:not([data-do="menu"])) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.35s ease; }
-.game-stage.story:has(.g-dialog:not([hidden]):not(.free)) #g-walk-acts button[data-do="menu"] { padding: 7px 9px; opacity: 0.55; transition: opacity 0.35s ease; }
-.game-stage.story:has(.g-dialog:not([hidden]):not(.free)) #g-walk-acts button[data-do="menu"] :is(span, kbd) { display: none; }
+.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) :is(#g-walk-where, #g-walk-keys, #g-story-goal, #g-story-frames, #g-story-keys, #g-story-cam, #g-story-chip, #g-story-print, .g-walk-mark, #g-walk-acts button:not([data-do="menu"])) { opacity: 0 !important; pointer-events: none !important; transition: opacity 0.35s ease; }
+.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) #g-walk-acts button[data-do="menu"] { padding: 7px 9px; opacity: 0.55; transition: opacity 0.35s ease; }
+.game-stage.story:is(.talk-on, :has(.g-dialog:not([hidden]):not(.free))) #g-walk-acts button[data-do="menu"] :is(span, kbd) { display: none; }

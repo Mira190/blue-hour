@@ -352,7 +352,10 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
     if (s.lights.objective) fail('the old free game\'s objective light stands in the walk');
     if (!s.where || s.at !== s.clock.hm) fail(`the corner does not say where and when you are ("${s.where}" "${s.at}", the clock ${s.clock.hm})`);
     else ok(`out in ${Math.round((Date.now() - t0) / 1000)} s: "${s.where}", ${s.at}, ${s.wx.kind}; no goal, no light`);
-    // (nothing unseen over the walk's own buttons: the story's film's skip button, invisible, took the phone's taps there)
+    // (nothing unseen over the walk's own buttons: the story's film's skip button, invisible, took the phone's taps there.
+    // Read with no talk up: while one is, the HUD gives way and its buttons with it, story.css, and the box takes the taps)
+    await p.waitForFunction(() => { const g = window.__game, st = document.getElementById('game-stage'); return !(g && g.dlg && g.dlg.open) && !(st && st.classList.contains('talk-on')); }, null, { timeout: 120000, polling: 500 }).catch(() => {});
+    await p.waitForTimeout(500); // (the buttons' fade back in)
     const over = await p.evaluate(() => [...document.querySelectorAll('#g-walk-acts button')].map(b => { const r = b.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && b.contains(e) ? null : `${b.dataset.do} under ${e ? e.id || e.className || e.tagName : 'nothing'}${e && e.parentElement ? ` in ${e.parentElement.id || e.parentElement.className}` : ''}`; }).filter(Boolean));
     if (over.length) fail(`something unseen lies over the walk's buttons: ${over.join('; ')}`);
     await shot('4-out');

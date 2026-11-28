@@ -132,7 +132,9 @@ window.OETalkCam = (function () {
       // Upright, on the frame's own upper third, as a portrait is framed, with the chin (0.14 m under the eyes) clear over
       // the words' band by a margin: the band lies over the body, never the face (docs/LOOK.md "The words of a talk")
       const chin = 0.14 / Math.max(0.2, 2 * Math.max(zc, 1e-3) * tv);
-      const want = aspect >= 1 ? Math.max(EYE_TOP, (1 - panel) / 3) : Math.max(EYE_TOP * 0.8, Math.min(1 / 3, 1 - panel - chin - 0.05)), shift = (1 - ny) / 2 - want;
+      // (a wide frame, likewise with the chin over the words: a close shot over two lines and the answers under them had
+      // the line's top at Sumiko's chin)
+      const want = aspect >= 1 ? Math.max(EYE_TOP, Math.min((1 - panel) / 3, 1 - panel - chin - 0.04)) : Math.max(EYE_TOP * 0.8, Math.min(1 / 3, 1 - panel - chin - 0.05)), shift = (1 - ny) / 2 - want;
       return { yw, pitch, vfov, hfov, shift, x: nx, y: ny + 2 * shift, front: zc > 0 };
     }
     // a face the frame does not show: off it (the eye outside the frame as composed, or under the words), or behind the

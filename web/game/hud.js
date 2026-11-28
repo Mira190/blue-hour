@@ -397,7 +397,15 @@ window.OEHud = (function () {
   const said = []; let saying = null;
   const waits = () => { $('#g-toasts').dataset.next = said.map(q => q.text).join(' | '); }; // (what is still to be said: a check reads it, tools/mem_check.js)
   const oneAtATime = () => { const s = $('#game-stage'); return !!s && s.classList.contains('story') && !s.classList.contains('walk'); };
+  // (a talk is up: a notice waits until it closes, never over the face of whoever speaks: the walk's notice of the lift
+  // up to SHIBUYA SKY lay over Taro's face as he spoke, tools/talk_face.js)
+  const talkUp = () => { const st = $('#game-stage'), b = $('#gd'); return !!st && st.classList.contains('talk-on') || (!!b && !b.hidden && !b.classList.contains('free')); };
+  const held = new Set();
   function toast(text, kind = '') {
+    if (talkUp()) {
+      if (!held.has(text)) { held.add(text); const t = setInterval(() => { if (talkUp()) return; clearInterval(t); held.delete(text); toast(text, kind); }, 400); }
+      return;
+    }
     if (!oneAtATime()) return put(text, kind);
     if (saying === text || said.some(q => q.text === text)) return;
     said.push({ text, kind });

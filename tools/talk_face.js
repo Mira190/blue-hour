@@ -39,7 +39,7 @@ const hook = () => {
       const r = e.getBoundingClientRect();
       if (r.width < 2 || r.height < 2 || r.width * r.height > 0.8 * R.width * R.height) continue; // (not a veil laid over the whole frame)
       const ix = Math.min(r.right, face[2]) - Math.max(r.left, face[0]), iy = Math.min(r.bottom, face[3]) - Math.max(r.top, face[1]);
-      if (ix <= 0 || iy <= 0 || !seen(e)) continue;
+      if (ix <= 0 || iy <= 0 || (ix * iy) / fa < 0.02 || !seen(e)) continue; // (a sliver at the chin's edge of the box, under 2% of it, is not over the face)
       took.add(e); if (e.id === 'gd') e.querySelectorAll('*').forEach(x => took.add(x));
       over.push({ what: e.id === 'gd' ? 'the dialogue block' : `${name(e)} "${(e.textContent || '').trim().slice(0, 24)}"`, share: +((ix * iy) / fa).toFixed(2) });
     }
