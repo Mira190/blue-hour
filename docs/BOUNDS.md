@@ -128,3 +128,15 @@ walks, drives and flies at the edge along a street that crosses it, and it fails
 
 It takes stills of the crossing from the walker, of the car at its stop and of the helicopter mid-turn. `ONLY=foot,car,heli`
 runs part of it.
+
+**The drive area on a phone** (`EVAL=tools/drive_stream_probe.js xvfb-run -a node tools/phone_frame.js out`): the
+player carried at a car's pace from the start to 60 m inside each corner of the drive area and back, 11.2 km, the
+buildings' cells built again round them as they go. 27 November 2026, the iPhone's tier under llvmpipe: the arena's
+script 1.1 s in all, 68 ms in its worst frame, 166 MB sent; WebGL's peak 238 MB (the budget is 270). The long frames of
+that run (4 to 6 s) are the software renderer's at the Scramble, with no arena work in them. Not checked: a real iPhone.
+
+**On foot along a wall.** Where a wall runs out across the edge, a walker with the key along the edge is carried out by
+the wall's slide, and setting them back is blocked by the same wall. A step that takes them outward while they are
+within 3 m of the edge now counts as pressing against it (`creep`), and the trail back skips the places of the way they
+came that are not a metre and a half further in, so a walk that ran along the edge turns in, not back along it.
+
