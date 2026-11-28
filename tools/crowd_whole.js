@@ -13,7 +13,7 @@
 const MEASURE = ([HEAD, MX, MY]) => {
   const g = window.__game, cam = g.camera, R = g.crowdDraw(), P = g.crowd.P, H = innerHeight, V = new THREE.Vector3(), rows = [];
   cam.updateMatrixWorld();
-  const proj = cam.projectionMatrix.elements[5], L = cam.position;
+  const proj = cam.projectionMatrix.elements[5], L = cam.position, I = R.nearInfo ? R.nearInfo() : {};
   for (let i = 0; i < Math.min(g.crowd.active, P.length); i++) {
     const q = P[i];
     if (!q.inPic || (q.line < 0 && !q.pz) || q.rx == null) continue;
@@ -24,10 +24,13 @@ const MEASURE = ([HEAD, MX, MY]) => {
     if (depth < 0.3) continue;
     V.project(cam);
     if (Math.abs(V.x) > 1 || Math.abs(V.y) > 1) continue;
+    // (how they are drawn: whole; a far copy, its copy's slot among those the instanced mesh draws; or not at all, taken
+    // out after the pick by the game, a talk's shot cleared or someone at the lens, game.js: neither whole nor a copy.
+    // Run 552 failed frame 7 on one taken out so, 2.09 m from the lens, counted as a copy)
     const head = 0.14 * crown * H * Math.abs(proj) / 2 / depth, r = R.active.get(i), whole = !!(r && !r.cold && r.root.visible);
-    rows.push({ i, head: +head.toFixed(1), d: +depth.toFixed(2), mid: Math.abs(V.x) < MX && Math.abs(V.y) < MY, whole, cold: !!(r && r.cold) || (q.pickWait != null && q.pickWait >= (R.nearInfo().frame || 0) - 1) });
+    const copy = !whole && !(r && !r.cold) && !!(q.mesh && q.slot < q.mesh.count), top = I.top || [];
+    rows.push({ i, head: +head.toFixed(1), d: +depth.toFixed(2), mid: Math.abs(V.x) < MX && Math.abs(V.y) < MY, whole, copy, hidden: !whole && !copy, cold: !!(r && r.cold) || (q.pickWait != null && q.pickWait >= (I.frame || 0) - 1), rank: top.findIndex(t => t[0] === i) });
   }
-  const I = R.nearInfo ? R.nearInfo() : {};
   return { rows, nNear: I.nNear, active: I.active, want: I.want, unloaded: I.unloaded, capped: I.capped, big: I.big, fov: +cam.fov.toFixed(1), heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null };
 };
 // the far copies that should not be: over HEAD (in play over a tenth more, a frame's lag and the pick's HOLD), in the
@@ -35,7 +38,7 @@ const MEASURE = ([HEAD, MX, MY]) => {
 // pick's cap (more people over HEAD in view than a tier draws whole: the middle's go first, so only then may one be a copy)
 function judge(m, { HEAD = 30, strict = false } = {}) {
   if (!strict && m.big != null && m.big > m.nNear) return [];
-  return m.rows.filter(r => !r.whole && !r.cold && (strict || r.mid) && r.head >= HEAD * (strict ? 1 : 1.1));
+  return m.rows.filter(r => r.copy && !r.cold && (strict || r.mid) && r.head >= HEAD * (strict ? 1 : 1.1));
 }
 if (require.main === module) (async () => {
   const { chromium } = require('playwright');
@@ -61,8 +64,8 @@ if (require.main === module) (async () => {
   const shot = async (name, label, strict) => {
     await p.screenshot({ path: `${out}/${tag}-${name}.png`, timeout: 180000 });
     const m = await p.evaluate(MEASURE, [HEAD, MX, MY]);
-    const big = m.rows.filter(r => r.head >= HEAD), copies = big.filter(r => !r.whole), bad = judge(m, { HEAD, strict });
-    console.log(`${label}: ${m.rows.length} in the frame, ${big.length} with a head over ${HEAD} px (${big.filter(r => r.mid).length} in the middle), ${copies.length} of those far copies${copies.length ? ` (${copies.map(r => `${r.head} px at ${r.d} m${r.mid ? ', middle' : ''}${r.cold ? ', warming' : ''}`).join('; ')})` : ''}; whole drawn ${m.active}, the pick ${m.nNear}${m.big != null ? ` (${m.big} by size)` : ''}, waiting ${m.unloaded}, fov ${m.fov}, heap ${m.heapMB} MB`);
+    const big = m.rows.filter(r => r.head >= HEAD), copies = big.filter(r => r.copy), bad = judge(m, { HEAD, strict });
+    console.log(`${label}: ${m.rows.length} in the frame, ${big.length} with a head over ${HEAD} px (${big.filter(r => r.mid).length} in the middle), ${copies.length} of those far copies${copies.length ? ` (${copies.map(r => `${r.head} px at ${r.d} m${r.mid ? ', middle' : ''}${r.cold ? ', warming' : ''}, rank ${r.rank}`).join('; ')})` : ''}${big.some(r => r.hidden) ? `, ${big.filter(r => r.hidden).length} taken out by the game (not drawn)` : ''}; whole drawn ${m.active}, the pick ${m.nNear}${m.big != null ? ` (${m.big} by size)` : ''}, waiting ${m.unloaded}, fov ${m.fov}, heap ${m.heapMB} MB`);
     if (bad.length) { fail++; console.log(`  FAIL ${bad.length} far ${bad.length > 1 ? 'copies' : 'copy'} with a head over ${HEAD} px ${strict ? 'in the frame' : "in the frame's middle"}`); }
     report.push({ name, label, ...m });
   };
