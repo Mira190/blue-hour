@@ -79,16 +79,16 @@ def materials(K):
     granite = lambda srgb: K.tint_to("honed", srgb)
     return {
         # the tiles in front: pale beige, a fine-grained stone's speckle, honed (wet in the rain: ground*)
-        "ground_tile": {"tex": "honed", "maps": "cn", "rough": 0.45, "tint": granite((196, 188, 172))},
+        "ground_tile": {"tex": "honed", "maps": "c", "rough": 0.45, "tint": granite((196, 188, 172))},
         "ground_tile_joint": {"color": (0.36, 0.34, 0.31), "rough": 0.9},
         # (and the same tiles in the courses that come down to the hall's floor: its own floor, apron())
-        "room_floor_tile": {"tex": "honed", "maps": "cn", "rough": 0.45, "tint": granite((196, 188, 172))},
-        "room_floor_tilejoint": {"color": (0.36, 0.34, 0.31), "rough": 0.9},
+        "room_floor_tile": {"tex": "honed", "maps": "c", "rough": 0.45, "tint": granite((196, 188, 172))},
+        "room_floor_tile_joint": {"color": (0.36, 0.34, 0.31), "rough": 0.9},
         # the forecourt beyond: long planks of honed stone in three close greys laid in stripes (the Urban Core's floor),
         # a line of light in a joint here and there
-        "ground_plank": {"tex": "honed", "maps": "cn", "rough": 0.5, "tint": granite((150, 150, 150))},
-        "ground_plank_dark": {"tex": "honed", "maps": "cn", "rough": 0.5, "tint": granite((128, 129, 131))},
-        "ground_plank_pale": {"tex": "honed", "maps": "cn", "rough": 0.5, "tint": granite((168, 167, 165))},
+        "ground_plank": {"tex": "honed", "maps": "c", "rough": 0.5, "tint": granite((150, 150, 150))},
+        "ground_plank_dark": {"tex": "honed", "maps": "c", "rough": 0.5, "tint": granite((128, 129, 131))},
+        "ground_plank_pale": {"tex": "honed", "maps": "c", "rough": 0.5, "tint": granite((168, 167, 165))},
         "glow_strip": {"color": (0.8, 0.82, 0.95), "emissive": (0.62, 0.66, 1.0), "glow": 1.4},
         # the forecourt's ceiling: facets of mirror-polished stainless steel, two finishes a shade apart (the photograph's
         # slivers, some brighter than others as they catch the street)
@@ -96,10 +96,10 @@ def materials(K):
         "metal_facet_b": {"color": (0.36, 0.37, 0.39), "rough": 0.14, "metal": 1.0, "sky": 0.3},
         # the hall's floor: open to the sky now, a honed granite a step darker than the tiles before it, in their family
         # (it was a polished charcoal for a room under a roof, and under the open sky it read as a black hole in the street)
-        "room_floor_stone": {"tex": "honed", "maps": "cn", "rough": 0.32, "tint": granite((152, 147, 138)), "sky": 0.5},
+        "room_floor_stone": {"tex": "honed", "maps": "c", "rough": 0.32, "tint": granite((152, 147, 138)), "sky": 0.5},
         "room_floor_joint": {"color": (0.3, 0.29, 0.27), "rough": 0.9},
         # the cut's sides in front of the glass: honed dark granite
-        "wall_jamb": {"tex": "honed", "maps": "cn", "rough": 0.3, "tint": granite((52, 52, 54)), "sky": 0.5},
+        "wall_jamb": {"tex": "honed", "maps": "c", "rough": 0.3, "tint": granite((52, 52, 54)), "sky": 0.5},
         # the soffit: dark grey metal panels
         "metal_soffit": {"color": (0.075, 0.077, 0.08), "rough": 0.45, "metal": 0.7, "sky": 0.4},
         # the pillar: light warm grey panels, its name printed on them
@@ -146,26 +146,26 @@ def hairline(d, n=512):
     Image.fromarray((rough * 255).astype(np.uint8), "L").save(os.path.join(d, "Roughness.png"))
 
 
-def honed(d, n=1024):
+def honed(d, n=512):
     """Honed light grey granite of a fine even grain (the Japanese floor stone of Inada's kind, its mica in specks of a
-    millimetre or two): at 0.8 m a repeat a texel is under a millimetre, and the only changes of tone are the grains,
+    millimetre or two): at 0.6 m a repeat a texel is 1.2 mm, and the only changes of tone are the grains,
     the feldspar's and the quartz's, and the black mica's specks. Nothing coarser than a few millimetres: a scanned
     granite's crystals of a centimetre and its cloudy patches read from a few metres as blotches on the floor (issue 239),
     so whatever is wider than 3 cm is taken out of the picture and every hand's breadth of it is one tone."""
     from PIL import Image
     from scipy import ndimage
     rng = np.random.default_rng(239)
-    g = ndimage.gaussian_filter(rng.normal(size=(n, n)), 1.1, mode="wrap")        # the feldspar's grains
+    g = ndimage.gaussian_filter(rng.normal(size=(n, n)), 0.8, mode="wrap")        # the feldspar's grains
     g = (g - g.mean()) / (g.std() or 1)
-    q = ndimage.gaussian_filter(rng.normal(size=(n, n)), 2.2, mode="wrap")        # the quartz's, a little greyer
+    q = ndimage.gaussian_filter(rng.normal(size=(n, n)), 1.5, mode="wrap")        # the quartz's, a little greyer
     q = (q > np.quantile(q, 0.86)).astype(float)
     m = np.zeros((n, n))                                                            # the mica's specks
-    k = int(n * n * 0.0035)
+    k = int(n * n * 0.0079)
     m[rng.integers(0, n, k), rng.integers(0, n, k)] = rng.uniform(0.6, 1.0, k)
     m = ndimage.gaussian_filter(m, 0.7, mode="wrap")
     m = np.clip(m / (np.quantile(m[m > 0], 0.9) or 1), 0, 1)
     lum = (1.0 + 0.03 * g) * (1 - 0.07 * ndimage.gaussian_filter(q, 0.6, mode="wrap")) * (1 - 0.62 * m)
-    lum = lum / ndimage.gaussian_filter(lum, 36, mode="wrap") * lum.mean()          # (nothing wider than 3 cm)
+    lum = lum / ndimage.gaussian_filter(lum, 26, mode="wrap") * lum.mean()          # (nothing wider than 3 cm)
     col = np.dstack([168.0 * lum] * 3) * np.array([1.0, 0.995, 0.985])
     os.makedirs(d, exist_ok=True)
     Image.fromarray(np.clip(col, 0, 255).astype(np.uint8), "RGB").save(os.path.join(d, "Color.png"))
@@ -345,7 +345,7 @@ class Level:
     def __init__(self, K):
         self.K = K
         K.register("hairline", 0.6, hairline)
-        K.register("honed", 0.8, honed)
+        K.register("honed", 0.6, honed)
         self.geo = K.Geo()
         self.A = K.Atlas(1024, 768)
         self.F = Frame()
@@ -540,8 +540,10 @@ class Level:
                 pts = [(ua + j, v0 + j), (ub - j, v0 + j), (ub - j, v1 - j), (ua + j, v1 - j)]
                 ou, ov = rng.random(2) * 3
                 self.q(mat, *[(a, b, self.ztile(a, b)) for a, b in pts], uv=[(ou + a / rep, ov + b / rep) for a, b in pts])
-        self.slab("ground_tile_joint", HALL_U[0], u1, APRON_V, RAMP_V)
-        self.slab("room_floor_tilejoint", HALL_U[0], u1, RAMP_V, 0.0)
+        # (in the tiles' own cells: where they come down to the floor their height is not a plane over a wider cell, and
+        # the grout in 1.2 m cells stood 2 cm over them there)
+        self.slab("ground_tile_joint", HALL_U[0], u1, APRON_V, RAMP_V, cell=TILE)
+        self.slab("room_floor_tile_joint", HALL_U[0], u1, RAMP_V, 0.0, cell=TILE)
 
     def slab(self, mat, u0, u1, v0, v1, cell=1.2, dz=0.012):
         """the grout under the tiles or the planks, seen in their joints: a grid of cells each laid on the paving's own

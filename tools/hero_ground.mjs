@@ -76,11 +76,11 @@ await MeshoptDecoder.ready;
 let bad = 0;
 for (const h of G.hero || []) {
   if (ONLY && !ONLY.includes(h.id)) continue;
-  const glb = readGlb(path.join(D, h.glb)), tris = []; // [ax, ay, az, bx, by, bz, cx, cy, cz, kind]  kind: 0 stone, 1 joint, 2 own floor
+  const glb = readGlb(path.join(D, h.glb)), tris = []; // [ax, ay, az, bx, by, bz, cx, cy, cz, kind]
   const walk = (i, M) => {
     const n = glb.json.nodes[i], W = mul(M, local(n)), name = `${n.name || ''} ${n.mesh != null ? glb.json.meshes[n.mesh].name || '' : ''}`;
     if (n.mesh != null && /(^|_)(ground|room_floor)_/.test(name)) {
-      const kind = /(^|_)room_floor_/.test(name) ? 2 : /_joint|grout/.test(name) ? 1 : 0;
+      const kind = (/joint|grout/.test(name) ? 1 : 0) | (/(^|_)room_floor_/.test(name) ? 2 : 0); // (bits: 1 a joint's or grout's, 2 the level's own floor)
       for (const p of glb.json.meshes[n.mesh].primitives) {
         const pos = glb.read(p.attributes.POSITION), idx = p.indices != null ? glb.read(p.indices, true) : null, m = idx ? idx.length : pos.length / 3;
         const P = k => { const q = (idx ? idx[k] : k) * 3, X = pos[q], Y = pos[q + 1], Z = pos[q + 2]; return [W[0] * X + W[4] * Y + W[8] * Z + W[12], -(W[2] * X + W[6] * Y + W[10] * Z + W[14]), W[1] * X + W[5] * Y + W[9] * Z + W[13]]; };
@@ -105,7 +105,7 @@ for (const h of G.hero || []) {
       const k = j * n + i; let l = cells.get(k); if (!l) cells.set(k, l = []);
       l.push([l1 * az + l2 * bz + l3 * cz, kind]);
     }
-    if (kind === 2 && h.floor) {
+    if ((kind & 2) && h.floor) {
       const I0 = Math.max(0, Math.floor((Math.min(ax, bx, cx) - gx) / HC)), I1 = Math.min(nc - 1, Math.ceil((Math.max(ax, bx, cx) - gx) / HC));
       const J0 = Math.max(0, Math.floor((Math.min(ay, by, cy) - gy) / HC)), J1 = Math.min(nc - 1, Math.ceil((Math.max(ay, by, cy) - gy) / HC));
       for (let j = J0; j <= J1; j++) for (let i = I0; i <= I1; i++) { const [l1, l2, l3] = bary(gx + (i + 0.5) * HC, gy + (j + 0.5) * HC); if (l1 >= 0 && l2 >= 0 && l3 >= 0) cut[j * nc + i] = 1; }
@@ -121,8 +121,8 @@ for (const h of G.hero || []) {
     paved++;
     l.sort((a, b) => b[0] - a[0]);
     const [z, kind] = l[0], ci = Math.floor((x - gx) / HC), cj = Math.floor((y - gy) / HC), isCut = cut[cj * nc + ci];
-    if (kind !== 2 && !isCut && z < terrain(x, y) - 0.005) under.push([i, j, terrain(x, y) - z]);
-    if (kind === 1) { const s = l.find(q => q[1] !== 1 && z - q[0] < 0.05 && z > q[0] + 0.002); if (s) grout.push([i, j, z - s[0]]); }
+    if (!(kind & 2) && !isCut && z < terrain(x, y) - 0.005) under.push([i, j, terrain(x, y) - z]);
+    if (kind & 1) { const s = l.find(q => !(q[1] & 1) && z - q[0] < 0.05 && z > q[0] + 0.002); if (s) grout.push([i, j, z - s[0]]); }
   }
   const patch = list => { // (the largest patch: cells joined by their sides)
     const have = new Map(list.map(c => [c[1] * n + c[0], c])), seen = new Set(); let best = [];

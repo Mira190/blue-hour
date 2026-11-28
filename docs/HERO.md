@@ -882,7 +882,9 @@ wrong, and redone.
   138 to 108).
 - **Its stone and its ground** (issue 239, after the rain was settled): the hall's slabs, the tiles and the planks were
   ambientCG's Granite005A (CC0), a coarse granite whose centimetre crystals and cloudy patches read from a few metres as
-  blotches on the floor. They are now one stone drawn here (`honed`, 0.8 m a repeat): a honed light grey granite of a
+  blotches on the floor. They are now one stone drawn here (`honed`, 0.6 m a repeat on 512 texels, a colour map alone: a drawn picture is
+  the level's own and not shared with the other levels as the scanned ones are, so it is kept to what frame 3's and frame
+  6's memory budgets hold; honed stone is flat, and a normal map added nothing): a honed light grey granite of a
   fine even grain, the kind of Inada's stone Japanese floors are laid in, its only changes of tone the feldspar's and
   the quartz's grains and the black mica's specks a millimetre or two across, everything wider than 3 cm taken out, so
   that every hand's breadth of it is one tone and each slab, tile and plank keeps the one tint it is given. No
@@ -893,8 +895,9 @@ wrong, and redone.
   over the forecourt, its height taken between its four corners, 2 cm over the planks where the ground rises between them
   (the joints' lines of light drawn across it); the last two courses of tiles before the doors come down to the hall's
   floor, under the ground where it rises to the north, and the ground came through them in grey patches with a slanting
-  edge. Now the grout is laid in 1.2 m cells on the paving's own heights 12 mm under it, the lines of light in 1.2 m
-  pieces on the planks, and those two courses are the hall's own floor (`room_floor_tile`), where the game does not draw
+  edge. Now the grout is laid in cells on the paving's own heights 12 mm under it (1.2 m under the planks, the tiles' own
+  0.6 m under the tiles, whose height where they come down to the floor is no plane over a wider cell), the lines of
+  light in 1.2 m pieces on the planks, and those two courses are the hall's own floor (`room_floor_tile`), where the game does not draw
   its ground (game.js heroCover); the model is built from today's terrain, its floor's height unchanged (15.827 m).
 - **The lifts**: two cars on the east wall in stainless portals with hairline-brushed leaves (`hairline`, drawn here),
   each with its indicator (the arrow and **14F**) and call plate, SHIBUYA SKY lit between them at the eye's height;
