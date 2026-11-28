@@ -22,7 +22,9 @@ window.OETrips = (function () {
   const RANK = { motorway: 5, trunk: 5, primary: 4, secondary: 3, tertiary: 2 };
   const EDGES = 8, CENTRES = 16;
   const BOUND = 0.7;          // the share of the cars bound for a place; the rest take what comes, as before
-  const BACK = 2.5;           // a back street's metre against a main road's: through traffic keeps to the roads that carry it
+  const BACK = 5;             // a back street's metre against a main road's: through traffic keeps to the roads that carry it
+                              // (at 2.5 the one-way block behind 109, unclassified streets that leave by one give-way, was a short cut
+                              // to Dogenzaka and the station for cars bound past it: it filled faster than it let out and stood)
   const NARROW = 1.6;         // and a surveyed carriageway under 5.5 m dearer again: one lane between kerbs, taken for its own sake only
   const ARRIVE = 110;         // a trip into town is over this near its place by road: the car park is round here, not on the place
   const QUIET = 3;            // a quiet street's or a single track's
