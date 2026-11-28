@@ -3307,13 +3307,15 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
   function sendTex(renderer, tex, opts) {
     if (!renderer || !renderer.initTexture || !tex) return Promise.resolve();
     const cls = opts && opts.cls != null ? opts.cls : 1;
-    if (sent.has(tex)) { const q = queue.find(j => j.tex === tex); if (q && cls < q.cls) { q.cls = cls; q.seq = seq++; } return q ? q.p : Promise.resolve(); }
+    if (sent.has(tex)) { const q = queue.find(j => j.tex === tex); if (q && cls < q.cls) { q.cls = cls; q.seq = seq++; } if (q || onGPU(renderer, tex)) return q ? q.p : Promise.resolve(); }
     sent.add(tex);
     const job = jobOf(renderer, tex, cls, opts && opts.at);
     queue.push(job);
     if (!pumping) pump();
     return job.p;
   }
+  // (on the GPU now: a texture sent once and let go since (tex.dispose(), people.js lib.letGo) is not, and goes in the queue again)
+  const onGPU = (renderer, tex) => { try { return !!renderer.properties.get(tex).__webglTexture; } catch (e) { return true; } };
   function upload(renderer, obj, opts) {
     if (!renderer || !renderer.initTexture || !obj) return Promise.resolve();
     const first = !!(opts && opts.first), cls = first ? 0 : opts && opts.cls != null ? opts.cls : 1;
@@ -3321,7 +3323,7 @@ ${PHOTO_GRADE}`).replace('#include <color_fragment>', `#include <color_fragment>
     if (!at && !first) try { const v = obj.getWorldPosition(_v3 || (_v3 = new THREE.Vector3())); if (obj.parent) at = { x: v.x, y: v.y, z: v.z }; } catch (e) { /* no place */ }
     const waits = [], head = [];
     for (const tex of textures(obj)) {
-      if (sent.has(tex)) { // (up, or on its way: raised to this class if it is a higher one, and to the head, if first)
+      if (sent.has(tex) && (queue.some(q => q.tex === tex) || onGPU(renderer, tex))) { // (up, or on its way: raised to this class if it is a higher one, and to the head, if first; one let go since, tex.dispose(), is sent again)
         const k = queue.findIndex(q => q.tex === tex);
         if (k >= 0) { waits.push(queue[k].p); if (cls < queue[k].cls) { queue[k].cls = cls; queue[k].seq = seq++; } if (first && WQ_FIFO) head.push(queue.splice(k, 1)[0]); } // (raised: in its new class in the order raised, so the crowd's pick, which raises the characters it waits on biggest first, is sent in that order, people.js lib.urge)
         continue;

@@ -661,10 +661,43 @@ float vinylHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5
     lib.urged = Object.create(null);
     lib.urge = name => { if (lib.urged[name] || lib.tpl[name]) return; lib.urged[name] = true;
       const t = lib.warming[name]; if (t && t.warmGo && lib.warm && !lib.hurried[name]) lib.warm(t.scene, URGE).catch(() => {}); };
+    // A cast member whose body nobody has shown for a while is let go from the GPU (issue 261, and frame 5's beat on a phone):
+    // its pictures disposed, its template parked, until someone asks for it again (lib.require), when they go up again
+    // through the queue as they first did, ahead of the rest if someone in the view waits (lib.urge). On SKY's roof the
+    // near crowd is 230 m below and nobody of it is drawn, and the cast's pictures stood idle on the GPU through frames 5
+    // and 6, two of them worn only by the hidden visitors of a place left behind: 3.2 MB of the phone's tightest beat.
+    // The crowd's renderer asks it of its cast (crowdRenderer, idle); the pixels stay in the page, so the way back is a
+    // second upload, not a second download. lib.shown: any body of the character in the scene and visible all the way up
+    lib.rigsOf = Object.create(null);
+    lib.parked = Object.create(null);
+    lib.shown = name => {
+      const R = lib.rigsOf[name]; if (!R) return false;
+      for (const r of R) { for (let o = r.root; o; o = o.parent) { if (!o.visible) break; if (!o.parent) { if (o.isScene) return true; break; } } }
+      return false;
+    };
+    const texOfScene = root => { const out = new Set(); root.traverse(o => { for (const m of [].concat(o.material || [])) { if (!m) continue; for (const k in m) { const v = m[k]; if (v && v.isTexture && !v.isRenderTargetTexture) out.add(v); } } }); return out; };
+    const kept = t => (t.isCompressedTexture ? !!(t.mipmaps && t.mipmaps.length) : t.isDataTexture ? !!(t.image && t.image.data) : !!(t.image && (t.image.width || t.image.videoWidth))); // (its pixels still in the page, to send again)
+    lib.letGo = name => {
+      const tpl = lib.tpl[name];
+      if (!tpl || !tpl.textured || !lib.npcs[name] || !lib.warm || lib.hurried[name]) return false;
+      const T = texOfScene(tpl.scene);
+      for (const t of T) if (!kept(t)) return false; // (one whose pixels went with its upload cannot come back: kept as it is)
+      for (const t of T) t.dispose();
+      delete lib.tpl[name]; delete lib.loading[name]; delete lib.urged[name];
+      tpl.warmGo = false; lib.parked[name] = tpl;
+      return true;
+    };
+    const rewarm = name => {
+      const tpl = lib.parked[name]; delete lib.parked[name];
+      lib.warming[name] = tpl; tpl.warmGo = true;
+      return Promise.resolve(lib.warm(tpl.scene, lib.hurried[name] ? { first: true } : lib.urged[name] ? URGE : undefined)).catch(() => {})
+        .then(() => { lib.tpl[name] = tpl; delete lib.warming[name]; return tpl; });
+    };
     lib.hurry = name => { if (lib.hurried[name]) return; lib.hurried[name] = true; // (once: asked every half second, it warmed the model again each time and the helicopter's load waited behind it)
       const t = lib.warming[name]; if (t && lib.warm) lib.warm(t.scene, { first: true }).catch(() => {}); };
     lib.require = name => {
       const h = lib.heroes[name], c = lib.npcs[name];
+      if (lib.parked[name]) return (lib.loading[name] = rewarm(name));
       if (c) {
         return lib.loading[name] || (stamp(name, 'ask'), lib.loading[name] = Promise.all([get(fresh(name, c.file)).then(g => (stamp(name, 'glb'), g)), clipsOf(c.sex)]).then(([g, clips]) =>
           ready(name, { scene: g.scene, textured: true, clips, speeds: speedsOf(c.sex), bones: NP.bones || {}, mask: !!c.mask }, true)));
@@ -1326,6 +1359,7 @@ ${PAT_GLSL}`)
     const grnd = () => ((gs = (gs * 1664525 + 1013904223) >>> 0) / 4294967296);
     const idleAt = (made = (made + 0.6180339887) % 1); // (what one waits doing begins here in it: spread by the golden ratio, in the order people are made)
     const rig = { root, model, mixer, look, phase: 0, lookTarget: null, character: look.character, clearEvery: 1 }; // (clearEvery: armsClear)
+    if (lib.rigsOf) (lib.rigsOf[look.character] || (lib.rigsOf[look.character] = [])).push(rig); // (every body made of a character, for lib.shown: whether any is in the picture)
     // reference pose for accessories: the first frame of Idle, in the model's own space
     const bones = {}, ref = {};
     model.traverse(o => { if (o.isBone) bones[o.name] = o; });
@@ -2619,8 +2653,23 @@ transformed = crowdPose(transformed, false);`);
     let lastBegin = null, stillMade = -1; // (stillMade: how many people made in this still frame, still(); -1 in play)
     const lastPick = { nNear: 0, culling: false, zoom: 1, want: 0, unloaded: 0, capped: 0, big: 0 }, pickI = [], pickD = new Float64Array(P.length), pickKeep = new Set(), byPick = (a, b) => pickD[a] - pickD[b];
     let umbAny = false, umbUp = 0, easeK = 1;
+    // (the cast let go from the GPU once none of a character's bodies has been in the picture for IDLE_S, lib.letGo: asked
+    // once a second of the wall's clock, the world's may be held; a still's frame lets nothing go)
+    const IDLE_S = 20, lastShown = Object.create(null);
+    let idleAt = 0;
+    function idle() {
+      const now = performance.now() / 1000;
+      if (now - idleAt < 1 || !lib.letGo) return;
+      idleAt = now;
+      for (const n of cast) {
+        if (!lib.tpl[n]) { delete lastShown[n]; continue; }
+        if (lastShown[n] == null || lib.shown(n)) lastShown[n] = now;
+        else if (now - lastShown[n] > IDLE_S && lib.letGo(n)) delete lastShown[n];
+      }
+    }
     function begin(dt, cx, cy, t, nActive, count = 0) {
       lastBegin = [cx, cy, nActive];
+      if (!count) idle();
       dtNow = dt; tNow = t; frameNo++; ended = false;
       if (!m0) m0 = new THREE.Matrix4().makeScale(0, 0, 0);
       umbN.true = umbN.false = umbN.shaft = 0;
