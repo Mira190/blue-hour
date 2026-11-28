@@ -406,16 +406,20 @@ const PAW = 0.05, PAW_N = 30;
 // aim, his push out undone each frame because it would put him in you, until wallsOff's half second moved him (now at
 // once, companion.js tick). Past WALL2 for more than WALL2_N frames fails: the frame he is put there and the next.
 // A head in its own chest, at the skin (tools/hold_depth.js head, less the model's own pose): past HEAD for three
-// readings fails (Taro bent over his camera, 1.4 cm). Seated: the head through a vehicle's roof past ROOF, or the pelvis,
-// a foot or a limb past SEAT beyond the reading's own allowance, for SEAT_N readings a second apart, fails.)
-const WALL2 = 0.05, WALL2_N = 4, HEAD = 0.04, ROOF = 0.03, SEAT = 0.04, SEAT_N = 2;
+// readings fails (Taro bent over his camera, 1.4 cm). Seated: the head through a vehicle's roof past ROOF for SEAT_N
+// readings a second apart fails (it was 9 cm through the helicopter's roof before heliSit). The seat's other readings
+// print and do not fail: at the wheel and at the stick, stills from both doors, ahead and beside (tools/clip_people.js
+// seats) show the thighs on the cushion, the feet on the floor and the hands on the wheel or in the lap, where the rays read
+// thighs 15 to 17 cm, calves 13 to 14 and the feet 9 to 10 under the floor: a cushion and a footwell modelled as solid
+// boxes and shells, met by the rays from either side.)
+const WALL2 = 0.05, WALL2_N = 4, HEAD = 0.04, ROOF = 0.03, SEAT_N = 2;
 const fails = c => (c.kind === 'bodies' && (c.b !== 'guide' || c.n >= 3)) || ((c.kind === 'sunk' || c.kind === 'floating') && !c.a.startsWith('npc ') && c.n >= 3 && c.depth > FOOT)
   || (c.kind === 'hold' && c.n >= 3 && c.depth > H.limitOf(c.a))
   || (c.kind === 'sunk' && c.a !== 'guide' && c.n > STAND_N && c.depth > STAND) || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL_N && c.depth > 0.1)
   || (c.kind === 'sunk' && c.a === 'guide' && c.n > PAW_N && c.depth > PAW)
   || (c.kind === 'wall' && /^guide/.test(c.a) && c.n > WALL2_N && c.depth > WALL2)
   || (c.kind === 'head' && c.n >= 3 && c.depth > HEAD)
-  || (c.kind === 'seat' && c.n >= SEAT_N && c.depth > (/roof/.test(c.b) ? ROOF : SEAT));
+  || (c.kind === 'seat' && /roof/.test(c.b) && c.n >= SEAT_N && c.depth > ROOF);
 
 async function install(page) { await page.addInitScript(H.script); await page.addInitScript(`(${pageSide.toString()})(${NEAR}, ${JSON.stringify(HOLD)})`); }
 async function report(page) { return page.evaluate(() => (window.__probe ? window.__probe.out() : null)).catch(() => null); }

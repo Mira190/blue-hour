@@ -108,14 +108,15 @@ const [,, out = '/tmp/walk-play', size = '1440x900', hour = 'night', sky = 'rain
   };
   const ok = m => console.log(`ok   ${m}`);
   // seated (issue 157): the probe reads the seat under the pelvis, the floor under the feet, the roof over the head and each
-  // limb against the vehicle's own model once a second; a case past its margin fails (tools/clip_probe.js fails)
+  // limb against the vehicle's own model once a second; the head through the roof past 3 cm fails, the rest print
+  // (tools/clip_probe.js fails)
   const seatsSeen = new Set();
   const seatsRead = async what => {
     const R = await clipProbe.report(p);
     if (!R || R.err || !R.seatN) { fail(`${what}: the seat measure did not run (${R ? R.err || 'no reading' : 'no probe in the page'})`); return; }
     const cases = R.cases.filter(c => c.kind === 'seat' && !seatsSeen.has(c.b)); cases.forEach(c => seatsSeen.add(c.b));
     for (const c of cases) (clipProbe.fails(c) ? fail : m => console.log(`note ${m}`))(`seated, ${c.b}: ${c.depth} m, ${c.n} readings`);
-    if (!cases.some(clipProbe.fails)) ok(`${what}: seated, nothing through the seat, the floor or the roof (${R.seatN} readings so far${cases.length ? `; ${cases.length} within the margins` : ''})`);
+    if (!cases.some(clipProbe.fails)) ok(`${what}: seated, the head under the roof (${R.seatN} readings so far${cases.length ? `; ${cases.length} more printed` : ''})`);
   };
   p.on('pageerror', e => fail(`pageerror: ${String(e).slice(0, 200)}`));
   p.on('crash', () => fail('the page crashed (the renderer died)'));
