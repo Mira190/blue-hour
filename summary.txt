@@ -1,0 +1,95 @@
+result: failure
+run: https://github.com/Mira190/blue-hour/actions/runs/46099160664
+targets: static story1 story2 story3 budget1 budget2 budget3 walk1 walk3 walk4 mem ctx roads walk2 ride1 ride2
+ok   budget1 frames 1 to 4 played as a phone plays them; played in 358 s
+ok   budget1 5 beats within the phone budget
+note budget1 hitches, recorded: title p99 278 ms, longest 278; frame 1 p99 54 ms, longest 355; frame 2 p99 51 ms, longest 152; frame 3 p99 56 ms, longest 135; frame 4 p99 60 ms, longest 235
+time: budget1 385 s; 6 min of checks in 6 min of the wall
+ok   budget2 frames 5 and 6 played as a phone plays them, from a case left at frame 5; played in 203 s
+ok   budget2 3 beats within the phone budget
+note budget2 hitches, recorded: title p99 204 ms, longest 204; frame 5 p99 21 ms, longest 233; frame 6 p99 30 ms, longest 169
+time: budget2 220 s; 4 min of checks in 4 min of the wall
+ok   budget3 frame 7 and the last card played as a phone plays them, from a case left at frame 7; played in 132 s
+ok   budget3 2 beats within the phone budget
+note budget3 hitches, recorded: title p99 234 ms, longest 234; frame 7 p99 36 ms, longest 222 (0 linked, 1.0 MB)
+time: budget3 152 s; 3 min of checks in 3 min of the wall
+ok   ctx    22 steps of a lost context at the story's beats and on the walk, desktop and phone
+time: ctx 649 s; 11 min of checks in 11 min of the wall
+ok   mem    GPU peak 248 MB (21.7 MB under its 270), 297 at the end after a collection heap
+ok   mem    layouts: the walkers 1, the cars 1 (3 at most)
+ok   mem    textures 347 MB at a desktop's title with its pictures in blocks, 182 packed
+ok   mem    a lost context on a phone counts as a death at once, once
+ok   mem    12 steps of a phone's lost context and its next load
+ok   mem    a killed page loads a level lighter next time with the measurements off
+ok   order    map: the guide's routes built after the first frame (70.6 s after it)
+ok   bake     map: the bake is what the page computes (it computed it in 2900 ms)
+ok   order    district: the guide's routes built after the first frame (10.5 s after it)
+ok   bake     district: the bake is what the page computes (it computed it in 1055 ms)
+time: mem 692 s; 12 min of checks in 12 min of the wall
+ok   ride   no car in a person along frame 6's ride; mean 21.8 km/h moving
+time: ride1 845 s; 14 min of checks in 14 min of the wall
+ok   ride   12 rides ordered round the Scramble pulled in clear of the drawn rails
+ok   ride   33 drives at the rails, none through one
+ok   ride   16 calls: median 9.9 m: your car clear of every post and rail, one guide to it
+(kept by its files alone: no count of the functions ride2 ran)
+time: ride2 1150 s; 19 min of checks in 19 min of the wall
+FAIL roads  the drive to 109:   (start 3; see /home/runner/work/_temp/check/roads-drive.log; the first run /home/runner/work/_temp/check/roads-drive-first.log)
+time: roads 837 s; 14 min of checks in 14 min of the wall
+ok   voice  1603 lines the characters say, none about the data or the build
+ok   goals  32 checks: the rules, and 1 live maps' lines played to the last stamp
+ok   pack     the packs up to date
+ok   pack     the packs decode to their JSON
+ok   bake     the set-up's fixed work baked from the packs as they are (BAKE_V 1)
+ok   vis      the sweep hides nothing an exact ray reaches
+ok   0 kept plays' beats within their budgets
+ok   governor a device at its limit settles, gives way and comes back
+ok   guide    the guide goes round a held crowd and keeps in front of a run
+ok   walktalk everyone on the walk talked to in any order says words, and the line's person speaks once up
+ok   rings    the solids valid on their grid
+ok   shibuya: roads over 15 % across 2278 of 367115 m (surveyed 21867), creases over 15 % 505 (surveyed 3268), off a 20 m mean 4.66 cm
+shibuya: road plan ok: 4905 pieces, 26 closed, 359 quiet, 1204 bus streets; ends {'gate': 230, 'dead end': 323, 'closure': 2}
+road widths: 565 pieces carry the surveyed carriageway (41.4 km), 67 single track
+ok   roads    the planned area's ground and every hero level's as the survey has them, every lane inside its kerbs
+bus lines: 51 lines on 308 pieces, each along its one-ways
+road routes: 4 places, every drive between them inside the planned area
+ok   roads    no building stands on a road the survey has: a deck or a bridge over it stands off the ground
+ok   levels   no building stands in a train's way: the Yamanote Line's envelope outside the stations' boxes
+ok   roads    your car's first drive leads on, and every street open to it in the area is one a car can use
+ok slopes: 7862 paved cells steeper than 15% (the budget is 8000)
+ok   float    every landmark stands on something
+ok   signs    no sign or screen behind another landmark
+ok   lobby    nothing stands in a lift's lobby, its hall's posts and belts inside it
+ok   signs    every sign reads the right way round and faces the street
+ok   signs    the vehicles' names read the right way round
+ok   flight   the story's flight clears the buildings
+ok   flight   the story's flight in every frame of its shots, from one side of it and clear of the buildings
+ok: 73 pairs of places in the story of shibuya; 0 inside each other, 2 sharing a ring
+ok   bounds   the planned area's edge as the story's and the walk's places give it
+ok   far crowd: a copy of each of the 20 cast members (crowd_cast.glb)
+ok   meshopt 130 models compressed
+ok   parts    the parts of the shared models up to date
+ok   audio    9 uses of what runs off the audio thread, each where it is allowed
+ok   5 opening scores a phone plays from a file, each up to date
+ok   credits  9 works with their licences, the fonts' OFL, the map's sources, the link's picture and the version
+ok   reach    a pass is kept only where the change cannot reach it
+ok   seams    12 parts, 97 globals, 264 names asked across a seam: each one offered by its part's contract
+ok   people   38 models in use give what the page asks of them: joints, clips, materials, faces, their height and their feet
+ok   vendor   three.js carries its fixes (an ImageBitmap made smaller sent unturned)
+time: static 107 s; 2 min of checks in 2 min of the wall
+ok   story1 frames 1 to 4 played from the title to frame 4's print; played in 449 s
+ok   story1 5 beats within the desktop budget
+time: story1 478 s; 8 min of checks in 8 min of the wall
+ok   story2 frames 5 and 6 played from a case left at frame 5; played in 307 s
+ok   story2 3 beats within the desktop budget
+time: story2 350 s; 6 min of checks in 6 min of the wall
+ok   story3 frame 7 and the last card played from a case left at frame 7; played in 156 s
+ok   story3 2 beats within the desktop budget
+time: story3 185 s; 3 min of checks in 3 min of the wall
+ok   walk   41 beats on a desktop's page, its first part: two ways in, the hour and the sky, out with no story
+time: walk1 501 s; 8 min of checks in 8 min of the wall
+ok   walk   71 beats on a phone's page: two ways in, the hour and the sky, out with no story
+time: walk2 840 s; 14 min of checks in 14 min of the wall
+ok   walk   16 beats on a desktop's page, its second part: two ways in, the hour and the sky, out with no story
+time: walk3 933 s; 16 min of checks in 16 min of the wall
+ok   walk   19 beats on a desktop's page, its third part: two ways in, the hour and the sky, out with no story
+time: walk4 858 s; 14 min of checks in 14 min of the wall
