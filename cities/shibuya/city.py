@@ -58,7 +58,11 @@ def _sibling(name):
     """A module next to this file (this file is loaded by path, so its folder is not on sys.path)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(f"shibuya_{name}", os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{name}.py"))
+    import sys
+    if spec.name in sys.modules:   # (one module however many of its neighbours load it: rail.py's layout made once)
+        return sys.modules[spec.name]
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 

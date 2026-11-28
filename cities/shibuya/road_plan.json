@@ -2,7 +2,7 @@
  "note": "A city's road plan as pipeline/road_plan.py decided it (docs/ROADS.md): the report, and every end of the network that is not a junction.",
  "report": {
   "pieces": 4905,
-  "km": 360.35,
+  "km": 360.34,
   "closed": 26,
   "closed_km": 1.73,
   "closed_why": {
@@ -17,22 +17,22 @@
    "a one-way street into a dead end: no car may leave it": 6,
    "leads only into a lane closed to cars": 2
   },
-  "quiet": 358,
-  "quiet_km": 23.4,
+  "quiet": 359,
+  "quiet_km": 23.59,
   "bus": 1204,
   "bus_km": 97.85,
   "one_way": 1656,
   "node_degrees": {
-   "1": 554,
-   "2": 151,
-   "3": 2123,
+   "1": 555,
+   "2": 152,
+   "3": 2122,
    "4": 582,
    "5": 35,
    "6": 5
   },
   "ends": {
    "gate": 230,
-   "dead end": 322,
+   "dead end": 323,
    "closure": 2
   },
   "extent": [
@@ -74,7 +74,7 @@
    "source": "OpenStreetMap contributors (ODbL), the OSM API's map call, fetched 2026-11-21: highway ways open to cars, the ways of route=bus relations, amenity=taxi, barrier nodes on roads; lon/lat. GTFS shapes: 都営バス (東京都交通局), feed version 20261122_030832, CC BY 4.0, from the Public Transportation Open Data Center"
   },
   "bus_routes": 113,
-  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-24): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
+  "measured": "The game's own measure of its roads against the built model (tools/road_net_dump.js, 2026-11-27): the pieces it cuts at a wall, and those no car fits along; each by its ends in decimetres. Measured again, a piece still in the list is kept: one that has been opened is taken out by hand, or with FRESH=1.",
   "one_way_from_osm": 9,
   "gaps_joined": 0,
   "joined_under_cover": 4,
@@ -2314,6 +2314,15 @@
    "kind": "dead end",
    "piece": 4666,
    "class": "residential"
+  },
+  {
+   "at": [
+    594.8,
+    -1408.9
+   ],
+   "kind": "dead end",
+   "piece": 4114,
+   "class": "unclassified"
   },
   {
    "at": [
